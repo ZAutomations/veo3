@@ -867,7 +867,7 @@ async uploadRefViaSendKeys(filePath) {
                 continue;
             }
             await wait(2500);
-            const picked = await this.evalJs(() => {
+            const picked = await this.evalJs((wantModel) => {
                 const ov = document.querySelector('.cdk-overlay-container');
                 if (!ov) return { state: 'no-overlay' };
                 // Every extend entry reads "Extend (Veo ...)"; the plan decides
@@ -875,7 +875,14 @@ async uploadRefViaSendKeys(filePath) {
                 // fall back to any Veo extend entry so a plan change can't stall.
                 const items = [...ov.querySelectorAll('button, [role=menuitem], a, [role=option]')]
                     .filter(x => /extend/i.test(x.innerText || '') && /veo/i.test(x.innerText || ''));
-                if (!items.length) return { state: 'no-extend-item' };
+                if (!items.length) {
+                    // Dump what the menu DOES hold - far more useful than a bare
+                    // "no item" when a plan or a label changes underneath us.
+                    const offered = [...ov.querySelectorAll('button, [role=menuitem], a, [role=option]')]
+                        .map(x => (x.innerText || '').trim().slice(0, 60))
+                        .filter(Boolean).slice(0, 12);
+                    return { state: 'no-extend-item', offered };
+                }
                 const labelOf = (el) => {
                     const l = el.querySelector('.label');
                     return ((l ? l.textContent : el.innerText) || '').trim();
@@ -888,6 +895,12 @@ async uploadRefViaSendKeys(filePath) {
             }, this.extendModel);
             if (!picked || picked.state !== 'clicked') {
                 log(`   Extend menu problem: ${picked ? picked.state : 'eval error'}`);
+                if (picked && picked.__error) {
+                    log(`      page error: ${picked.__error}`);
+                }
+                if (picked && picked.offered && picked.offered.length) {
+                    log(`      menu actually contained: ${picked.offered.join(' | ')}`);
+                }
             }
             if (picked && picked.state === 'clicked') {
                 log(picked.preferred
