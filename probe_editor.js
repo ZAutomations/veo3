@@ -3,7 +3,8 @@
  * EDITOR DOM PROBE
  * =================
  * Dumps the Flow scene-editor timeline structure so we can find a RELIABLE
- * selector for "the newest clip" instead of clicking blind canvas coordinates.
+ * selector for "the newest clip". Timeline clips are DOM (div.clip inside
+ * .timeline-contents); the only <canvas> is the video preview.
  *
  * Run it while the scene editor is open in the automation browser:
  *

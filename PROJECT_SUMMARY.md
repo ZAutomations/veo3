@@ -19,11 +19,36 @@ this file tracks **state and direction**, not instructions.
 
 ## The main open problem: selecting the newest clip
 
-Flow draws the timeline on a `<canvas>`. Clips are **not** DOM elements, so
-there is no selector for "the clip I just generated". Today the engine scrolls
-the timeline to the end and clicks by coordinate, which works sometimes and
-misses other times. When it misses, the following extend is appended after the
-wrong clip and the whole sequence comes out interleaved.
+Clips **are** DOM elements — this was originally misdiagnosed. The only
+`<canvas>` in the scene editor is `.video-canvas`, the video *preview*. The
+timeline is ordinary Angular DOM:
+
+```
+div.timeline-contents                      (cdk-drop-list)
+  ├─ div.clip.is-first.is-last.selected    ← one node per clip
+  │    └─ div.clip-body                    ← drag surface, click target
+  ├─ div.add-clip-button-container
+  │    └─ button[aria-label="Add clip"]
+  └─ flow-extend-menu
+```
+
+The newest clip is the **last** `.clip` in that list, so the engine selects it
+by clicking the last `.clip-body` and then verifies `.selected` is present.
+
+Relevant selectors confirmed by probe:
+
+| Thing | Selector |
+|---|---|
+| All clips | `.timeline-contents .clip` |
+| Newest clip | last of the above (`is-last` when it is the tail) |
+| Click target | `.clip-body` |
+| Horizontal scroller | `.timeline-area` (scrollWidth 2061 vs clientWidth 1912) |
+| Total duration | `.duration-timecode-value` → `MM:SS:FF` (8s reads `00:08:00`) |
+| Playhead position | `.timecode-value` |
+| Add clip | `button[aria-label="Add clip"]` |
+
+One 8-second clip measured 816px wide against a ruler marked 00–19, i.e. about
+**102px per second** — enough to sanity-check a duration against a clip's width.
 
 `probe_editor.js` is the diagnostic written to fix this properly. Run it with
 the scene editor open:
@@ -32,7 +57,7 @@ the scene editor open:
 node probe_editor.js --cdp 9222
 ```
 
-It dumps the canvas geometry, every horizontally scrollable container, the
+It dumps the timeline DOM, every horizontally scrollable container, the
 duration readouts and the ancestor chain above `.extend-placeholder-text` to
 `logs/editor_probe_<timestamp>.json`. The goal is to find a stable DOM anchor —
 or a reliable coordinate derivation — to replace the blind click.

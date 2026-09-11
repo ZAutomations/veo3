@@ -198,7 +198,7 @@ When the timeline misbehaves, run this with the scene editor open:
 node probe_editor.js --cdp 9222
 ```
 
-It writes `logs/editor_probe_<timestamp>.json` containing the timeline canvas,
+It writes `logs/editor_probe_<timestamp>.json` containing the timeline DOM —
 the scroll containers, the duration readouts and the DOM ancestors of
 `.extend-placeholder-text`. It contains DOM structure only — no account data —
 so it's safe to share when asking for help.
@@ -209,11 +209,13 @@ so it's safe to share when asking for help.
 
 Ordered by how likely they are to bite.
 
-1. **Selecting the newest clip is heuristic.** The timeline is a `<canvas>` with
-   no per-clip DOM, so the engine scrolls to the end and clicks by coordinate.
-   When it misses, the next extend appends after the wrong clip and the
-   sequence comes out out of order. `probe_editor.js` exists to replace this
-   with a real anchor — that work is not finished.
+1. **Selecting the newest clip was heuristic — now DOM-based.** Timeline clips
+   are real DOM (`div.clip` inside `.timeline-contents`), so the engine selects
+   the newest one by clicking the last `.clip-body` and then **verifies** it
+   carries `.selected`. If the selection cannot be confirmed it logs a warning;
+   if the clip count does not advance by exactly one it aborts the run rather
+   than build on a bad assumption. This replaced an earlier coordinate-based
+   click that could select a middle clip and scramble the sequence.
 2. **Per-scene reference attachment is unverified against live Flow.** Scenes 2+
    open the asset picker, match `asset-title` against the character name, select,
    and confirm with **Add to prompt**. Flow ignores selections that skip that

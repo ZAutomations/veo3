@@ -175,6 +175,7 @@ class Veo3FlowNewUI {
         // so this is overridable at runtime instead of baked in.
         this.extendModel = opts.extendModel || CONFIG.EXTEND_MODEL;
         this.okScenes = []; // scene numbers that exist on the timeline
+        this.sequenceSuspect = false; // set when a clip may have landed out of order
 
         const jsonDir = path.dirname(this.jsonFilePath);
         const jsonName = path.basename(this.jsonFilePath, '.json');
@@ -331,6 +332,15 @@ class Veo3FlowNewUI {
     // "00:00:08:00" (HH:MM:SS:FF). Returns the max in SECONDS.
     async getTimelineSeconds() {
         const r = await this.evalJs(() => {
+            // Preferred: the timeline's TOTAL duration readout (MM:SS:FF).
+            // The playhead's own .timecode-value is always smaller, so this is
+            // unambiguous where the old max-scan-over-all-readouts was not.
+            const dur = document.querySelector('.duration-timecode-value');
+            if (dur) {
+                const g = (dur.textContent || '').trim().split(':').map(Number);
+                if (g.length === 3 && g.every(n => !isNaN(n))) return g[0] * 60 + g[1];
+            }
+            // Fallback: highest MM:SS:FF-shaped string anywhere on the page.
             const out = [];
             const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
             while (walker.nextNode()) {
@@ -339,6 +349,7 @@ class Veo3FlowNewUI {
             }
             return out;
         });
+        if (typeof r === 'number') return r;
         if (!Array.isArray(r) || !r.length) return 0;
         let max = 0;
         for (const t of r) {
@@ -951,10 +962,17 @@ async uploadRefViaSendKeys(filePath) {
         return (typeof n === 'number') ? n : 0;
     }
 
+    // How many clips are on the timeline. This is the strongest structural
+    // signal available: one completed extend must add exactly one clip.
+    async countClips() {
+        const n = await this.evalJs(() => document.querySelectorAll('.timeline-contents .clip').length);
+        return (typeof n === 'number') ? n : 0;
+    }
+
     async waitForExtendComplete(sceneNum, prevSeconds, slotsAfterArm) {
         // VELOCITY OF VEO 3.1 LITE: a clip typically lands in 15-60s. There is
         // NO reliable DOM signal for completion (the reserved slot's marker
-        // disappears at generation START, clips render on canvas). So we use
+        // disappears at generation START). So we use
         // the old tool's proven strategy: fixed minimum wait + error sniffing.
         const minWaitMs = 75000;   // never proceed before this
         const target = prevSeconds + CONFIG.SCENE_SECONDS - 1;
@@ -989,18 +1007,21 @@ async uploadRefViaSendKeys(filePath) {
         }
         throw new Error(`Scene ${sceneNum}: TIMEOUT waiting for generation`);
     }
-    // The timeline is scrollable and usually zoomed IN, so the canvas' right
-    // edge is NOT the newest clip - it is whatever clip happens to be visible.
-    // Clicking there selects a middle clip and the next extend inserts in the
-    // wrong place (the "mixed sequence" symptom). Pin the view to the far right
-    // first, so right-edge really is the newest clip.
+    // The timeline scrolls horizontally and is usually zoomed IN, so pinning
+    // the view to the far right keeps the newest clip on screen before we click
+    // it. (Selection itself is DOM-based - see clickNewestClip.)
     async scrollTimelineToEnd() {
         const r = await this.evalJs(() => {
-            let scroller = null;
-            for (const el of document.querySelectorAll('div')) {
-                const ox = getComputedStyle(el).overflowX;
-                if ((ox === 'auto' || ox === 'scroll') && el.scrollWidth > el.clientWidth + 8) {
-                    scroller = el; break;
+            // .timeline-area is the real horizontal scroller (confirmed by probe).
+            // Fall back to the first scrollable div if Flow renames it.
+            let scroller = document.querySelector('.timeline-area');
+            if (!scroller || scroller.scrollWidth <= scroller.clientWidth + 8) {
+                scroller = null;
+                for (const el of document.querySelectorAll('div')) {
+                    const ox = getComputedStyle(el).overflowX;
+                    if ((ox === 'auto' || ox === 'scroll') && el.scrollWidth > el.clientWidth + 8) {
+                        scroller = el; break;
+                    }
                 }
             }
             if (!scroller) return { ok: false };
@@ -1019,42 +1040,66 @@ async uploadRefViaSendKeys(filePath) {
     }
 
     // export & split
-    // Select the newly generated clip. The timeline is a CANVAS - clips are
-    // drawn, not DOM. The newest clip sits at the RIGHT end of the canvas, so
-    // click there. This makes the next "Add clip" (+) appear at the end.
+    // Select the newly generated clip so the NEXT extend appends after it.
+    //
+    // CORRECTION (verified against the live editor by probe_editor.js): the
+    // timeline is NOT a canvas. The only <canvas> in the scene editor is
+    // .video-canvas, which is the video PREVIEW. Timeline clips are real DOM:
+    // div.clip inside .timeline-contents, each with a .clip-body drag surface
+    // and is-first / is-last / selected classes. The newest clip is simply the
+    // LAST one - so select it by clicking its own body, with no coordinate
+    // guessing based on the preview canvas.
     async clickNewestClip() {
         await this.scrollTimelineToEnd();
-        // If extend is armed, an empty slot occupies the right edge of the
-        // canvas - clicking the raw right edge hits the EMPTY slot, not the
-        // newest clip. So we click just LEFT of the empty slot (inside the
-        // newest clip). Uses the slot's DOM position when present.
         const pt = await this.evalJs(() => {
-            const c = document.querySelector('CANVAS.video-canvas') || document.querySelector('canvas');
-            if (!c) return null;
-            const r = c.getBoundingClientRect();
-            let x = r.x + r.width - 30;
-            const slot = document.querySelector('.extend-placeholder-text');
-            if (slot) {
-                const sr = slot.getBoundingClientRect();
-                if (sr.left > r.x) x = sr.left - 12;
-            }
-            return { rawX: Math.round(r.x + r.width - 30), x: Math.round(x), y: Math.round(r.y + r.height / 2), hasSlot: !!slot };
+            const clips = [...document.querySelectorAll('.timeline-contents .clip')];
+            if (!clips.length) return null;
+            const last = clips[clips.length - 1];
+            const body = last.querySelector('.clip-body') || last;
+            const r = body.getBoundingClientRect();
+            return {
+                x: Math.round(r.x + r.width / 2),
+                y: Math.round(r.y + r.height / 2),
+                count: clips.length,
+                alreadySelected: last.classList.contains('selected'),
+                isLast: last.classList.contains('is-last'),
+                w: Math.round(r.width),
+                hasSlot: !!document.querySelector('.extend-placeholder-text'),
+            };
         });
         if (!pt || pt.__error) {
-            log('   ⚠️  timeline canvas not found - cannot click newest clip');
+            log('   WARN: no .timeline-contents .clip found - cannot select the newest clip');
             return false;
         }
+        if (pt.alreadySelected) {
+            log(`   OK: newest clip (${pt.count}/${pt.count}, ${pt.w}px) is already selected - skipping click`);
+            return true;
+        }
         await this.page.mouse.click(pt.x, pt.y);
-        log(`   🖱️  Selected newest clip (x=${pt.x} y=${pt.y}${pt.hasSlot ? ', left-of-slot' : ''})`);
-        await wait(2500);
-        return true;
+        log(`   Clicked newest clip at x=${pt.x} y=${pt.y} (clip ${pt.count}, ${pt.w}px)`);
+        await wait(1200);
+        // Confirm the click actually landed: the last clip must now carry
+        // .selected. If it does not, the next extend appends after whatever IS
+        // selected - which is exactly how a sequence gets scrambled.
+        const ok = await this.evalJs(() => {
+            const clips = [...document.querySelectorAll('.timeline-contents .clip')];
+            return clips.length ? clips[clips.length - 1].classList.contains('selected') : false;
+        });
+        if (ok === true) {
+            log(`   OK: clip ${pt.count} of ${pt.count} (the newest) is selected`);
+            return true;
+        }
+        log(`   WARN: could not confirm the newest clip is selected (${pt.count} clips on timeline)`);
+        return false;
     }
 async doExtendScene(scene, sceneNum) {
         const prev = await this.getTimelineSeconds();
+        this.clipsBeforeExtend = await this.countClips();
         log(`   📏 Timeline before: ${prev}s`);
         await this.armExtend(sceneNum);
         const slotsAfterArm = await this.countEmptySlots();
-        log(`   📐 Reserved empty slots after arming: ${slotsAfterArm}`);
+        this.clipsAfterArm = await this.countClips();
+        log(`   📐 Reserved empty slots after arming: ${slotsAfterArm} | clips ${this.clipsBeforeExtend} -> ${this.clipsAfterArm}`);
         if (slotsAfterArm === 0) {
             throw new Error('no empty slot was reserved after arming - extend did not engage');
         }
@@ -1065,7 +1110,37 @@ async doExtendScene(scene, sceneNum) {
         await this.clickStartGeneration();
         await this.autoApproveCredits();
         const now = await this.waitForExtendComplete(sceneNum, prev, slotsAfterArm);
-        await this.clickNewestClip();
+        const selected = await this.clickNewestClip();
+
+        // INTEGRITY GUARD. One completed extend must leave exactly one MORE clip
+        // than we started with. We deliberately record the count a second time
+        // AFTER arming, because arming may insert a placeholder .clip node that
+        // generation later converts in place - so "before" and "after" are not
+        // the only two useful readings.
+        //
+        // This is a WARNING, not a fatal error, and deliberately so: the
+        // mid-generation DOM has never been probed, so the exact placeholder
+        // behaviour is unverified. A guard that aborts a healthy run is worse
+        // than no guard. Once a live run shows what these numbers actually look
+        // like, the unambiguous cases below can be promoted to hard failures.
+        const clipsNow = await this.countClips();
+        const gained = clipsNow - this.clipsBeforeExtend;
+        log(`   CLIPS: ${this.clipsBeforeExtend} -> ${this.clipsAfterArm} (after arm) -> ${clipsNow} (after gen) | timeline ${prev}s -> ${now}s`);
+        if (gained !== 1) {
+            log(`   WARN: expected to gain exactly 1 clip for scene ${sceneNum}, gained ${gained}.`);
+            log(`   WARN: the extend may have landed in the wrong place - check scene order before exporting.`);
+            this.sequenceSuspect = true;
+        }
+        if (clipsNow < this.clipsBeforeExtend) {
+            throw new Error(
+                `Scene ${sceneNum}: clip count DROPPED from ${this.clipsBeforeExtend} to ${clipsNow}. ` +
+                `A clip was lost - stopping before more credits are spent.`
+            );
+        }
+        if (!selected) {
+            log(`   WARN: scene ${sceneNum} clip may not be selected - the next extend could append in the wrong place`);
+            this.sequenceSuspect = true;
+        }
         this.okScenes.push(sceneNum);
         return now;
     }
@@ -1221,6 +1296,14 @@ ${'='.repeat(70)}
         if (failed.length) {
             log(`âš ï¸  Scenes missing from timeline: ${failed.join(', ')}`);
             log('   Re-run with --from/--to for just those scenes before exporting.');
+        }
+
+        if (this.sequenceSuspect) {
+            banner('WARNING: CLIP ORDER MAY BE WRONG');
+            console.log('One or more extends did not add exactly one clip in the expected place,');
+            console.log('or a newly generated clip could not be confirmed as selected.');
+            console.log('WATCH THE CLIPS IN FLOW ORDER BEFORE YOU USE THESE FILES - the split below');
+            console.log('will happily cut a scrambled timeline into scene-01.mp4, scene-02.mp4, ...');
         }
 
         if (this.okScenes.length >= 1) {
