@@ -1,0 +1,19 @@
+{
+  "name": "veo3-flow-automation",
+  "version": "1.0.0",
+  "description": "Automates multi-scene video generation on Google Flow's Scenes UI via Puppeteer + CDP",
+  "private": true,
+  "main": "veo3_flow_new_ui.js",
+  "scripts": {
+    "start": "node veo3_flow_new_ui.js",
+    "probe": "node probe_editor.js --cdp 9222",
+    "gui": "python veo3_gui.py",
+    "check": "node --check veo3_flow_new_ui.js && node --check probe_editor.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "puppeteer": "^24.35.0"
+  }
+}

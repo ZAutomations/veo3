@@ -1,0 +1,49 @@
+{
+  "title": "The Same Song",
+  "description": "A 40-second live-action short: two strangers reach for the last copy of their shared favourite record at the same moment — and end up sharing a lot more.",
+  "total_scenes": 5,
+  "video_duration": "40 seconds",
+  "niche": "Romance / Meet-Cute Shorts",
+  "style": "Photorealistic live-action cinematic",
+  "character_references": {
+    "nora": "./character_refs/nora_reference_sheet.jpeg",
+    "elias": "./character_refs/elias_reference_sheet.jpeg"
+  },
+  "scenes": [
+    {
+      "_scene_number": 1,
+      "_scene_title": "The Sunflower Press",
+      "scene_builder_action": "text_to_video",
+      "characters": ["elias"],
+      "veo3_prompt": "[SHOT] Steadicam follow-through through the doorway of a small independent record shop, warm late-afternoon sun, dust motes in the light. [LOOK] Photorealistic live-action film, natural skin texture, warm cinematic color grade, 35mm feel. Elias, 28, dark wavy hair, short groomed beard, round tortoiseshell glasses, olive-green chore jacket over a plain white tee, tan chinos (match reference image exactly), hurries to the wooden counter cradling a worn brown messenger bag with an enamel cassette pin. Clerk (background, not in focus): \"Afternoon — can I help?\" Elias: \"The sunflower press. The reissue. Please tell me you still have it.\" Clerk points with a record sleeve toward a small glass listening booth at the back wall where soft acoustic music plays and a customer's silhouette is visible inside. Elias exhales a relieved laugh, shoulders dropping, and walks toward the booth, hopeful smile. [AUDIO] Low shop chatter, warm acoustic guitar bleeding from the booth speakers. Narrator (V.O., warm, light): \"He'd driven across town for one last copy of his favourite record.\""
+    },
+    {
+      "_scene_number": 2,
+      "_scene_title": "She Got Here First",
+      "scene_builder_action": "extend",
+      "characters": ["nora"],
+      "veo3_prompt": "[CONTINUE from last frame] [SHOT] Medium shot inside the warm glass listening booth, then tracking out as she leaves. [LOOK] Photorealistic live-action, consistent with previous frame. Nora, 26, shoulder-length warm chestnut hair with soft curtain bangs, light freckles across her nose, round brown eyes, mustard-yellow cardigan over a cream knit tee, light-wash straight jeans (match reference image exactly). She lifts the headphones from her ears, delighted, holding up a cream-sleeved record with a pressed sunflower illustration, spinning it in the light. She mouths \"this is it,\" checks the price tag, grins, and tucks the record under her arm. She steps out into the aisle and freezes: at the counter, Elias's face falls as the clerk shrugs — \"Sorry, mate, that last one just went.\" She glances at the record under her arm, then back at his disappointed face. Her steps slow. [AUDIO] Record still faintly spinning behind her, shop murmur. Narrator (V.O.): \"She'd found it first. He just didn't know it yet.\""
+    },
+    {
+      "_scene_number": 3,
+      "_scene_title": "Two Hands, One Record",
+      "scene_builder_action": "extend",
+      "characters": ["nora", "elias"],
+      "veo3_prompt": "[CONTINUE from last frame] [SHOT] Handheld two-shot, slow push-in across the shop aisle. [LOOK] Photorealistic live-action, consistent with previous frame. Nora (mustard cardigan, chestnut hair) walks over and holds the sunflower record out to Elias (olive chore jacket, tortoiseshell glasses). Nora: \"You were here for this?\" Elias, caught: \"The sunflower press? It's — it's my favourite.\" She smiles and presses it toward him: \"Then it's yours.\" He puts his hands up, laughing: \"No way. You found it. I can't.\" She insists, he refuses, both talking over each other, until the same realisation lands on both faces at once: Nora: \"Wait. This is YOUR favourite record too?\" Elias taps his cassette pin: \"I've seen this band live three times.\" Nora: \"I've played this song every birthday since I was fifteen.\" A pause, then they both laugh. The clerk (background, amused, from the counter): \"We've got a booth in the back if you two want to argue over it properly.\" They look at the booth, then at each other. Elias grins and sweeps a hand toward it: \"After you.\" [AUDIO] Shop speakers, light crowd murmur, warm strings swell gently. Narrator (V.O.): \"Some coincidences just have a needle drop.\""
+    },
+    {
+      "_scene_number": 4,
+      "_scene_title": "Shared Frequency",
+      "scene_builder_action": "extend",
+      "characters": ["nora", "elias"],
+      "veo3_prompt": "[CONTINUE from last frame] [SHOT] Close, warm shots inside the small glass booth, two paper coffee cups steaming on the shelf. [LOOK] Photorealistic live-action, consistent with previous frame. The sunflower record spins on the turntable, warm acoustic track playing. Nora (mustard cardigan, chestnut hair) and Elias (olive chore jacket, tortoiseshell glasses) share ONE pair of over-ear headphones: her left ear against the left cup, his right ear against the right cup, heads tipped together across the small table, faces close. They mouth the lyrics, grin at each other when the needle crackles, Nora taps her silver ring in rhythm on the table, Elias sways on his stool. A beat where they catch each other's gaze and neither pulls away. The song ends and the needle auto-returns with a soft click — silence — Nora, quietly: \"What's on the B-side?\" Elias reaches for the record, suddenly shy, a half-smile: \"Better than the A-side. Promise.\" [AUDIO] Warm acoustic song, soft needle crackle, two heartbeats of quiet at the end. Narrator (V.O., gentle): \"They came in for one song.\""
+    },
+    {
+      "_scene_number": 5,
+      "_scene_title": "The B-Side",
+      "scene_builder_action": "extend",
+      "characters": ["nora", "elias"],
+      "veo3_prompt": "[CONTINUE from last frame] [SHOT] Slow pull-back wide shot through the shop window to the street at dusk, then hold. [LOOK] Photorealistic live-action, consistent with previous frame. Evening, blue hour, the record shop glowing warm amber behind them; the clerk flips the hanging sign to \"CLOSED.\" Elias (olive chore jacket) holds the sunflower record bag with both hands; Nora (mustard cardigan) stands beside him, both a little reluctant to leave. Elias: \"So — that B-side.\" Nora raises an eyebrow, smiling: \"So?\" He rubs the back of his neck: \"I meant coffee. Tomorrow?\" She considers, then grins: \"You bought the record — I'll buy the coffee.\" He looks at the bag, then back at her, laughing: \"Deal.\" They shake on it, laughing, and turn to walk down the lamplit street together, the record bag swinging between them. Camera pulls wide until they're two small warm figures under the street lamps. [AUDIO] Shop door chime, soft city night, the faint warm guitar from the record fading in. Narrator (V.O., warm): \"He came in for one song. He walked out with a duet — and a date.\""
+    }
+  ]
+}

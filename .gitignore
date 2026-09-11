@@ -1,0 +1,31 @@
+# ── Dependencies ────────────────────────────────────────────────────────────
+node_modules/
+__pycache__/
+*.pyc
+
+# ── Local state (contains your Flow project URLs) ───────────────────────────
+gui_settings.json
+
+# ── Generated media & per-run artifacts ─────────────────────────────────────
+*.mp4
+*.zip
+*.webm
+stories/**/output/
+stories/**/logs/
+logs/
+
+# Reference sheets are yours, not the repo's - but keep the folder + its README
+stories/**/character_refs/*
+!stories/example_story/character_refs/README.md
+
+# ── Old-UI tool copies kept locally for reference ───────────────────────────
+reference/
+
+# ── OS / editor noise ───────────────────────────────────────────────────────
+# Stray placeholder left over from before these story folders had content.
+stories/**/.gitkeep
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.log

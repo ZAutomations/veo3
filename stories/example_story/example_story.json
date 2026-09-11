@@ -1,0 +1,40 @@
+{
+  "title": "Example Story (3 scenes)",
+  "description": "Template showing every field the engine reads. Copy this folder, rename it, swap in your own scenes and reference sheets.",
+  "total_scenes": 3,
+  "video_duration": "24 seconds",
+  "niche": "Any",
+  "style": "Photorealistic live-action cinematic",
+
+  "project_url": "https://flow.google.com/project/PASTE-YOUR-PROJECT-ID-HERE",
+
+  "character_references": {
+    "alex": "./character_refs/alex_reference_sheet.jpeg",
+    "sam": "./character_refs/sam_reference_sheet.jpeg"
+  },
+
+  "scenes": [
+    {
+      "_scene_number": 1,
+      "_scene_title": "Establishing",
+      "_story_beat": "Optional note for yourself - the engine ignores _-prefixed fields.",
+      "scene_builder_action": "text_to_video",
+      "characters": ["alex", "sam"],
+      "veo3_prompt": "[SHOT] Wide establishing shot, 35mm lens, shallow depth of field. [LOOK] Photorealistic live-action film, natural skin texture, soft cinematic color grade. Alex, 30, short dark hair, navy jacket (match reference image exactly), walks through a quiet morning street. Sam, 28, auburn hair, green coat (match reference image exactly), waits on a bench reading. [AUDIO] Ambient city morning, soft piano bed. Narrator (V.O.): \"Every story starts somewhere ordinary.\""
+    },
+    {
+      "_scene_number": 2,
+      "_scene_title": "First contact",
+      "scene_builder_action": "extend",
+      "characters": ["alex"],
+      "veo3_prompt": "[CONTINUE from last frame] [SHOT] Medium close-up, handheld, gentle push-in. [LOOK] Photorealistic live-action, consistent with previous frame. Alex slows, glances toward the bench, hesitates, then sits down at the far end. Sam looks up from the book. Neither speaks. [AUDIO] Ambient street, piano continues, a single held string."
+    },
+    {
+      "_scene_number": 3,
+      "_scene_title": "Resolution",
+      "scene_builder_action": "extend",
+      "characters": ["alex", "sam"],
+      "veo3_prompt": "[CONTINUE from last frame] [SHOT] Slow pull-back wide, warm practical light. [LOOK] Photorealistic live-action, consistent with previous frame. The two of them now talking easily, both laughing, the book closed on Sam's lap. Camera pulls back until they are two small warm figures in a wide quiet street. [AUDIO] Piano resolves to a final warm chord. Narrator (V.O., gentle): \"And sometimes that is enough.\""
+    }
+  ]
+}
