@@ -1,5 +1,7 @@
 Create 5 separate clips, one clip per scene, using @Mia and @Daniel, up to 8 seconds each.
 
+FORMAT: every clip is 16:9 landscape (widescreen). Keep the same aspect ratio in every clip.
+
 STORY: "The Rain Between Us"
 A 40-second live-action short: a stranger's small act of kindness on a rainy evening turns into an unexpected connection
 

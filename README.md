@@ -218,6 +218,14 @@ agent produced exactly that. The JSON already holds the narration
 from it. It warns if any scene has no narration line, because the agent will
 invent those scenes.
 
+It also writes the **clip format** — aspect ratio and seconds per clip — because
+Agent Mode has no settings panel to set them in. The format is asked for in
+words, so if the prompt doesn't say it, you get whatever Flow defaults to. The
+first two stories came out 16:9 by luck, not by request. Override per run with
+`--aspect` / `--seconds`, or per story with `aspect_ratio` / `scene_seconds` in
+the JSON; the CLI wins. The GUI's **Clip format** row shows whichever the story
+carries, so the controls and the prompt cannot disagree.
+
 **Stage 2 — `agent_mode.js`.** Types the prompt, then attaches each `@mention`
 **last**. Typing `@Mia` mid-sentence sends the rest of the sentence into the
 asset picker as a search filter, which matches nothing and truncates the
@@ -312,6 +320,11 @@ belong is the whole symptom: no mentions, so no reference sheets attach, and the
 agent invents the cast. Check the `characters :` line in the builder's summary
 before spending anything.
 
+Two further fields are optional, and are the ones nothing else will catch for
+you: `aspect_ratio` and `scene_seconds`. Leave them out and the builder falls
+back to 16:9 and 8 s — correct for YouTube, but silently so, and a story that
+wants vertical never gets it.
+
 Two traps when converting:
 
 - **List only who is present.** Crediting an absent character invites the model to
@@ -324,6 +337,23 @@ Two traps when converting:
 `convert_bridge_story.py` is a worked example of the whole conversion.
 
 ### Agent Mode flags
+
+`story_to_agent_prompt.js`
+
+| Flag | Meaning |
+|---|---|
+| `--out PATH` | Where to write the prompt. Default `<story_dir>/agent_prompt.txt`. |
+| `--print` | Print the prompt, write no file. |
+| `--aspect R` | `16:9`, `9:16`, `1:1`. Overrides the story JSON. Default `16:9`. |
+| `--seconds N` | Seconds per clip. Overrides the story JSON. Default `8`. |
+
+An unrecognised `--aspect` is passed into the prompt as written and warned about,
+rather than quietly replaced with 16:9 — Flow adds ratios from time to time and
+this list cannot know about them. `--seconds` above 8 also warns: 8 s is the
+documented ceiling for Veo 3.1 - Lite [Lower Priority], and asking it for longer
+makes the agent refuse or re-plan the storyboard instead of failing loudly. The
+GUI's spinbox stops at 8 for the same reason; go past it via the CLI or the JSON
+when a model that takes longer clips is on the plan.
 
 `agent_mode.js`
 

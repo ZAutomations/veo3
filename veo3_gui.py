@@ -63,6 +63,15 @@ DEFAULTS = {
     "no_submit": True,
     "watch_secs": 300,
     "clips_dir": "",
+    # Clip format. Agent Mode has no settings panel, so these reach Flow as words
+    # in the prompt. 16:9 is YouTube's shape; the first two stories came out that
+    # way only because it is Flow's default, not because anything asked for it.
+    "aspect_ratio": "16:9",
+    # 8s is the ceiling for Veo 3.1 - Lite [Lower Priority]. The spinbox stops
+    # there on purpose; a longer clip needs the CLI or the story JSON, and the
+    # builder warns when you go over.
+    "scene_seconds": 8,
+
     # Flow's project grid is newest-first, so DOM order is the reverse of scene
     # order and numbering clips by on-screen order names scene 7 as scene-01.mp4.
     # Both stories run so far have been newest-first, hence the default.
@@ -253,6 +262,26 @@ class Veo3LauncherGUI:
             row=r, column=1, sticky="w", padx=(290, 14))
         r += 1
 
+        # The format is asked for in words because there is no panel to set it in.
+        # Combobox left editable rather than readonly: the builder passes an
+        # unrecognised ratio through as written, so a ratio Flow adds later can be
+        # typed here without waiting for this list to learn about it.
+        ttk.Label(f, text="Clip format:").grid(row=r, column=0, sticky="e", **pad)
+        fmt = tk.Frame(f, bg="#1e1e28")
+        fmt.grid(row=r, column=1, columnspan=2, sticky="w", padx=14)
+        self.aspect_var = tk.StringVar(value=self.settings["aspect_ratio"])
+        ttk.Combobox(fmt, textvariable=self.aspect_var, width=7,
+                     values=["16:9", "9:16", "1:1"]).pack(side="left")
+        ttk.Label(fmt, text="aspect", style="Hint.TLabel").pack(side="left", padx=(6, 18))
+        self.seconds_var = tk.IntVar(value=self.settings["scene_seconds"])
+        ttk.Spinbox(fmt, from_=1, to=8, textvariable=self.seconds_var, width=5).pack(side="left")
+        ttk.Label(fmt, text="seconds per clip", style="Hint.TLabel").pack(side="left", padx=(6, 0))
+        r += 1
+
+        ttk.Label(f, text="stated in the prompt - a story JSON carrying its own values fills these in",
+                  style="Hint.TLabel").grid(row=r, column=1, columnspan=2, sticky="w", padx=14, pady=(0, 4))
+        r += 1
+
         ttk.Label(f, text="Chrome CDP port:").grid(row=r, column=0, sticky="e", **pad)
         self.agent_cdp_var = tk.IntVar(value=self.settings["cdp_port"])
         ttk.Spinbox(f, from_=1024, to=65535, textvariable=self.agent_cdp_var, width=8).grid(
@@ -374,6 +403,18 @@ class Veo3LauncherGUI:
                 var.set(f"{n} scenes | characters: {chars or '-'}")
                 if p == self.story_var.get():
                     self.to_var.set(n)
+                if p == self.agent_story_var.get():
+                    # A story JSON may carry its own clip format, and the builder
+                    # prefers it. Load it into the controls so the fields show what
+                    # the prompt will actually say - otherwise they read 16:9 while
+                    # the prompt emits 9:16, and nothing on screen says so.
+                    if data.get("aspect_ratio"):
+                        self.aspect_var.set(str(data["aspect_ratio"]))
+                    try:
+                        if data.get("scene_seconds"):
+                            self.seconds_var.set(int(data["scene_seconds"]))
+                    except (TypeError, ValueError):
+                        pass
             except Exception as e:
                 var.set(f"⚠️ Could not parse: {e}")
 
@@ -391,7 +432,23 @@ class Veo3LauncherGUI:
             "watch_secs": int(self.watch_var.get() or 300),
             "clips_dir": self.resolved_clips_dir(),
             "reverse": bool(self.reverse_var.get()),
+            "aspect_ratio": self.aspect_var.get().strip() or "16:9",
+            "scene_seconds": self.read_seconds(),
         })
+
+    def read_seconds(self):
+        """Seconds per clip, tolerating a half-typed or emptied spinbox.
+
+        IntVar.get() raises TclError on an empty or non-numeric field, and
+        collect_inputs() runs from save_settings() on every action and again on
+        window close - so an unguarded read turns a moment of editing into a
+        crash on exit. Falls back to the default silently, because collect_inputs
+        is called from places where a dialog would be wrong.
+        """
+        try:
+            return max(1, int(self.seconds_var.get()))
+        except (tk.TclError, ValueError):
+            return 8
 
     def resolved_clips_dir(self):
         """The clips folder, with the story root redirected into a clips/ subfolder.
@@ -463,7 +520,9 @@ class Veo3LauncherGUI:
             messagebox.showerror("Missing story", "Pick a valid story JSON first.")
             return
         self.save_settings()
-        self._launch(["node", PROMPT_BUILDER, story],
+        self._launch(["node", PROMPT_BUILDER, story,
+                      "--aspect", self.settings["aspect_ratio"],
+                      "--seconds", str(self.settings["scene_seconds"])],
                      "Building agent_prompt.txt from the story JSON...")
 
     def run_agent(self):

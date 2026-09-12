@@ -7,6 +7,8 @@
   "moral": "In marriage, it's not the grand gestures but the small daily acts of love and trust that build an unbreakable bond",
   "niche": "Ghibli-Style Animation / Relationship Stories / Wholesome Content",
   "style": "Classic hand-painted 2D animation, traditional Japanese animated-film look: soft watercolour backgrounds, clean ink line art, gentle cel shading, warm natural colour palette, detailed domestic settings",
+  "aspect_ratio": "16:9",
+  "scene_seconds": 8,
   "scenes": [
     {
       "_scene_number": 1,

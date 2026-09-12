@@ -18,11 +18,13 @@
  *   scenes[].narrative_context         -> visual brief for the scene
  *   scenes[].characters                -> union becomes the @mention list
  *   scenes[].veo3_prompt               -> scanned for the narrator / silent rules
+ *   aspect_ratio, scene_seconds        -> the FORMAT line: clip shape and length
  *
  * Usage:
  *   node story_to_agent_prompt.js <story.json>
  *   node story_to_agent_prompt.js <story.json> --out custom_path.txt
  *   node story_to_agent_prompt.js <story.json> --print      (no file written)
+ *   node story_to_agent_prompt.js <story.json> --aspect 9:16 --seconds 6
  *
  * Writes <story_dir>/agent_prompt.txt by default.
  */
@@ -64,6 +66,44 @@ if (!scenes.length) {
     process.exit(1);
 }
 
+// ── clip format: aspect ratio and clip length --------------------------------
+// Agent Mode has NO settings panel. There is no aspect-ratio dropdown to drive -
+// the format is asked for in words, in the prompt, or you get whatever Flow
+// defaults to. The first two stories came out 16:9 by luck, not because anything
+// requested it, and nothing in this repo mentioned a ratio at all.
+//
+// Precedence: --aspect / --seconds  >  story JSON  >  the defaults below.
+function numFlag(name, def) {
+    const v = flag(name);
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) && n > 0 ? n : def;
+}
+
+// Spelled out rather than left as "16:9": the words are what disambiguate
+// landscape from portrait if the model only half-reads the ratio.
+const ASPECTS = {
+    '16:9': '16:9 landscape (widescreen)',
+    '9:16': '9:16 portrait (vertical)',
+    '1:1': '1:1 square',
+};
+const aspectArg = flag('--aspect');
+const aspectRaw = String(
+    typeof aspectArg === 'string' ? aspectArg : (story.aspect_ratio || '16:9')
+).trim();
+// An unrecognised ratio is passed through as written instead of being silently
+// swapped for 16:9 - quietly ignoring what the story asked for is the exact
+// failure this line exists to prevent. It is only warned about, because Flow
+// adds ratios from time to time and this list cannot know about them.
+const ASPECT = ASPECTS[aspectRaw] || null;
+const ASPECT_UNKNOWN = !ASPECT;
+
+// 8 s is the documented ceiling for Veo 3.1 - Lite [Lower Priority]. Longer is
+// allowed - a different model may take it - but it is called out in the summary,
+// because asking the Lite model for 15 s makes it refuse or re-plan the whole
+// storyboard rather than fail loudly.
+const SECONDS = numFlag('--seconds', Number(story.scene_seconds) || 8);
+const SECONDS_OVER = SECONDS > 8;
+
 // ── characters ---------------------------------------------------------------
 // Union across all scenes, in first-seen order, keyed lower-case in the JSON
 // ("mia") but written capitalised in the prompt ("@Mia").
@@ -93,7 +133,13 @@ const VOICE = voiceMatch ? voiceMatch[0].trim() : null;
 
 // ── assemble -----------------------------------------------------------------
 const L = [];
-L.push(`Create ${scenes.length} separate clips, one clip per scene, using ${mentionList}, up to 8 seconds each.`);
+L.push(`Create ${scenes.length} separate clips, one clip per scene, using ${mentionList}, up to ${SECONDS} seconds each.`);
+L.push('');
+// Always emitted, narrated or not: the shape of the clip is independent of
+// whether the story has a voice-over. "the same ... in every clip" also protects
+// the join - concat only copies streams when the clips match, and mixed sizes
+// force a re-encode (join_clips.js detects that, but better not to cause it).
+L.push(`FORMAT: every clip is ${ASPECT || `${aspectRaw} aspect ratio`}. Keep the same aspect ratio in every clip.`);
 L.push('');
 L.push(`STORY: "${story.title || 'Untitled'}"`);
 if (story.description) L.push(story.description);
@@ -180,6 +226,17 @@ if (PRINT_ONLY) {
 console.log('');
 console.log(`  story      : ${story.title || '(untitled)'}`);
 console.log(`  scenes     : ${scenes.length}  ->  ${scenes.length} clips`);
+console.log(`  format     : ${ASPECT || `${aspectRaw} aspect ratio (unrecognised)`}`);
+if (ASPECT_UNKNOWN) {
+    console.log(`               WARNING: "${aspectRaw}" is not one of the known ratios (16:9, 9:16, 1:1).`);
+    console.log('               It went into the prompt as written - check the first clip before the rest run.');
+}
+console.log(`  clip length: ${SECONDS}s${SECONDS_OVER ? '' : ' (Veo 3.1 Lite maximum)'}`);
+if (SECONDS_OVER) {
+    console.log(`               WARNING: over the 8s ceiling for Veo 3.1 - Lite [Lower Priority]. The agent`);
+    console.log('               refuses or re-plans the storyboard rather than failing loudly. Raise this');
+    console.log('               only for a model that takes longer clips.');
+}
 console.log(`  characters : ${charNames.join(', ') || '(none)'}  ->  ${mentionList || '(no mentions)'}`);
 console.log(`  narrated   : ${NARRATED ? 'YES - voice-over rules added' : 'no'}`);
 console.log(`  narration  : ${withNarration}/${scenes.length} scenes have a line`);
