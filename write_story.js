@@ -221,12 +221,18 @@ class KeyRing {
     }
 }
 
+// A hung connection would otherwise stall the run forever with no output, which
+// looks identical to "still thinking". Generous, because a 16k-token JSON
+// response is genuinely slow; this is a hung-socket guard, not a latency budget.
+const TIMEOUT_MS = num('--timeout', 240) * 1000;
+
 async function callApi(key, model, body) {
     const url = `${API}/${encodeURIComponent(model)}:generateContent`;
     const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     const text = await res.text();
     if (!res.ok) {
@@ -271,10 +277,24 @@ function geminiText(resp) {
     return txt;
 }
 
+// Transient server-side trouble: the request never reached the model, so the
+// same key will usually succeed a moment later. A 429 is NOT this - that is
+// quota, handled by moving to another key.
+function isTransient(e) {
+    if (!e) return false;
+    if ([500, 502, 503, 504].includes(e.status)) return true;
+    // A dropped socket or a DNS blip arrives with no status at all.
+    return !e.status && /fetch failed|socket|ECONNRESET|ETIMEDOUT|network|aborted/i.test(String(e.message || ''));
+}
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const RETRIES = num('--retries', 3);
+
 // One call, with key rotation on quota errors only. A 404 (dead model) or a
 // malformed request would fail identically on every key, so those are raised
 // straight away instead of burning the whole ring proving it.
 async function ask(ring, model, prompt, maxTokens) {
+    let attempt = 0;
     for (;;) {
         const key = ring.current;
         try {
@@ -288,8 +308,21 @@ async function ask(ring, model, prompt, maxTokens) {
             });
             return parseJson(geminiText(resp));
         } catch (e) {
-            if (!isQuotaError(e) || !ring.retire()) throw e;
-            console.log(`\n  ${maskKey(key)} is out of quota - switching to ${ring.label}`);
+            if (isQuotaError(e)) {
+                if (!ring.retire()) throw e;
+                console.log(`\n  ${maskKey(key)} is out of quota - switching to ${ring.label}`);
+                attempt = 0;   // a fresh key deserves a fresh set of retries
+                continue;
+            }
+            if (isTransient(e) && attempt < RETRIES) {
+                attempt++;
+                const wait = attempt * 5000;
+                console.log(`\n  ${e.status || 'network'} from the API - retrying in ` +
+                            `${wait / 1000}s (${attempt}/${RETRIES})`);
+                await sleep(wait);
+                continue;
+            }
+            throw e;
         }
     }
 }
@@ -336,6 +369,31 @@ function lookBlock(p) {
 }
 
 function castPrompt(p) {
+    // Whether a cast is required is a property of the genre, not something to
+    // leave to the model every time: a Ghibli story is about people, while a
+    // "what if the earth stopped" explainer is about the earth. Presets carry
+    // `cast: "required" | "optional"`, and an absent field means required so
+    // every preset written before this behaves as it did.
+    const optional = p.cast === 'optional';
+    const castRule = optional
+        ? `4. Decide whether this video needs a cast at all.
+   This genre is often about a process, a place or a system rather than a person.
+   If the topic follows a phenomenon, an event or a "what if", it normally needs
+   NO recurring character - the narrator carries it and the visuals are the
+   subject. Inventing a stand-in anyway produces a pointless character and
+   reference sheets nobody needs.
+     - Topic about people and their choices -> design 2 or 3 characters below.
+     - Topic about a process, place or system -> return "characters": [] and
+       write nothing else about a cast.
+   If you do write one, use 2 or 3 characters at most; a small cast stays consistent.
+   For EACH character give:`
+        : `4. Design the cast. Use 2 or 3 characters at most; a small cast stays
+   consistent. This genre is about people, so there is always a cast - never
+   return an empty list.
+   For EACH character give:`;
+    const castFields = optional
+        ? `     (only when the list is not empty)`
+        : '';
     return `You are writing the character bible for a ${p.label} video.
 
 TITLE: ${TITLE}
@@ -349,8 +407,7 @@ TASK
    describe WHAT HAPPENS, never what it looks like - the look is already fixed above.
 2. Write a one-sentence "moral" (max 25 words).
 3. Write "target_audience" (max 12 words).
-4. Design the cast. Use 2 or 3 characters at most; a small cast stays consistent.
-   For EACH character give:
+${castRule}${castFields}
      "name"        - one word, capitalised, no spaces (e.g. "Mira")
      "description" - 55 to 75 words, STARTING with "Same <name> throughout - " and
                      following the CAST TEMPLATE exactly. State age, build,
@@ -378,13 +435,29 @@ Return ONLY this JSON, no other text:
 }
 
 function scenesPrompt(p, cast, outline, from, to, soFar) {
-    const castText = cast.map(c =>
-        `  ${c.name}: ${c.description}`).join('\n');
-    const beats = outline.slice(from, to).map((o, i) =>
+    const beatList = outline.slice(from, to).map((o, i) =>
         `  Clip ${from + i + 1} - "${o.title}": ${o.beat}`).join('\n');
     const prev = soFar.length
         ? `\nTHE PREVIOUS CLIP ENDED LIKE THIS (continue from it, do not repeat it):\n  "${soFar[soFar.length - 1].script_line}"\n`
         : '';
+    // A story with no cast is a real case, not a broken one: the visuals are the
+    // subject and the narrator carries it. Spelling that out stops the model
+    // from populating `characters` with people who were never designed, which
+    // would then be handed to the agent as @-mentions that do not exist.
+    const castBlock = cast.length
+        ? `THE CAST - do not change, rename or redesign anyone:\n` +
+          cast.map(c => `  ${c.name}: ${c.description}`).join('\n')
+        : `THIS VIDEO HAS NO CAST. Do not invent characters, do not put people in\n` +
+          `the foreground, and leave "characters" as [] for every clip. The subject\n` +
+          `is the world itself - the process, the place, the scale. Distant unnamed\n` +
+          `figures are fine if the beat calls for a sense of scale, but they are\n` +
+          `scenery, not cast, and must not be listed.`;
+    const charRule = cast.length
+        ? `  "characters"        - array of the cast names actually VISIBLE in this clip.
+                        Only who is on screen. Never list an absent character:
+                        naming someone who is not there invites the model to
+                        insert them.`
+        : `  "characters"        - always [] for this video. It has no cast.`;
 
     return `You are writing clips ${from + 1} to ${to} of a ${SCENES}-clip ${p.label} video.
 
@@ -392,11 +465,10 @@ TITLE: ${TITLE}
 DETAIL FROM THE CREATOR: ${DETAIL || '(none given)'}
 ${lookBlock(p)}
 
-THE CAST - do not change, rename or redesign anyone:
-${castText}
+${castBlock}
 ${prev}
 THE BEATS FOR THESE CLIPS (one clip each, same order):
-${beats}
+${beatList}
 
 For EACH clip above, in order, return:
   "scene_title"       - the beat's title
@@ -418,10 +490,7 @@ For EACH clip above, in order, return:
                         "the wind whips the fabric around his matte grey legs".
                         Repeating medium words in the action is what makes the
                         model render plastic where it should render a person.
-  "characters"        - array of the cast names actually VISIBLE in this clip.
-                        Only who is on screen. Never list an absent character:
-                        naming someone who is not there invites the model to
-                        insert them.
+${charRule}
 
 Write exactly ${to - from} clips. Return ONLY this JSON, no other text:
 {"scenes":[{"scene_title":"","script_line":"","narrative_context":"","characters":[]}]}`;
@@ -484,7 +553,11 @@ function validate(story, cast) {
             if (w > WORDS_HARD) bad.push(`clip ${n}: narration is ${w} words, over the ${WORDS_HARD}-word limit for ${SECONDS}s`);
         }
         if (!String(s.narrative_context || '').trim()) bad.push(`clip ${n}: no narrative_context`);
-        if (!s.characters.length) bad.push(`clip ${n}: no characters listed`);
+        // Only demand characters when the story actually has a cast. A
+        // no-character story is legitimate (see `cast` in styles.json), but a
+        // scene naming somebody who was never designed would become an
+        // @-mention for a Character that does not exist.
+        if (cast.length && !s.characters.length) bad.push(`clip ${n}: no characters listed`);
         s.characters.forEach(c => {
             if (!names.includes(c)) bad.push(`clip ${n}: "${c}" is not in the cast (${names.join(', ')})`);
         });
@@ -495,7 +568,16 @@ function validate(story, cast) {
 // ── writers ------------------------------------------------------------------
 function writePackage(dir, p, story, cast) {
     const slug = path.basename(dir);
-    fs.mkdirSync(path.join(dir, 'character_refs'), { recursive: true });
+    // The output folder first, explicitly. It used to be created as a side
+    // effect of making character_refs/ inside it, so making that conditional
+    // removed the only thing that created the folder at all - and a no-cast
+    // story then failed to write with ENOENT after its API calls had been paid
+    // for. Creating it here means it no longer depends on a cast existing.
+    fs.mkdirSync(dir, { recursive: true });
+    // Only make the sheets folder when there is something to put in it. An empty
+    // character_refs/ on a no-cast video is an invitation to go looking for
+    // sheets that were deliberately never asked for.
+    if (cast.length) fs.mkdirSync(path.join(dir, 'character_refs'), { recursive: true });
 
     // Story JSON. LF and a trailing newline, like styles.json. (`cast` is passed
     // in rather than hung off `story` as a _cast key, so it cannot leak into the
@@ -503,26 +585,30 @@ function writePackage(dir, p, story, cast) {
     const storyPath = path.join(dir, `${slug}_story.json`);
     fs.writeFileSync(storyPath, JSON.stringify(story, null, 2) + '\n', 'utf8');
 
-    const sheets = Object.entries(story.character_descriptions).map(([k, desc]) => {
-        const c = cast.find(x => x.name.toLowerCase() === k) || {};
-        return [
-            `=== ${k.toUpperCase()} ===`,
-            `save as: character_refs/${k}_reference_sheet.jpg`,
-            '',
-            '-- image prompt --',
-            c.sheet_prompt || '(none generated - describe the character in the medium above)',
-            '',
-            '-- identity text (must match this exactly in the story JSON) --',
-            desc,
-        ].join('\n');
-    }).join('\n\n');
+    if (cast.length) {
+        const sheets = Object.entries(story.character_descriptions).map(([k, desc]) => {
+            const c = cast.find(x => x.name.toLowerCase() === k) || {};
+            return [
+                `=== ${k.toUpperCase()} ===`,
+                `save as: character_refs/${k}_reference_sheet.jpg`,
+                '',
+                '-- image prompt --',
+                c.sheet_prompt || '(none generated - describe the character in the medium above)',
+                '-- image prompt --',
+                c.sheet_prompt || '(none generated - describe the character in the medium above)',
+                '',
+                '-- identity text (must match this exactly in the story JSON) --',
+                desc,
+            ].join('\n');
+        }).join('\n\n');
 
-    fs.writeFileSync(path.join(dir, 'character_sheets.txt'),
-        `Character reference sheets for "${story.title}"\n` +
-        `Generate each one, then upload it into Flow as a Character named exactly\n` +
-        `${cast.map(c => c.name).join(', ')} (capital first letter).\n` +
-        `Every sheet must be made with the same medium or the cast will not match.\n\n` +
-        sheets + '\n', 'utf8');
+        fs.writeFileSync(path.join(dir, 'character_sheets.txt'),
+            `Character reference sheets for "${story.title}"\n` +
+            `Generate each one, then upload it into Flow as a Character named exactly\n` +
+            `${cast.map(c => c.name).join(', ')} (capital first letter).\n` +
+            `Every sheet must be made with the same medium or the cast will not match.\n\n` +
+            sheets + '\n', 'utf8');
+    }
 
     const bible = [
         `# ${story.title} - style bible`,
@@ -551,15 +637,26 @@ function writePackage(dir, p, story, cast) {
         '## Story shapes that suit this look',
         ...(p.story_shapes || []).map(s => `- ${s}`),
         '',
-        '## Cast',
-        ...Object.entries(story.character_descriptions).map(([k, v]) => `**${k}** - ${v}`),
-        '',
-        '## What happens next',
-        '1. Generate the sheets from `character_sheets.txt` (Whisk or any image tool).',
-        '2. Upload each into Flow as a Character, named exactly as above.',
-        '3. Stage 1: `npm run agent:prompt -- stories/' + slug + '/' + slug + '_story.json`',
-        '4. Then the usual stages 2-4.',
-        '',
+        ...(cast.length
+            ? ['## Cast',
+               ...Object.entries(story.character_descriptions).map(([k, v]) => `**${k}** - ${v}`),
+               '',
+               '## What happens next',
+               '1. Generate the sheets from `character_sheets.txt` (Whisk or any image tool).',
+               '2. Upload each into Flow as a Character, named exactly as above.',
+               '3. Stage 1: `npm run agent:prompt -- stories/' + slug + '/' + slug + '_story.json`',
+               '4. Then the usual stages 2-4.',
+               '']
+            : ['## Cast',
+               'None. This topic is about the world rather than a person, so no',
+               'character sheets were written and no Characters need to be uploaded',
+               'into Flow before stage 1. Distant unnamed figures are scenery.',
+               '',
+               '## What happens next',
+               '1. No reference sheets and no Characters to upload - skip straight to stage 1.',
+               '2. Stage 1: `npm run agent:prompt -- stories/' + slug + '/' + slug + '_story.json`',
+               '3. Then the usual stages 2-4.',
+               '']),
     ].join('\n');
     fs.writeFileSync(path.join(dir, 'style_bible.md'), bible, 'utf8');
 
@@ -654,11 +751,18 @@ if (require.main === module) (async () => {
         const meta = await ask(ring, MODEL, castPrompt(p), 8192);
         const cast = meta.characters || [];
         const outline = meta.outline || [];
-        if (!cast.length) throw new Error('the model returned no characters');
+        // Only a preset that declares `cast: "required"` is allowed to fail
+        // here. For an optional-cast genre an empty list is an ANSWER - the
+        // model judged the topic needs no character - not a generation error.
+        if (!cast.length && p.cast !== 'optional') {
+            throw new Error('the model returned no characters, but this preset requires a cast');
+        }
         if (outline.length !== SCENES) {
             console.log(`\n  note: asked for ${SCENES} beats, got ${outline.length}. Using what came back.`);
         }
-        console.log(`ok - ${cast.map(c => c.name).join(', ')}, ${outline.length} beats`);
+        console.log(`ok - ${cast.length
+            ? cast.map(c => c.name).join(', ')
+            : 'no cast (this topic needs none)'}, ${outline.length} beats`);
 
         // 2. scenes, in batches that each fit comfortably in one response
         const scenes = [];
@@ -688,9 +792,14 @@ if (require.main === module) (async () => {
 
         console.log(`\n  wrote  ${storyPath}`);
         console.log(`  wrote  ${path.join(dir, 'style_bible.md')}`);
-        console.log(`  wrote  ${path.join(dir, 'character_sheets.txt')}`);
-        console.log(`\n  next   : generate the reference sheets from character_sheets.txt,`);
-        console.log('           upload them into Flow as Characters, then run stage 1.');
+        if (cast.length) {
+            console.log(`  wrote  ${path.join(dir, 'character_sheets.txt')}`);
+            console.log(`\n  next   : generate the reference sheets from character_sheets.txt,`);
+            console.log('           upload them into Flow as Characters, then run stage 1.');
+        } else {
+            console.log('\n  no character sheets - this topic needs no cast.');
+            console.log('  next   : nothing to upload into Flow, so go straight to stage 1.');
+        }
         console.log(`           npm run agent:prompt -- ${path.relative(HERE, storyPath)}`);
         console.log('');
     } catch (e) {
@@ -712,5 +821,5 @@ if (require.main === module) (async () => {
 module.exports = {
     slugify, buildStory, validate, writePackage, loadPreset,
     castPrompt, scenesPrompt, parseJson, geminiText,
-    apiKeys, maskKey, isQuotaError, KeyRing, ask, callApi,
+    apiKeys, maskKey, isQuotaError, isTransient, KeyRing, ask, callApi,
 };

@@ -17,7 +17,8 @@
     "story": "node write_story.js",
     "story:models": "node write_story.js --list-models",
     "test:keys": "node test_key_ring.js",
-    "check": "node --check veo3_flow_new_ui.js && node --check probe_editor.js && node --check agent_mode.js && node --check agent_watch.js && node --check agent_download.js && node --check join_clips.js && node --check story_to_agent_prompt.js && node --check styles.js && node --check write_story.js && node --check probe_agent.js && node --check probe_instructions.js && node --check probe_mention.js && node test_key_ring.js"
+    "test:cast": "node test_no_cast.js",
+    "check": "node --check veo3_flow_new_ui.js && node --check probe_editor.js && node --check agent_mode.js && node --check agent_watch.js && node --check agent_download.js && node --check join_clips.js && node --check story_to_agent_prompt.js && node --check styles.js && node --check write_story.js && node --check probe_agent.js && node --check probe_instructions.js && node --check probe_mention.js && node test_key_ring.js && node test_no_cast.js"
   },
   "engines": {
     "node": ">=18"

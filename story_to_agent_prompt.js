@@ -149,7 +149,9 @@ const VOICE = (typeof story.narrator_voice === 'string' && story.narrator_voice.
 
 // ── assemble -----------------------------------------------------------------
 const L = [];
-L.push(`Create ${scenes.length} separate clips, one clip per scene, using ${mentionList}, up to ${SECONDS} seconds each.`);
+L.push(charNames.length
+    ? `Create ${scenes.length} separate clips, one clip per scene, using ${mentionList}, up to ${SECONDS} seconds each.`
+    : `Create ${scenes.length} separate clips, one clip per scene, up to ${SECONDS} seconds each.`);
 L.push('');
 // Always emitted, narrated or not: the shape of the clip is independent of
 // whether the story has a voice-over. "the same ... in every clip" also protects
@@ -164,7 +166,7 @@ L.push('');
 
 if (NARRATED) {
     L.push('CRITICAL FORMAT - this is a NARRATED STORYTELLING VIDEO, not a dialogue drama:');
-    if (SILENT) {
+    if (SILENT && charNames.length) {
         L.push('- The characters are SILENT. Mouths closed. They never speak and have NO dialogue.');
     } else {
         L.push('- The story is carried by an external narrator, not by character dialogue.');
@@ -224,7 +226,14 @@ for (const sc of scenes) {
     L.push('');
 }
 
-L.push(`Keep ${charNames.join(' and ')} looking exactly as they do in their reference images in every scene.`);
+// A no-cast story gets a different closing rule rather than an empty one: the
+// agent still needs telling that the absence of people is deliberate, or it
+// helpfully adds some.
+L.push(charNames.length
+    ? `Keep ${charNames.join(' and ')} looking exactly as they do in their reference images in every scene.`
+    : 'This video has NO characters and no reference images. Do not add people, faces or '
+      + 'dialogue. Distant unnamed figures are acceptable only where a scene needs a sense '
+      + 'of scale, and they are scenery - never the subject, never in the foreground.');
 if (NARRATED) {
     L.push('Do not add any character dialogue anywhere - narration only.');
 }
@@ -261,7 +270,8 @@ if (withNarration < scenes.length) {
     console.log('               The agent will INVENT those scenes. Add script_line to the story JSON.');
 }
 console.log(`  visuals    : ${withVisual}/${scenes.length} scenes have a visual brief`);
-console.log(`  silent cast: ${SILENT ? 'YES - no-dialogue rule added' : 'no'}`);
+console.log(`  silent cast: ${!charNames.length ? 'n/a - this story has no cast'
+    : SILENT ? 'YES - no-dialogue rule added' : 'no'}`);
 console.log(`  narrator   : ${VOICE || (NARRATED ? '(unspecified)' : '-')}`);
 console.log(`  style      : ${story.style || '(none in story)'}`);
 console.log(`  size       : ${body.length} characters`);

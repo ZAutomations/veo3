@@ -699,6 +699,11 @@ class Veo3LauncherGUI:
         ttk.Entry(f, textvariable=self.clips_var, width=58).grid(row=r, column=1, sticky="w", **pad)
         ttk.Button(f, text="Browse…", command=self.browse_clips).grid(row=r, column=2, padx=6)
         r += 1
+        # Wired here rather than at the story field, because clips_var has to
+        # exist first. A stored folder for a story that is no longer loaded is
+        # corrected on startup as well as on every later change of story.
+        self.agent_story_var.trace_add("write", self.follow_story_clips)
+        self.follow_story_clips()
 
         btns = tk.Frame(f, bg="#1e1e28")
         btns.grid(row=r, column=1, columnspan=2, sticky="w", padx=14, pady=(2, 10))
@@ -854,6 +859,85 @@ class Veo3LauncherGUI:
     def read_seconds(self):
         """Seconds per clip. Same guard, plus the 1s floor."""
         return max(1, self.read_int(self.seconds_var, 8))
+
+    @staticmethod
+    def story_dir(story_path):
+        """The folder a story JSON lives in, or '' when the path is not usable."""
+        p = str(story_path or "").strip()
+        return os.path.dirname(os.path.abspath(p)) if p else ""
+
+    def follow_story_clips(self, *_):
+        """Keep the clips folder inside whichever story is loaded.
+
+        The stored clips_dir is a trap: it was saved for whatever story happened
+        to be open at the time, so picking a *new* story still downloaded into
+        the *previous* one's folder. That is not hypothetical - on 2026-09-12 a
+        run for one story wrote its clips into the_bridge_of_trust/clips,
+        because a stale saved folder outvoted the story on screen.
+
+        Deriving the folder from the story makes the two impossible to disagree.
+        A deliberate custom folder can still be typed in afterwards; it will be
+        re-derived the next time the story path changes.
+        """
+        d = self.story_dir(self.agent_story_var.get())
+        if not d:
+            return
+        want = os.path.join(d, "clips")
+        if os.path.normcase(self.clips_var.get().strip()) != os.path.normcase(want):
+            self.clips_var.set(want)
+
+    def other_story_of(self, folder, story_path):
+        """Name the story folder `folder` belongs to, if it is not the loaded one.
+
+        Returns '' when the folder is fine: either it is inside the loaded
+        story, or it is somewhere outside stories/ entirely (a custom output
+        folder is the user's business, not ours). The case worth catching is a
+        folder inside a *different* story - downloading there mixes two
+        productions, and the join then reads a manifest that does not match the
+        story being built.
+        """
+        try:
+            root = os.path.normcase(os.path.abspath(STORIES_DIR))
+            f = os.path.normcase(os.path.abspath(folder))
+            if not f.startswith(root + os.sep):
+                return ""
+            mine = os.path.normcase(os.path.abspath(self.story_dir(story_path)))
+            if not mine.startswith(root + os.sep):
+                return ""
+            rel_f = os.path.relpath(f, root).split(os.sep)[0]
+            rel_m = os.path.relpath(mine, root).split(os.sep)[0]
+            return rel_f if rel_f != rel_m else ""
+        except Exception:
+            return ""
+
+    def correct_clips_dir(self, what="download"):
+        """Refuse to work in another story's folder, and say so.
+
+        Called before downloading and before joining, because both would
+        silently produce the wrong result rather than failing.
+
+        Reads the entry field rather than the settings dict: the field is what
+        the user is looking at, and settings only catches up when
+        collect_inputs() runs.
+        """
+        out = self.clips_var.get().strip()
+        story = self.agent_story_var.get().strip()
+        if not out or not story:
+            return out
+        other = self.other_story_of(out, story)
+        if not other:
+            return out
+        right = os.path.join(self.story_dir(story), "clips")
+        messagebox.showwarning(
+            "Wrong story folder",
+            f"The clips folder points at a different story:\n\n"
+            f"    set to :  {other}\n"
+            f"    loaded :  {os.path.basename(self.story_dir(story))}\n\n"
+            f"{'Downloading' if what == 'download' else 'Joining'} there would mix two "
+            f"stories together.\n\nSwitching to:\n{right}")
+        self.clips_var.set(right)
+        self.settings["clips_dir"] = right
+        return right
 
     def resolved_clips_dir(self):
         """The clips folder, with the story root redirected into a clips/ subfolder.
@@ -1080,11 +1164,7 @@ class Veo3LauncherGUI:
 
     def download_clips(self):
         self.collect_inputs()
-        out = self.settings["clips_dir"]
-        if not out:
-            story = self.agent_story_var.get().strip()
-            if story:
-                out = os.path.join(os.path.dirname(story), "clips")
+        out = self.correct_clips_dir("download")
         if not out:
             messagebox.showerror("No output folder", "Pick a clips folder first.")
             return
@@ -1099,7 +1179,7 @@ class Veo3LauncherGUI:
 
     def join_clips(self):
         self.collect_inputs()
-        d = self.settings["clips_dir"]
+        d = self.correct_clips_dir("join")
         if not d or not os.path.isdir(d):
             messagebox.showerror("No clips folder", "Pick the folder holding the downloaded clips.")
             return

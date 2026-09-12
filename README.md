@@ -197,6 +197,8 @@ through.
 | `--model NAME` | default `gemini-3.6-flash` |
 | `--key K` | a Gemini key. Repeat for several; they fall back in order |
 | `--key-index N` | use only the Nth key saved in `gui_settings.json` |
+| `--retries N` | retries on a 5xx or dropped connection, default 3 |
+| `--timeout N` | seconds per request before giving up, default 240 |
 | `--scenes-per-call N` | default 6 |
 | `--out DIR` | write somewhere other than `stories/<slug>/` |
 | `--force` | allow writing into a folder that already holds a story |
@@ -238,6 +240,14 @@ message mentioning quota, rate limit or billing, retires the key. A `404` (dead
 model) or a `403` saying the key lacks permission does **not** — those would
 fail identically on every key, and rotating past them would hide a real setup
 mistake behind a misleading "every key is out of quota".
+
+A `500`, `502`, `503` or a dropped connection is treated as neither: the request
+never reached the model, so the same key is retried up to three times with a
+growing pause rather than burning the key ring. A long wait is visible, not
+silent — the run prints the retry and the delay. `--retries N` changes the
+count. There is also a `--timeout` (default 240s) on each request, so a hung
+socket fails with a message instead of sitting there looking like it is still
+thinking.
 
 If the model name is wrong the run lists what your key can actually use, rather
 than failing with a bare 404. In the GUI, **List models** does the same thing
@@ -415,13 +425,29 @@ This is the "?" **Check order** button on the Agent tab.
 
 ### Where the clips land
 
-Point the **Clips folder** at a story folder and the GUI quietly redirects to
-`<story>/clips`. A story folder is recognisable because it holds the story JSON,
-and pointing at it directly scatters `scene-*.mp4`, `manifest.json` and
-`_contact_sheet.jpg` through the story directory, mixed in with the JSON and
-`character_refs/`. That happened on 2026-09-12 and made "which folder do I join?"
-a real question. Leave the field empty and stage 3 defaults to `<story>/clips`
-anyway.
+**The clips folder follows the story you have loaded.** Pick a different story
+and the field moves to that story's own `clips/` folder. The folder must be
+derived rather than remembered, because a saved folder belongs to whatever story
+was open when it was saved — on 2026-09-12 a run downloaded into
+`the_bridge_of_trust/clips` while a completely different story was on screen,
+for no better reason than that a stale setting outvoted it.
+
+Two other related behaviours:
+
+- Point the field at a story folder itself and the GUI quietly redirects to
+  `<story>/clips`. A story folder is recognisable because it holds the story
+  JSON, and pointing at it directly scatters `scene-*.mp4`, `manifest.json` and
+  `_contact_sheet.jpg` through the story directory, mixed in with the JSON and
+  `character_refs/`.
+- Before downloading and before joining, the folder is checked against the
+  loaded story one more time. If it sits inside a *different* story, both stages
+  refuse, say which two stories are involved, and switch to the right folder.
+  Joining another story's clips would produce a video whose manifest does not
+  match its own story, which is worse than an error.
+
+A folder outside `stories/` entirely is left alone — a custom output folder is
+your business, not the tool's. It will be re-derived the next time you change
+story. Leave the field empty and stage 3 defaults to `<story>/clips` anyway.
 
 ### Steps that are deliberately manual
 
@@ -490,9 +516,10 @@ Two traps when converting:
 
 ### Style presets
 
-`styles.json` holds 23 looks — 12 content niches (`ww2-history`, `mafia`,
-`true-crime`, …) and 11 art styles (`ghibli`, `chibi`, `manhwa`, …). Each entry
-carries four text fields, and only the first two reach a prompt:
+`styles.json` holds 24 looks — 13 content niches (`ww2-history`, `mafia`,
+`true-crime`, `science-what-if`, …) and 11 art styles (`ghibli`, `chibi`,
+`avatar-korra`, …). Each entry carries four text fields, and only the first two
+reach a prompt:
 
 | Field | Goes to |
 |---|---|
@@ -501,13 +528,47 @@ carries four text fields, and only the first two reach a prompt:
 | `palette`, `camera` | notes for you; no tool reads them |
 | `label`, `id` | the menu — never sent anywhere |
 
+#### `cast` — whether the video needs characters at all
+
+Every preset also carries `cast`, and it decides whether the writer invents
+characters at all:
+
+| Value | Meaning | Presets |
+|---|---|---|
+| `required` | The genre is about people, so there is always a cast | the 11 art styles, `mafia`, `true-crime`, `relationship`, `fall-asleep` |
+| `optional` | The topic decides; no cast is a valid answer | `science-what-if`, `ww2-history`, `fern-documentary`, `health-wellness`, `personal-finance`, `travel-adventure`, `cooking`, `gaming-esports`, `technology-ai` |
+
+A missing field means `required`, so a preset written before this behaves
+exactly as it did.
+
+On an `optional` preset the model is asked to judge the topic. A "what if"
+or an explainer about a process, a place or a system normally needs **no**
+recurring character — the narrator carries it and the visuals are the subject.
+Inventing a stand-in anyway produces a pointless character plus reference sheets
+nobody needs. So for those topics you get:
+
+- `character_descriptions` and `character_references` empty in the story JSON
+- **no** `character_sheets.txt` and **no** `character_refs/` folder
+- a style bible that says there is no cast, and skips the sheet step
+- an agent prompt that says so explicitly, because an agent told nothing about
+  people will helpfully add some
+
+`science-what-if` is the preset this was built for: photoreal scientific
+visualization for "what if" and explainer topics. Its `avoid` list bans naming
+real scientists or agencies, and bans on-screen text, diagrams and equations —
+those render as garbled glyphs. It also bans disaster-movie panic and invented
+physics, so the video stays a plausible explanation rather than a catastrophe
+reel.
+
 **A label may name a studio; `style` and `whisk` must not.** Naming a real
 studio is a distinctive protected house style, and Google's models frequently
 refuse or quietly sanitise such a prompt. So `ghibli` is the *id* you type and
-"Ghibli-Style Animation" is the *label* you read, while the `style` text beside
+"Studio Ghibli Style" is the *label* you read, while the `style` text beside
 them says "classic hand-painted 2D animation, traditional Japanese animated-film
 look" and never uses the word. The same rule the conversion section above
-describes, applied to the data this time instead of to one story.
+describes, applied to the data this time instead of to one story. The same
+reasoning keeps real agencies, universities and named scientists out of
+`science-what-if`.
 
 ```
 npm run styles                        # list every preset

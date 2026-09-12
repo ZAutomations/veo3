@@ -34,6 +34,24 @@ ok('null is safe', !W.isQuotaError(null));
 // The trap: a 403 saying "not quota" must not retire a working key.
 ok('403 permission is NOT quota', !W.isQuotaError(e(403, 'caller does not have permission')));
 
+console.log('\n--- isTransient: server trouble yes, client errors no ---');
+ok('503', W.isTransient(e(503, 'high demand')));
+ok('500', W.isTransient(e(500, 'internal error')));
+ok('502', W.isTransient(e(502, 'bad gateway')));
+ok('504', W.isTransient(e(504, 'deadline exceeded')));
+ok('fetch failed', W.isTransient(new Error('fetch failed')));
+ok('socket hang up', W.isTransient(new Error('socket hang up')));
+ok('aborted', W.isTransient(new Error('The operation was aborted')));
+ok('429 is NOT transient (it rotates keys instead)', !W.isTransient(e(429, 'quota')));
+ok('404 is NOT transient', !W.isTransient(e(404, 'not found')));
+ok('400 is NOT transient', !W.isTransient(e(400, 'invalid argument')));
+ok('null is safe', !W.isTransient(null));
+// The two classifications must not overlap, or a quota error would be slept on
+// instead of rotated, and a real outage would burn the whole key ring.
+ok('nothing is both quota and transient',
+   ![e(429, 'quota'), e(503, 'demand'), e(500, 'err')]
+       .some(x => W.isQuotaError(x) && W.isTransient(x)));
+
 console.log('\n--- KeyRing rotation ---');
 const r = new W.KeyRing(['AIzaFIRSTKEY00000001', 'k2', 'k3']);
 eq('starts at 0', r.i, 0);

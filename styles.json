@@ -42,7 +42,8 @@
       ],
       "narration_voice": "deep male voice, measured and grave, documentary authority, unhurried",
       "avoid": "no glorified violence, no graphic wounds, no modern clothing or vehicles, no on-screen text, no anachronisms",
-      "cast_idiom": "Historically accurate 1940s adult humans with realistic adult proportions, period-correct uniforms and hairstyles, weathered expressive faces, desaturated film-grain realism. NOT cartoon, NOT anime, NOT modern styling."
+      "cast_idiom": "Historically accurate 1940s adult humans with realistic adult proportions, period-correct uniforms and hairstyles, weathered expressive faces, desaturated film-grain realism. NOT cartoon, NOT anime, NOT modern styling.",
+      "cast": "optional"
     },
     {
       "id": "fern-documentary",
@@ -60,7 +61,8 @@
       ],
       "narration_voice": "soft measured male voice, contemplative and slow, almost melancholy",
       "avoid": "no visible faces, no identifiable features, no dialogue, no fast cuts, no bright saturated colour",
-      "cast_idiom": "Featureless smooth mannequin figures with realistic adult human proportions, no facial detail of any kind, matte neutral surfaces, posed with quiet dignity. NOT photorealistic skin, NOT cartoon, NOT anime."
+      "cast_idiom": "Featureless smooth mannequin figures with realistic adult human proportions, no facial detail of any kind, matte neutral surfaces, posed with quiet dignity. NOT photorealistic skin, NOT cartoon, NOT anime.",
+      "cast": "optional"
     },
     {
       "id": "mafia",
@@ -79,7 +81,8 @@
       ],
       "narration_voice": "low gravelly male voice, dry and world-weary, matter-of-fact about violence",
       "avoid": "no graphic gore, no modern technology, no glamorising the violence, no on-screen text, no bright cheerful colour",
-      "cast_idiom": "Period-accurate mid-century adult humans with realistic adult proportions, sharp suits and heavy coats, hard unsmiling faces, strong shadow across the features. NOT photorealistic modern, NOT cartoon, NOT anime."
+      "cast_idiom": "Period-accurate mid-century adult humans with realistic adult proportions, sharp suits and heavy coats, hard unsmiling faces, strong shadow across the features. NOT photorealistic modern, NOT cartoon, NOT anime.",
+      "cast": "required"
     },
     {
       "id": "true-crime",
@@ -98,7 +101,8 @@
       ],
       "narration_voice": "calm female voice, investigative and precise, restrained tension",
       "avoid": "no graphic crime-scene gore, no real people or real names, no sensationalism, no on-screen text, no cheerful tone",
-      "cast_idiom": "Ordinary realistic adult humans with realistic adult proportions, everyday contemporary clothing, natural unposed faces, cool investigative lighting. NOT glamorous, NOT cartoon, NOT anime."
+      "cast_idiom": "Ordinary realistic adult humans with realistic adult proportions, everyday contemporary clothing, natural unposed faces, cool investigative lighting. NOT glamorous, NOT cartoon, NOT anime.",
+      "cast": "required"
     },
     {
       "id": "health-wellness",
@@ -116,7 +120,8 @@
       ],
       "narration_voice": "clear warm female voice, reassuring and professional, steady pace",
       "avoid": "no medical gore, no fear-mongering, no unproven claims, no on-screen text, no dark or clinical coldness",
-      "cast_idiom": "Healthy realistic adult humans with realistic adult proportions, clean simple modern clothing, calm approachable expressions, bright even lighting. NOT cartoon, NOT anime, NOT exaggerated anatomy."
+      "cast_idiom": "Healthy realistic adult humans with realistic adult proportions, clean simple modern clothing, calm approachable expressions, bright even lighting. NOT cartoon, NOT anime, NOT exaggerated anatomy.",
+      "cast": "optional"
     },
     {
       "id": "personal-finance",
@@ -134,7 +139,8 @@
       ],
       "narration_voice": "confident clear male voice, practical and encouraging, brisk but calm",
       "avoid": "no get-rich-quick imagery, no luxury flexing, no real brand logos, no on-screen text, no gambling imagery",
-      "cast_idiom": "Professional realistic adult humans with realistic adult proportions, simple modern business-casual clothing, composed confident expressions, clean neutral lighting. NOT cartoon, NOT anime, NOT glamorous."
+      "cast_idiom": "Professional realistic adult humans with realistic adult proportions, simple modern business-casual clothing, composed confident expressions, clean neutral lighting. NOT cartoon, NOT anime, NOT glamorous.",
+      "cast": "optional"
     },
     {
       "id": "relationship",
@@ -153,7 +159,8 @@
       ],
       "narration_voice": "warm gentle female voice, intimate and sincere, unhurried",
       "avoid": "no explicit content, no shouting matches, no graphic conflict, no on-screen text, no cynicism",
-      "cast_idiom": "Warm realistic adult humans with realistic adult proportions, soft everyday clothing, open expressive faces, gentle golden lighting. NOT cartoon, NOT anime, NOT glamorised."
+      "cast_idiom": "Warm realistic adult humans with realistic adult proportions, soft everyday clothing, open expressive faces, gentle golden lighting. NOT cartoon, NOT anime, NOT glamorised.",
+      "cast": "required"
     },
     {
       "id": "fall-asleep",
@@ -171,7 +178,8 @@
       ],
       "narration_voice": "very soft slow female voice, almost a whisper, long pauses, no tension",
       "avoid": "no conflict, no danger, no sudden sounds, no fast movement, no bright light, no on-screen text",
-      "cast_idiom": "Soft rounded human or animal figures with gentle realistic proportions, simple calm features, muted pastel palette, blurred dreamlike edges. NOT detailed, NOT photorealistic, NOT sharp contrast."
+      "cast_idiom": "Soft rounded human or animal figures with gentle realistic proportions, simple calm features, muted pastel palette, blurred dreamlike edges. NOT detailed, NOT photorealistic, NOT sharp contrast.",
+      "cast": "required"
     },
     {
       "id": "travel-adventure",
@@ -189,7 +197,8 @@
       ],
       "narration_voice": "bright curious female voice, enthusiastic and descriptive, lively",
       "avoid": "no stereotyping of local people, no real brand logos, no on-screen text, no danger or peril framing",
-      "cast_idiom": "Natural realistic adult humans with realistic adult proportions, authentic regional clothing and features, sunlit genuine expressions, documentary travel photography feel. NOT cartoon, NOT anime, NOT exoticised."
+      "cast_idiom": "Natural realistic adult humans with realistic adult proportions, authentic regional clothing and features, sunlit genuine expressions, documentary travel photography feel. NOT cartoon, NOT anime, NOT exoticised.",
+      "cast": "optional"
     },
     {
       "id": "cooking",
@@ -207,7 +216,8 @@
       ],
       "narration_voice": "warm friendly female voice, sensory and inviting, conversational",
       "avoid": "no on-screen text or measurements, no messy or unappetising food, no real brand packaging, no rushed pacing",
-      "cast_idiom": "Warm realistic adult humans with realistic adult proportions, simple aprons and everyday clothing, hands and faces in natural warm light. NOT cartoon, NOT anime, NOT stylised."
+      "cast_idiom": "Warm realistic adult humans with realistic adult proportions, simple aprons and everyday clothing, hands and faces in natural warm light. NOT cartoon, NOT anime, NOT stylised.",
+      "cast": "optional"
     },
     {
       "id": "gaming-esports",
@@ -225,7 +235,8 @@
       ],
       "narration_voice": "energetic young male voice, fast and excited, building momentum",
       "avoid": "no real game titles or logos, no real player likenesses, no on-screen UI or text, no toxic behaviour",
-      "cast_idiom": "Contemporary realistic young adult humans with realistic adult proportions, casual gaming streetwear, focused intense expressions, cool neon rim lighting. NOT cartoon, NOT anime, NOT exaggerated."
+      "cast_idiom": "Contemporary realistic young adult humans with realistic adult proportions, casual gaming streetwear, focused intense expressions, cool neon rim lighting. NOT cartoon, NOT anime, NOT exaggerated.",
+      "cast": "optional"
     },
     {
       "id": "technology-ai",
@@ -243,7 +254,8 @@
       ],
       "narration_voice": "calm assured male voice, precise and forward-looking, measured",
       "avoid": "no real company logos or products, no dystopian fear imagery, no on-screen text or code, no glowing blue cliches",
-      "cast_idiom": "Clean realistic adult humans with realistic adult proportions, minimal modern clothing, thoughtful neutral expressions, cool even studio lighting. NOT cartoon, NOT anime, NOT robotic."
+      "cast_idiom": "Clean realistic adult humans with realistic adult proportions, minimal modern clothing, thoughtful neutral expressions, cool even studio lighting. NOT cartoon, NOT anime, NOT robotic.",
+      "cast": "optional"
     },
     {
       "id": "ghibli",
@@ -263,7 +275,8 @@
       ],
       "narration_voice": "warm female voice, gentle and unhurried, like a grandparent telling a bedtime story",
       "avoid": "no photorealistic rendering, no 3D CGI, no harsh violence, no fast cuts, no on-screen text, no exaggerated anime expressions",
-      "cast_idiom": "Hand-painted 2D animated character with realistic adult human proportions, soft rounded facial features, large expressive eyes, simple period-appropriate everyday clothing, clean ink outlines, gentle cel shading and watercolour texture. NOT photorealistic, NOT 3D CGI, NOT manhwa webtoon, NOT chibi."
+      "cast_idiom": "Hand-painted 2D animated character with realistic adult human proportions, soft rounded facial features, large expressive eyes, simple period-appropriate everyday clothing, clean ink outlines, gentle cel shading and watercolour texture. NOT photorealistic, NOT 3D CGI, NOT manhwa webtoon, NOT chibi.",
+      "cast": "required"
     },
     {
       "id": "pixar-3d",
@@ -281,7 +294,8 @@
       ],
       "narration_voice": "warm expressive male voice, playful and heartfelt, family-friendly",
       "avoid": "no photorealistic humans, no dark or bleak imagery, no adult humour, no on-screen text, no scary content",
-      "cast_idiom": "Stylised 3D animated character with appealing rounded proportions, slightly oversized expressive eyes, soft subsurface skin shading, simple readable silhouette. NOT photorealistic, NOT 2D, NOT anime."
+      "cast_idiom": "Stylised 3D animated character with appealing rounded proportions, slightly oversized expressive eyes, soft subsurface skin shading, simple readable silhouette. NOT photorealistic, NOT 2D, NOT anime.",
+      "cast": "required"
     },
     {
       "id": "anime-cinematic",
@@ -299,7 +313,8 @@
       ],
       "narration_voice": "cool composed voice, dramatic and deliberate, cinematic weight",
       "avoid": "no chibi or comedic deformation, no photorealistic rendering, no on-screen text, no inconsistent character design",
-      "cast_idiom": "Cinematic anime character with realistic adult human proportions, sharp defined features, detailed hair, expressive large eyes, contemporary clothing, dramatic cel-shaded lighting. NOT photorealistic, NOT 3D CGI, NOT western cartoon, NOT chibi."
+      "cast_idiom": "Cinematic anime character with realistic adult human proportions, sharp defined features, detailed hair, expressive large eyes, contemporary clothing, dramatic cel-shaded lighting. NOT photorealistic, NOT 3D CGI, NOT western cartoon, NOT chibi.",
+      "cast": "required"
     },
     {
       "id": "disney-classic",
@@ -317,7 +332,8 @@
       ],
       "narration_voice": "rich warm storyteller voice, theatrical and kindly, storybook cadence",
       "avoid": "no photorealistic rendering, no modern objects, no sarcasm, no dark imagery, no on-screen text",
-      "cast_idiom": "Classic hand-drawn storybook character with soft rounded proportions, exaggerated expressive features, flowing simple clothing, warm painterly shading. NOT photorealistic, NOT 3D CGI, NOT anime, NOT modern cartoon."
+      "cast_idiom": "Classic hand-drawn storybook character with soft rounded proportions, exaggerated expressive features, flowing simple clothing, warm painterly shading. NOT photorealistic, NOT 3D CGI, NOT anime, NOT modern cartoon.",
+      "cast": "required"
     },
     {
       "id": "shinkai",
@@ -335,7 +351,8 @@
       ],
       "narration_voice": "soft young voice, wistful and poetic, gently emotional",
       "avoid": "no flat backgrounds, no 3D CGI characters, no harsh daylight, no on-screen text, no comedic tone",
-      "cast_idiom": "Modern anime character with realistic adult human proportions, detailed natural hair, soft expressive eyes, contemporary Japanese clothing, lit by pronounced golden-hour rim light and lens flare. NOT photorealistic, NOT 3D CGI, NOT chibi."
+      "cast_idiom": "Modern anime character with realistic adult human proportions, detailed natural hair, soft expressive eyes, contemporary Japanese clothing, lit by pronounced golden-hour rim light and lens flare. NOT photorealistic, NOT 3D CGI, NOT chibi.",
+      "cast": "required"
     },
     {
       "id": "lofi-anime",
@@ -353,7 +370,8 @@
       ],
       "narration_voice": "soft quiet voice, low and unhurried, almost incidental",
       "avoid": "no action, no conflict, no bright saturated colour, no detailed rendering, no on-screen text",
-      "cast_idiom": "Simple clean anime character with realistic adult human proportions and minimal facial detail, loose comfortable clothing, soft pastel colour blocks, low-contrast shading. NOT photorealistic, NOT 3D CGI, NOT highly detailed, NOT chibi."
+      "cast_idiom": "Simple clean anime character with realistic adult human proportions and minimal facial detail, loose comfortable clothing, soft pastel colour blocks, low-contrast shading. NOT photorealistic, NOT 3D CGI, NOT highly detailed, NOT chibi.",
+      "cast": "required"
     },
     {
       "id": "cartoon-network",
@@ -371,7 +389,8 @@
       ],
       "narration_voice": "high-energy comedic voice, quick and playful, punchy delivery",
       "avoid": "no realistic rendering, no detailed shading, no subtle emotion, no on-screen text, no slow pacing",
-      "cast_idiom": "Bold 2D cartoon character with exaggerated simplified proportions, thick clean black outlines, flat vibrant colour blocks, minimal facial detail, rubbery expressive limbs. NOT photorealistic, NOT 3D CGI, NOT anime."
+      "cast_idiom": "Bold 2D cartoon character with exaggerated simplified proportions, thick clean black outlines, flat vibrant colour blocks, minimal facial detail, rubbery expressive limbs. NOT photorealistic, NOT 3D CGI, NOT anime.",
+      "cast": "required"
     },
     {
       "id": "realistic-cgi",
@@ -389,7 +408,8 @@
       ],
       "narration_voice": "natural unpolished voice, conversational and honest, understated",
       "avoid": "no cartoon or stylised rendering, no exaggerated expressions, no flat lighting, no on-screen text, no fantasy elements",
-      "cast_idiom": "Photorealistic human with exact realistic adult proportions, natural skin texture with visible pores and fine hair, subtle asymmetric features, real fabric clothing, physically based rendering. NOT cartoon, NOT anime, NOT stylised, NOT 2D."
+      "cast_idiom": "Photorealistic human with exact realistic adult proportions, natural skin texture with visible pores and fine hair, subtle asymmetric features, real fabric clothing, physically based rendering. NOT cartoon, NOT anime, NOT stylised, NOT 2D.",
+      "cast": "required"
     },
     {
       "id": "vintage-anime-90s",
@@ -407,7 +427,8 @@
       ],
       "narration_voice": "dramatic retro announcer voice, bold and earnest, slightly theatrical",
       "avoid": "no modern digital rendering, no contemporary clothing, no glossy modern shading, no on-screen text, no 3D",
-      "cast_idiom": "1990s cel-shaded anime character with realistic adult human proportions, angular period-typical facial design, large reflective eyes, classic retro hairstyles and clothing, visible film grain. NOT modern anime, NOT photorealistic, NOT 3D CGI, NOT chibi."
+      "cast_idiom": "1990s cel-shaded anime character with realistic adult human proportions, angular period-typical facial design, large reflective eyes, classic retro hairstyles and clothing, visible film grain. NOT modern anime, NOT photorealistic, NOT 3D CGI, NOT chibi.",
+      "cast": "required"
     },
     {
       "id": "chibi-cute",
@@ -425,7 +446,8 @@
       ],
       "narration_voice": "bright cheerful high voice, playful and warm, bouncy rhythm",
       "avoid": "no realistic proportions, no detailed rendering, no dark or sad imagery, no on-screen text, no frightening content",
-      "cast_idiom": "Chibi anime character with super-deformed proportions - oversized round head, tiny body, simplified stubby limbs - huge sparkling eyes, minimal nose and mouth, soft pastel palette. NOT realistic proportions, NOT photorealistic, NOT 3D CGI, NOT full-height anime."
+      "cast_idiom": "Chibi anime character with super-deformed proportions - oversized round head, tiny body, simplified stubby limbs - huge sparkling eyes, minimal nose and mouth, soft pastel palette. NOT realistic proportions, NOT photorealistic, NOT 3D CGI, NOT full-height anime.",
+      "cast": "required"
     },
     {
       "id": "avatar-korra",
@@ -443,7 +465,28 @@
       ],
       "narration_voice": "warm adventurous voice, earnest and energetic, heroic but grounded",
       "avoid": "no photorealistic rendering, no 3D CGI, no graphic violence, no on-screen text, no stiff posing",
-      "cast_idiom": "Hand-drawn 2D character with realistic adult human proportions, expressive angular facial design, clear readable silhouette, Asian-inspired fantasy clothing, painted shading with warm light. NOT photorealistic, NOT 3D CGI, NOT chibi, NOT western cartoon."
+      "cast_idiom": "Hand-drawn 2D character with realistic adult human proportions, expressive angular facial design, clear readable silhouette, Asian-inspired fantasy clothing, painted shading with warm light. NOT photorealistic, NOT 3D CGI, NOT chibi, NOT western cartoon.",
+      "cast": "required"
+    },
+    {
+      "id": "science-what-if",
+      "label": "Science What-If",
+      "kind": "niche",
+      "style": "Photoreal scientific visualization, cinematic realism, dramatic natural lighting, immense scale, high-detail planetary and cosmic imagery, awe and wonder, premium streaming documentary quality",
+      "whisk": "Photoreal scientific visualization, cinematic realism, dramatic natural light, immense scale, high detail, awe and wonder",
+      "palette": "Deep ocean blues, molten ambers, atmospheric whites, cold stellar blacks, aurora greens",
+      "camera": "Slow orbital reveals, vast establishing wides, gradual push-ins that land on one telling detail, scale-revealing crane moves",
+      "audience": "Curious general viewers, science and space fans, lifelong learners",
+      "story_shapes": [
+        "one change happens, then the consequences unfold link by link",
+        "the ordinary state, the moment it breaks, the world afterwards",
+        "a familiar thing shown at a scale that makes it strange",
+        "a calm explanation that keeps getting more extreme"
+      ],
+      "narration_voice": "calm measured male voice, contemplative and unhurried, a quiet sense of scale",
+      "avoid": "no named real scientists, universities or space agencies, no on-screen text, diagrams, labels or equations, no disaster-movie panic, screaming crowds or collapsing skylines, no pseudoscience, no invented physics, no glowing magic energy, no spiralling galaxies used as decoration",
+      "cast_idiom": "Realistic adult humans with realistic adult proportions, ordinary modern clothing suited to the environment, calm observational expressions, natural available light. NOT cartoon, NOT anime, NOT stylised.",
+      "cast": "optional"
     }
   ]
 }
