@@ -78,7 +78,16 @@ const PRESET_ID = typeof flag('--preset') === 'string' ? flag('--preset').trim()
 const DURATION = num('--duration', 56);
 const SECONDS = num('--seconds', 8);
 const ASPECT = typeof flag('--aspect') === 'string' ? flag('--aspect').trim() : '16:9';
-const MODEL = typeof flag('--model') === 'string' ? flag('--model') : 'gemini-2.5-flash';
+// Pinned rather than "gemini-flash-latest" on purpose: an alias silently changes
+// the model under you between runs, so the same story idea writes differently
+// from one week to the next with nothing on screen to say why. Pinning trades
+// that for the occasional 404 - which is a loud, cheap failure that lists what
+// the key can actually use, and the GUI's Script tab has a List models button
+// that fills the dropdown from that same list.
+//
+// gemini-2.5-flash was the original default and was retired for new users within
+// hours of this being written. Expect to change this again.
+const MODEL = typeof flag('--model') === 'string' ? flag('--model') : 'gemini-3.6-flash';
 const BATCH = num('--scenes-per-call', 6);
 const DRY = !!flag('--dry-run', false);
 const FORCE = !!flag('--force', false);

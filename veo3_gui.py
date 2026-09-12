@@ -93,7 +93,11 @@ DEFAULTS = {
     "gen_aspect_ratio": "16:9",
     "gen_scene_seconds": 8,
     "gen_preset": "ghibli",
-    "gemini_model": "gemini-2.5-flash",
+    # Pinned, not "gemini-flash-latest": an alias changes the model under you
+    # between runs with nothing on screen to say why. Google retired the previous
+    # default within hours of this being written, so press "List models" and pick
+    # from what your key can actually use - that list is the only source of truth.
+    "gemini_model": "gemini-3.6-flash",
     # Lands in gui_settings.json, which is gitignored. Never logged or echoed.
     "gemini_api_key": "",
 }
@@ -307,10 +311,13 @@ class Veo3LauncherGUI:
         ttk.Label(f, text="Gemini model:").grid(row=r, column=0, sticky="e", **pad)
         md = tk.Frame(f, bg="#1e1e28")
         md.grid(row=r, column=1, columnspan=2, sticky="w", padx=14)
-        self.gen_model_var = tk.StringVar(value=self.settings.get("gemini_model", "gemini-2.5-flash"))
-        ttk.Entry(md, textvariable=self.gen_model_var, width=28).pack(side="left")
+        self.gen_model_var = tk.StringVar(value=self.settings.get("gemini_model", "gemini-3.6-flash"))
+        # Editable, not readonly: "List models" fills it from the API, but a model
+        # the list has not seen yet can still be typed in without waiting for it.
+        self.gen_model_box = ttk.Combobox(md, textvariable=self.gen_model_var, width=30)
+        self.gen_model_box.pack(side="left")
         ttk.Button(md, text="List models", command=self.list_models).pack(side="left", padx=(8, 0))
-        ttk.Label(md, text="uses your key - nothing is spent by listing",
+        ttk.Label(md, text="fills this list from your key - nothing is spent",
                   style="Hint.TLabel").pack(side="left", padx=(10, 0))
         r += 1
 
@@ -680,7 +687,7 @@ class Veo3LauncherGUI:
             "gen_scene_seconds": self.read_int(self.gen_seconds_var, 8),
             "gen_aspect_ratio": self.gen_aspect_var.get().strip() or "16:9",
             "gen_preset": self._gen_ids.get(self.gen_preset_var.get(), ""),
-            "gemini_model": self.gen_model_var.get().strip() or "gemini-2.5-flash",
+            "gemini_model": self.gen_model_var.get().strip() or "gemini-3.6-flash",
             "gemini_api_key": self.gen_key_var.get().strip(),
         })
 
@@ -817,13 +824,45 @@ class Veo3LauncherGUI:
             self._launch(cmd, f"Writing '{title}' with {self.settings['gemini_model']}...")
 
     def list_models(self):
+        """Fill the model dropdown from what this key can actually use.
+
+        Runs synchronously and captured, rather than through _launch: the point
+        is the list, and it belongs in the dropdown next to the field, not in a
+        console the user has to copy out of. Listing costs nothing.
+        """
         self.collect_inputs()
         if not self.settings["gemini_api_key"]:
             messagebox.showerror("No API key", "Paste your Gemini API key on this tab first.")
             return
         self.save_settings()
-        self._launch(["node", WRITER, "--list-models"],
-                     "Asking Gemini which models this key can use (nothing is spent)...")
+        self.output.delete("1.0", "end")
+        self.output.insert("end", "Asking Gemini which models this key can use...\n\n")
+        try:
+            p = subprocess.run(["node", WRITER, "--list-models"], cwd=BASE_DIR,
+                               capture_output=True, text=True, encoding="utf-8",
+                               errors="replace", timeout=60, shell=False)
+        except Exception as e:
+            self.output.insert("end", f"Could not run the lister: {e}\n")
+            return
+        models = [ln.strip() for ln in (p.stdout or "").splitlines() if ln.strip()]
+        if not models:
+            self.output.insert("end", (p.stderr or "(no output)") + "\n")
+            messagebox.showerror("Could not list models",
+                                 (p.stderr or "No models came back.").strip()[:400])
+            return
+        self.gen_model_box.configure(values=models)
+        # Keep whatever is selected if it survived; otherwise move to the first
+        # entry rather than leaving a dead name in the box for the next run.
+        if self.gen_model_var.get() not in models:
+            self.output.insert("end",
+                               f"⚠️  '{self.gen_model_var.get()}' is not on this list - "
+                               f"it would fail.\n\n")
+            self.gen_model_var.set(models[0])
+        self.output.insert("end", f"{len(models)} models available. Picked: "
+                                  f"{self.gen_model_var.get()}\n\n")
+        for m in models:
+            self.output.insert("end", f"  {m}\n")
+        self.output.insert("end", "\nChoose one in the dropdown above.\n")
 
     # ── agent stages ──────────────────────────────────────────
     def apply_style(self):
