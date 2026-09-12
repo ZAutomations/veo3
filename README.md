@@ -195,6 +195,8 @@ through.
 | `--aspect R` | `16:9`, `9:16`, `1:1` |
 | `--preset ID` | required. `npm run styles` lists them |
 | `--model NAME` | default `gemini-3.6-flash` |
+| `--key K` | a Gemini key. Repeat for several; they fall back in order |
+| `--key-index N` | use only the Nth key saved in `gui_settings.json` |
 | `--scenes-per-call N` | default 6 |
 | `--out DIR` | write somewhere other than `stories/<slug>/` |
 | `--force` | allow writing into a folder that already holds a story |
@@ -204,13 +206,38 @@ through.
 **Start with `--dry-run`.** It prints both prompts in full and costs nothing, so
 you can see what the model will be told before spending anything.
 
-### The API key
+### The API keys
 
-Resolved from `--key`, then `GEMINI_API_KEY`, then `gemini_api_key` in
-`gui_settings.json`. The GUI's Script tab saves it to that file, which is
-gitignored, and it is never put on a command line where the process list would
-show it. Prefer the env var or the settings file — `--key` lands in your shell
-history.
+Several keys can be configured, and they are used in order. When one reports
+itself out of quota the run moves to the next instead of dying — so a 7-clip
+story does not fail on clip 6 because the first key ran dry. A key retired this
+way is not tried again for the rest of that run. Keys are resolved from:
+
+1. `--key`, which may be repeated: `--key K1 --key K2`
+2. `GEMINI_API_KEY` (also `GOOGLE_API_KEY`, `GOOGLE_GENAI_API_KEY`) — commas
+   separate several in one variable
+3. `gemini_api_keys`, an array in `gui_settings.json`
+
+The GUI's Script tab is the easiest way to manage them: paste a key and press
+**Add key**, and reorder with the arrows — the list order *is* the fallback
+order. **Test keys** asks each one to list models and tells you which are
+alive. Keys are stored in `gui_settings.json`, which is gitignored, and are
+shown masked (`AIzaSy…9f2c`) everywhere, including in logs. They are never
+passed on a command line and never written to a console.
+
+One caveat on **Test keys**: listing models still works on a key with no quota
+left, so a green result proves the key is *valid*, not that it has credit. Only
+a real run proves credit. A key with no quota at all is caught by the fallback
+during the run, which is the case that matters.
+
+`--key-index N` uses only the Nth saved key, which is how the GUI tests one at
+a time without putting the key on a command line.
+
+Keys are ranked as follows when deciding whether to move on. A `429`, or a
+message mentioning quota, rate limit or billing, retires the key. A `404` (dead
+model) or a `403` saying the key lacks permission does **not** — those would
+fail identically on every key, and rotating past them would hide a real setup
+mistake behind a misleading "every key is out of quota".
 
 If the model name is wrong the run lists what your key can actually use, rather
 than failing with a bare 404. In the GUI, **List models** does the same thing

@@ -36,6 +36,10 @@
  *   node write_story.js --list-models        what this key can actually use
  *
  * Needs a Gemini API key: --key, or GEMINI_API_KEY, or gui_settings.json.
+ * Several keys may be given. They are tried in order, and if one runs out of
+ * quota the run continues on the next rather than dying part-way through a
+ * story. Repeat --key, or separate them with commas in the env var, or keep a
+ * "gemini_api_keys" array in gui_settings.json (the GUI's Script tab edits it).
  */
 
 const fs = require('fs');
@@ -58,6 +62,16 @@ function flag(name, def = null) {
 function num(name, def) {
     const n = parseInt(flag(name), 10);
     return Number.isFinite(n) && n > 0 ? n : def;
+}
+// Every occurrence of a repeatable flag, in the order given. `--key a --key b`.
+function flags(name) {
+    const out = [];
+    for (let i = 0; i < argv.length; i++) {
+        if (argv[i] !== name) continue;
+        const v = argv[i + 1];
+        if (v && !v.startsWith('--')) out.push(v);
+    }
+    return out;
 }
 
 const TITLE = typeof flag('--title') === 'string' ? flag('--title').trim() : '';
@@ -94,22 +108,117 @@ const FORCE = !!flag('--force', false);
 const OUT_DIR = typeof flag('--out') === 'string' ? flag('--out') : null;
 const LIST_MODELS = !!flag('--list-models', false);
 
-// ── api key ------------------------------------------------------------------
-// Never printed. A key on a command line also lands in the shell history, which
-// is why the env var and the settings file are checked first in practice.
-function apiKey() {
-    const fromFlag = flag('--key');
-    if (typeof fromFlag === 'string' && fromFlag.trim()) return fromFlag.trim();
+// ── api keys -----------------------------------------------------------------
+// Never printed in full. A key on a command line also lands in the shell history,
+// which is why the env var and the settings file are checked first in practice.
+//
+// Several keys can be configured. They are used in the order given and a key
+// that reports itself out of quota is dropped for the rest of the run, so a
+// long story does not die on its last batch because the first key ran dry.
+function apiKeys() {
+    const out = [];
+    const add = (v) => {
+        const s = String(v == null ? '' : v).trim();
+        // Comma-separated is allowed so an env var can carry the whole ring.
+        for (const part of s.split(',')) {
+            const k = part.trim();
+            if (k && !out.includes(k)) out.push(k);
+        }
+    };
+
+    // --key-index N narrows the ring to the Nth key in gui_settings.json alone.
+    // The GUI needs to test stored keys one at a time, and passing the key
+    // itself would put it in the process list - which is the whole reason the
+    // settings file exists. Indexing the file avoids that entirely. It reads
+    // only the saved list, not the env vars, so "3" means the third row of the
+    // listbox on screen rather than something that shifts with the environment.
+    const idx = num('--key-index', 0);
+    if (idx > 0) {
+        const saved = [];
+        try {
+            const s = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+            if (Array.isArray(s.gemini_api_keys)) {
+                for (const k of s.gemini_api_keys) {
+                    const t = String(k || '').trim();
+                    if (t) saved.push(t);
+                }
+            }
+            if (!saved.length && typeof s.gemini_api_key === 'string' && s.gemini_api_key.trim()) {
+                saved.push(s.gemini_api_key.trim());
+            }
+        } catch (e) { /* handled below */ }
+        if (idx > saved.length) {
+            console.error(`--key-index ${idx} but only ${saved.length} key(s) are saved.`);
+            process.exit(1);
+        }
+        return [saved[idx - 1]];
+    }
+
+    for (const v of flags('--key')) add(v);
     for (const v of ['GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_GENAI_API_KEY']) {
-        if (process.env[v] && process.env[v].trim()) return process.env[v].trim();
+        if (process.env[v]) add(process.env[v]);
     }
     try {
         const s = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+        if (Array.isArray(s.gemini_api_keys)) for (const k of s.gemini_api_keys) add(k);
+        // Single-key settings files written before the ring existed still work.
         for (const k of ['gemini_api_key', 'gemini_key', 'GEMINI_API_KEY']) {
-            if (typeof s[k] === 'string' && s[k].trim()) return s[k].trim();
+            if (typeof s[k] === 'string') add(s[k]);
         }
     } catch (e) { /* no settings file yet - fine */ }
-    return null;
+    return out;
+}
+
+// Enough to tell two keys apart in a log without putting either one in it.
+function maskKey(k) {
+    const s = String(k || '');
+    if (s.length <= 12) return '(short key)';
+    return `${s.slice(0, 6)}…${s.slice(-4)}`;
+}
+
+// A key that is merely rate-limited briefly and one that is out of credit for
+// the month both arrive as 429, so the ring treats them the same: move on. The
+// alternative is failing a 7-clip story on clip 6.
+//
+// Deliberately NOT matched: a 403 that says "permission" or "not valid". Those
+// mean a key is wrong, not spent, and rotating past them would hide a real
+// setup mistake behind "every key is out of quota" - which is a lie the user
+// would chase for an hour.
+function isQuotaError(e) {
+    if (!e) return false;
+    if (e.status === 429) return true;
+    const m = String(e.message || '');
+    if (/RESOURCE_EXHAUSTED|quota|rate.?limit|billing|exceeded/i.test(m)) return true;
+    return e.status === 403 && /quota|billing|exceeded/i.test(m);
+}
+
+class KeyRing {
+    constructor(keys) {
+        this.keys = keys.slice();
+        this.dead = new Set();   // exhausted this run - never tried again
+        this.i = 0;
+    }
+    get size() { return this.keys.length; }
+    get current() { return this.keys[this.i]; }
+    // "key 2/3 [AIza…9f2c]" - identifies a key for the operator without
+    // disclosing it. Shown once at the start, not on every call.
+    get label() {
+        if (!this.size) return 'no key';
+        if (this.size === 1) return `key [${maskKey(this.current)}]`;
+        return `key ${this.i + 1}/${this.size} [${maskKey(this.current)}]`;
+    }
+    // Retire the current key and switch to the next one that has not been
+    // retired. Returns false when the ring is empty, which is the caller's
+    // signal to give up and report.
+    retire() {
+        this.dead.add(this.i);
+        if (this.dead.size >= this.size) return false;
+        for (let n = 1; n <= this.size; n++) {
+            const j = (this.i + n) % this.size;
+            if (!this.dead.has(j)) { this.i = j; return true; }
+        }
+        return false;
+    }
 }
 
 async function callApi(key, model, body) {
@@ -162,16 +271,27 @@ function geminiText(resp) {
     return txt;
 }
 
-async function ask(key, model, prompt, maxTokens) {
-    const resp = await callApi(key, model, {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-            responseMimeType: 'application/json',
-            temperature: 0.9,
-            maxOutputTokens: maxTokens,
-        },
-    });
-    return parseJson(geminiText(resp));
+// One call, with key rotation on quota errors only. A 404 (dead model) or a
+// malformed request would fail identically on every key, so those are raised
+// straight away instead of burning the whole ring proving it.
+async function ask(ring, model, prompt, maxTokens) {
+    for (;;) {
+        const key = ring.current;
+        try {
+            const resp = await callApi(key, model, {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    responseMimeType: 'application/json',
+                    temperature: 0.9,
+                    maxOutputTokens: maxTokens,
+                },
+            });
+            return parseJson(geminiText(resp));
+        } catch (e) {
+            if (!isQuotaError(e) || !ring.retire()) throw e;
+            console.log(`\n  ${maskKey(key)} is out of quota - switching to ${ring.label}`);
+        }
+    }
 }
 
 // ── preset -------------------------------------------------------------------
@@ -238,8 +358,14 @@ TASK
                      NEVER guard restated as "NOT ..." so the model cannot drift.
                      Every character must be described in the SAME medium.
      "sheet_prompt" - a 30 to 45 word prompt for an image generator to make that
-                     character's reference sheet: full body, neutral pose, plain
-                     background, consistent lighting. Include the medium.
+                     character's reference sheet: full body, neutral standing
+                     pose, consistent lighting. Include the medium.
+                     Every sheet in the cast must end with this exact background
+                     phrase, word for word, with nothing added to it:
+                     "plain neutral grey studio background"
+                     Do not vary it per character - not "plain background", not
+                     "plain gray background with a soft vignette". Sheets that
+                     disagree on the background read as a different production.
 5. Write an "outline": exactly ${SCENES} entries, one per clip.
      "title" - 2 to 5 words
      "beat"  - one sentence: what happens in this clip and what changes.
@@ -284,6 +410,14 @@ For EACH clip above, in order, return:
                         rendering medium, a studio or an art style - the look is
                         already fixed above and naming it again is what makes
                         scenes drift apart.
+                        The same goes for the cast's material words. Their
+                        descriptions say "matte surface", "mannequin", "cel-shaded"
+                        and so on because that is how the reference sheet must be
+                        drawn - but inside the action, say what a person DOES and
+                        what they WEAR. Write "the wind pulls at his coat", never
+                        "the wind whips the fabric around his matte grey legs".
+                        Repeating medium words in the action is what makes the
+                        model render plastic where it should render a person.
   "characters"        - array of the cast names actually VISIBLE in this clip.
                         Only who is on screen. Never list an absent character:
                         naming someone who is not there invites the model to
@@ -436,14 +570,21 @@ function writePackage(dir, p, story, cast) {
 // Guarded so the internals can be required by a test. Everything above is pure -
 // build a story, validate it, write it - and only this block touches the network.
 if (require.main === module) (async () => {
-    const key = apiKey();
+    const ring = new KeyRing(apiKeys());
 
     if (LIST_MODELS) {
-        if (!key) { console.error('No API key. Set GEMINI_API_KEY or pass --key.'); process.exit(1); }
-        try {
-            for (const m of await listModels(key)) console.log('  ' + m);
-        } catch (e) { console.error('Could not list models:', e.message); process.exit(1); }
-        return;
+        if (!ring.size) { console.error('No API key. Set GEMINI_API_KEY or pass --key.'); process.exit(1); }
+        // With a ring, list against the first key that answers - a key with no
+        // quota left still lists models, so this is not a quota test.
+        let lastErr = null;
+        for (let n = 0; n < ring.size; n++) {
+            try {
+                for (const m of await listModels(ring.current)) console.log('  ' + m);
+                return;
+            } catch (e) { lastErr = e; if (!ring.retire()) break; }
+        }
+        console.error('Could not list models:', lastErr ? lastErr.message : 'no key worked');
+        process.exit(1);
     }
 
     if (!TITLE) {
@@ -488,10 +629,14 @@ if (require.main === module) (async () => {
         return;
     }
 
-    if (!key) {
+    if (!ring.size) {
         console.error('\nNo API key. Pass --key, or set GEMINI_API_KEY, or put');
-        console.error('"gemini_api_key" in gui_settings.json (which is gitignored).');
+        console.error('"gemini_api_keys" in gui_settings.json (which is gitignored).');
         process.exit(1);
+    }
+    if (ring.size > 1) {
+        console.log(`  keys     : ${ring.size} configured, used in order - ` +
+                    `${ring.keys.map(maskKey).join(', ')}`);
     }
 
     if (fs.existsSync(dir) && !FORCE) {
@@ -506,7 +651,7 @@ if (require.main === module) (async () => {
     try {
         // 1. cast + outline
         process.stdout.write('\n  [1/2] writing the cast and outline ... ');
-        const meta = await ask(key, MODEL, castPrompt(p), 8192);
+        const meta = await ask(ring, MODEL, castPrompt(p), 8192);
         const cast = meta.characters || [];
         const outline = meta.outline || [];
         if (!cast.length) throw new Error('the model returned no characters');
@@ -521,7 +666,7 @@ if (require.main === module) (async () => {
         for (let from = 0; from < total; from += BATCH) {
             const to = Math.min(from + BATCH, total);
             process.stdout.write(`  [2/2] clips ${from + 1}-${to} of ${total} ... `);
-            const r = await ask(key, MODEL, scenesPrompt(p, cast, outline, from, to, scenes), 16384);
+            const r = await ask(ring, MODEL, scenesPrompt(p, cast, outline, from, to, scenes), 16384);
             const got = r.scenes || [];
             if (!got.length) throw new Error(`clip batch ${from + 1}-${to} came back empty`);
             scenes.push(...got);
@@ -550,10 +695,13 @@ if (require.main === module) (async () => {
         console.log('');
     } catch (e) {
         console.error(`\n  FAILED: ${e.message}`);
-        if (e.status === 404 || /not found|not supported/i.test(e.message)) {
+        if (isQuotaError(e)) {
+            console.error(`  Every one of the ${ring.size} configured key(s) is out of quota.`);
+            console.error('  Add another key on the Script tab, or wait for the quota to reset.');
+        } else if (e.status === 404 || /not found|not supported/i.test(e.message)) {
             console.error(`  The model "${MODEL}" was not usable with this key. Available:`);
             try {
-                for (const m of await listModels(key)) console.error('    ' + m);
+                for (const m of await listModels(ring.current)) console.error('    ' + m);
             } catch (e2) { console.error('    (could not list them either: ' + e2.message + ')'); }
             console.error('  Pass one of those with --model.');
         }
@@ -564,4 +712,5 @@ if (require.main === module) (async () => {
 module.exports = {
     slugify, buildStory, validate, writePackage, loadPreset,
     castPrompt, scenesPrompt, parseJson, geminiText,
+    apiKeys, maskKey, isQuotaError, KeyRing, ask, callApi,
 };

@@ -99,7 +99,12 @@ DEFAULTS = {
     # from what your key can actually use - that list is the only source of truth.
     "gemini_model": "gemini-3.6-flash",
     # Lands in gui_settings.json, which is gitignored. Never logged or echoed.
-    "gemini_api_key": "",
+    #
+    # A list, not a single key. write_story.js walks it in order and moves to the
+    # next one when a key reports itself out of quota, so one exhausted key does
+    # not fail a story half-written. "gemini_api_key" is still read as a fallback
+    # for settings files written before this existed.
+    "gemini_api_keys": [],
 }
 
 
@@ -321,13 +326,45 @@ class Veo3LauncherGUI:
                   style="Hint.TLabel").pack(side="left", padx=(10, 0))
         r += 1
 
-        ttk.Label(f, text="Gemini API key:").grid(row=r, column=0, sticky="e", **pad)
+        ttk.Label(f, text="Gemini API keys:").grid(row=r, column=0, sticky="ne", **pad)
         kd = tk.Frame(f, bg="#1e1e28")
         kd.grid(row=r, column=1, columnspan=2, sticky="w", padx=14)
-        self.gen_key_var = tk.StringVar(value=self.settings.get("gemini_api_key", ""))
-        ttk.Entry(kd, textvariable=self.gen_key_var, width=44, show="•").pack(side="left")
-        ttk.Label(kd, text="saved to gui_settings.json (gitignored)", style="Hint.TLabel"
-                  ).pack(side="left", padx=(10, 0))
+
+        # A list rather than one field: the point is to hold several and let the
+        # writer fall through to the next when one runs dry. Kept as a Listbox of
+        # masked keys so the order is visible and editable - the order IS the
+        # fallback order.
+        self.gen_keys = list(self.settings.get("gemini_api_keys") or [])
+        legacy = (self.settings.get("gemini_api_key") or "").strip()
+        if legacy and legacy not in self.gen_keys:
+            self.gen_keys.insert(0, legacy)
+
+        self.gen_key_list = tk.Listbox(kd, height=3, width=34, activestyle="none",
+                                       bg="#14141c", fg="#e6e6ee",
+                                       selectbackground="#3a3a52", highlightthickness=0,
+                                       exportselection=False)
+        self.gen_key_list.pack(side="left")
+
+        kb = tk.Frame(kd, bg="#1e1e28")
+        kb.pack(side="left", padx=(8, 0), anchor="n")
+        self.gen_key_entry = tk.StringVar()
+        ttk.Entry(kb, textvariable=self.gen_key_entry, width=34, show="•").pack(anchor="w")
+        e2 = tk.Frame(kb, bg="#1e1e28")
+        e2.pack(anchor="w", pady=(4, 0))
+        ttk.Button(e2, text="Add key", width=10,
+                   command=self.add_api_key).pack(side="left")
+        ttk.Button(e2, text="Remove", width=10,
+                   command=self.remove_api_key).pack(side="left", padx=(6, 0))
+        ttk.Button(e2, text="Test keys", width=10,
+                   command=self.test_keys).pack(side="left", padx=(6, 0))
+        ttk.Button(e2, text="↑", width=3,
+                   command=lambda: self.move_api_key(-1)).pack(side="left", padx=(6, 0))
+        ttk.Button(e2, text="↓", width=3,
+                   command=lambda: self.move_api_key(1)).pack(side="left")
+
+        self.gen_key_note = ttk.Label(kd, text="", style="Hint.TLabel", justify="left")
+        self.gen_key_note.pack(side="left", padx=(10, 0), anchor="n")
+        self.refresh_key_list()
         r += 1
 
         btns = tk.Frame(f, bg="#1e1e28")
@@ -353,6 +390,101 @@ class Veo3LauncherGUI:
                                f"(narration ~{n * 20} words total)")
         except (tk.TclError, ZeroDivisionError, ValueError):
             self.gen_count.set("")
+
+    # ── the api key ring ──────────────────────────────────────
+    @staticmethod
+    def mask_key(k):
+        """Enough of a key to tell two apart in a log, never the whole thing."""
+        k = str(k or "")
+        return f"{k[:6]}…{k[-4:]}" if len(k) > 12 else "(short key)"
+
+    def refresh_key_list(self):
+        """Redraw the listbox from self.gen_keys and update the count note."""
+        self.gen_key_list.delete(0, "end")
+        for i, k in enumerate(self.gen_keys):
+            self.gen_key_list.insert("end", f"{i + 1}.  {self.mask_key(k)}")
+        n = len(self.gen_keys)
+        if n == 0:
+            note = "no key yet\n(needed to write a story)"
+        elif n == 1:
+            note = "1 key\nused for the whole run"
+        else:
+            note = (f"{n} keys\nused top to bottom.\n"
+                    f"When one hits its quota the\nrun continues on the next.")
+        self.gen_key_note.configure(text=note)
+
+    def add_api_key(self):
+        """Append whatever is in the entry box, ignoring a duplicate."""
+        k = self.gen_key_entry.get().strip()
+        if not k:
+            return
+        if k in self.gen_keys:
+            messagebox.showinfo("Already added",
+                                "That key is already in the list. "
+                                "Duplicates would be retried needlessly.")
+            return
+        self.gen_keys.append(k)
+        self.gen_key_entry.set("")   # do not leave the key on screen
+        self.refresh_key_list()
+
+    def remove_api_key(self):
+        sel = self.gen_key_list.curselection()
+        if not sel:
+            messagebox.showinfo("Nothing selected", "Click a key in the list first.")
+            return
+        del self.gen_keys[sel[0]]
+        self.refresh_key_list()
+
+    def move_api_key(self, step):
+        """Reorder - the list order is the fallback order."""
+        sel = self.gen_key_list.curselection()
+        if not sel:
+            return
+        i = sel[0]
+        j = i + step
+        if not (0 <= j < len(self.gen_keys)):
+            return
+        self.gen_keys[i], self.gen_keys[j] = self.gen_keys[j], self.gen_keys[i]
+        self.refresh_key_list()
+        self.gen_key_list.selection_set(j)
+
+    def test_keys(self):
+        """Ask each key to list models, to see which are alive.
+
+        Listing costs nothing and, unlike a generate call, still works on a key
+        with no quota left - so this answers "is this key valid and switched on",
+        which is the question that matters when a run has just failed. It does
+        not prove the key has quota; only a real call does that.
+        """
+        self.collect_inputs()
+        keys = self.settings["gemini_api_keys"]
+        if not keys:
+            messagebox.showerror("No keys", "Add at least one key first.")
+            return
+        self.save_settings()
+        self.output.delete("1.0", "end")
+        self.output.insert("end", f"Testing {len(keys)} key(s)...\n\n")
+        for i, k in enumerate(keys, 1):
+            self.output.insert("end", f"  {i}. {self.mask_key(k)} ... ")
+            self.output.update_idletasks()
+            try:
+                # --key-index, not --key: the key stays in the settings file where
+                # it already lives, so it never appears in the process list.
+                p = subprocess.run(["node", WRITER, "--list-models", "--key-index", str(i)],
+                                   cwd=BASE_DIR, capture_output=True, text=True,
+                                   encoding="utf-8", errors="replace", timeout=60,
+                                   shell=False)
+            except Exception as e:
+                self.output.insert("end", f"could not run: {e}\n")
+                continue
+            if p.returncode == 0 and (p.stdout or "").strip():
+                n = len([ln for ln in p.stdout.splitlines() if ln.strip()])
+                self.output.insert("end", f"OK - {n} models\n")
+            else:
+                msg = (p.stderr or "no output").strip().splitlines()
+                self.output.insert("end", f"FAILED - {msg[-1] if msg else '?'}\n")
+        self.output.insert("end", "\nA key that lists models can still be out of quota.\n"
+                                  "Only a real run proves quota.\n")
 
     def open_styles_help(self):
         messagebox.showinfo(
@@ -688,8 +820,22 @@ class Veo3LauncherGUI:
             "gen_aspect_ratio": self.gen_aspect_var.get().strip() or "16:9",
             "gen_preset": self._gen_ids.get(self.gen_preset_var.get(), ""),
             "gemini_model": self.gen_model_var.get().strip() or "gemini-3.6-flash",
-            "gemini_api_key": self.gen_key_var.get().strip(),
+            # Anything typed into the entry but not yet Added counts too, so a
+            # key pasted and immediately used without pressing Add still works
+            # rather than silently running with no key.
+            "gemini_api_keys": self.effective_keys(),
+            # Cleared: the list is now the only source. Leaving a stale single
+            # key here would resurrect an old key the user had removed.
+            "gemini_api_key": "",
         })
+
+    def effective_keys(self):
+        """The saved ring, plus a key sitting unadded in the entry box."""
+        keys = [k for k in self.gen_keys if str(k).strip()]
+        typed = self.gen_key_entry.get().strip()
+        if typed and typed not in keys:
+            keys.append(typed)
+        return keys
 
     def read_int(self, var, default):
         """Read an IntVar, tolerating a half-typed or emptied spinbox.
@@ -816,10 +962,10 @@ class Veo3LauncherGUI:
             cmd += ["--dry-run"]
             self._launch(cmd, f"Building the prompts for '{title}' - nothing is sent...")
         else:
-            if not self.settings["gemini_api_key"]:
+            if not self.settings["gemini_api_keys"]:
                 messagebox.showerror("No API key",
-                                     "Paste your Gemini API key on this tab first.\n"
-                                     "It is saved to gui_settings.json, which is gitignored.")
+                                     "Add at least one Gemini API key on this tab first.\n"
+                                     "They are saved to gui_settings.json, which is gitignored.")
                 return
             self._launch(cmd, f"Writing '{title}' with {self.settings['gemini_model']}...")
 
@@ -831,8 +977,8 @@ class Veo3LauncherGUI:
         console the user has to copy out of. Listing costs nothing.
         """
         self.collect_inputs()
-        if not self.settings["gemini_api_key"]:
-            messagebox.showerror("No API key", "Paste your Gemini API key on this tab first.")
+        if not self.settings["gemini_api_keys"]:
+            messagebox.showerror("No API key", "Add at least one Gemini API key on this tab first.")
             return
         self.save_settings()
         self.output.delete("1.0", "end")
