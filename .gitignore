@@ -12,6 +12,7 @@ gui_settings.json
 *.webm
 stories/**/output/
 stories/**/logs/
+stories/**/clips/
 logs/
 
 # Reference sheets are yours, not the repo's - but keep the folder + its README

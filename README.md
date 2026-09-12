@@ -178,17 +178,208 @@ Two consequences worth knowing:
 
 ---
 
+## Agent Mode — the second path
+
+Everything above describes the **ingredients/extend** path. Agent Mode is a
+separate surface and a separate set of scripts. It is not a replacement: the
+ingredients path stays because it is the one that works once the extend models
+are available on your plan.
+
+|  | Ingredients (extend) | Agent Mode |
+|---|---|---|
+| Where it runs | the **scene editor** (`/project/<id>/edit/<scene>`) | the **project home** (`/project/<id>`) |
+| Who plans the shots | you, scene by scene in the JSON | the agent, from one prompt |
+| Output | one continuous timeline | **discrete clips**, one per scene |
+| Post-processing | ffmpeg **split** | ffmpeg **concat** |
+| Model choice | the extend menu | plain English in the prompt |
+
+That last row is the reason Agent Mode exists at all: the lower-priority model
+that the extend menu does not offer *is* reachable here, by asking for it in
+words.
+
+### The four stages
+
+```bat
+node story_to_agent_prompt.js stories\my_story\my_story.json   :: 1. story JSON -> agent_prompt.txt
+node agent_mode.js --file stories\my_story\agent_prompt.txt ^  :: 2. type, attach @mentions, submit
+                   --model "veo3.1 low priority" --auto-approve
+node agent_download.js --out stories\my_story\clips            :: 3. pull the clips out of Flow
+node join_clips.js stories\my_story\clips                      :: 4. ffmpeg concat
+```
+
+All four are buttons in the GUI's **Agent Mode** tab, in that order.
+
+**Stage 1 — `story_to_agent_prompt.js`.** Derives the prompt from the story
+JSON rather than having you write it. This is not a convenience: a hand-written
+prompt for *The Gift of Honesty* dropped the narrator voice-over and the
+"characters are silent" rule and invented dialogue the story forbids, and the
+agent produced exactly that. The JSON already holds the narration
+(`scenes[].script_line`), the style and the VO rule, so the prompt is generated
+from it. It warns if any scene has no narration line, because the agent will
+invent those scenes.
+
+**Stage 2 — `agent_mode.js`.** Types the prompt, then attaches each `@mention`
+**last**. Typing `@Mia` mid-sentence sends the rest of the sentence into the
+asset picker as a search filter, which matches nothing and truncates the
+prompt — hence the split. `--no-submit` is on by default in the GUI so the
+first run of a new story can be eyeballed.
+
+**Stage 3 — `agent_download.js`.** Probe-first. Run `--probe` before trusting
+it: the per-tile DOM is only half mapped. What *is* known is that each tile
+carries `Favorite`, `Reuse prompt` and `More options`, the last being a
+`mat-mdc-menu-trigger` — so the menu is the download route — and the script
+tries a direct `<video src>` fetch first, because that needs no menu and cannot
+mis-attribute a file.
+
+**Stage 4 — `join_clips.js`.** Concatenates with `-c copy`, which is instant,
+and falls back to a re-encode only when it must. It **checks the clips' stream
+signatures first**: fed clips of differing resolutions, the concat demuxer exits
+`0` and writes a file whose format changes mid-playback, with no error. That is
+silent corruption, so it is detected and the join is forced to re-encode.
+
+### Order is the thing that goes wrong
+
+Flow's project grid is usually **newest first**, so DOM order is often the
+reverse of scene order, and a wrong join order produces a perfectly valid video
+with the scenes shuffled. Nothing guesses:
+
+- the downloader numbers files by on-screen order and writes `manifest.json`
+  recording exactly which tile became which file;
+- `join_clips.js` reads that manifest, or sorts naturally (`scene-2` before
+  `scene-10`), and `--dry-run` prints the plan before anything is encoded.
+
+**Stage 3 in the GUI passes `--reverse` by default**, because numbering clips in
+on-screen order names scene 7 as `scene-01.mp4`. The checkbox is *Number clips
+oldest-first (Flow's grid is newest-first — leave ON)*. Turn it off only for a
+project whose grid is genuinely oldest-first, which has not been observed yet.
+
+Untick it, or download from the CLI without `--reverse`, and you get the
+reversal: every clip is present, every clip plays, and the story runs backwards.
+
+**Always check `--dry-run` output before the join.** If scene 1 is last, either
+re-download with `--reverse` or pass `--order` to `join_clips.js`.
+
+Because `scene-01.mp4` is only a *name*, the downloader also writes
+**`_contact_sheet.jpg`** into the clips folder — every clip's frame with its
+number burned in, so the order can be confirmed by eye against the story. The
+tile captions Flow shows on hover ("Mia watches Daniel walk away") are the other
+check, but they only render after the tile has been pointed at, so treat them as
+a bonus, not a guarantee.
+
+Rebuild the sheet at any time without touching the browser or spending credits:
+
+```
+node agent_download.js --sheet-only stories\my_story\clips
+```
+
+It reads `manifest.json`, so the numbers match what `join_clips.js` will use.
+This is the "?" **Check order** button on the Agent tab.
+
+### Where the clips land
+
+Point the **Clips folder** at a story folder and the GUI quietly redirects to
+`<story>/clips`. A story folder is recognisable because it holds the story JSON,
+and pointing at it directly scatters `scene-*.mp4`, `manifest.json` and
+`_contact_sheet.jpg` through the story directory, mixed in with the JSON and
+`character_refs/`. That happened on 2026-09-12 and made "which folder do I join?"
+a real question. Leave the field empty and stage 3 defaults to `<story>/clips`
+anyway.
+
+### Steps that are deliberately manual
+
+Creating the project, uploading each character reference sheet as a **Character**
+named exactly as the `@mention` (`Mia`, `Daniel`), and setting **Agent
+instructions** are not automated. They are one-time per project, and a wrong
+value there poisons every later stage silently — the failure shows up much later
+as inconsistent characters or a photorealistic look instead of the intended
+style. The GUI lists them at the top of the Agent tab.
+
+### Bringing an old (pre-Agent) story forward
+
+Older story files written for the ingredients/extend path already carry
+`script_line` and `narrative_context`, which is most of what the builder needs.
+What they lack is the three fields that produce the `@mention` list:
+
+| Field | Where | Why |
+|---|---|---|
+| `character_descriptions` | top level | the identity text the agent is told to hold |
+| `character_references` | top level | `{ "sarah": "./character_refs/sarah_reference_sheet.jpg" }`, relative to the story JSON |
+| `scenes[].characters` | per scene | only the characters **on screen** in that scene |
+
+Miss them and the builder still runs — it just emits `Create 7 separate clips,
+one clip per scene, using , up to 8 seconds each.` The empty gap where the names
+belong is the whole symptom: no mentions, so no reference sheets attach, and the
+agent invents the cast. Check the `characters :` line in the builder's summary
+before spending anything.
+
+Two traps when converting:
+
+- **List only who is present.** Crediting an absent character invites the model to
+  insert them. A scene where someone has walked out should name only the one left.
+- **Style references to a real studio.** `story_to_agent_prompt.js` sends
+  `style`, the story `description` and every scene's `narrative_context` to the
+  agent, so renaming just the `style` line leaves the studio name in the prompt
+  many more times. Clean all three.
+
+`convert_bridge_story.py` is a worked example of the whole conversion.
+
+### Agent Mode flags
+
+`agent_mode.js`
+
+| Flag | Meaning |
+|---|---|
+| `--file PATH` | Prompt from a file. Use this for full stories — Windows mangles long multi-line `--prompt`. |
+| `--prompt "..."` | Short prompt inline. Any `@Name` in it is split out and typed last. |
+| `--mention "A,B"` | Characters to attach. Overrides any `@` in the prompt. |
+| `--model "..."` | Plain English, e.g. `veo3.1 low priority`. |
+| `--check` | Report state only; click nothing. |
+| `--settings` | Open and dump the Agent settings menu. |
+| `--no-submit` | Type the prompt, do not submit. |
+| `--auto-approve` | Click approval buttons automatically. **Spends credits.** |
+| `--watch N` | Seconds to keep recording after submit. |
+
+`agent_download.js` — `--probe`, `--out DIR`, `--method auto\|src\|menu`,
+`--reverse`, `--limit N`, `--no-sheet`, `--sheet-only DIR`.
+
+`join_clips.js` — `--out FILE`, `--order a,b,c`, `--reverse`, `--dry-run`,
+`--reencode`, `--copy`.
+
+### Model limits (stated by the agent, 2026-09-11)
+
+- **Veo 3.1 - Lite [Lower Priority] caps at 8 seconds per clip.** Asking for one
+  15-second video makes the agent refuse or re-plan.
+- **At most 3 reference images** (R2V). A multi-angle character *sheet* can count
+  as more than one.
+- **One scene per clip.** Total length is the sum of the clips — it is not
+  something you request.
+
+---
+
 ## Project layout
 
 ```
-veo3_flow_new_ui.js   engine - all automation logic
-veo3_gui.py           tkinter launcher
-probe_editor.js       diagnostic - dumps the editor timeline DOM
-START_GUI.bat         launch the GUI
-START_CHROME_CDP.bat  launch the automation browser with CDP (see caveat above)
-stories/              your stories + reference sheets + output
-logs/                 engine run logs
+veo3_flow_new_ui.js        ingredients engine - scene-by-scene extend + split
+agent_mode.js              agent engine - prompt -> storyboard -> discrete clips
+story_to_agent_prompt.js   story JSON -> agent_prompt.txt (stage 1)
+agent_download.js          pull generated clips out of Flow (stage 3)
+join_clips.js              ffmpeg concat -> one final mp4 (stage 4)
+agent_watch.js             read-only watcher; records what the agent says
+veo3_gui.py                tkinter launcher - both paths, in tabs
+probe_editor.js            diagnostic - dumps the editor timeline DOM
+probe_agent.js             diagnostic - dumps the Agent Mode surface
+probe_instructions.js      diagnostic - dumps the Agent instructions panel
+probe_mention.js           diagnostic - dumps the @mention asset picker
+START_GUI.bat              launch the GUI
+START_CHROME_CDP.bat       launch the automation browser with CDP (see caveat above)
+stories/                   your stories + reference sheets + output
+logs/                      engine run logs and per-run DOM snapshots
 ```
+
+Every probe and every run writes its DOM snapshots to `logs/`, so a failed run
+can be diagnosed after the fact instead of reproduced. `agent_mode.js` in
+particular snapshots at each numbered stage, which makes the first run of a new
+Flow surface double as the probe for the rest of the flow.
 
 ### `probe_editor.js`
 

@@ -8,7 +8,12 @@
     "start": "node veo3_flow_new_ui.js",
     "probe": "node probe_editor.js --cdp 9222",
     "gui": "python veo3_gui.py",
-    "check": "node --check veo3_flow_new_ui.js && node --check probe_editor.js"
+    "agent": "node agent_mode.js",
+    "agent:prompt": "node story_to_agent_prompt.js",
+    "agent:download": "node agent_download.js",
+    "agent:join": "node join_clips.js",
+    "agent:sheet": "node agent_download.js --sheet-only",
+    "check": "node --check veo3_flow_new_ui.js && node --check probe_editor.js && node --check agent_mode.js && node --check agent_download.js && node --check join_clips.js && node --check story_to_agent_prompt.js"
   },
   "engines": {
     "node": ">=18"

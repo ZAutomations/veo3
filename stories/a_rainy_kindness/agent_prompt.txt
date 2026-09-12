@@ -1,0 +1,39 @@
+Create 5 separate clips, one clip per scene, using @Mia and @Daniel, up to 8 seconds each.
+
+STORY: "The Rain Between Us"
+A 40-second live-action short: a stranger's small act of kindness on a rainy evening turns into an unexpected connection
+
+CRITICAL FORMAT - this is a NARRATED STORYTELLING VIDEO, not a dialogue drama:
+- The story is carried by an external narrator, not by character dialogue.
+- Every clip carries an off-screen narrator voice-over (warm male voice), reading
+  that scene's NARRATION line below word for word. Do not rewrite or shorten it.
+- Documentary storytelling style. The visuals illustrate the narration; they never
+  replace it, and no scene may drop its voice-over.
+- Use the SAME narrator voice in every clip so the 5 clips sound like one video.
+
+STYLE: Photorealistic live-action cinematic
+
+SCENES:
+
+Scene 1 - The Lost Envelope
+NARRATION (voice-over, read exactly): "Some things find you lost... the moment you stop looking."
+VISUAL: Handheld medium shot, 35mm lens, shallow depth of field, evening city light. Photorealistic live-action film, natural skin texture, soft cinematic color grade, light rain. Daniel, 26, dark brown hair, gray sweater, dark jeans (match reference image exactly), hurries along a wet city sidewalk at dusk under shared umbrellas of passersby, clutching a cream envelope with both hands. A gust of wind and a jostle from the crowd - the envelope slips from his hand and slides across the wet pavement behind him. He doesn't notice, keeps walking, wiping rain from his face.
+
+Scene 2 - She Saw It Fall
+NARRATION (voice-over, read exactly): "But kindness never learned to stay put."
+VISUAL: Low tracking shot following footsteps through puddles, neon reflections. Photorealistic live-action, consistent with previous frame. Mia, 24, Asian woman, shoulder-length black hair, beige cardigan, white blouse, silver necklace (match reference image exactly), steps out of a bookstore doorway, sees the cream envelope tumbling in the wind, catches it against her shin. She opens her mouth to call out, spots Daniel's retreating figure in the rain, and starts running - cardigan clutched over her head against the rain, weaving between umbrellas.
+
+Scene 3 - The Catch-Up
+NARRATION: (none found in the story JSON for this scene)
+VISUAL: Handheld two-shot at train platform, breathing mist in cold air. Photorealistic live-action, consistent with previous frame. Mia catches up to Daniel just as his train doors chime, taps his shoulder. He turns, startled. She holds up the cream envelope, breathless, smiling through wet hair. Daniel's hand goes to his empty chest pocket, eyes widen, then he laughs in relief and takes it with both hands. Mia: "You dropped this." Daniel: "My acceptance letter... you just made my year."
+
+Scene 4 - One More Cup
+NARRATION (voice-over, read exactly): "He never caught that train. He caught something better."
+VISUAL: Warm medium close-up, steam rising through practical light. Photorealistic live-action, consistent with previous frame. The missed train leaves them at a small glowing coffee stall beside the platform. They stand under its awning, two paper cups warming their hands, shoulders relaxed, trading the easy laughter of strangers who just became friends. Daniel gestures with the envelope tucked safely inside his jacket; Mia tucks wet hair behind her ear, still smiling. Rain softens to a drizzle around them.
+
+Scene 5 - What Kindness Returns
+NARRATION (voice-over, read exactly): "Kindness is never wasted. It always finds its way back - sometimes with rain in its hair."
+VISUAL: Slow pull-back wide shot, bokeh city lights, rain glitter in lamplight. Photorealistic live-action, consistent with previous frame. Camera pulls back from the two of them talking under the coffee stall awning - her envelope-warm smile, his easy laughter - until they are two small warm figures in a big blue evening city, rain silvering the light around them. Hold on the empty platform, one quiet afterimage: the cream envelope sitting safe in Daniel's jacket, visible as he turns toward Mia.
+
+Keep Mia and Daniel looking exactly as they do in their reference images in every scene.
+Do not add any character dialogue anywhere - narration only.
