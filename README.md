@@ -194,7 +194,7 @@ through.
 | `--seconds N` | seconds per clip, default 8 |
 | `--aspect R` | `16:9`, `9:16`, `1:1` |
 | `--preset ID` | required. `npm run styles` lists them |
-| `--model NAME` | default `gemini-2.5-flash` |
+| `--model NAME` | default `gemini-3.6-flash` |
 | `--scenes-per-call N` | default 6 |
 | `--out DIR` | write somewhere other than `stories/<slug>/` |
 | `--force` | allow writing into a folder that already holds a story |
@@ -213,7 +213,18 @@ show it. Prefer the env var or the settings file — `--key` lands in your shell
 history.
 
 If the model name is wrong the run lists what your key can actually use, rather
-than failing with a bare 404.
+than failing with a bare 404. In the GUI, **List models** does the same thing
+without running anything: it fills the model dropdown with what your key is
+really offered, and if the model saved in your settings is no longer among them
+it says so and selects the first one that works.
+
+That last part matters more than it sounds. Google retires models for new users
+while still listing them, so a name that looks valid — `gemini-2.5-flash` did
+exactly this — can 404 on the first run. The default is pinned to a specific
+version rather than `gemini-flash-latest` so a run is reproducible: an alias can
+move to a different model between one run and the next, which changes your
+stories with no change on your side. Re-run **List models** if a run starts
+failing, and move the default forward deliberately when you want to.
 
 ---
 
