@@ -33,7 +33,16 @@
       "whisk": "Cinematic historical documentary style, vintage film aesthetic, dramatic war photography, moody desaturated colours, 1940s period accuracy, authentic military detail",
       "palette": "Desaturated greens, browns, grays with warm sepia tones",
       "camera": "Documentary handheld style, sweeping battlefield shots, intimate soldier close-ups",
-      "audience": "History enthusiasts, military history fans, documentary viewers"
+      "audience": "History enthusiasts, military history fans, documentary viewers",
+      "story_shapes": [
+        "one soldier through a single battle, hour by hour",
+        "a family on the home front waiting for news",
+        "an ordinary object that outlives the war",
+        "a decision made in the last minutes of a campaign"
+      ],
+      "narration_voice": "deep male voice, measured and grave, documentary authority, unhurried",
+      "avoid": "no glorified violence, no graphic wounds, no modern clothing or vehicles, no on-screen text, no anachronisms",
+      "cast_idiom": "Historically accurate 1940s adult humans with realistic adult proportions, period-correct uniforms and hairstyles, weathered expressive faces, desaturated film-grain realism. NOT cartoon, NOT anime, NOT modern styling."
     },
     {
       "id": "fern-documentary",
@@ -43,7 +52,15 @@
       "whisk": "Cinematic documentary style, moody lighting, desaturated colour grading, film noir aesthetic, contemplative atmosphere, faceless mannequin figures",
       "palette": "Teal shadows, warm orange highlights, desaturated blues",
       "camera": "Cinematic slow movements, contemplative framing, artistic angles",
-      "audience": "Psychology fans, deep thinkers, documentary lovers"
+      "audience": "Psychology fans, deep thinkers, documentary lovers",
+      "story_shapes": [
+        "a philosophical question explored through one silent life",
+        "a solitary figure observed across decades",
+        "a place that remembers the people who left it"
+      ],
+      "narration_voice": "soft measured male voice, contemplative and slow, almost melancholy",
+      "avoid": "no visible faces, no identifiable features, no dialogue, no fast cuts, no bright saturated colour",
+      "cast_idiom": "Featureless smooth mannequin figures with realistic adult human proportions, no facial detail of any kind, matte neutral surfaces, posed with quiet dignity. NOT photorealistic skin, NOT cartoon, NOT anime."
     },
     {
       "id": "mafia",
@@ -53,7 +70,16 @@
       "whisk": "Film noir crime style, dark moody lighting, vintage 1950s-80s aesthetic, dramatic shadows, classic gangster film look, urban crime atmosphere",
       "palette": "Dark blacks, warm amber lights, deep shadows, occasional red accents",
       "camera": "Low-angle power shots, intimate character framing, tense close-ups",
-      "audience": "True crime fans, mob history enthusiasts, crime drama viewers"
+      "audience": "True crime fans, mob history enthusiasts, crime drama viewers",
+      "story_shapes": [
+        "the rise and cost of one man inside a crime family",
+        "a single deal that goes wrong across one night",
+        "an informant deciding whether to talk",
+        "two generations of the same family, decades apart"
+      ],
+      "narration_voice": "low gravelly male voice, dry and world-weary, matter-of-fact about violence",
+      "avoid": "no graphic gore, no modern technology, no glamorising the violence, no on-screen text, no bright cheerful colour",
+      "cast_idiom": "Period-accurate mid-century adult humans with realistic adult proportions, sharp suits and heavy coats, hard unsmiling faces, strong shadow across the features. NOT photorealistic modern, NOT cartoon, NOT anime."
     },
     {
       "id": "true-crime",
@@ -63,7 +89,16 @@
       "whisk": "Dark documentary crime style, gritty realistic aesthetic, investigative journalism look, dramatic crime scene lighting, suspenseful atmosphere, police procedural visuals",
       "palette": "Dark blues, cold grays, crime scene yellows, dramatic shadows",
       "camera": "Investigative close-ups, evidence detail shots, dramatic reveals, documentary interview style",
-      "audience": "True crime enthusiasts, mystery lovers, detective story fans"
+      "audience": "True crime enthusiasts, mystery lovers, detective story fans",
+      "story_shapes": [
+        "a case reconstructed from the evidence outward",
+        "the last ordinary day before a disappearance",
+        "a detail everyone missed the first time",
+        "two timelines converging on one night"
+      ],
+      "narration_voice": "calm female voice, investigative and precise, restrained tension",
+      "avoid": "no graphic crime-scene gore, no real people or real names, no sensationalism, no on-screen text, no cheerful tone",
+      "cast_idiom": "Ordinary realistic adult humans with realistic adult proportions, everyday contemporary clothing, natural unposed faces, cool investigative lighting. NOT glamorous, NOT cartoon, NOT anime."
     },
     {
       "id": "health-wellness",
@@ -73,7 +108,15 @@
       "whisk": "Clean modern medical style, bright clinical lighting, professional healthcare aesthetic, trustworthy scientific look, calming colors",
       "palette": "Clean whites, medical blues, calming greens, professional grays",
       "camera": "Clear educational framing, professional presentation style, clean compositions",
-      "audience": "Health-conscious viewers, medical information seekers, wellness enthusiasts"
+      "audience": "Health-conscious viewers, medical information seekers, wellness enthusiasts",
+      "story_shapes": [
+        "one habit changed and what followed over a year",
+        "a body process explained through one person living it",
+        "a common mistake and the simple fix"
+      ],
+      "narration_voice": "clear warm female voice, reassuring and professional, steady pace",
+      "avoid": "no medical gore, no fear-mongering, no unproven claims, no on-screen text, no dark or clinical coldness",
+      "cast_idiom": "Healthy realistic adult humans with realistic adult proportions, clean simple modern clothing, calm approachable expressions, bright even lighting. NOT cartoon, NOT anime, NOT exaggerated anatomy."
     },
     {
       "id": "personal-finance",
@@ -83,7 +126,15 @@
       "whisk": "Professional business style, modern corporate aesthetic, clean minimalist design, trustworthy financial look, success-oriented visuals",
       "palette": "Professional blues, wealth greens, gold accents, clean whites",
       "camera": "Professional business framing, clear educational shots, confident compositions",
-      "audience": "Investors, financial learners, wealth builders"
+      "audience": "Investors, financial learners, wealth builders",
+      "story_shapes": [
+        "one person going from broke to stable, step by step",
+        "a single money decision and its ten-year consequence",
+        "the same salary lived two different ways"
+      ],
+      "narration_voice": "confident clear male voice, practical and encouraging, brisk but calm",
+      "avoid": "no get-rich-quick imagery, no luxury flexing, no real brand logos, no on-screen text, no gambling imagery",
+      "cast_idiom": "Professional realistic adult humans with realistic adult proportions, simple modern business-casual clothing, composed confident expressions, clean neutral lighting. NOT cartoon, NOT anime, NOT glamorous."
     },
     {
       "id": "relationship",
@@ -93,7 +144,16 @@
       "whisk": "Warm emotional style, soft romantic lighting, intimate personal aesthetic, heartfelt atmosphere, relatable couple visuals",
       "palette": "Warm pinks, soft oranges, romantic purples, gentle pastels",
       "camera": "Intimate close-ups, emotional framing, warm personal shots",
-      "audience": "Singles, couples, relationship seekers, love story fans"
+      "audience": "Singles, couples, relationship seekers, love story fans",
+      "story_shapes": [
+        "one small misunderstanding and its repair",
+        "a couple growing apart and finding each other again",
+        "the same evening seen from both sides",
+        "a kindness repeated daily until it becomes a marriage"
+      ],
+      "narration_voice": "warm gentle female voice, intimate and sincere, unhurried",
+      "avoid": "no explicit content, no shouting matches, no graphic conflict, no on-screen text, no cynicism",
+      "cast_idiom": "Warm realistic adult humans with realistic adult proportions, soft everyday clothing, open expressive faces, gentle golden lighting. NOT cartoon, NOT anime, NOT glamorised."
     },
     {
       "id": "fall-asleep",
@@ -103,7 +163,15 @@
       "whisk": "Dreamy soft-focus style, calming pastel colors, gentle peaceful aesthetic, cozy bedtime atmosphere, soothing visuals",
       "palette": "Soft blues, gentle purples, warm creams, calming lavenders",
       "camera": "Slow gentle movements, peaceful framing, dreamy soft focus",
-      "audience": "Insomnia sufferers, relaxation seekers, bedtime story listeners"
+      "audience": "Insomnia sufferers, relaxation seekers, bedtime story listeners",
+      "story_shapes": [
+        "a slow journey to a safe place, with nothing at stake",
+        "a house and garden through one gentle evening",
+        "a small creature finding somewhere warm to sleep"
+      ],
+      "narration_voice": "very soft slow female voice, almost a whisper, long pauses, no tension",
+      "avoid": "no conflict, no danger, no sudden sounds, no fast movement, no bright light, no on-screen text",
+      "cast_idiom": "Soft rounded human or animal figures with gentle realistic proportions, simple calm features, muted pastel palette, blurred dreamlike edges. NOT detailed, NOT photorealistic, NOT sharp contrast."
     },
     {
       "id": "travel-adventure",
@@ -113,7 +181,15 @@
       "whisk": "Vibrant travel photography style, bright natural lighting, cultural authenticity, adventurous atmosphere, wanderlust aesthetics",
       "palette": "Vibrant blues, natural greens, sunset oranges, cultural variety",
       "camera": "Wide establishing shots, cultural detail close-ups, dynamic movements",
-      "audience": "Travelers, adventure seekers, culture enthusiasts"
+      "audience": "Travelers, adventure seekers, culture enthusiasts",
+      "story_shapes": [
+        "one traveller and one place, fully explored",
+        "a journey that changes what the traveller wanted",
+        "a local guide showing what tourists never see"
+      ],
+      "narration_voice": "bright curious female voice, enthusiastic and descriptive, lively",
+      "avoid": "no stereotyping of local people, no real brand logos, no on-screen text, no danger or peril framing",
+      "cast_idiom": "Natural realistic adult humans with realistic adult proportions, authentic regional clothing and features, sunlit genuine expressions, documentary travel photography feel. NOT cartoon, NOT anime, NOT exoticised."
     },
     {
       "id": "cooking",
@@ -123,7 +199,15 @@
       "whisk": "Appetizing food photography style, warm kitchen lighting, delicious food close-ups, cozy cooking aesthetic, mouthwatering visuals",
       "palette": "Warm food oranges, fresh greens, rich browns, appetizing reds",
       "camera": "Food macro close-ups, overhead cooking shots, ingredient details",
-      "audience": "Home cooks, food lovers, recipe seekers"
+      "audience": "Home cooks, food lovers, recipe seekers",
+      "story_shapes": [
+        "one dish from raw ingredients to a shared table",
+        "a family recipe passed down and finally understood",
+        "a cook failing twice before getting it right"
+      ],
+      "narration_voice": "warm friendly female voice, sensory and inviting, conversational",
+      "avoid": "no on-screen text or measurements, no messy or unappetising food, no real brand packaging, no rushed pacing",
+      "cast_idiom": "Warm realistic adult humans with realistic adult proportions, simple aprons and everyday clothing, hands and faces in natural warm light. NOT cartoon, NOT anime, NOT stylised."
     },
     {
       "id": "gaming-esports",
@@ -133,7 +217,15 @@
       "whisk": "Energetic gaming style, neon RGB lighting, futuristic tech aesthetic, competitive atmosphere, gamer culture visuals",
       "palette": "Neon blues, RGB rainbow, electric purples, gaming greens",
       "camera": "Dynamic gaming angles, fast-paced movements, tech close-ups",
-      "audience": "Gamers, esports fans, tech enthusiasts"
+      "audience": "Gamers, esports fans, tech enthusiasts",
+      "story_shapes": [
+        "one player climbing from nobody to contender",
+        "the final match told from inside the team",
+        "a loss that teaches more than the wins did"
+      ],
+      "narration_voice": "energetic young male voice, fast and excited, building momentum",
+      "avoid": "no real game titles or logos, no real player likenesses, no on-screen UI or text, no toxic behaviour",
+      "cast_idiom": "Contemporary realistic young adult humans with realistic adult proportions, casual gaming streetwear, focused intense expressions, cool neon rim lighting. NOT cartoon, NOT anime, NOT exaggerated."
     },
     {
       "id": "technology-ai",
@@ -143,7 +235,15 @@
       "whisk": "Futuristic tech style, clean modern aesthetic, innovative visuals, sleek product shots, cutting-edge atmosphere",
       "palette": "Tech blues, clean whites, futuristic teals, innovation silvers",
       "camera": "Sleek product shots, tech detail close-ups, futuristic compositions",
-      "audience": "Tech enthusiasts, early adopters, AI fans"
+      "audience": "Tech enthusiasts, early adopters, AI fans",
+      "story_shapes": [
+        "a technology explained through one person using it",
+        "the day something changed and nobody noticed",
+        "a problem solved by a simple idea, not a gadget"
+      ],
+      "narration_voice": "calm assured male voice, precise and forward-looking, measured",
+      "avoid": "no real company logos or products, no dystopian fear imagery, no on-screen text or code, no glowing blue cliches",
+      "cast_idiom": "Clean realistic adult humans with realistic adult proportions, minimal modern clothing, thoughtful neutral expressions, cool even studio lighting. NOT cartoon, NOT anime, NOT robotic."
     },
     {
       "id": "ghibli",
@@ -153,7 +253,17 @@
       "whisk": "Hand-painted 2D animation, watercolour backgrounds, clean ink line art, soft natural lighting, detailed domestic environments, gentle expression, 4K quality",
       "palette": "Soft pastels, natural greens, dreamy blues, warm sunset tones",
       "camera": "Sweeping landscape shots, intimate character moments, magical framing",
-      "audience": ""
+      "audience": "",
+      "story_shapes": [
+        "a small everyday problem solved by patience and kindness",
+        "a child who discovers something ordinary is extraordinary",
+        "a season changing as an emotion changes",
+        "a meal shared that repairs something unspoken",
+        "a quiet journey home through a landscape that feels alive"
+      ],
+      "narration_voice": "warm female voice, gentle and unhurried, like a grandparent telling a bedtime story",
+      "avoid": "no photorealistic rendering, no 3D CGI, no harsh violence, no fast cuts, no on-screen text, no exaggerated anime expressions",
+      "cast_idiom": "Hand-painted 2D animated character with realistic adult human proportions, soft rounded facial features, large expressive eyes, simple period-appropriate everyday clothing, clean ink outlines, gentle cel shading and watercolour texture. NOT photorealistic, NOT 3D CGI, NOT manhwa webtoon, NOT chibi."
     },
     {
       "id": "pixar-3d",
@@ -163,7 +273,15 @@
       "whisk": "Stylised 3D animation, appealing rounded characters, soft skin shading, expressive faces, detailed textures, warm lighting, 4K quality",
       "palette": "Vibrant primary colors, warm lighting, cheerful tones",
       "camera": "Dynamic family-friendly framing, expressive character focus",
-      "audience": ""
+      "audience": "",
+      "story_shapes": [
+        "an unlikely friendship between two very different characters",
+        "a character who wants something and learns what they need",
+        "a small journey with a big emotional turn"
+      ],
+      "narration_voice": "warm expressive male voice, playful and heartfelt, family-friendly",
+      "avoid": "no photorealistic humans, no dark or bleak imagery, no adult humour, no on-screen text, no scary content",
+      "cast_idiom": "Stylised 3D animated character with appealing rounded proportions, slightly oversized expressive eyes, soft subsurface skin shading, simple readable silhouette. NOT photorealistic, NOT 2D, NOT anime."
     },
     {
       "id": "anime-cinematic",
@@ -173,7 +291,15 @@
       "whisk": "Cinematic anime style, dramatic lighting, detailed character design, vibrant colors, modern anime aesthetic, high production quality",
       "palette": "Vibrant anime colors, dramatic contrasts, expressive tones",
       "camera": "Dynamic anime angles, dramatic character shots, action framing",
-      "audience": ""
+      "audience": "",
+      "story_shapes": [
+        "a character facing a choice that defines them",
+        "two rivals forced to work together",
+        "the quiet episode before everything changes"
+      ],
+      "narration_voice": "cool composed voice, dramatic and deliberate, cinematic weight",
+      "avoid": "no chibi or comedic deformation, no photorealistic rendering, no on-screen text, no inconsistent character design",
+      "cast_idiom": "Cinematic anime character with realistic adult human proportions, sharp defined features, detailed hair, expressive large eyes, contemporary clothing, dramatic cel-shaded lighting. NOT photorealistic, NOT 3D CGI, NOT western cartoon, NOT chibi."
     },
     {
       "id": "disney-classic",
@@ -183,7 +309,15 @@
       "whisk": "Classic hand-drawn fairy tale animation, storybook aesthetic, magical atmosphere, expressive character animation",
       "palette": "Fairy tale pastels, magical purples, warm story tones",
       "camera": "Classic storybook framing, magical reveal shots, character expressions",
-      "audience": ""
+      "audience": "",
+      "story_shapes": [
+        "a wish granted in an unexpected way",
+        "a small hero against a much larger obstacle",
+        "a kindness repaid at the moment it is needed most"
+      ],
+      "narration_voice": "rich warm storyteller voice, theatrical and kindly, storybook cadence",
+      "avoid": "no photorealistic rendering, no modern objects, no sarcasm, no dark imagery, no on-screen text",
+      "cast_idiom": "Classic hand-drawn storybook character with soft rounded proportions, exaggerated expressive features, flowing simple clothing, warm painterly shading. NOT photorealistic, NOT 3D CGI, NOT anime, NOT modern cartoon."
     },
     {
       "id": "shinkai",
@@ -193,7 +327,15 @@
       "whisk": "Cinematic anime, photorealistic detailed backgrounds, dramatic skies, lens flare, intricate lighting, emotional atmosphere",
       "palette": "Dramatic skies, photorealistic lighting, emotional color grading",
       "camera": "Sweeping sky shots, emotional character moments, lens flare artistry",
-      "audience": ""
+      "audience": "",
+      "story_shapes": [
+        "two people separated by distance or time, reaching for each other",
+        "a city at golden hour and one moment that changes everything",
+        "a memory of a place that no longer exists"
+      ],
+      "narration_voice": "soft young voice, wistful and poetic, gently emotional",
+      "avoid": "no flat backgrounds, no 3D CGI characters, no harsh daylight, no on-screen text, no comedic tone",
+      "cast_idiom": "Modern anime character with realistic adult human proportions, detailed natural hair, soft expressive eyes, contemporary Japanese clothing, lit by pronounced golden-hour rim light and lens flare. NOT photorealistic, NOT 3D CGI, NOT chibi."
     },
     {
       "id": "lofi-anime",
@@ -203,7 +345,15 @@
       "whisk": "Lofi anime aesthetic, soft pastel colors, cozy atmosphere, simple character design, relaxing vibe",
       "palette": "Soft pastels, cozy warm tones, chill color grading",
       "camera": "Relaxed framing, cozy interior shots, chill atmosphere",
-      "audience": ""
+      "audience": "",
+      "story_shapes": [
+        "an evening in one room, nothing much happening, everything felt",
+        "a rainy afternoon and a cup of tea",
+        "a long train ride through the dark"
+      ],
+      "narration_voice": "soft quiet voice, low and unhurried, almost incidental",
+      "avoid": "no action, no conflict, no bright saturated colour, no detailed rendering, no on-screen text",
+      "cast_idiom": "Simple clean anime character with realistic adult human proportions and minimal facial detail, loose comfortable clothing, soft pastel colour blocks, low-contrast shading. NOT photorealistic, NOT 3D CGI, NOT highly detailed, NOT chibi."
     },
     {
       "id": "cartoon-network",
@@ -213,7 +363,15 @@
       "whisk": "Bold 2D cartoon animation, thick clean outlines, simplified stylised character design, vibrant flat colors, energetic",
       "palette": "Bold primary colors, high contrast, energetic tones",
       "camera": "Energetic cartoon angles, simplified compositions, dynamic action",
-      "audience": ""
+      "audience": "",
+      "story_shapes": [
+        "two friends whose plan goes wrong immediately",
+        "a mundane chore that escalates absurdly",
+        "a character who refuses to admit they are wrong"
+      ],
+      "narration_voice": "high-energy comedic voice, quick and playful, punchy delivery",
+      "avoid": "no realistic rendering, no detailed shading, no subtle emotion, no on-screen text, no slow pacing",
+      "cast_idiom": "Bold 2D cartoon character with exaggerated simplified proportions, thick clean black outlines, flat vibrant colour blocks, minimal facial detail, rubbery expressive limbs. NOT photorealistic, NOT 3D CGI, NOT anime."
     },
     {
       "id": "realistic-cgi",
@@ -223,7 +381,15 @@
       "whisk": "Photorealistic CGI, hyper-detailed characters, realistic lighting, film-quality rendering, cinematic depth of field",
       "palette": "Photorealistic colors, natural lighting, film-quality grading",
       "camera": "Cinematic film shots, realistic depth of field, photorealistic framing",
-      "audience": ""
+      "audience": "",
+      "story_shapes": [
+        "a grounded human story told with documentary realism",
+        "a single decision with irreversible consequences",
+        "an ordinary life examined closely"
+      ],
+      "narration_voice": "natural unpolished voice, conversational and honest, understated",
+      "avoid": "no cartoon or stylised rendering, no exaggerated expressions, no flat lighting, no on-screen text, no fantasy elements",
+      "cast_idiom": "Photorealistic human with exact realistic adult proportions, natural skin texture with visible pores and fine hair, subtle asymmetric features, real fabric clothing, physically based rendering. NOT cartoon, NOT anime, NOT stylised, NOT 2D."
     },
     {
       "id": "vintage-anime-90s",
@@ -233,7 +399,15 @@
       "whisk": "1990s vintage anime style, traditional cel shading, retro nostalgic aesthetic, hand-drawn quality, VHS grain",
       "palette": "Muted retro tones, warm analog color grading",
       "camera": "Classic anime framing, retro composition, static establishing shots",
-      "audience": ""
+      "audience": "",
+      "story_shapes": [
+        "a hero setting out with more courage than skill",
+        "a rival who becomes an ally",
+        "a quiet episode before the final confrontation"
+      ],
+      "narration_voice": "dramatic retro announcer voice, bold and earnest, slightly theatrical",
+      "avoid": "no modern digital rendering, no contemporary clothing, no glossy modern shading, no on-screen text, no 3D",
+      "cast_idiom": "1990s cel-shaded anime character with realistic adult human proportions, angular period-typical facial design, large reflective eyes, classic retro hairstyles and clothing, visible film grain. NOT modern anime, NOT photorealistic, NOT 3D CGI, NOT chibi."
     },
     {
       "id": "chibi-cute",
@@ -243,7 +417,15 @@
       "whisk": "Chibi anime style, super deformed cute characters, adorable aesthetic, soft pastel color palette, kawaii vibe, simplified rounded features",
       "palette": "Soft pastels, candy colors, gentle warm tones",
       "camera": "Playful framing, cute close-ups, simple compositions",
-      "audience": ""
+      "audience": "",
+      "story_shapes": [
+        "a tiny problem that feels enormous to a very small character",
+        "two chibi friends doing something ordinary very earnestly",
+        "a small character determined to help in a big world"
+      ],
+      "narration_voice": "bright cheerful high voice, playful and warm, bouncy rhythm",
+      "avoid": "no realistic proportions, no detailed rendering, no dark or sad imagery, no on-screen text, no frightening content",
+      "cast_idiom": "Chibi anime character with super-deformed proportions - oversized round head, tiny body, simplified stubby limbs - huge sparkling eyes, minimal nose and mouth, soft pastel palette. NOT realistic proportions, NOT photorealistic, NOT 3D CGI, NOT full-height anime."
     },
     {
       "id": "avatar-korra",
@@ -253,7 +435,15 @@
       "whisk": "Hand-drawn 2D animation, Asian-inspired fantasy design, dynamic martial arts poses, expressive characters, rich painted backgrounds",
       "palette": "Earthy elemental tones, warm ochres, jade greens, ember oranges",
       "camera": "Dynamic action framing, sweeping elemental effects, dramatic confrontation shots",
-      "audience": ""
+      "audience": "",
+      "story_shapes": [
+        "a young person learning to control something dangerous",
+        "a group of friends facing a threat to their home",
+        "a teacher and student who misunderstand each other first"
+      ],
+      "narration_voice": "warm adventurous voice, earnest and energetic, heroic but grounded",
+      "avoid": "no photorealistic rendering, no 3D CGI, no graphic violence, no on-screen text, no stiff posing",
+      "cast_idiom": "Hand-drawn 2D character with realistic adult human proportions, expressive angular facial design, clear readable silhouette, Asian-inspired fantasy clothing, painted shading with warm light. NOT photorealistic, NOT 3D CGI, NOT chibi, NOT western cartoon."
     }
   ]
 }

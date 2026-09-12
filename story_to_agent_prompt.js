@@ -122,14 +122,30 @@ const charNames = charKeys.map(cap);
 const mentionList = charNames.map(c => '@' + c).join(' and ');
 
 // ── narration / silent-character detection -----------------------------------
-// Taken from the story's own veo3_prompt text rather than assumed, so this works
-// for a narrated story and does not falsely add the rule to a dialogue-driven one.
+// Explicit top-level fields win: `narrated`, `silent_cast`, `narrator_voice`.
+// They are unambiguous, and generated stories set them. The prose scan below is
+// the fallback for the stories that predate the fields.
+//
+// The fallback has a real failure mode worth knowing about. It used to read
+// veo3_prompt only, so a story carrying script_line - which IS the narration -
+// but no veo3_prompt looked un-narrated, the entire voice-over rules block was
+// dropped, and the agent invented dialogue. Verified 2026-09-12 by deleting
+// veo3_prompt from the Bridge story and watching the block vanish. So the second
+// test is for script_line across every scene, which is what narration actually
+// looks like, before falling back to prose.
 const allVp = scenes.map(s => s.veo3_prompt || '').join(' \n ');
-const NARRATED = /narrator|voice[\s-]?over|voiceover/i.test(allVp);
-const SILENT = /remain silent|mouths closed|no character dialogue|not speaking/i.test(allVp);
+const everySceneNarrated = scenes.length > 0 &&
+    scenes.every(s => String(s.script_line || '').trim());
+const NARRATED = typeof story.narrated === 'boolean'
+    ? story.narrated
+    : (everySceneNarrated || /narrator|voice[\s-]?over|voiceover/i.test(allVp));
+const SILENT = typeof story.silent_cast === 'boolean'
+    ? story.silent_cast
+    : /remain silent|mouths closed|no character dialogue|not speaking/i.test(allVp);
 // "warm female voice" / "warm male voice" - whatever the story asked for.
 const voiceMatch = allVp.match(/(warm|deep|gentle|soft|calm|young|old)?\s*(female|male)\s+voice/i);
-const VOICE = voiceMatch ? voiceMatch[0].trim() : null;
+const VOICE = (typeof story.narrator_voice === 'string' && story.narrator_voice.trim())
+    || (voiceMatch ? voiceMatch[0].trim() : null);
 
 // ── assemble -----------------------------------------------------------------
 const L = [];

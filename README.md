@@ -91,6 +91,12 @@ later run.
 START_GUI.bat
 ```
 
+The **Script** tab writes a story from a title and a preset — see
+[the Script tab](#the-script-tab--writing-a-story-from-a-title). The
+**Ingredients** tab takes a story JSON, a scene range, and runs the
+extend/split path. **Agent Mode** is the four-stage clip path. All three stream
+into the same output panel.
+
 Pick a story JSON, set the scene range, tick **Skip refs** if the references are
 already attached, and hit **Run**. The GUI shells out to the CLI below and
 streams the log.
@@ -126,6 +132,88 @@ Flow renames a tier, the run degrades to the first `Extend (Veo ...)` entry
 rather than stalling — read the log to see which one it picked. Your plan
 decides what's on that menu; the default reflects a plan where only the
 lower-priority queue is exposed.
+
+---
+
+## The Script tab — writing a story from a title
+
+The other tabs assume you already have a story. This one writes it.
+
+```bat
+npm run story -- --title "The Lantern Keeper" --detail "an old man tends a lighthouse through his last winter" --duration 56 --preset ghibli
+```
+
+It produces `stories/the_lantern_keeper/`:
+
+| File | What it is |
+|---|---|
+| `the_lantern_keeper_story.json` | the story, in the schema stage 1 reads |
+| `style_bible.md` | the look, cast, palette, narrator and rules, for you to keep |
+| `character_sheets.txt` | paste-ready image prompts, one block per character |
+| `character_refs/` | empty — the generated sheets go here |
+
+**It writes the story JSON, never the agent prompt.** That is deliberate.
+`story_to_agent_prompt.js` exists because a hand-written agent prompt once
+dropped the narrator voice-over and the silent-cast rule, and the agent invented
+dialogue. A model writing the prompt directly would reopen exactly that, and
+would also lose the derived `@mention` list and the FORMAT line. So the writer
+stops at the JSON and stage 1 does the rest.
+
+**It spends no Flow credits.** This is text generation only. The character
+sheets are still made by hand in an image tool, then uploaded into Flow as
+Characters, then the Agent Mode stages run as before.
+
+### How it writes
+
+Three passes, in this order, because each one needs the last:
+
+1. **Cast and outline** — one call. The cast is written first, from one
+   `cast_idiom`, so every character is described in the same medium. Generated
+   independently they drift, which is the Michael/Sarah mismatch this repo
+   already produced by hand. The outline is a one-line beat per clip.
+2. **Scenes** — in batches of `--scenes-per-call` (default 6). A 40-scene story
+   cannot be written in one response; it truncates mid-JSON. Each batch is handed
+   the real cast and the beats it must cover.
+
+Every call gets the same preset block — look, cast template, palette, camera,
+narrator, and the never-list — so nothing drifts between calls.
+
+**Nothing is written unless it validates.** A scene with no narration, a
+narration line over the word limit for its clip length, or a character who is not
+in the cast all stop the run with the reasons printed, and no file is created.
+A story that fails those checks is one the agent would quietly invent its way
+through.
+
+### Flags
+
+| Flag | Meaning |
+|---|---|
+| `--title "..."` | required |
+| `--detail "..."` / `--detail-file PATH` | what the video is about |
+| `--duration N` | total seconds. Clips = `duration / seconds` |
+| `--seconds N` | seconds per clip, default 8 |
+| `--aspect R` | `16:9`, `9:16`, `1:1` |
+| `--preset ID` | required. `npm run styles` lists them |
+| `--model NAME` | default `gemini-2.5-flash` |
+| `--scenes-per-call N` | default 6 |
+| `--out DIR` | write somewhere other than `stories/<slug>/` |
+| `--force` | allow writing into a folder that already holds a story |
+| `--dry-run` | print the exact prompts, send nothing, write nothing |
+| `--list-models` | what your key can actually use |
+
+**Start with `--dry-run`.** It prints both prompts in full and costs nothing, so
+you can see what the model will be told before spending anything.
+
+### The API key
+
+Resolved from `--key`, then `GEMINI_API_KEY`, then `gemini_api_key` in
+`gui_settings.json`. The GUI's Script tab saves it to that file, which is
+gitignored, and it is never put on a command line where the process list would
+show it. Prefer the env var or the settings file — `--key` lands in your shell
+history.
+
+If the model name is wrong the run lists what your key can actually use, rather
+than failing with a bare 404.
 
 ---
 
@@ -329,6 +417,27 @@ you: `aspect_ratio` and `scene_seconds`. Leave them out and the builder falls
 back to 16:9 and 8 s — correct for YouTube, but silently so, and a story that
 wants vertical never gets it.
 
+Three more decide whether the prompt says the story is **narrated**:
+
+| Field | Why it exists |
+|---|---|
+| `narrated` | `true` adds the voice-over rules block |
+| `silent_cast` | `true` adds "the characters are SILENT, mouths closed" |
+| `narrator_voice` | e.g. `"warm female voice"` — used in the narration line |
+
+They are optional, and older stories do not have them. Without them the builder
+guesses, and **the guess used to be wrong in a way that costs money**: it read
+the words `narrator` / `voice-over` out of each scene's `veo3_prompt`, so a story
+carrying `script_line` — which *is* the narration — but no `veo3_prompt` looked
+un-narrated, the whole voice-over block was dropped, and the agent invented
+dialogue for every scene. Verified on 2026-09-12 by deleting `veo3_prompt` from
+the Bridge story and watching the block vanish.
+
+The fallback now also checks for `script_line` across every scene, so a story
+written in the modern shape is safe either way. **Set the fields explicitly on
+anything generated** — `write_story.js` does. Being told is better than being
+guessed at.
+
 Two traps when converting:
 
 - **List only who is present.** Crediting an absent character invites the model to
@@ -455,7 +564,8 @@ join_clips.js              ffmpeg concat -> one final mp4 (stage 4)
 agent_watch.js             read-only watcher; records what the agent says
 styles.js                  style presets - list, inspect, apply to a story
 styles.json                the 23 presets themselves (data, not code)
-veo3_gui.py                tkinter launcher - both paths, in tabs
+write_story.js             title + preset -> story JSON, style bible, sheet prompts
+veo3_gui.py                tkinter launcher - all three paths, in tabs
 probe_editor.js            diagnostic - dumps the editor timeline DOM
 probe_agent.js             diagnostic - dumps the Agent Mode surface
 probe_instructions.js      diagnostic - dumps the Agent instructions panel

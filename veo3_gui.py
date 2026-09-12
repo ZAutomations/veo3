@@ -47,6 +47,7 @@ AGENT_ENGINE = os.path.join(BASE_DIR, "agent_mode.js")
 PROMPT_BUILDER = os.path.join(BASE_DIR, "story_to_agent_prompt.js")
 STYLES_TOOL = os.path.join(BASE_DIR, "styles.js")
 STYLES_FILE = os.path.join(BASE_DIR, "styles.json")
+WRITER = os.path.join(BASE_DIR, "write_story.js")
 DOWNLOADER = os.path.join(BASE_DIR, "agent_download.js")
 JOINER = os.path.join(BASE_DIR, "join_clips.js")
 SETTINGS_FILE = os.path.join(BASE_DIR, "gui_settings.json")
@@ -82,6 +83,19 @@ DEFAULTS = {
     # Last style preset picked in the Agent tab. Stored as an id, not a label, so
     # renaming a preset in styles.json does not strand the saved setting.
     "style_preset": "",
+
+    # ---- Script tab ----
+    "gen_detail": "",
+    "gen_duration": 56,
+    # Its own copy rather than sharing the Agent tab's: a story is written once
+    # and read back by the Agent tab from the story JSON, so these two never need
+    # to agree, and sharing them would silently rewrite the other tab's fields.
+    "gen_aspect_ratio": "16:9",
+    "gen_scene_seconds": 8,
+    "gen_preset": "ghibli",
+    "gemini_model": "gemini-2.5-flash",
+    # Lands in gui_settings.json, which is gitignored. Never logged or echoed.
+    "gemini_api_key": "",
 }
 
 
@@ -176,11 +190,17 @@ class Veo3LauncherGUI:
         self.nb = ttk.Notebook(self.root)
         self.nb.grid(row=1, column=0, columnspan=2, sticky="nsew", padx=12, pady=(4, 6))
 
+        scr = ttk.Frame(self.nb)
         ing = ttk.Frame(self.nb)
         agt = ttk.Frame(self.nb)
+        # Script first: it is where a video now starts. The ingredients path is
+        # unchanged and still second.
+        self.nb.add(scr, text="Script")
         self.nb.add(ing, text="Ingredients (extend)")
         self.nb.add(agt, text="Agent Mode")
+        self.agent_tab = agt
 
+        self.build_script_tab(scr)
         self.build_ingredients_tab(ing)
         self.build_agent_tab(agt)
 
@@ -203,6 +223,138 @@ class Veo3LauncherGUI:
         self.proc = None
         self.load_story_info()
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+
+    # ── tab 0: script ─────────────────────────────────────────
+    def build_script_tab(self, f):
+        pad = dict(padx=14, pady=5)
+        f.columnconfigure(1, weight=1)
+        r = 0
+
+        tk.Label(f, justify="left", anchor="w", bg="#2a2333", fg="#d8d0e0",
+                 font=("Segoe UI", 9),
+                 text=("Write a whole story package from a title and a preset. Produces the story\n"
+                       "JSON, a style bible, and paste-ready character-sheet prompts, in its own\n"
+                       "folder under stories/. It writes NO video and spends NO Flow credits -\n"
+                       "the images are still made by hand, then run through the Agent Mode stages.")
+                 ).grid(row=r, column=0, columnspan=3, sticky="ew", padx=10, pady=(10, 8), ipady=6)
+        r += 1
+
+        ttk.Label(f, text="Video title:").grid(row=r, column=0, sticky="e", **pad)
+        self.gen_title_var = tk.StringVar()
+        ttk.Entry(f, textvariable=self.gen_title_var, width=58).grid(
+            row=r, column=1, columnspan=2, sticky="w", **pad)
+        r += 1
+
+        ttk.Label(f, text="Detail:").grid(row=r, column=0, sticky="ne", **pad)
+        self.gen_detail = tk.Text(f, height=4, width=58, bg="#14141c", fg="#d8d0e0",
+                                  insertbackground="#fff", wrap="word", font=("Segoe UI", 9))
+        self.gen_detail.grid(row=r, column=1, columnspan=2, sticky="w", **pad)
+        self.gen_detail.insert("1.0", self.settings.get("gen_detail") or "")
+        r += 1
+
+        ttk.Label(f, text="a sentence or two - who, where, what changes. The model fills the rest",
+                  style="Hint.TLabel").grid(row=r, column=1, columnspan=2, sticky="w", padx=14, pady=(0, 4))
+        r += 1
+
+        # Style preset - the same list the Agent tab applies after the fact. Here
+        # it is an input: the story is written in this look from the first word,
+        # rather than having the look bolted on once the text already disagrees.
+        ttk.Label(f, text="Style preset:").grid(row=r, column=0, sticky="e", **pad)
+        sty = tk.Frame(f, bg="#1e1e28")
+        sty.grid(row=r, column=1, columnspan=2, sticky="w", padx=14)
+        self._gen_displays, self._gen_ids, _ = load_style_presets()
+        self.gen_preset_var = tk.StringVar()
+        self.gen_preset_box = ttk.Combobox(sty, textvariable=self.gen_preset_var, width=44,
+                                           values=self._gen_displays, state="readonly")
+        self.gen_preset_box.pack(side="left")
+        ttk.Button(sty, text="Manage…", command=self.open_styles_help).pack(side="left", padx=(8, 0))
+        if self._gen_displays:
+            want = self.settings.get("gen_preset") or ""
+            for disp, sid in self._gen_ids.items():
+                if sid == want:
+                    self.gen_preset_var.set(disp)
+                    break
+        else:
+            self.gen_preset_box.configure(values=["styles.json missing or empty"])
+            self.gen_preset_var.set("styles.json missing or empty")
+        r += 1
+
+        ttk.Label(f, text="Shape & format:").grid(row=r, column=0, sticky="e", **pad)
+        fmt = tk.Frame(f, bg="#1e1e28")
+        fmt.grid(row=r, column=1, columnspan=2, sticky="w", padx=14)
+        self.gen_duration_var = tk.IntVar(value=self.settings.get("gen_duration", 56))
+        ttk.Spinbox(fmt, from_=8, to=1200, increment=8, textvariable=self.gen_duration_var,
+                    width=6).pack(side="left")
+        ttk.Label(fmt, text="seconds total", style="Hint.TLabel").pack(side="left", padx=(6, 18))
+        self.gen_seconds_var = tk.IntVar(value=self.settings.get("gen_scene_seconds", 8))
+        ttk.Spinbox(fmt, from_=1, to=8, textvariable=self.gen_seconds_var,
+                    width=4).pack(side="left")
+        ttk.Label(fmt, text="sec per clip", style="Hint.TLabel").pack(side="left", padx=(6, 18))
+        self.gen_aspect_var = tk.StringVar(value=self.settings.get("gen_aspect_ratio", "16:9"))
+        ttk.Combobox(fmt, textvariable=self.gen_aspect_var, width=6,
+                     values=["16:9", "9:16", "1:1"]).pack(side="left")
+        ttk.Label(fmt, text="aspect", style="Hint.TLabel").pack(side="left", padx=(6, 0))
+        r += 1
+
+        self.gen_count = tk.StringVar()
+        ttk.Label(f, textvariable=self.gen_count, style="Hint.TLabel").grid(
+            row=r, column=1, columnspan=2, sticky="w", padx=14, pady=(0, 4))
+        for v in (self.gen_duration_var, self.gen_seconds_var):
+            v.trace_add("write", lambda *a: self.update_gen_count())
+        self.update_gen_count()
+        r += 1
+
+        ttk.Label(f, text="Gemini model:").grid(row=r, column=0, sticky="e", **pad)
+        md = tk.Frame(f, bg="#1e1e28")
+        md.grid(row=r, column=1, columnspan=2, sticky="w", padx=14)
+        self.gen_model_var = tk.StringVar(value=self.settings.get("gemini_model", "gemini-2.5-flash"))
+        ttk.Entry(md, textvariable=self.gen_model_var, width=28).pack(side="left")
+        ttk.Button(md, text="List models", command=self.list_models).pack(side="left", padx=(8, 0))
+        ttk.Label(md, text="uses your key - nothing is spent by listing",
+                  style="Hint.TLabel").pack(side="left", padx=(10, 0))
+        r += 1
+
+        ttk.Label(f, text="Gemini API key:").grid(row=r, column=0, sticky="e", **pad)
+        kd = tk.Frame(f, bg="#1e1e28")
+        kd.grid(row=r, column=1, columnspan=2, sticky="w", padx=14)
+        self.gen_key_var = tk.StringVar(value=self.settings.get("gemini_api_key", ""))
+        ttk.Entry(kd, textvariable=self.gen_key_var, width=44, show="•").pack(side="left")
+        ttk.Label(kd, text="saved to gui_settings.json (gitignored)", style="Hint.TLabel"
+                  ).pack(side="left", padx=(10, 0))
+        r += 1
+
+        btns = tk.Frame(f, bg="#1e1e28")
+        btns.grid(row=r, column=1, columnspan=2, sticky="w", padx=14, pady=(10, 4))
+        ttk.Button(btns, text="📝  Write story", command=self.write_story, width=20).pack(side="left")
+        ttk.Button(btns, text="Preview prompts (dry run)",
+                   command=lambda: self.write_story(dry=True)).pack(side="left", padx=(10, 0))
+        ttk.Button(btns, text="Open stories folder",
+                   command=lambda: self._open_dir(STORIES_DIR)).pack(side="left", padx=(10, 0))
+        r += 1
+
+        ttk.Label(f, text=("Dry run prints the exact prompts and calls nothing - worth doing once to see\n"
+                           "what the model will be told before you spend a single credit."),
+                  style="Hint.TLabel", justify="left").grid(
+            row=r, column=1, columnspan=2, sticky="w", padx=14, pady=(4, 10))
+
+    def update_gen_count(self):
+        """Show the clip count as the duration is edited, before anything runs."""
+        try:
+            d, s = int(self.gen_duration_var.get()), int(self.gen_seconds_var.get() or 8)
+            n = max(1, round(d / s))
+            self.gen_count.set(f"{d}s at {s}s per clip  ->  {n} clips  "
+                               f"(narration ~{n * 20} words total)")
+        except (tk.TclError, ZeroDivisionError, ValueError):
+            self.gen_count.set("")
+
+    def open_styles_help(self):
+        messagebox.showinfo(
+            "Style presets",
+            "Presets live in styles.json and are listed by:\n\n"
+            "    npm run styles\n\n"
+            "Each carries the look, a cast template, a palette, a narrator voice,\n"
+            "story shapes and a list of things to never include.\n\n"
+            "The dropdown here is filled from that file every time the GUI starts.")
 
     # ── tab 1: ingredients (unchanged behaviour) ──────────────
     def build_ingredients_tab(self, f):
@@ -435,13 +587,23 @@ class Veo3LauncherGUI:
     def open_clips(self):
         d = self.clips_var.get().strip()
         if d and os.path.isdir(d):
-            os.startfile(d)
+            self._open_dir(d)
         else:
             messagebox.showinfo("No folder", "Pick a clips folder first.")
 
+    def _open_dir(self, d):
+        if d and os.path.isdir(d):
+            os.startfile(d)
+        else:
+            messagebox.showinfo("No folder", f"Not found:\n{d}")
+
     def _story_path(self):
-        """Prefer whichever tab is on screen, so RUN uses what the user sees."""
-        if self.nb.index(self.nb.select()) == 1:
+        """Prefer whichever tab is on screen, so RUN uses what the user sees.
+
+        Compares the selected tab to the Agent frame rather than testing its
+        index, which stopped being 1 the moment a tab was added in front of it.
+        """
+        if self.nb.select() == str(self.agent_tab):
             return self.agent_story_var.get().strip()
         return self.story_var.get().strip()
 
@@ -498,24 +660,32 @@ class Veo3LauncherGUI:
     def collect_inputs(self):
         self.settings.update({
             "story_json": self.story_var.get().strip(),
-            "from_scene": int(self.from_var.get() or 1),
-            "to_scene": int(self.to_var.get() or 5),
+            "from_scene": self.read_int(self.from_var, 1),
+            "to_scene": self.read_int(self.to_var, 5),
             "skip_refs": bool(self.skip_refs_var.get()),
             "project_url": self.url_var.get().strip(),
-            "cdp_port": int(self.cdp_var.get() or 9222),
+            "cdp_port": self.read_int(self.cdp_var, 9222),
             "model_hint": self.model_var.get().strip(),
             "auto_approve": bool(self.auto_approve_var.get()),
             "no_submit": bool(self.no_submit_var.get()),
-            "watch_secs": int(self.watch_var.get() or 300),
+            "watch_secs": self.read_int(self.watch_var, 300),
             "clips_dir": self.resolved_clips_dir(),
             "reverse": bool(self.reverse_var.get()),
             "aspect_ratio": self.aspect_var.get().strip() or "16:9",
             "scene_seconds": self.read_seconds(),
             "style_preset": self._style_ids.get(self.style_var.get(), ""),
+            # script tab
+            "gen_detail": self.gen_detail.get("1.0", "end").strip(),
+            "gen_duration": self.read_int(self.gen_duration_var, 56),
+            "gen_scene_seconds": self.read_int(self.gen_seconds_var, 8),
+            "gen_aspect_ratio": self.gen_aspect_var.get().strip() or "16:9",
+            "gen_preset": self._gen_ids.get(self.gen_preset_var.get(), ""),
+            "gemini_model": self.gen_model_var.get().strip() or "gemini-2.5-flash",
+            "gemini_api_key": self.gen_key_var.get().strip(),
         })
 
-    def read_seconds(self):
-        """Seconds per clip, tolerating a half-typed or emptied spinbox.
+    def read_int(self, var, default):
+        """Read an IntVar, tolerating a half-typed or emptied spinbox.
 
         IntVar.get() raises TclError on an empty or non-numeric field, and
         collect_inputs() runs from save_settings() on every action and again on
@@ -524,9 +694,13 @@ class Veo3LauncherGUI:
         is called from places where a dialog would be wrong.
         """
         try:
-            return max(1, int(self.seconds_var.get()))
+            return int(var.get())
         except (tk.TclError, ValueError):
-            return 8
+            return default
+
+    def read_seconds(self):
+        """Seconds per clip. Same guard, plus the 1s floor."""
+        return max(1, self.read_int(self.seconds_var, 8))
 
     def resolved_clips_dir(self):
         """The clips folder, with the story root redirected into a clips/ subfolder.
@@ -589,6 +763,67 @@ class Veo3LauncherGUI:
         if self.settings["skip_refs"]:
             cmd += ["--skip-refs"]
         self._launch(cmd, "Starting the ingredients engine in a separate console...")
+
+    # ── script tab actions ────────────────────────────────────
+    def write_story(self, dry=False):
+        """Generate a story package from the title, detail and preset.
+
+        Nothing here touches Flow: it is text generation only, which is why it
+        can be run freely. The images it asks for are still made by hand.
+        """
+        self.collect_inputs()
+        title = self.gen_title_var.get().strip()
+        if not title:
+            messagebox.showerror("No title", "Give the video a title first.")
+            return
+        pid = self._gen_ids.get(self.gen_preset_var.get())
+        if not pid:
+            messagebox.showinfo("Pick a preset", "Choose a style preset from the list first.")
+            return
+        # Saved before launching: write_story.js resolves the API key from
+        # gui_settings.json itself, so the key never goes on a command line
+        # where the process list could show it.
+        self.save_settings()
+
+        cmd = ["node", WRITER, "--title", title,
+               "--duration", str(self.settings["gen_duration"]),
+               "--seconds", str(self.settings["gen_scene_seconds"]),
+               "--aspect", self.settings["gen_aspect_ratio"],
+               "--preset", pid,
+               "--model", self.settings["gemini_model"]]
+
+        # Free text, and Windows mangles long multi-line arguments through cmd.
+        detail = self.gen_detail.get("1.0", "end").strip()
+        if detail:
+            staged = os.path.join(BASE_DIR, "logs", "_gen_detail.txt")
+            try:
+                os.makedirs(os.path.dirname(staged), exist_ok=True)
+                with open(staged, "w", encoding="utf-8") as fh:
+                    fh.write(detail)
+                cmd += ["--detail-file", staged]
+            except Exception as e:
+                messagebox.showerror("Could not stage the detail text", str(e))
+                return
+
+        if dry:
+            cmd += ["--dry-run"]
+            self._launch(cmd, f"Building the prompts for '{title}' - nothing is sent...")
+        else:
+            if not self.settings["gemini_api_key"]:
+                messagebox.showerror("No API key",
+                                     "Paste your Gemini API key on this tab first.\n"
+                                     "It is saved to gui_settings.json, which is gitignored.")
+                return
+            self._launch(cmd, f"Writing '{title}' with {self.settings['gemini_model']}...")
+
+    def list_models(self):
+        self.collect_inputs()
+        if not self.settings["gemini_api_key"]:
+            messagebox.showerror("No API key", "Paste your Gemini API key on this tab first.")
+            return
+        self.save_settings()
+        self._launch(["node", WRITER, "--list-models"],
+                     "Asking Gemini which models this key can use (nothing is spent)...")
 
     # ── agent stages ──────────────────────────────────────────
     def apply_style(self):
