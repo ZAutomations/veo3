@@ -1,0 +1,259 @@
+{
+  "_note": [
+    "Style presets, ported from the old tool's niche_styles.json.",
+    "",
+    "Two kinds, tagged by `kind`:",
+    "  niche     - subject matter and tone (WW2 History, True Crime, Relationship Advice)",
+    "  art_style - how the picture is rendered (Studio Ghibli Style, Pixar 3D, Chibi Cute)",
+    "",
+    "WHICH FIELDS ARE WIRED IN:",
+    "  style - the STYLE: line in the agent prompt (story_to_agent_prompt.js)",
+    "  whisk - wording for character-sheet / image prompts, used by hand in Whisk",
+    "The rest - palette, camera, audience - are authoring notes for a human. No tool",
+    "reads them.",
+    "",
+    "`label` MAY NAME A REAL STUDIO. `style` and `whisk` MUST NOT.",
+    "The label is a menu entry; the other two are typed into a prompt. Naming a real",
+    "studio or brand is a distinctive protected house style, and Google's models",
+    "often refuse or quietly sanitise such prompts. The Bridge story had to be",
+    "rewritten to remove 27 mentions of one studio name for exactly this reason, so",
+    "the presets describe the look instead. Label 'Studio Ghibli Style' is how you",
+    "find the entry; its `style` says 'hand-painted 2D animation, soft watercolour",
+    "backgrounds' and never uses the word. Swap a label's wording into `style`",
+    "yourself if you would rather name the studio and take the risk.",
+    "",
+    "`node styles.js --list` to see them all."
+  ],
+  "styles": [
+    {
+      "id": "ww2-history",
+      "label": "World War 2 History",
+      "kind": "niche",
+      "style": "Historical documentary style, cinematic war footage aesthetic, vintage film grain, dramatic moody lighting, desaturated period-accurate colour grading, authentic 1940s military detail, documentary narration quality",
+      "whisk": "Cinematic historical documentary style, vintage film aesthetic, dramatic war photography, moody desaturated colours, 1940s period accuracy, authentic military detail",
+      "palette": "Desaturated greens, browns, grays with warm sepia tones",
+      "camera": "Documentary handheld style, sweeping battlefield shots, intimate soldier close-ups",
+      "audience": "History enthusiasts, military history fans, documentary viewers"
+    },
+    {
+      "id": "fern-documentary",
+      "label": "Fern Documentary Style",
+      "kind": "niche",
+      "style": "Mannequin documentary style, cinematic moody lighting, warm desaturated colour grading, film noir aesthetic, contemplative emotional atmosphere, philosophical depth, featureless faceless figures, premium streaming documentary quality",
+      "whisk": "Cinematic documentary style, moody lighting, desaturated colour grading, film noir aesthetic, contemplative atmosphere, faceless mannequin figures",
+      "palette": "Teal shadows, warm orange highlights, desaturated blues",
+      "camera": "Cinematic slow movements, contemplative framing, artistic angles",
+      "audience": "Psychology fans, deep thinkers, documentary lovers"
+    },
+    {
+      "id": "mafia",
+      "label": "World Mafia Stories",
+      "kind": "niche",
+      "style": "Crime documentary noir style, dark cinematic lighting, vintage period-accurate detail, dramatic shadow play, classic gangster-film aesthetic, gritty urban atmosphere, prestige crime-drama cinematography",
+      "whisk": "Film noir crime style, dark moody lighting, vintage 1950s-80s aesthetic, dramatic shadows, classic gangster film look, urban crime atmosphere",
+      "palette": "Dark blacks, warm amber lights, deep shadows, occasional red accents",
+      "camera": "Low-angle power shots, intimate character framing, tense close-ups",
+      "audience": "True crime fans, mob history enthusiasts, crime drama viewers"
+    },
+    {
+      "id": "true-crime",
+      "label": "True Crime Stories",
+      "kind": "niche",
+      "style": "True crime documentary style, dark investigative lighting, gritty realistic crime scene aesthetic, suspenseful dramatic atmosphere, forensic detail focus, police procedural quality, mystery investigation cinematography",
+      "whisk": "Dark documentary crime style, gritty realistic aesthetic, investigative journalism look, dramatic crime scene lighting, suspenseful atmosphere, police procedural visuals",
+      "palette": "Dark blues, cold grays, crime scene yellows, dramatic shadows",
+      "camera": "Investigative close-ups, evidence detail shots, dramatic reveals, documentary interview style",
+      "audience": "True crime enthusiasts, mystery lovers, detective story fans"
+    },
+    {
+      "id": "health-wellness",
+      "label": "Health & Wellness",
+      "kind": "niche",
+      "style": "Professional medical documentary style, clean bright lighting, modern healthcare aesthetic, trustworthy scientific presentation, calming professional atmosphere, educational clarity",
+      "whisk": "Clean modern medical style, bright clinical lighting, professional healthcare aesthetic, trustworthy scientific look, calming colors",
+      "palette": "Clean whites, medical blues, calming greens, professional grays",
+      "camera": "Clear educational framing, professional presentation style, clean compositions",
+      "audience": "Health-conscious viewers, medical information seekers, wellness enthusiasts"
+    },
+    {
+      "id": "personal-finance",
+      "label": "Personal Finance",
+      "kind": "niche",
+      "style": "Professional financial documentary style, modern business aesthetic, clean corporate presentation, trustworthy expert atmosphere, success-oriented visuals, educational clarity",
+      "whisk": "Professional business style, modern corporate aesthetic, clean minimalist design, trustworthy financial look, success-oriented visuals",
+      "palette": "Professional blues, wealth greens, gold accents, clean whites",
+      "camera": "Professional business framing, clear educational shots, confident compositions",
+      "audience": "Investors, financial learners, wealth builders"
+    },
+    {
+      "id": "relationship",
+      "label": "Relationship Advice",
+      "kind": "niche",
+      "style": "Emotional relationship documentary style, warm soft lighting, intimate personal atmosphere, heartfelt romantic aesthetic, relatable couple scenarios, psychology-focused presentation",
+      "whisk": "Warm emotional style, soft romantic lighting, intimate personal aesthetic, heartfelt atmosphere, relatable couple visuals",
+      "palette": "Warm pinks, soft oranges, romantic purples, gentle pastels",
+      "camera": "Intimate close-ups, emotional framing, warm personal shots",
+      "audience": "Singles, couples, relationship seekers, love story fans"
+    },
+    {
+      "id": "fall-asleep",
+      "label": "Fall Asleep Stories",
+      "kind": "niche",
+      "style": "Calming sleep story style, dreamy soft-focus lighting, gentle pastel colour palette, peaceful cozy atmosphere, soothing bedtime aesthetic, slow unhurried pacing",
+      "whisk": "Dreamy soft-focus style, calming pastel colors, gentle peaceful aesthetic, cozy bedtime atmosphere, soothing visuals",
+      "palette": "Soft blues, gentle purples, warm creams, calming lavenders",
+      "camera": "Slow gentle movements, peaceful framing, dreamy soft focus",
+      "audience": "Insomnia sufferers, relaxation seekers, bedtime story listeners"
+    },
+    {
+      "id": "travel-adventure",
+      "label": "Travel & Adventure",
+      "kind": "niche",
+      "style": "Travel documentary style, vibrant natural lighting, authentic cultural detail, adventurous exploration atmosphere, wanderlust-inspiring visuals, destination showcase quality",
+      "whisk": "Vibrant travel photography style, bright natural lighting, cultural authenticity, adventurous atmosphere, wanderlust aesthetics",
+      "palette": "Vibrant blues, natural greens, sunset oranges, cultural variety",
+      "camera": "Wide establishing shots, cultural detail close-ups, dynamic movements",
+      "audience": "Travelers, adventure seekers, culture enthusiasts"
+    },
+    {
+      "id": "cooking",
+      "label": "Cooking & Recipes",
+      "kind": "niche",
+      "style": "Culinary documentary style, warm appetising lighting, appetising food macro detail, cozy kitchen atmosphere, mouthwatering presentation, cooking show quality",
+      "whisk": "Appetizing food photography style, warm kitchen lighting, delicious food close-ups, cozy cooking aesthetic, mouthwatering visuals",
+      "palette": "Warm food oranges, fresh greens, rich browns, appetizing reds",
+      "camera": "Food macro close-ups, overhead cooking shots, ingredient details",
+      "audience": "Home cooks, food lovers, recipe seekers"
+    },
+    {
+      "id": "gaming-esports",
+      "label": "Gaming & Esports",
+      "kind": "niche",
+      "style": "Gaming documentary style, vibrant RGB lighting, futuristic tech aesthetic, competitive esports atmosphere, gaming culture presentation, high-energy pacing",
+      "whisk": "Energetic gaming style, neon RGB lighting, futuristic tech aesthetic, competitive atmosphere, gamer culture visuals",
+      "palette": "Neon blues, RGB rainbow, electric purples, gaming greens",
+      "camera": "Dynamic gaming angles, fast-paced movements, tech close-ups",
+      "audience": "Gamers, esports fans, tech enthusiasts"
+    },
+    {
+      "id": "technology-ai",
+      "label": "Technology & AI",
+      "kind": "niche",
+      "style": "Tech documentary style, clean futuristic lighting, modern innovative aesthetic, sleek product presentation, cutting-edge atmosphere, professional tech review quality",
+      "whisk": "Futuristic tech style, clean modern aesthetic, innovative visuals, sleek product shots, cutting-edge atmosphere",
+      "palette": "Tech blues, clean whites, futuristic teals, innovation silvers",
+      "camera": "Sleek product shots, tech detail close-ups, futuristic compositions",
+      "audience": "Tech enthusiasts, early adopters, AI fans"
+    },
+    {
+      "id": "ghibli",
+      "label": "Studio Ghibli Style",
+      "kind": "art_style",
+      "style": "Classic hand-painted 2D animation in the traditional Japanese animated-film idiom: soft watercolour backgrounds, clean ink line art, gentle cel shading, warm natural colour palette, lush environmental detail, quiet domestic moments, 4K quality",
+      "whisk": "Hand-painted 2D animation, watercolour backgrounds, clean ink line art, soft natural lighting, detailed domestic environments, gentle expression, 4K quality",
+      "palette": "Soft pastels, natural greens, dreamy blues, warm sunset tones",
+      "camera": "Sweeping landscape shots, intimate character moments, magical framing",
+      "audience": ""
+    },
+    {
+      "id": "pixar-3d",
+      "label": "Pixar 3D Animation",
+      "kind": "art_style",
+      "style": "Stylised 3D animation with appealing rounded character design, soft subsurface skin shading, highly expressive faces, richly detailed environmental textures, warm cinematic lighting, family-friendly tone",
+      "whisk": "Stylised 3D animation, appealing rounded characters, soft skin shading, expressive faces, detailed textures, warm lighting, 4K quality",
+      "palette": "Vibrant primary colors, warm lighting, cheerful tones",
+      "camera": "Dynamic family-friendly framing, expressive character focus",
+      "audience": ""
+    },
+    {
+      "id": "anime-cinematic",
+      "label": "Anime Cinematic",
+      "kind": "art_style",
+      "style": "Cinematic anime animation, dramatic lighting, detailed character expressions, vibrant colour palette, modern anime production quality, dynamic camera movement",
+      "whisk": "Cinematic anime style, dramatic lighting, detailed character design, vibrant colors, modern anime aesthetic, high production quality",
+      "palette": "Vibrant anime colors, dramatic contrasts, expressive tones",
+      "camera": "Dynamic anime angles, dramatic character shots, action framing",
+      "audience": ""
+    },
+    {
+      "id": "disney-classic",
+      "label": "Disney Classic",
+      "kind": "art_style",
+      "style": "Classic hand-drawn fairy-tale animation, storybook illustration quality, expressive character animation with exaggerated squash and stretch, warm rich colour palette, magical soft lighting, wholesome family tone",
+      "whisk": "Classic hand-drawn fairy tale animation, storybook aesthetic, magical atmosphere, expressive character animation",
+      "palette": "Fairy tale pastels, magical purples, warm story tones",
+      "camera": "Classic storybook framing, magical reveal shots, character expressions",
+      "audience": ""
+    },
+    {
+      "id": "shinkai",
+      "label": "Makoto Shinkai Style",
+      "kind": "art_style",
+      "style": "Modern cinematic anime with photorealistic highly detailed backgrounds, towering dramatic cloud formations, pronounced lens flare and light bloom, intricate golden-hour lighting, rain and reflective surfaces, emotionally charged atmosphere",
+      "whisk": "Cinematic anime, photorealistic detailed backgrounds, dramatic skies, lens flare, intricate lighting, emotional atmosphere",
+      "palette": "Dramatic skies, photorealistic lighting, emotional color grading",
+      "camera": "Sweeping sky shots, emotional character moments, lens flare artistry",
+      "audience": ""
+    },
+    {
+      "id": "lofi-anime",
+      "label": "Lofi Anime",
+      "kind": "art_style",
+      "style": "Lofi anime aesthetic, soft pastel colour palette, cozy relaxing atmosphere, simple clean character design, chill ambience, warm lighting",
+      "whisk": "Lofi anime aesthetic, soft pastel colors, cozy atmosphere, simple character design, relaxing vibe",
+      "palette": "Soft pastels, cozy warm tones, chill color grading",
+      "camera": "Relaxed framing, cozy interior shots, chill atmosphere",
+      "audience": ""
+    },
+    {
+      "id": "cartoon-network",
+      "label": "Cartoon Network Style",
+      "kind": "art_style",
+      "style": "Bold 2D cartoon animation, thick clean black outlines, simplified stylised character design, flat vibrant colour blocks, energetic exaggerated movement, playful comedic tone",
+      "whisk": "Bold 2D cartoon animation, thick clean outlines, simplified stylised character design, vibrant flat colors, energetic",
+      "palette": "Bold primary colors, high contrast, energetic tones",
+      "camera": "Energetic cartoon angles, simplified compositions, dynamic action",
+      "audience": ""
+    },
+    {
+      "id": "realistic-cgi",
+      "label": "Realistic CGI",
+      "kind": "art_style",
+      "style": "Photorealistic 3D computer animation, hyper-detailed character models, physically based rendering, film-quality lighting and depth of field, cinematic realism",
+      "whisk": "Photorealistic CGI, hyper-detailed characters, realistic lighting, film-quality rendering, cinematic depth of field",
+      "palette": "Photorealistic colors, natural lighting, film-quality grading",
+      "camera": "Cinematic film shots, realistic depth of field, photorealistic framing",
+      "audience": ""
+    },
+    {
+      "id": "vintage-anime-90s",
+      "label": "Vintage Anime 90s",
+      "kind": "art_style",
+      "style": "1990s vintage anime style, traditional cel-shaded animation, retro nostalgic aesthetic, hand-drawn quality, classic anime character design, subtle VHS film grain",
+      "whisk": "1990s vintage anime style, traditional cel shading, retro nostalgic aesthetic, hand-drawn quality, VHS grain",
+      "palette": "Muted retro tones, warm analog color grading",
+      "camera": "Classic anime framing, retro composition, static establishing shots",
+      "audience": ""
+    },
+    {
+      "id": "chibi-cute",
+      "label": "Chibi Cute Style",
+      "kind": "art_style",
+      "style": "Chibi anime style, super-deformed cute characters, adorable aesthetic, soft pastel colour palette, kawaii vibe, simplified rounded features, playful atmosphere",
+      "whisk": "Chibi anime style, super deformed cute characters, adorable aesthetic, soft pastel color palette, kawaii vibe, simplified rounded features",
+      "palette": "Soft pastels, candy colors, gentle warm tones",
+      "camera": "Playful framing, cute close-ups, simple compositions",
+      "audience": ""
+    },
+    {
+      "id": "avatar-korra",
+      "label": "Avatar/Korra Style",
+      "kind": "art_style",
+      "style": "Hand-drawn 2D animation in an Asian-inspired fantasy idiom, dynamic martial-arts choreography with flowing elemental effects, expressive character design, epic dramatic storytelling, rich painted backgrounds",
+      "whisk": "Hand-drawn 2D animation, Asian-inspired fantasy design, dynamic martial arts poses, expressive characters, rich painted backgrounds",
+      "palette": "Earthy elemental tones, warm ochres, jade greens, ember oranges",
+      "camera": "Dynamic action framing, sweeping elemental effects, dramatic confrontation shots",
+      "audience": ""
+    }
+  ]
+}

@@ -95,6 +95,10 @@ Pick a story JSON, set the scene range, tick **Skip refs** if the references are
 already attached, and hit **Run**. The GUI shells out to the CLI below and
 streams the log.
 
+The **Agent Mode** tab is the other path — four stages run in order rather than
+one button, plus a **Style preset** dropdown that rewrites the story's look. See
+[Agent Mode](#agent-mode--the-second-path).
+
 ### CLI
 
 ```bat
@@ -332,9 +336,63 @@ Two traps when converting:
 - **Style references to a real studio.** `story_to_agent_prompt.js` sends
   `style`, the story `description` and every scene's `narrative_context` to the
   agent, so renaming just the `style` line leaves the studio name in the prompt
-  many more times. Clean all three.
+  many more times. Clean all three. `styles.json` is the same rule already
+  applied to 23 looks — see [Style presets](#style-presets).
 
 `convert_bridge_story.py` is a worked example of the whole conversion.
+
+### Style presets
+
+`styles.json` holds 23 looks — 12 content niches (`ww2-history`, `mafia`,
+`true-crime`, …) and 11 art styles (`ghibli`, `chibi`, `manhwa`, …). Each entry
+carries four text fields, and only the first two reach a prompt:
+
+| Field | Goes to |
+|---|---|
+| `style` | the story's `style` field → the builder's `STYLE:` line |
+| `whisk` | image and character-sheet prompts |
+| `palette`, `camera` | notes for you; no tool reads them |
+| `label`, `id` | the menu — never sent anywhere |
+
+**A label may name a studio; `style` and `whisk` must not.** Naming a real
+studio is a distinctive protected house style, and Google's models frequently
+refuse or quietly sanitise such a prompt. So `ghibli` is the *id* you type and
+"Ghibli-Style Animation" is the *label* you read, while the `style` text beside
+them says "classic hand-painted 2D animation, traditional Japanese animated-film
+look" and never uses the word. The same rule the conversion section above
+describes, applied to the data this time instead of to one story.
+
+```
+npm run styles                        # list every preset
+node styles.js --show ghibli          # the full entry
+node styles.js --prompt ghibli        # just the STYLE line, to copy
+node styles.js --apply <story.json> ghibli [--dry-run]
+```
+
+`--apply` rewrites the story's `style` field and nothing else. It preserves the
+line endings and the missing trailing newline these files use, so the change
+lands in git as one line rather than a 119-line reformat.
+
+It also **warns when the cast text disagrees**. `style` is not the only place a
+story's look is written — every scene repeats `character_descriptions`, so a
+story whose descriptions say "manhwa webtoon" keeps pulling that way even after
+the `STYLE:` line says chibi. `--apply` compares the two and prints what the cast
+mentions that the new preset does not:
+
+```
+WARNING: character_descriptions still describe a different look.
+  found in the cast text, absent from the new preset: manhwa, webtoon
+```
+
+It only ever warns. Rewriting a cast's identity text automatically would be
+worse than the mismatch, so fix those by hand. Silence is not proof the two
+agree — the check is a word list, not a reading.
+
+In the GUI's Agent tab, **Style preset** picks from the same list and **Apply to
+story** runs the same command after confirming the file it is about to edit.
+Loading a story into the tab preselects its preset when its `style` text matches
+one exactly; hand-written style text matches nothing and simply leaves the
+dropdown alone.
 
 ### Agent Mode flags
 
@@ -395,6 +453,8 @@ story_to_agent_prompt.js   story JSON -> agent_prompt.txt (stage 1)
 agent_download.js          pull generated clips out of Flow (stage 3)
 join_clips.js              ffmpeg concat -> one final mp4 (stage 4)
 agent_watch.js             read-only watcher; records what the agent says
+styles.js                  style presets - list, inspect, apply to a story
+styles.json                the 23 presets themselves (data, not code)
 veo3_gui.py                tkinter launcher - both paths, in tabs
 probe_editor.js            diagnostic - dumps the editor timeline DOM
 probe_agent.js             diagnostic - dumps the Agent Mode surface

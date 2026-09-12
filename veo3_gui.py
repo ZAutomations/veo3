@@ -45,6 +45,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ENGINE = os.path.join(BASE_DIR, "veo3_flow_new_ui.js")
 AGENT_ENGINE = os.path.join(BASE_DIR, "agent_mode.js")
 PROMPT_BUILDER = os.path.join(BASE_DIR, "story_to_agent_prompt.js")
+STYLES_TOOL = os.path.join(BASE_DIR, "styles.js")
+STYLES_FILE = os.path.join(BASE_DIR, "styles.json")
 DOWNLOADER = os.path.join(BASE_DIR, "agent_download.js")
 JOINER = os.path.join(BASE_DIR, "join_clips.js")
 SETTINGS_FILE = os.path.join(BASE_DIR, "gui_settings.json")
@@ -76,7 +78,42 @@ DEFAULTS = {
     # order and numbering clips by on-screen order names scene 7 as scene-01.mp4.
     # Both stories run so far have been newest-first, hence the default.
     "reverse": True,
+
+    # Last style preset picked in the Agent tab. Stored as an id, not a label, so
+    # renaming a preset in styles.json does not strand the saved setting.
+    "style_preset": "",
 }
+
+
+def load_style_presets():
+    """Read styles.json into the Agent tab's dropdown data.
+
+    Returns (displays, id_by_display, style_by_display). A preset is offered as
+    "Label  [id]" - the label is what a person picks by, the id is what styles.js
+    resolves. All three come back empty if the file is missing or malformed, so
+    the tab starts with a disabled button and a line saying why, instead of a
+    menu of ids that every apply would reject.
+    """
+    try:
+        with open(STYLES_FILE, "r", encoding="utf-8") as f:
+            styles = json.load(f).get("styles") or []
+    except Exception:
+        return [], {}, {}
+    displays, id_by_display, style_by_display = [], {}, {}
+    for s in styles:
+        sid = str(s.get("id") or "").strip()
+        if not sid:
+            continue
+        label = str(s.get("label") or "").strip() or sid
+        disp = f"{label}  [{sid}]"
+        # Two presets sharing a label would collide in the map and the second
+        # would be unselectable; disambiguate rather than silently drop it.
+        while disp in id_by_display:
+            disp += " "
+        displays.append(disp)
+        id_by_display[disp] = sid
+        style_by_display[disp] = str(s.get("style") or "")
+    return displays, id_by_display, style_by_display
 
 
 class Veo3LauncherGUI:
@@ -262,6 +299,35 @@ class Veo3LauncherGUI:
             row=r, column=1, sticky="w", padx=(290, 14))
         r += 1
 
+        # Style presets. Read-only on purpose: each entry is an id that styles.js
+        # looks up, so a typed-in near-miss would fail in a console the user is
+        # not watching. styles.json is the menu; the button applies one.
+        ttk.Label(f, text="Style preset:").grid(row=r, column=0, sticky="e", **pad)
+        sty = tk.Frame(f, bg="#1e1e28")
+        sty.grid(row=r, column=1, columnspan=2, sticky="w", padx=14)
+        self._style_displays, self._style_ids, self._style_by_display = load_style_presets()
+        self.style_var = tk.StringVar()
+        self.style_box = ttk.Combobox(sty, textvariable=self.style_var, width=44,
+                                      values=self._style_displays, state="readonly")
+        self.style_box.pack(side="left")
+        self.style_apply = ttk.Button(sty, text="Apply to story", command=self.apply_style)
+        self.style_apply.pack(side="left", padx=(8, 0))
+        if self._style_displays:
+            want = self.settings.get("style_preset") or ""
+            for disp, sid in self._style_ids.items():
+                if sid == want:
+                    self.style_var.set(disp)
+                    break
+        else:
+            self.style_box.configure(values=["styles.json missing or empty"])
+            self.style_var.set("styles.json missing or empty")
+            self.style_apply.state(["disabled"])
+        r += 1
+
+        ttk.Label(f, text="rewrites the story's style field - the words the agent is told to render in",
+                  style="Hint.TLabel").grid(row=r, column=1, columnspan=2, sticky="w", padx=14, pady=(0, 4))
+        r += 1
+
         # The format is asked for in words because there is no panel to set it in.
         # Combobox left editable rather than readonly: the builder passes an
         # unrecognised ratio through as written, so a ratio Flow adds later can be
@@ -415,6 +481,17 @@ class Veo3LauncherGUI:
                             self.seconds_var.set(int(data["scene_seconds"]))
                     except (TypeError, ValueError):
                         pass
+                    # Show which preset the story currently carries, when it is
+                    # one of ours. A story can hold hand-written style text that
+                    # matches no preset; then the dropdown is simply left as-is
+                    # rather than being blanked, since the field is not the
+                    # story's only style - only the one this tool can name.
+                    cur = str(data.get("style") or "")
+                    if cur:
+                        for disp, style in self._style_by_display.items():
+                            if style and style == cur:
+                                self.style_var.set(disp)
+                                break
             except Exception as e:
                 var.set(f"⚠️ Could not parse: {e}")
 
@@ -434,6 +511,7 @@ class Veo3LauncherGUI:
             "reverse": bool(self.reverse_var.get()),
             "aspect_ratio": self.aspect_var.get().strip() or "16:9",
             "scene_seconds": self.read_seconds(),
+            "style_preset": self._style_ids.get(self.style_var.get(), ""),
         })
 
     def read_seconds(self):
@@ -513,6 +591,35 @@ class Veo3LauncherGUI:
         self._launch(cmd, "Starting the ingredients engine in a separate console...")
 
     # ── agent stages ──────────────────────────────────────────
+    def apply_style(self):
+        """Rewrite the story's style field from the chosen preset.
+
+        This edits a file on disk, so it asks first and names the file. The tool
+        only touches `style` - the character descriptions are left alone, and if
+        they describe a different look styles.js prints a warning to the panel
+        below rather than changing them, because rewriting a cast's identity text
+        automatically would be worse than the mismatch.
+        """
+        self.collect_inputs()
+        story = self.agent_story_var.get().strip()
+        if not story or not os.path.exists(story):
+            messagebox.showerror("Missing story", "Pick a valid story JSON first.")
+            return
+        sid = self._style_ids.get(self.style_var.get())
+        if not sid:
+            messagebox.showinfo("Pick a preset", "Choose a style preset from the list first.")
+            return
+        if not messagebox.askyesno(
+                "Apply style preset",
+                f"Rewrite the style field in:\n{os.path.basename(story)}\n\n"
+                f"Preset:  {sid}\n\n"
+                "Only the story's style field changes. Rebuild the prompt (stage 1) "
+                "afterwards so the new look reaches the agent."):
+            return
+        self.save_settings()
+        self._launch(["node", STYLES_TOOL, "--apply", story, sid],
+                     f"Applying the '{sid}' style preset to the story JSON...")
+
     def build_prompt(self):
         self.collect_inputs()
         story = self.agent_story_var.get().strip()
