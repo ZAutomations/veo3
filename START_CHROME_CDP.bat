@@ -10,5 +10,11 @@ REM You normally do NOT need this script - the engine starts this browser itself
 REM when nothing is listening on the CDP port. Use it only to pre-warm the browser
 REM or to log into Flow by hand.
 
-start "" "C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --user-data-dir="%LOCALAPPDATA%\flow-mcp-profile" --profile-directory="Profile 3" --no-first-run --no-default-browser-check --disable-blink-features=AutomationControlled --window-size=1920,1080
+REM Chrome installs to different folders depending on installer bitness
+REM (per-user installs land in LOCALAPPDATA) - use whichever one exists.
+set "CHROME=C:\Program Files\Google\Chrome\Application\chrome.exe"
+if not exist "%CHROME%" set "CHROME=C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+if not exist "%CHROME%" set "CHROME=%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"
+
+start "" "%CHROME%" --remote-debugging-port=9222 --user-data-dir="%LOCALAPPDATA%\flow-mcp-profile" --profile-directory="Profile 3" --no-first-run --no-default-browser-check --disable-blink-features=AutomationControlled --window-size=1920,1080
 echo Automation browser started with CDP on port 9222.

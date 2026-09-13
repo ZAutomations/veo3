@@ -53,6 +53,25 @@ JOINER = os.path.join(BASE_DIR, "join_clips.js")
 SETTINGS_FILE = os.path.join(BASE_DIR, "gui_settings.json")
 STORIES_DIR = os.path.join(BASE_DIR, "stories")
 
+# ── palette ─────────────────────────────────────────────────────
+# Every colour the GUI paints with, in one place, so the scheme can be
+# retuned without touching layout code. Studio-dark: a near-black base,
+# panels one step lighter, recessed input fields darker still, one green
+# accent for the action each panel exists for, amber only for warnings.
+BG        = "#14141c"   # the window behind everything
+SURFACE   = "#1b1b26"   # tab panels and frames
+CARD      = "#222230"   # callout boxes (the manual-steps cards)
+INPUT     = "#101018"   # recessed fields: entries, text boxes, the console
+BORDER    = "#2e2e3e"   # hairlines and card edges
+TEXT      = "#e8e8f2"
+TEXT_DIM  = "#9a9ab2"
+ACCENT    = "#7ee787"
+ACCENT_DK = "#5ecf70"   # accent pressed/hover
+ACCENT_BG = "#22352b"   # accent-tinted selection backgrounds
+WARN      = "#ffb86c"
+CONSOLE_FG = "#c7f0c7"  # terminal-green engine output
+PRESET_BG = "#c0392b"   # the style-preset dropdowns: red field, white text
+
 DEFAULTS = {
     "story_json": "",
     "from_scene": 1,
@@ -60,12 +79,15 @@ DEFAULTS = {
     "skip_refs": False,
     "project_url": "",
     "cdp_port": 9222,
-    # agent mode
+    # Agent Mode
     "model_hint": "veo3.1 low priority",
     "auto_approve": False,
     "no_submit": True,
     "watch_secs": 300,
     "clips_dir": "",
+    # Console pane width in px, remembered between runs. 0 = never dragged
+    # (use the default 20% share).
+    "console_width": 0,
     # Clip format. Agent Mode has no settings panel, so these reach Flow as words
     # in the prompt. 16:9 is YouTube's shape; the first two stories came out that
     # way only because it is Flow's default, not because anything asked for it.
@@ -151,12 +173,22 @@ class Veo3LauncherGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("VEO3 Flow Launcher")
-        self.root.geometry("900x760")
-        self.root.configure(bg="#1e1e28")
+        self.root.configure(bg=BG)
 
         self.settings = self.load_settings()
         self.build_style()
         self.build_ui()
+
+        # Fit the default height to the screen: a fixed 760px window extends
+        # past the taskbar on a small display and cuts off the output panel.
+        # The tabs scroll anyway, but the first impression should be "it all
+        # fits", not "where is the rest".
+        h = min(760, self.root.winfo_screenheight() - 120)
+        self.root.geometry(f"900x{h}")
+        # Wide enough that the 20% console, the side-by-side option lines in
+        # the Agent tab and the tab controls all stay usable; tabs scroll
+        # vertically below this height.
+        self.root.minsize(820, 440)
 
     # ── settings ──────────────────────────────────────────────
     def load_settings(self):
@@ -179,67 +211,267 @@ class Veo3LauncherGUI:
 
     # ── style ─────────────────────────────────────────────────
     def build_style(self):
+        """The whole look, in one method.
+
+        Every colour comes from the palette constants at the top of the file.
+        Studio-dark: near-black base, recessed input fields with a focus
+        highlight, flat buttons, tabs that read as connected to their panel,
+        one green accent reserved for the action a panel exists for.
+        """
         style = ttk.Style()
         style.theme_use("clam")
-        style.configure("TFrame", background="#1e1e28")
-        style.configure("TLabel", background="#1e1e28", foreground="#e8e8f0", font=("Segoe UI", 10))
-        style.configure("Header.TLabel", foreground="#7ee787", font=("Segoe UI", 16, "bold"))
-        style.configure("Hint.TLabel", foreground="#9a9ab0", font=("Segoe UI", 9))
-        style.configure("Warn.TLabel", foreground="#ffb86c", font=("Segoe UI", 9))
-        style.configure("Step.TLabel", foreground="#e8e8f0", font=("Segoe UI", 10, "bold"))
-        style.configure("TButton", font=("Segoe UI", 10, "bold"), padding=6)
-        style.configure("TCheckbutton", background="#1e1e28", foreground="#e8e8f0")
-        style.configure("TEntry", fieldbackground="#2a2a38", foreground="#e8e8f0")
-        style.configure("TSpinbox", fieldbackground="#2a2a38", foreground="#e8e8f0")
-        # Notebook needs its own colours or the tab strip renders light on dark.
-        style.configure("TNotebook", background="#1e1e28", borderwidth=0)
-        style.configure("TNotebook.Tab", background="#2a2a38", foreground="#c8c8d8",
-                        padding=(16, 8), font=("Segoe UI", 10, "bold"))
+
+        style.configure("TFrame", background=SURFACE)
+        style.configure("TLabel", background=SURFACE, foreground=TEXT,
+                        font=("Segoe UI", 10))
+        style.configure("Hint.TLabel", foreground=TEXT_DIM, font=("Segoe UI", 9))
+        style.configure("Warn.TLabel", foreground=WARN, font=("Segoe UI", 9))
+        style.configure("Step.TLabel", foreground=TEXT, font=("Segoe UI", 10, "bold"))
+        style.configure("Console.TLabel", foreground=TEXT_DIM,
+                        font=("Segoe UI", 8, "bold"))
+
+        # Tabs sit on the window background; the selected one adopts the
+        # panel colour so it reads as part of the content below it.
+        style.configure("TNotebook", background=BG, borderwidth=0,
+                        tabmargins=(10, 8, 10, 0))
+        style.configure("TNotebook.Tab", background=BG, foreground=TEXT_DIM,
+                        padding=(18, 9), font=("Segoe UI", 10, "bold"), borderwidth=0)
+        # The selected tab must sit BIGGER than its neighbours, not smaller.
+        # clam's own style map swaps the configured padding for its tiny
+        # default ("6 4 6 2") the moment a tab is selected, which collapsed
+        # the open tab - the padding map here is not cosmetic, it overrides
+        # that and makes the selected tab sit taller.
         style.map("TNotebook.Tab",
-                  background=[("selected", "#1e1e28")],
-                  foreground=[("selected", "#7ee787")])
+                  padding=[("selected", (18, 12))],
+                  background=[("selected", SURFACE)],
+                  foreground=[("selected", ACCENT), ("active", TEXT)])
+
+        # Flat secondary buttons: quiet surface colour, lighten on hover,
+        # accent focus ring only when keyboard-navigating.
+        style.configure("TButton", font=("Segoe UI", 10, "bold"), padding=(10, 6),
+                        background=CARD, foreground=TEXT, borderwidth=0,
+                        lightcolor=CARD, darkcolor=CARD, bordercolor=CARD,
+                        focusthickness=1, focuscolor=CARD)
+        style.map("TButton",
+                  background=[("pressed", BORDER), ("active", "#2b2b3b")],
+                  focuscolor=[("active", ACCENT)])
+        # The loud one per panel: the primary action (Run engine, Write story).
+        style.configure("Accent.TButton", background=ACCENT, foreground="#0d1a12",
+                        borderwidth=0, lightcolor=ACCENT, darkcolor=ACCENT,
+                        bordercolor=ACCENT, padding=(12, 6))
+        style.map("Accent.TButton",
+                  background=[("pressed", ACCENT_DK), ("active", ACCENT_DK)],
+                  lightcolor=[("pressed", ACCENT_DK), ("active", ACCENT_DK)],
+                  darkcolor=[("pressed", ACCENT_DK), ("active", ACCENT_DK)])
+
+        style.configure("TCheckbutton", background=SURFACE, foreground=TEXT,
+                        font=("Segoe UI", 10), focuscolor=SURFACE,
+                        indicatorcolor=BORDER)
+        style.map("TCheckbutton",
+                  background=[("active", SURFACE)],
+                  indicatorcolor=[("selected", ACCENT)])
+
+        # Recessed fields: darker than their panel, with a border that picks
+        # up the accent when focused - the standard cue for "type here".
+        for w in ("TEntry", "TCombobox", "TSpinbox"):
+            style.configure(w, fieldbackground=INPUT, foreground=TEXT,
+                            insertcolor=TEXT, bordercolor=BORDER,
+                            lightcolor=BORDER, darkcolor=BORDER, padding=4)
+            style.map(w, bordercolor=[("focus", ACCENT)])
+        style.configure("TCombobox", arrowcolor=TEXT_DIM, arrowsize=11)
+        style.configure("TSpinbox", arrowcolor=TEXT_DIM, arrowsize=11)
+        # The combobox dropdown is a plain tk Listbox: it ignores ttk styles
+        # and reads the option database instead.
+        self.root.option_add("*TCombobox*Listbox.background", INPUT)
+        self.root.option_add("*TCombobox*Listbox.foreground", TEXT)
+        self.root.option_add("*TCombobox*Listbox.selectBackground", ACCENT_BG)
+        self.root.option_add("*TCombobox*Listbox.selectForeground", TEXT)
+
+        # The style-preset dropdowns get their own look: a red field with
+        # white text, so they read at a glance even when empty. clam's
+        # default style map paints a readonly combobox field white, which
+        # is why these cannot just take the shared field styling.
+        style.configure("Preset.TCombobox", fieldbackground=PRESET_BG,
+                        foreground="#ffffff", bordercolor=BORDER,
+                        lightcolor=BORDER, darkcolor=BORDER, padding=4,
+                        arrowcolor="#ffffff")
+        style.map("Preset.TCombobox",
+                  fieldbackground=[("readonly", PRESET_BG), ("active", PRESET_BG)],
+                  foreground=[("readonly", "#ffffff")],
+                  bordercolor=[("focus", ACCENT)])
+
+        style.configure("TSeparator", background=BORDER)
+        style.configure("Vertical.TScrollbar", background=SURFACE, troughcolor=BG,
+                        borderwidth=0, arrowsize=12, lightcolor=SURFACE,
+                        darkcolor=SURFACE)
+        style.map("Vertical.TScrollbar", background=[("active", CARD)])
 
     # ── ui ────────────────────────────────────────────────────
     def build_ui(self):
-        ttk.Label(self.root, text="🎬 VEO3 Flow Launcher", style="Header.TLabel").grid(
-            row=0, column=0, columnspan=2, sticky="w", padx=14, pady=(14, 4))
+        # Title row: the app name in the accent colour, a one-line purpose in
+        # dim text, over a hairline - everything below is working surface.
+        head = tk.Frame(self.root, bg=BG)
+        head.grid(row=0, column=0, columnspan=2, sticky="ew", padx=16, pady=(12, 0))
+        tk.Label(head, text="VEO3 Flow Launcher", bg=BG, fg=ACCENT,
+                 font=("Segoe UI", 15, "bold")).pack(side="left")
+        tk.Label(head, text="script · ingredients · agent mode", bg=BG, fg=TEXT_DIM,
+                 font=("Segoe UI", 10)).pack(side="left", padx=(12, 0), pady=(7, 0))
+        ttk.Separator(self.root, orient="horizontal").grid(
+            row=1, column=0, columnspan=2, sticky="ew", padx=14, pady=(10, 0))
 
+        # Left column: the tabs - they take whatever the console leaves.
         self.nb = ttk.Notebook(self.root)
-        self.nb.grid(row=1, column=0, columnspan=2, sticky="nsew", padx=12, pady=(4, 6))
+        self.nb.grid(row=2, column=0, sticky="nsew", padx=(14, 0), pady=(8, 10))
 
-        scr = ttk.Frame(self.nb)
-        ing = ttk.Frame(self.nb)
-        agt = ttk.Frame(self.nb)
+        # The splitter between tabs and console: drag it to widen or narrow
+        # the console, double-click it to snap back to a 20% share. A thin
+        # bar with a resize cursor that lights up while it is being dragged.
+        sash = tk.Frame(self.root, width=6, bg=BORDER, cursor="sb_h_double_arrow")
+        sash.grid(row=2, column=1, sticky="ns", padx=5, pady=(8, 10))
+
+        # Right column: the shared output console, sized by the sash. Both
+        # modes stream into one panel so a run is never half-visible in a
+        # tab you are not looking at.
+        outwrap = tk.Frame(self.root, bg=SURFACE)
+        outwrap.grid(row=2, column=2, sticky="nsew", padx=(0, 14), pady=(8, 10))
+        ttk.Label(outwrap, text="ENGINE OUTPUT", style="Console.TLabel").pack(
+            anchor="w", pady=(0, 4))
+        # width=1 keeps the Text's natural request tiny so the column's
+        # minsize (set by the sash) is what actually decides the pane width.
+        self.output = tk.Text(outwrap, width=1, bg=INPUT, fg=CONSOLE_FG,
+                              insertbackground=TEXT, font=("Consolas", 9), wrap="word")
+        sb = ttk.Scrollbar(outwrap, orient="vertical", command=self.output.yview)
+        self.output.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        self.output.pack(side="left", fill="both", expand=True)
+        self.output.insert("end", "Waiting to start...\n")
+
+        # ---- dragging the console wider / narrower -------------------------
+        MIN_CONSOLE, MAX_SHARE = 150, 0.75   # px floor, share-of-window ceiling
+
+        def set_console_width(px):
+            win = self.root.winfo_width()
+            if win > 50:                    # not yet mapped - skip the ceiling
+                px = min(px, int(win * MAX_SHARE))
+            px = max(MIN_CONSOLE, px)
+            self.root.columnconfigure(2, minsize=px)
+            self.console_width = px
+            return px
+
+        def on_sash_press(e):
+            sash.configure(bg=ACCENT)
+            sash.grab_set()                 # keep the drag even past the bar
+
+        def on_sash_drag(e):
+            # The console's right edge sits 14px inside the window, so its
+            # width is simply the pointer's distance from that edge.
+            set_console_width(self.root.winfo_width()
+                              - (e.x_root - self.root.winfo_rootx()) - 14)
+
+        def on_sash_release(e):
+            sash.configure(bg=BORDER)
+            sash.grab_release()
+            # remembered for the next run; save_settings writes it on close
+            self.settings["console_width"] = self.console_width
+
+        def on_sash_double(e):
+            set_console_width(self.root.winfo_width() // 5)   # back to 20%
+
+        sash.bind("<Button-1>", on_sash_press)
+        sash.bind("<B1-Motion>", on_sash_drag)
+        sash.bind("<ButtonRelease-1>", on_sash_release)
+        sash.bind("<Double-Button-1>", on_sash_double)
+        self.console_width = 180
+        # start from the width the user left it at last time, else ~20%
+        saved = int(self.settings.get("console_width") or 0)
+        set_console_width(saved if saved >= MIN_CONSOLE else 180)
+
+        # Each tab scrolls. The Script and Agent tabs hold more rows than a
+        # small screen shows at once, and a cut-off options panel is unusable.
+        self._tab_canvases = []
+        scr_tab, scr = self.make_scrollable_tab()
+        ing_tab, ing = self.make_scrollable_tab()
+        agt_tab, agt = self.make_scrollable_tab()
         # Script first: it is where a video now starts. The ingredients path is
         # unchanged and still second.
-        self.nb.add(scr, text="Script")
-        self.nb.add(ing, text="Ingredients (extend)")
-        self.nb.add(agt, text="Agent Mode")
-        self.agent_tab = agt
+        self.nb.add(scr_tab, text="Script")
+        self.nb.add(ing_tab, text="Ingredients (extend)")
+        self.nb.add(agt_tab, text="Agent Mode")
+        self.agent_tab = agt_tab
 
         self.build_script_tab(scr)
         self.build_ingredients_tab(ing)
         self.build_agent_tab(agt)
+        # One binding for all three tabs - see _on_tab_wheel for why it is a
+        # single bind_all rather than one binding per canvas.
+        self.root.bind_all("<MouseWheel>", self._on_tab_wheel)
 
-        # Shared output - both modes stream into one panel so a run is never
-        # half-visible in a tab you are not looking at.
-        ttk.Label(self.root, text="Engine output:").grid(row=2, column=0, sticky="ne", padx=14, pady=6)
-        outwrap = tk.Frame(self.root, bg="#1e1e28")
-        outwrap.grid(row=2, column=1, sticky="nsew", padx=(0, 14), pady=6)
-        self.output = tk.Text(outwrap, height=16, bg="#14141c", fg="#c7f0c7",
-                              insertbackground="#fff", font=("Consolas", 9), wrap="word")
-        sb = ttk.Scrollbar(outwrap, orient="vertical", command=self.output.yview)
-        self.output.configure(yscrollcommand=sb.set)
-        self.output.pack(side="left", fill="both", expand=True)
-        sb.pack(side="right", fill="y")
-        self.output.insert("end", "Waiting to start...\n")
-
-        self.root.columnconfigure(1, weight=1)
+        # The tab column stretches with the window; the console column is
+        # pinned by the sash (minsize), so dragging the sash resizes the
+        # panes, and the console keeps its width when the window resizes.
+        self.root.columnconfigure(0, weight=1)
+        self.root.columnconfigure(1, weight=0)
+        self.root.columnconfigure(2, weight=0)
         self.root.rowconfigure(2, weight=1)
 
         self.proc = None
         self.load_story_info()
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+
+    # ── scrollable tabs ───────────────────────────────────────
+    def make_scrollable_tab(self):
+        """A notebook tab whose content scrolls vertically when it overflows.
+
+        The tab is a canvas plus a scrollbar; the real content lives in a frame
+        stretched to the canvas's width, so rows still expand with the window.
+        Returns (tab, content): add `tab` to the notebook, build into `content`.
+        """
+        tab = ttk.Frame(self.nb)
+        canvas = tk.Canvas(tab, bg=SURFACE, highlightthickness=0, borderwidth=0)
+        sb = ttk.Scrollbar(tab, orient="vertical", command=canvas.yview)
+        content = ttk.Frame(canvas)
+        win = canvas.create_window((0, 0), window=content, anchor="nw")
+        canvas.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+        self._tab_canvases.append(canvas)
+
+        # The scrollregion must follow the content's height, and the content
+        # must follow the canvas's width - without the second bind, a widened
+        # window leaves every row at its natural width with dead space beside.
+        content.bind("<Configure>",
+                     lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>",
+                    lambda e: canvas.itemconfigure(win, width=canvas.winfo_width()))
+        return tab, content
+
+    def _on_tab_wheel(self, e):
+        """Send the mouse wheel to the tab canvas under the pointer.
+
+        Bound once with bind_all rather than once per canvas (bind_all on the
+        same sequence replaces, so three of them would clobber each other). It
+        fires wherever the pointer is, so it must stay out of the way of
+        widgets that scroll themselves: the output panel and the detail box are
+        Text, the key ring is a Listbox, and the comboboxes and spinboxes use
+        the wheel to change their value.
+        """
+        if isinstance(e.widget, (tk.Text, tk.Listbox, ttk.Combobox,
+                                 ttk.Spinbox, tk.Spinbox)):
+            return
+        x, y = e.x_root, e.y_root
+        for canvas in self._tab_canvases:
+            if not canvas.winfo_ismapped():
+                continue
+            if not (canvas.winfo_rootx() <= x < canvas.winfo_rootx() + canvas.winfo_width()
+                    and canvas.winfo_rooty() <= y < canvas.winfo_rooty() + canvas.winfo_height()):
+                continue
+            # Content fits - nothing to scroll, and the window must not eat
+            # the wheel event for nothing.
+            if canvas.yview() == (0.0, 1.0):
+                return
+            lines = max(1, abs(e.delta) // 120)
+            canvas.yview_scroll(-lines if e.delta > 0 else lines, "units")
+            return
 
     # ── tab 0: script ─────────────────────────────────────────
     def build_script_tab(self, f):
@@ -247,8 +479,8 @@ class Veo3LauncherGUI:
         f.columnconfigure(1, weight=1)
         r = 0
 
-        tk.Label(f, justify="left", anchor="w", bg="#2a2333", fg="#d8d0e0",
-                 font=("Segoe UI", 9),
+        tk.Label(f, justify="left", anchor="w", bg=CARD, fg=TEXT,
+                 font=("Segoe UI", 9), highlightthickness=1, highlightbackground=BORDER,
                  text=("Write a whole story package from a title and a preset. Produces the story\n"
                        "JSON, a style bible, and paste-ready character-sheet prompts, in its own\n"
                        "folder under stories/. It writes NO video and spends NO Flow credits -\n"
@@ -259,13 +491,13 @@ class Veo3LauncherGUI:
         ttk.Label(f, text="Video title:").grid(row=r, column=0, sticky="e", **pad)
         self.gen_title_var = tk.StringVar()
         ttk.Entry(f, textvariable=self.gen_title_var, width=58).grid(
-            row=r, column=1, columnspan=2, sticky="w", **pad)
+            row=r, column=1, columnspan=2, sticky="ew", **pad)
         r += 1
 
         ttk.Label(f, text="Detail:").grid(row=r, column=0, sticky="ne", **pad)
-        self.gen_detail = tk.Text(f, height=4, width=58, bg="#14141c", fg="#d8d0e0",
-                                  insertbackground="#fff", wrap="word", font=("Segoe UI", 9))
-        self.gen_detail.grid(row=r, column=1, columnspan=2, sticky="w", **pad)
+        self.gen_detail = tk.Text(f, height=4, width=58, bg=INPUT, fg=TEXT,
+                                  insertbackground=TEXT, wrap="word", font=("Segoe UI", 9))
+        self.gen_detail.grid(row=r, column=1, columnspan=2, sticky="ew", **pad)
         self.gen_detail.insert("1.0", self.settings.get("gen_detail") or "")
         r += 1
 
@@ -277,12 +509,13 @@ class Veo3LauncherGUI:
         # it is an input: the story is written in this look from the first word,
         # rather than having the look bolted on once the text already disagrees.
         ttk.Label(f, text="Style preset:").grid(row=r, column=0, sticky="e", **pad)
-        sty = tk.Frame(f, bg="#1e1e28")
-        sty.grid(row=r, column=1, columnspan=2, sticky="w", padx=14)
+        sty = tk.Frame(f, bg=SURFACE)
+        sty.grid(row=r, column=1, columnspan=2, sticky="ew", padx=14)
         self._gen_displays, self._gen_ids, _, self._gen_lengths = load_style_presets()
         self.gen_preset_var = tk.StringVar()
         self.gen_preset_box = ttk.Combobox(sty, textvariable=self.gen_preset_var, width=44,
-                                           values=self._gen_displays, state="readonly")
+                                           values=self._gen_displays, state="readonly",
+                                           style="Preset.TCombobox")
         self.gen_preset_box.pack(side="left")
         ttk.Button(sty, text="Manage…", command=self.open_styles_help).pack(side="left", padx=(8, 0))
         if self._gen_displays:
@@ -297,8 +530,8 @@ class Veo3LauncherGUI:
         r += 1
 
         ttk.Label(f, text="Shape & format:").grid(row=r, column=0, sticky="e", **pad)
-        fmt = tk.Frame(f, bg="#1e1e28")
-        fmt.grid(row=r, column=1, columnspan=2, sticky="w", padx=14)
+        fmt = tk.Frame(f, bg=SURFACE)
+        fmt.grid(row=r, column=1, columnspan=2, sticky="ew", padx=14)
         self.gen_duration_var = tk.IntVar(value=self.settings.get("gen_duration", 56))
         ttk.Spinbox(fmt, from_=8, to=1200, increment=8, textvariable=self.gen_duration_var,
                     width=6).pack(side="left")
@@ -326,8 +559,8 @@ class Veo3LauncherGUI:
         r += 1
 
         ttk.Label(f, text="Gemini model:").grid(row=r, column=0, sticky="e", **pad)
-        md = tk.Frame(f, bg="#1e1e28")
-        md.grid(row=r, column=1, columnspan=2, sticky="w", padx=14)
+        md = tk.Frame(f, bg=SURFACE)
+        md.grid(row=r, column=1, columnspan=2, sticky="ew", padx=14)
         self.gen_model_var = tk.StringVar(value=self.settings.get("gemini_model", "gemini-3.6-flash"))
         # Editable, not readonly: "List models" fills it from the API, but a model
         # the list has not seen yet can still be typed in without waiting for it.
@@ -339,8 +572,8 @@ class Veo3LauncherGUI:
         r += 1
 
         ttk.Label(f, text="Gemini API keys:").grid(row=r, column=0, sticky="ne", **pad)
-        kd = tk.Frame(f, bg="#1e1e28")
-        kd.grid(row=r, column=1, columnspan=2, sticky="w", padx=14)
+        kd = tk.Frame(f, bg=SURFACE)
+        kd.grid(row=r, column=1, columnspan=2, sticky="ew", padx=14)
 
         # A list rather than one field: the point is to hold several and let the
         # writer fall through to the next when one runs dry. Kept as a Listbox of
@@ -352,16 +585,16 @@ class Veo3LauncherGUI:
             self.gen_keys.insert(0, legacy)
 
         self.gen_key_list = tk.Listbox(kd, height=3, width=34, activestyle="none",
-                                       bg="#14141c", fg="#e6e6ee",
-                                       selectbackground="#3a3a52", highlightthickness=0,
-                                       exportselection=False)
+                                       bg=INPUT, fg=TEXT,
+                                       selectbackground=ACCENT_BG, selectforeground=TEXT,
+                                       highlightthickness=0, exportselection=False)
         self.gen_key_list.pack(side="left")
 
-        kb = tk.Frame(kd, bg="#1e1e28")
+        kb = tk.Frame(kd, bg=SURFACE)
         kb.pack(side="left", padx=(8, 0), anchor="n")
         self.gen_key_entry = tk.StringVar()
         ttk.Entry(kb, textvariable=self.gen_key_entry, width=34, show="•").pack(anchor="w")
-        e2 = tk.Frame(kb, bg="#1e1e28")
+        e2 = tk.Frame(kb, bg=SURFACE)
         e2.pack(anchor="w", pady=(4, 0))
         ttk.Button(e2, text="Add key", width=10,
                    command=self.add_api_key).pack(side="left")
@@ -379,9 +612,10 @@ class Veo3LauncherGUI:
         self.refresh_key_list()
         r += 1
 
-        btns = tk.Frame(f, bg="#1e1e28")
+        btns = tk.Frame(f, bg=SURFACE)
         btns.grid(row=r, column=1, columnspan=2, sticky="w", padx=14, pady=(10, 4))
-        ttk.Button(btns, text="📝  Write story", command=self.write_story, width=20).pack(side="left")
+        ttk.Button(btns, text="Write story", command=self.write_story, width=20,
+                   style="Accent.TButton").pack(side="left")
         ttk.Button(btns, text="Preview prompts (dry run)",
                    command=lambda: self.write_story(dry=True)).pack(side="left", padx=(10, 0))
         ttk.Button(btns, text="Open stories folder",
@@ -530,7 +764,7 @@ class Veo3LauncherGUI:
 
         ttk.Label(f, text="Story JSON:").grid(row=1, column=0, sticky="e", **pad)
         self.story_var = tk.StringVar(value=self.settings["story_json"])
-        ttk.Entry(f, textvariable=self.story_var, width=58).grid(row=1, column=1, sticky="w", **pad)
+        ttk.Entry(f, textvariable=self.story_var, width=58).grid(row=1, column=1, sticky="ew", **pad)
         ttk.Button(f, text="Browse…", command=self.browse_story).grid(row=1, column=2, **pad)
 
         self.story_info = tk.StringVar(value="No story loaded")
@@ -538,18 +772,18 @@ class Veo3LauncherGUI:
             row=2, column=1, columnspan=2, sticky="w", padx=14)
 
         ttk.Label(f, text="Scene range:").grid(row=3, column=0, sticky="e", **pad)
-        rng = tk.Frame(f, bg="#1e1e28")
+        rng = tk.Frame(f, bg=SURFACE)
         rng.grid(row=3, column=1, sticky="w", **pad)
         self.from_var = tk.IntVar(value=self.settings["from_scene"])
         self.to_var = tk.IntVar(value=self.settings["to_scene"])
-        tk.Label(rng, text="From", bg="#1e1e28", fg="#e8e8f0").pack(side="left")
+        tk.Label(rng, text="From", bg=SURFACE, fg=TEXT).pack(side="left")
         ttk.Spinbox(rng, from_=1, to=99, textvariable=self.from_var, width=4).pack(side="left", padx=6)
-        tk.Label(rng, text="To", bg="#1e1e28", fg="#e8e8f0").pack(side="left", padx=(14, 0))
+        tk.Label(rng, text="To", bg=SURFACE, fg=TEXT).pack(side="left", padx=(14, 0))
         ttk.Spinbox(rng, from_=1, to=99, textvariable=self.to_var, width=4).pack(side="left", padx=6)
 
         ttk.Label(f, text="Project URL:").grid(row=4, column=0, sticky="e", **pad)
         self.url_var = tk.StringVar(value=self.settings["project_url"])
-        ttk.Entry(f, textvariable=self.url_var, width=58).grid(row=4, column=1, columnspan=2, sticky="w", **pad)
+        ttk.Entry(f, textvariable=self.url_var, width=58).grid(row=4, column=1, columnspan=2, sticky="ew", **pad)
 
         ttk.Label(f, text="Chrome CDP port:").grid(row=5, column=0, sticky="e", **pad)
         self.cdp_var = tk.IntVar(value=self.settings["cdp_port"])
@@ -562,9 +796,9 @@ class Veo3LauncherGUI:
         ttk.Checkbutton(f, text="Skip refs upload (refs already in project)",
                         variable=self.skip_refs_var).grid(row=6, column=1, sticky="w", **pad)
 
-        ttk.Button(f, text="▶  RUN ENGINE", command=self.run_engine).grid(
-            row=7, column=1, sticky="w", pady=(16, 4))
-        ttk.Button(f, text="⬜  Kill engine", command=self.kill_engine).grid(
+        ttk.Button(f, text="▶  Run engine", command=self.run_engine,
+                   style="Accent.TButton").grid(row=7, column=1, sticky="w", pady=(16, 4))
+        ttk.Button(f, text="Stop engine", command=self.kill_engine).grid(
             row=7, column=1, sticky="w", padx=(170, 14), pady=(16, 4))
 
         ttk.Label(f, text="This path exports ONE continuous timeline and SPLITS it with ffmpeg.\n"
@@ -579,11 +813,11 @@ class Veo3LauncherGUI:
         r = 0
 
         # ---- the manual steps, stated up front -------------------------------
-        manual = tk.Frame(f, bg="#2a2333")
+        manual = tk.Frame(f, bg=CARD, highlightthickness=1, highlightbackground=BORDER)
         manual.grid(row=r, column=0, columnspan=3, sticky="ew", padx=10, pady=(10, 8))
-        tk.Label(manual, text="Do these by hand once per project", bg="#2a2333", fg="#ffb86c",
+        tk.Label(manual, text="Do these by hand once per project", bg=CARD, fg=WARN,
                  font=("Segoe UI", 10, "bold"), anchor="w").pack(fill="x", padx=10, pady=(8, 2))
-        tk.Label(manual, justify="left", anchor="w", bg="#2a2333", fg="#d8d0e0", font=("Segoe UI", 9),
+        tk.Label(manual, justify="left", anchor="w", bg=CARD, fg=TEXT, font=("Segoe UI", 9),
                  text=("0. Start the automation browser: double-click START_CHROME_CDP.bat, and check you are\n"
                        "   signed into Google Flow in the window that opens (it uses its own profile).\n"
                        "1. Create the Flow project, and upload each character reference sheet as a Character,\n"
@@ -597,7 +831,7 @@ class Veo3LauncherGUI:
 
         ttk.Label(f, text="Story JSON:").grid(row=r, column=0, sticky="e", **pad)
         self.agent_story_var = tk.StringVar(value=self.settings["story_json"])
-        ttk.Entry(f, textvariable=self.agent_story_var, width=58).grid(row=r, column=1, sticky="w", **pad)
+        ttk.Entry(f, textvariable=self.agent_story_var, width=58).grid(row=r, column=1, sticky="ew", **pad)
         ttk.Button(f, text="Browse…", command=self.browse_story).grid(row=r, column=2, padx=6)
         r += 1
 
@@ -608,28 +842,27 @@ class Veo3LauncherGUI:
 
         ttk.Label(f, text="Project URL:").grid(row=r, column=0, sticky="e", **pad)
         self.agent_url_var = tk.StringVar(value=self.settings["project_url"])
-        ttk.Entry(f, textvariable=self.agent_url_var, width=58).grid(row=r, column=1, columnspan=2, sticky="w", **pad)
+        ttk.Entry(f, textvariable=self.agent_url_var, width=58).grid(row=r, column=1, columnspan=2, sticky="ew", **pad)
         r += 1
 
-        ttk.Label(f, text="Model hint:").grid(row=r, column=0, sticky="e", **pad)
+        # Model hint and Style preset share one line - the tab is long enough
+        # already. Same widgets as before, packed side by side.
+        line1 = tk.Frame(f, bg=SURFACE)
+        line1.grid(row=r, column=0, columnspan=3, sticky="ew", padx=14, pady=5)
+        ttk.Label(line1, text="Model hint:").pack(side="left")
         self.model_var = tk.StringVar(value=self.settings["model_hint"])
-        ttk.Entry(f, textvariable=self.model_var, width=34).grid(row=r, column=1, sticky="w", **pad)
-        ttk.Label(f, text="plain English - Agent Mode has no model menu", style="Hint.TLabel").grid(
-            row=r, column=1, sticky="w", padx=(290, 14))
-        r += 1
-
+        ttk.Entry(line1, textvariable=self.model_var, width=22).pack(side="left", padx=(6, 20))
+        ttk.Label(line1, text="Style preset:").pack(side="left")
         # Style presets. Read-only on purpose: each entry is an id that styles.js
         # looks up, so a typed-in near-miss would fail in a console the user is
         # not watching. styles.json is the menu; the button applies one.
-        ttk.Label(f, text="Style preset:").grid(row=r, column=0, sticky="e", **pad)
-        sty = tk.Frame(f, bg="#1e1e28")
-        sty.grid(row=r, column=1, columnspan=2, sticky="w", padx=14)
         self._style_displays, self._style_ids, self._style_by_display, _ = load_style_presets()
         self.style_var = tk.StringVar()
-        self.style_box = ttk.Combobox(sty, textvariable=self.style_var, width=44,
-                                      values=self._style_displays, state="readonly")
+        self.style_box = ttk.Combobox(line1, textvariable=self.style_var, width=28,
+                                      values=self._style_displays, state="readonly",
+                                      style="Preset.TCombobox")
         self.style_box.pack(side="left")
-        self.style_apply = ttk.Button(sty, text="Apply to story", command=self.apply_style)
+        self.style_apply = ttk.Button(line1, text="Apply to story", command=self.apply_style)
         self.style_apply.pack(side="left", padx=(8, 0))
         if self._style_displays:
             want = self.settings.get("style_preset") or ""
@@ -642,65 +875,63 @@ class Veo3LauncherGUI:
             self.style_var.set("styles.json missing or empty")
             self.style_apply.state(["disabled"])
         r += 1
-
-        ttk.Label(f, text="rewrites the story's style field - the words the agent is told to render in",
-                  style="Hint.TLabel").grid(row=r, column=1, columnspan=2, sticky="w", padx=14, pady=(0, 4))
+        ttk.Label(f, text="model hint: plain English - Agent Mode has no model menu    ·    "
+                          "preset: rewrites the story's style field - the words the agent renders in",
+                  style="Hint.TLabel").grid(row=r, column=0, columnspan=3, sticky="w", padx=14, pady=(0, 4))
         r += 1
 
-        # The format is asked for in words because there is no panel to set it in.
-        # Combobox left editable rather than readonly: the builder passes an
-        # unrecognised ratio through as written, so a ratio Flow adds later can be
-        # typed here without waiting for this list to learn about it.
-        ttk.Label(f, text="Clip format:").grid(row=r, column=0, sticky="e", **pad)
-        fmt = tk.Frame(f, bg="#1e1e28")
-        fmt.grid(row=r, column=1, columnspan=2, sticky="w", padx=14)
+        # Clip format, Watch and the CDP port share one line - three small
+        # controls that never needed a row each.
+        line2 = tk.Frame(f, bg=SURFACE)
+        line2.grid(row=r, column=0, columnspan=3, sticky="ew", padx=14, pady=5)
+        ttk.Label(line2, text="Clip format:").pack(side="left")
+        # The format is asked for in words because there is no panel to set it
+        # in. Combobox left editable rather than readonly: the builder passes
+        # an unrecognised ratio through as written, so a ratio Flow adds later
+        # can be typed here without waiting for this list to learn about it.
         self.aspect_var = tk.StringVar(value=self.settings["aspect_ratio"])
-        ttk.Combobox(fmt, textvariable=self.aspect_var, width=7,
-                     values=["16:9", "9:16", "1:1"]).pack(side="left")
-        ttk.Label(fmt, text="aspect", style="Hint.TLabel").pack(side="left", padx=(6, 18))
+        ttk.Combobox(line2, textvariable=self.aspect_var, width=7,
+                     values=["16:9", "9:16", "1:1"]).pack(side="left", padx=(6, 4))
+        ttk.Label(line2, text="aspect", style="Hint.TLabel").pack(side="left", padx=(0, 14))
         self.seconds_var = tk.IntVar(value=self.settings["scene_seconds"])
-        ttk.Spinbox(fmt, from_=1, to=8, textvariable=self.seconds_var, width=5).pack(side="left")
-        ttk.Label(fmt, text="seconds per clip", style="Hint.TLabel").pack(side="left", padx=(6, 0))
-        r += 1
-
-        ttk.Label(f, text="stated in the prompt - a story JSON carrying its own values fills these in",
-                  style="Hint.TLabel").grid(row=r, column=1, columnspan=2, sticky="w", padx=14, pady=(0, 4))
-        r += 1
-
-        ttk.Label(f, text="Chrome CDP port:").grid(row=r, column=0, sticky="e", **pad)
-        self.agent_cdp_var = tk.IntVar(value=self.settings["cdp_port"])
-        ttk.Spinbox(f, from_=1024, to=65535, textvariable=self.agent_cdp_var, width=8).grid(
-            row=r, column=1, sticky="w", **pad)
-        r += 1
-
-        ttk.Label(f, text="Watch (seconds):").grid(row=r, column=0, sticky="e", **pad)
+        ttk.Spinbox(line2, from_=1, to=8, textvariable=self.seconds_var,
+                    width=4).pack(side="left", padx=(0, 4))
+        ttk.Label(line2, text="sec/clip", style="Hint.TLabel").pack(side="left", padx=(0, 16))
+        ttk.Label(line2, text="Watch:").pack(side="left")
         self.watch_var = tk.IntVar(value=self.settings["watch_secs"])
-        ttk.Spinbox(f, from_=30, to=3600, textvariable=self.watch_var, width=8).grid(
-            row=r, column=1, sticky="w", **pad)
-        ttk.Label(f, text="how long to record after submitting", style="Hint.TLabel").grid(
-            row=r, column=1, sticky="w", padx=(120, 14))
+        ttk.Spinbox(line2, from_=30, to=3600, textvariable=self.watch_var,
+                    width=7).pack(side="left", padx=(6, 4))
+        ttk.Label(line2, text="sec after submit", style="Hint.TLabel").pack(side="left", padx=(0, 16))
+        ttk.Label(line2, text="CDP port:").pack(side="left")
+        self.agent_cdp_var = tk.IntVar(value=self.settings["cdp_port"])
+        ttk.Spinbox(line2, from_=1024, to=65535, textvariable=self.agent_cdp_var,
+                    width=8).pack(side="left", padx=(6, 0))
+        r += 1
+        ttk.Label(f, text="clip format is stated in the prompt - a story JSON carrying its own values fills these in",
+                  style="Hint.TLabel").grid(row=r, column=0, columnspan=3, sticky="w", padx=14, pady=(0, 4))
         r += 1
 
+        # The two safety switches, side by side.
+        line3 = tk.Frame(f, bg=SURFACE)
+        line3.grid(row=r, column=0, columnspan=3, sticky="ew", padx=14, pady=5)
         self.auto_approve_var = tk.BooleanVar(value=self.settings["auto_approve"])
-        ttk.Checkbutton(f, text="Auto-approve the storyboard (⚠ SPENDS CREDITS)",
-                        variable=self.auto_approve_var).grid(row=r, column=1, sticky="w", **pad)
-        r += 1
-
+        ttk.Checkbutton(line3, text="Auto-approve storyboard (⚠ spends credits)",
+                        variable=self.auto_approve_var).pack(side="left")
         self.no_submit_var = tk.BooleanVar(value=self.settings["no_submit"])
-        ttk.Checkbutton(f, text="Dry run - type the prompt but do NOT submit (safety default)",
-                        variable=self.no_submit_var).grid(row=r, column=1, sticky="w", **pad)
+        ttk.Checkbutton(line3, text="Dry run - type but don't submit (safety default)",
+                        variable=self.no_submit_var).pack(side="left", padx=(24, 0))
         r += 1
 
         # ---- stages ----------------------------------------------------------
         ttk.Separator(f, orient="horizontal").grid(row=r, column=0, columnspan=3, sticky="ew", padx=10, pady=8)
         r += 1
 
-        stages = tk.Frame(f, bg="#1e1e28")
+        stages = tk.Frame(f, bg=SURFACE)
         stages.grid(row=r, column=0, columnspan=3, sticky="w", padx=12, pady=2)
         r += 1
 
         def stage(parent, col, num, title, sub, cmd):
-            box = tk.Frame(parent, bg="#1e1e28")
+            box = tk.Frame(parent, bg=SURFACE)
             box.grid(row=0, column=col, sticky="n", padx=(0, 14))
             ttk.Label(box, text=f"{num}. {title}", style="Step.TLabel").pack(anchor="w")
             ttk.Label(box, text=sub, style="Hint.TLabel", justify="left", wraplength=170).pack(anchor="w", pady=(0, 4))
@@ -724,7 +955,7 @@ class Veo3LauncherGUI:
 
         ttk.Label(f, text="Clips folder:").grid(row=r, column=0, sticky="e", **pad)
         self.clips_var = tk.StringVar(value=self.settings["clips_dir"])
-        ttk.Entry(f, textvariable=self.clips_var, width=58).grid(row=r, column=1, sticky="w", **pad)
+        ttk.Entry(f, textvariable=self.clips_var, width=58).grid(row=r, column=1, sticky="ew", **pad)
         ttk.Button(f, text="Browse…", command=self.browse_clips).grid(row=r, column=2, padx=6)
         r += 1
         # Wired here rather than at the story field, because clips_var has to
@@ -733,10 +964,10 @@ class Veo3LauncherGUI:
         self.agent_story_var.trace_add("write", self.follow_story_clips)
         self.follow_story_clips()
 
-        btns = tk.Frame(f, bg="#1e1e28")
+        btns = tk.Frame(f, bg=SURFACE)
         btns.grid(row=r, column=1, columnspan=2, sticky="w", padx=14, pady=(2, 10))
         ttk.Button(btns, text="Open clips folder", command=self.open_clips).pack(side="left")
-        ttk.Button(btns, text="⬜  Kill engine", command=self.kill_engine).pack(side="left", padx=10)
+        ttk.Button(btns, text="Stop engine", command=self.kill_engine).pack(side="left", padx=10)
         ttk.Label(btns, text="stage 3 defaults to the story folder /clips",
                   style="Hint.TLabel").pack(side="left", padx=8)
 
@@ -1255,6 +1486,13 @@ class Veo3LauncherGUI:
 
 
 if __name__ == "__main__":
+    # Crisp text on scaled displays: without this, Windows renders Tk at
+    # 96dpi and stretches it, which is most of what made the UI look dated.
+    try:
+        from ctypes import windll
+        windll.shcore.SetProcessDpiAwareness(1)
+    except Exception:
+        pass
     root = tk.Tk()
     app = Veo3LauncherGUI(root)
     root.mainloop()

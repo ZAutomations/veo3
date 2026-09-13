@@ -1,0 +1,22 @@
+Character reference sheets for "What If Earth Stopped Revolving Around the Sun"
+Generate each one, then upload it into Flow as a Character named exactly
+Observer, Wanderer (capital first letter).
+Every sheet must be made with the same medium or the cast will not match.
+
+=== OBSERVER ===
+save as: character_refs/observer_reference_sheet.jpg
+
+-- image prompt --
+Character reference sheet of Observer, a featureless smooth mannequin figure with realistic adult male proportions, wearing a matte dark wool trench coat. Plain background, studio neutral lighting, full body front view, 3D matte mannequin rendering style.
+
+-- identity text (must match this exactly in the story JSON) --
+Same Observer throughout - Featureless smooth mannequin figure with realistic adult human male proportions, slender build, wearing a tailored wool trench coat and trousers. Completely smooth matte light-grey surface, no facial features or hair visible, posed with quiet dignity in a 3D matte mannequin rendering style. Reflects contemplative sorrow. NOT photorealistic skin, NOT cartoon, NOT anime.
+
+=== WANDERER ===
+save as: character_refs/wanderer_reference_sheet.jpg
+
+-- image prompt --
+Character reference sheet of Wanderer, a featureless smooth mannequin figure with realistic adult female proportions, wearing a matte insulated winter jacket. Plain gray background, neutral cinematic lighting, full body standing pose, 3D matte mannequin rendering style.
+
+-- identity text (must match this exactly in the story JSON) --
+Same Wanderer throughout - Featureless smooth mannequin figure with realistic adult human female proportions, medium athletic build, wearing a heavy insulated winter jacket and dark trousers. Matte beige neutral surface, no face, no hair, posed with quiet dignity in a 3D matte mannequin rendering style. Depicts silent resilience. NOT photorealistic skin, NOT cartoon, NOT anime.

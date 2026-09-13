@@ -33,9 +33,19 @@ const os = require('os');
 const { spawn, execFileSync } = require('child_process');
 const readline = require('readline');
 
+// Chrome installs to different folders depending on the installer's bitness
+// (and per-user installs land in LOCALAPPDATA). Resolve the real one at
+// startup instead of assuming the 64-bit Program Files path.
+const CHROME_CANDIDATES = [
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    path.join(process.env.LOCALAPPDATA || '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+];
+const CHROME_EXE = CHROME_CANDIDATES.find(p => fs.existsSync(p)) || CHROME_CANDIDATES[0];
+
 const CONFIG = {
     CDP_URL: 'http://127.0.0.1:9222',
-    CHROME_EXE: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    CHROME_EXE,
     CHROME_PROFILE: 'Profile 3',
     HEADLESS: false,
     INITIAL_WAIT: 40000,      // settle time before active checking
