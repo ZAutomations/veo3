@@ -38,8 +38,10 @@ import json
 import os
 import subprocess
 import threading
+import time
+import urllib.request
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox, simpledialog, ttk
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ENGINE = os.path.join(BASE_DIR, "veo3_flow_new_ui.js")
@@ -51,6 +53,8 @@ WRITER = os.path.join(BASE_DIR, "write_story.js")
 DOWNLOADER = os.path.join(BASE_DIR, "agent_download.js")
 JOINER = os.path.join(BASE_DIR, "join_clips.js")
 SETTINGS_FILE = os.path.join(BASE_DIR, "gui_settings.json")
+ACCOUNT_MGR = os.path.join(BASE_DIR, "account_manager.js")
+ACCOUNTS_FILE = os.path.join(BASE_DIR, "accounts.json")
 STORIES_DIR = os.path.join(BASE_DIR, "stories")
 
 # ── palette ─────────────────────────────────────────────────────
@@ -79,6 +83,9 @@ DEFAULTS = {
     "skip_refs": False,
     "project_url": "",
     "cdp_port": 9222,
+    # Credit pool: continue a story on the next Google account when the
+    # active one runs out of monthly Veo credits.
+    "auto_rotate": True,
     # Agent Mode
     "model_hint": "veo3.1 low priority",
     "auto_approve": False,
@@ -398,10 +405,13 @@ class Veo3LauncherGUI:
         self.nb.add(ing_tab, text="Ingredients (extend)")
         self.nb.add(agt_tab, text="Agent Mode")
         self.agent_tab = agt_tab
+        acc_tab, acc = self.make_scrollable_tab()
+        self.nb.add(acc_tab, text="Accounts")
 
         self.build_script_tab(scr)
         self.build_ingredients_tab(ing)
         self.build_agent_tab(agt)
+        self.build_accounts_tab(acc)
         # One binding for all three tabs - see _on_tab_wheel for why it is a
         # single bind_all rather than one binding per canvas.
         self.root.bind_all("<MouseWheel>", self._on_tab_wheel)
@@ -415,6 +425,11 @@ class Veo3LauncherGUI:
         self.root.rowconfigure(2, weight=1)
 
         self.proc = None
+        # credit-pool state: which account's browser we last started,
+        # how far the story got before a drain, and the continuation ctx.
+        self._browser_account = None
+        self._credits_scene = 0
+        self._rotate_ctx = None
         self.load_story_info()
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
@@ -474,6 +489,54 @@ class Veo3LauncherGUI:
             return
 
     # ── tab 0: script ─────────────────────────────────────────
+    def build_accounts_tab(self, f):
+        """Credit pool: one Chrome profile (and one Flow login) per Google
+        account. The engine spends the active account until Flow refuses,
+        then the story continues on the next account in a fresh project."""
+        pad = {"padx": (14, 4), "pady": 4, "sticky": "w"}
+        r = 0
+        ttk.Label(f, text="Google accounts (Veo 3 credit pool)", style="Step.TLabel").grid(row=r, column=0, **pad); r += 1
+        ttk.Label(f, style="Hint.TLabel", justify="left", text=(
+            "Each account is its own Chrome profile with its own Flow login and its own\n"
+            "monthly Veo credits. The tool spends one account at a time and, when it runs\n"
+            "out, continues the story on the next account in a fresh Flow project - clips\n"
+            "are exported per scene, so the final video still joins up.\n\n"
+            "Add an account, press 'Sign in browser', and log that Google account into\n"
+            "Flow once in the window that opens. It is remembered after that.")).grid(row=r, column=0, **pad); r += 1
+
+        ttk.Label(f, text="Accounts", style="Step.TLabel").grid(row=r, column=0, **pad); r += 1
+        style = ttk.Style(self.root)
+        style.configure("Treeview", rowheight=24, background=INPUT,
+                        fieldbackground=INPUT, foreground=TEXT, bordercolor=BORDER)
+        style.configure("Treeview.Heading", background=SURFACE, foreground=TEXT_DIM,
+                        bordercolor=BORDER, relief="flat")
+        cols = ("label", "email", "clips", "status")
+        self.acc_tree = ttk.Treeview(f, columns=cols, show="headings", height=9)
+        for c, w, t in (("label", 150, "Account"), ("email", 190, "Email"),
+                        ("clips", 100, "Clips/month"), ("status", 170, "Status")):
+            self.acc_tree.heading(c, text=t)
+            self.acc_tree.column(c, width=w, anchor="w")
+        self.acc_tree.grid(row=r, column=0, padx=14, pady=4, sticky="we")
+        f.columnconfigure(0, weight=1)
+        r += 1
+
+        row = ttk.Frame(f)
+        row.grid(row=r, column=0, padx=14, pady=6, sticky="w"); r += 1
+        ttk.Button(row, text="\u2795  Add", command=self.acc_add).pack(side="left")
+        ttk.Button(row, text="\U0001F511  Sign in browser", command=self.acc_sign_in).pack(side="left", padx=(8, 0))
+        ttk.Button(row, text="\u25B6  Set active", command=self.acc_set_active).pack(side="left", padx=(8, 0))
+        ttk.Button(row, text="\u21BA  Reset counter", command=self.acc_reset).pack(side="left", padx=(8, 0))
+        ttk.Button(row, text="\u23F8  Pause / Resume", command=self.acc_pause_toggle).pack(side="left", padx=(8, 0))
+        ttk.Button(row, text="\U0001F5D1  Remove", command=self.acc_remove).pack(side="left", padx=(8, 0))
+
+        self.auto_rotate_var = tk.BooleanVar(value=bool(self.settings.get("auto_rotate", True)))
+        ttk.Checkbutton(f, variable=self.auto_rotate_var, text=(
+            "Rotate automatically - when an account runs out of credits, the story\n"
+            "continues on the next account (fresh Flow project) without asking")).grid(row=r, column=0, **pad); r += 1
+        ttk.Label(f, text="Counters reset by themselves at the start of each month.",
+                  style="Hint.TLabel").grid(row=r, column=0, **pad)
+        self._refresh_accounts_list()
+
     def build_script_tab(self, f):
         pad = dict(padx=14, pady=5)
         f.columnconfigure(1, weight=1)
@@ -1077,6 +1140,8 @@ class Veo3LauncherGUI:
             "aspect_ratio": self.aspect_var.get().strip() or "16:9",
             "scene_seconds": self.read_seconds(),
             "style_preset": self._style_ids.get(self.style_var.get(), ""),
+            "auto_rotate": bool(self.auto_rotate_var.get()) if hasattr(self, "auto_rotate_var")
+                           else bool(self.settings.get("auto_rotate", True)),
             # script tab
             "gen_detail": self.gen_detail.get("1.0", "end").strip(),
             "gen_duration": self.read_int(self.gen_duration_var, 56),
@@ -1219,9 +1284,213 @@ class Veo3LauncherGUI:
                 pass
         return d
 
-    # ── process launching ─────────────────────────────────────
+    # ---------- credit pool (accounts.json via account_manager.js) ----------
+    def _account_store(self):
+        try:
+            with open(ACCOUNTS_FILE, encoding="utf-8") as fh:
+                s = json.load(fh)
+            if isinstance(s, dict) and isinstance(s.get("accounts"), list) and s["accounts"]:
+                return s
+        except Exception:
+            pass
+        return None
+
+    def _cdp_alive(self, port):
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/json/version", timeout=2) as r:
+                return r.status == 200
+        except Exception:
+            return False
+
+    def _acc_cli(self, *args, timeout=200):
+        """Run account_manager.js synchronously. Returns (ok, output)."""
+        try:
+            p = subprocess.run(["node", ACCOUNT_MGR, *args], cwd=BASE_DIR,
+                               capture_output=True, text=True, encoding="utf-8",
+                               errors="replace", timeout=timeout)
+            return p.returncode == 0, ((p.stdout or "") + (p.stderr or "")).strip()
+        except Exception as e:
+            return False, str(e)
+
+    def _acc_report(self, ok, out):
+        if out:
+            self.output.insert("end", ("" if ok else "\u26A0  ") + out + "\n")
+            self.output.see("end")
+
+    def _ensure_active_browser(self):
+        """The automation browser on the CDP port must be the ACTIVE
+        account's profile before a run starts. No accounts configured =
+        nothing to do (the engine uses the single shared profile)."""
+        store = self._account_store()
+        if not store:
+            return True
+        acc = store["accounts"][store.get("current", 0)]
+        label = acc.get("label", "")
+        if store.get("browser") == label and self._cdp_alive(self.settings["cdp_port"]):
+            return True
+        return self._switch_to_account(label)
+
+    def _switch_to_account(self, label):
+        port = self.settings["cdp_port"]
+        self.output.insert("end", f"\nSwitching the automation browser to '{label}' (the old one closes)...\n")
+        self.output.see("end")
+        self.root.update_idletasks()
+        ok, out = self._acc_cli("use", "--label", label, "--cdp", str(port))
+        for ln in out.splitlines():
+            self.output.insert("end", ln + "\n")
+        self.output.see("end")
+        if not ok:
+            messagebox.showerror("Could not switch account",
+                                 f"The browser for '{label}' did not come up on CDP port {port}.\n\n{out[-300:]}")
+            return False
+        self._browser_account = label
+        self._refresh_accounts_list()
+        return True
+
+    def _sel_account(self):
+        sel = self.acc_tree.selection()
+        store = self._account_store()
+        if not sel or not store:
+            messagebox.showinfo("Pick an account", "Select an account in the list first.")
+            return None
+        try:
+            return store["accounts"][int(sel[0])]["label"]
+        except Exception:
+            return None
+
+    def acc_add(self):
+        label = simpledialog.askstring("Add account", "Name for this account (e.g. 'acc 1'):", parent=self.root)
+        if not label or not label.strip():
+            return
+        email = simpledialog.askstring("Add account", "Email (optional - just so you can tell them apart):", parent=self.root) or ""
+        mx = simpledialog.askstring("Add account", "Clips this account can make per month:",
+                                    initialvalue="100", parent=self.root)
+        try:
+            n = int(mx)
+        except (TypeError, ValueError):
+            n = 100
+        ok, out = self._acc_cli("add", "--label", label.strip(), "--email", email, "--max-clips", str(n))
+        self._acc_report(ok, out)
+        if not ok:
+            return
+        self._refresh_accounts_list()
+        if messagebox.askyesno("Sign in now",
+                               f"Sign '{label.strip()}' into Flow now?\n\n"
+                               "A Chrome window opens - log that Google account in once and it is remembered."):
+            self._switch_to_account(label.strip())
+
+    def acc_sign_in(self):
+        label = self._sel_account()
+        if label:
+            self._switch_to_account(label)
+
+    def acc_set_active(self):
+        label = self._sel_account()
+        if not label:
+            return
+        ok, out = self._acc_cli("set-current", "--label", label)
+        self._acc_report(ok, out)
+        if ok:
+            self._refresh_accounts_list()
+
+    def acc_reset(self):
+        label = self._sel_account()
+        if not label:
+            return
+        ok, out = self._acc_cli("reset", "--label", label)
+        self._acc_report(ok, out)
+        if ok:
+            self._refresh_accounts_list()
+
+    def acc_pause_toggle(self):
+        label = self._sel_account()
+        if not label:
+            return
+        store = self._account_store()
+        paused = next((a.get("paused", False) for a in store["accounts"] if a.get("label") == label), None)
+        if paused is None:
+            return
+        ok, out = self._acc_cli("resume" if paused else "pause", "--label", label)
+        self._acc_report(ok, out)
+        if ok:
+            self._refresh_accounts_list()
+
+    def acc_remove(self):
+        label = self._sel_account()
+        if not label:
+            return
+        if not messagebox.askyesno("Remove account",
+                                   f"Remove '{label}' from the pool?\n(The Chrome profile folder on disk is kept.)"):
+            return
+        ok, out = self._acc_cli("remove", "--label", label)
+        self._acc_report(ok, out)
+        if ok:
+            self._refresh_accounts_list()
+
+    def _refresh_accounts_list(self):
+        tv = getattr(self, "acc_tree", None)
+        if tv is None:
+            return
+        tv.delete(*tv.get_children())
+        store = self._account_store()
+        if not store:
+            tv.insert("", "end", values=("(no accounts yet)", "", "", "Add one below"))
+            return
+        now = time.strftime("%Y-%m")
+        for i, a in enumerate(store["accounts"]):
+            used = a.get("clips_used", 0)
+            if a.get("clips_month") != now:
+                used = 0
+            mx = a.get("max_clips", 100)
+            state = "paused" if a.get("paused") else ("empty this month" if used >= mx else "ok")
+            if i == store.get("current", 0):
+                state = "ACTIVE - " + state
+            tv.insert("", "end", iid=str(i),
+                      values=(a.get("label", ""), a.get("email", ""), f"{used}/{mx}", state))
+
+    def _handle_proc_exit(self, code):
+        """Engine finished. Code 3 = the account's Veo credits are spent."""
+        self._refresh_accounts_list()
+        ctx = getattr(self, "_rotate_ctx", None)
+        if code != 3 or not ctx:
+            return
+        if not self.settings.get("auto_rotate", True):
+            self.output.insert("end",
+                               "\nThis account is out of Veo credits. Rotation is off - pick the next\n"
+                               "account on the Accounts tab and press Run again.\n")
+            self.output.see("end")
+            return
+        ok, out = self._acc_cli("next")
+        label = out.strip().splitlines()[-1].strip() if ok and out.strip() else ""
+        if not label or label.startswith("("):
+            self.output.insert("end", "\nEvery account in the pool is out of credits (or paused) this month.\n")
+            self.output.see("end")
+            messagebox.showinfo("Pool empty",
+                                "Every account is out of Veo credits this month.\n\n"
+                                "Counters reset automatically next month.")
+            return
+        nxt = self._credits_scene + 1
+        if nxt > ctx["to_scene"]:
+            self.output.insert("end", "\nThe story was already complete - nothing to rotate to.\n")
+            self.output.see("end")
+            return
+        self.output.insert("end",
+                           f"\nRotating to '{label}': continuing from scene {nxt} in a fresh project...\n")
+        self.output.see("end")
+        if not self._switch_to_account(label):
+            return
+        cmd = ["node", ENGINE, ctx["story"],
+               "--from", str(nxt), "--to", str(ctx["to_scene"]),
+               "--cdp", str(ctx["cdp"]),
+               "--account", label, "--fresh-project"]
+        if self._launch(cmd, f"Continuing on '{label}' from scene {nxt} (fresh project)..."):
+            # keep the ctx alive in case THIS account drains too
+            self._rotate_ctx = ctx
+
+    # ── process launching ─────────────────────────────────────────────
     def _launch(self, cmd, what):
         """One place for the Popen dance - four stages share it."""
+        self._rotate_ctx = None
         if self.proc and self.proc.poll() is None:
             messagebox.showwarning("Busy", "A stage is already running. Wait, or kill it first.")
             return False
@@ -1258,7 +1527,22 @@ class Veo3LauncherGUI:
             cmd += ["--project-url", self.settings["project_url"]]
         if self.settings["skip_refs"]:
             cmd += ["--skip-refs"]
-        self._launch(cmd, "Starting the ingredients engine in a separate console...")
+        # Credit pool: run on the ACTIVE account's browser and tell the
+        # engine whose monthly counter to charge.
+        if not self._ensure_active_browser():
+            return
+        store = self._account_store()
+        if store:
+            cmd += ["--account", store["accounts"][store.get("current", 0)]["label"]]
+        if not self._launch(cmd, "Starting the ingredients engine in a separate console..."):
+            return
+        # If this account drains mid-story the engine exits with code 3;
+        # _handle_proc_exit then continues on the next account.
+        self._rotate_ctx = {
+            "story": story,
+            "to_scene": self.settings["to_scene"],
+            "cdp": self.settings["cdp_port"],
+        }
 
     # ── script tab actions ────────────────────────────────────
     def write_story(self, dry=False):
@@ -1410,6 +1694,10 @@ class Veo3LauncherGUI:
                                  f"{prompt_file} does not exist.\n\nRun stage 1 (Build prompt) first.")
             return
         self.save_settings()
+        # The agent driver types into whatever browser owns the CDP port -
+        # make sure that is the ACTIVE account's before it starts.
+        if not self._ensure_active_browser():
+            return
         cmd = ["node", AGENT_ENGINE, "--file", prompt_file,
                "--cdp", str(self.settings["cdp_port"]),
                "--watch", str(self.settings["watch_secs"])]
@@ -1429,6 +1717,9 @@ class Veo3LauncherGUI:
             return
         self.clips_var.set(out)
         self.save_settings()
+        # Clips download from the ACTIVE account's Flow project.
+        if not self._ensure_active_browser():
+            return
         cmd = ["node", DOWNLOADER, "--out", out, "--cdp", str(self.settings["cdp_port"])]
         if self.settings.get("reverse", True):
             # Flow lists newest-first, so without this scene 7 is written as
@@ -1465,15 +1756,28 @@ class Veo3LauncherGUI:
                      "Rebuilding the contact sheet from the clips on disk...")
 
     def stream_output(self):
+        self._credits_scene = 0
         try:
             for line in self.proc.stdout:
                 self.output.insert("end", line)
                 self.output.see("end")
+                # The engine's drain sentinel: how far the story got
+                # before this account's credits ran out.
+                if "CREDITS_EXHAUSTED after_scene=" in line:
+                    try:
+                        self._credits_scene = int(line.split("after_scene=")[1].split()[0])
+                    except Exception:
+                        pass
         except Exception:
             pass
         code = self.proc.wait()
         self.output.insert("end", f"\n[exited with code {code}]\n")
         self.output.see("end")
+        try:
+            # reader thread -> hop to the Tk thread before touching widgets
+            self.root.after(0, lambda: self._handle_proc_exit(code))
+        except Exception:
+            pass
 
     def kill_engine(self):
         if self.proc and self.proc.poll() is None:

@@ -181,6 +181,14 @@ class Veo3FlowNewUI {
         this.toScene = opts.toScene || 0; // 0 = all
         this.skipRefs = !!opts.skipRefs;
         this.cdpUrl = opts.cdp || CONFIG.CDP_URL;
+        // Multi-account credit pool (account_manager.js): when set, the
+        // engine runs on that account's own Chrome profile and counts its
+        // clips. freshProject starts a NEW project on the grid - used when
+        // a story continues under the next account (projects are
+        // per-account, so the old project cannot be extended there).
+        this.accountLabel = opts.account || '';
+        this.freshProject = !!opts.freshProject;
+        this._editorSeen = false;
         // Which model the extends use. Plans differ in what they expose here,
         // so this is overridable at runtime instead of baked in.
         this.extendModel = opts.extendModel || CONFIG.EXTEND_MODEL;
@@ -286,14 +294,28 @@ class Veo3FlowNewUI {
             } catch {
                 log(`âš ï¸  No automation Chrome on CDP port ${port} (attempt ${i + 1}/3)`);
                 if (i === 0) {
-                    const profileDir = buildDedicatedProfile();
+                    // --account runs on that account's own profile (a
+                    // different Google login); without it, the legacy
+                    // single profile. Account profiles are signed in once
+                    // by hand via the GUI's Accounts tab.
+                    let profileDir, profileName;
+                    if (this.accountLabel) {
+                        const am = require('./account_manager.js');
+                        const acc = am.findAccount(am.load(), this.accountLabel);
+                        if (!acc) throw new Error(`--account "${this.accountLabel}" is not in accounts.json`);
+                        profileDir = am.profileDir(acc);
+                        profileName = 'Default';
+                    } else {
+                        profileDir = buildDedicatedProfile();
+                        profileName = CONFIG.CHROME_PROFILE;
+                    }
                     const a = await this.waitForUserInput('   Launch it now? (y/n): ');
                     if (a.toLowerCase() !== 'y') break;
                     log('   â³ Starting Chrome with the dedicated profile...');
                     spawn(CONFIG.CHROME_EXE, [
                         `--remote-debugging-port=${port}`,
                         `--user-data-dir=${profileDir}`,
-                        `--profile-directory=${CONFIG.CHROME_PROFILE}`,
+                        `--profile-directory=${profileName}`,
                         '--no-first-run',
                         '--no-default-browser-check',
                         '--disable-blink-features=AutomationControlled',
@@ -304,7 +326,7 @@ class Veo3FlowNewUI {
             }
         }
         if (!connected) throw new Error(`Could not connect to Chrome via CDP ${this.cdpUrl}`);
-        log(`âœ… Automation browser attached (CDP ${this.cdpUrl}, profile: ${CONFIG.CHROME_PROFILE})`);
+        log(`âœ… Automation browser attached (CDP ${this.cdpUrl}, profile: ${this.accountLabel || CONFIG.CHROME_PROFILE})`);
 
         const pages = await this.browser.pages();
         this.page = pages.find(p => (p.url() || '').includes('flow.google.com')) || pages[pages.length - 1] || await this.browser.newPage();
@@ -314,6 +336,15 @@ class Veo3FlowNewUI {
     }
 
     async gotoProject() {
+        // A story continuing under a new account starts a NEW project on
+        // the grid - the previous project belongs to that account's login
+        // and cannot be opened or extended from here.
+        if (this.freshProject) {
+            log('Fresh project: starting on the Flow project grid');
+            await this.page.goto('https://flow.google.com/', { waitUntil: 'domcontentloaded', timeout: 120000 });
+            await wait(8000);
+            return;
+        }
         if (!this.projectUrl) {
             const a = await this.waitForUserInput('ðŸŒ Enter the Flow PROJECT url (https://flow.google.com/project/...): ');
             this.projectUrl = a;
@@ -747,6 +778,7 @@ async uploadRefViaSendKeys(filePath) {
                 }),
             }));
             if (st.__error) continue;
+            if (await this.checkCreditsOut()) throw new Error('CREDITS_EXHAUSTED');
             if (st.failed) throw new Error('Scene 1 generation FAILED in browser');
             if (st.stop) { if (!sawGenerating) { sawGenerating = true; log('   ðŸ”„ Generating...'); } continue; }
             if (sawGenerating || this.isEditorUrl(st.url)) {
@@ -819,6 +851,7 @@ async uploadRefViaSendKeys(filePath) {
 
     // The editor takes 30-60s to hydrate (canvas, "Add clip" button). Wait for it.
     async waitForEditorReady(maxWaitMs = 120000) {
+        this._editorSeen = true; // grid and resume paths both end here
         log('   â³ Waiting for editor to fully load (Add clip button)...');
         const deadline = Date.now() + maxWaitMs;
         while (Date.now() < deadline) {
@@ -975,6 +1008,32 @@ async uploadRefViaSendKeys(filePath) {
         return !!clicked;
     }
 
+    // Out-of-credits: Flow shows a "get more credits" style message when
+    // the signed-in account's monthly Veo allowance is spent. Sniffed during
+    // the generation polls so a drained account stops the run instead of
+    // every remaining scene failing one by one.
+    async checkCreditsOut() {
+        if (this._creditsOut) return true;
+        try {
+            const out = await this.evalJs(() => {
+                const t = (document.body && document.body.innerText) || '';
+                return /out of credits|insufficient credits|no credits left|get more credits|buy more credits|run out of credits/i.test(t);
+            });
+            if (out && !out.__error) { this._creditsOut = true; return true; }
+        } catch {}
+        return false;
+    }
+
+    // Charge this clip to the active account's monthly counter.
+    _countClip() {
+        if (!this.accountLabel) return;
+        try {
+            const am = require('./account_manager.js');
+            const acc = am.countClip(this.accountLabel);
+            if (acc) log(`   credits: ${acc.label} ${acc.clips_used}/${acc.max_clips} clips this month`);
+        } catch {}
+    }
+
     // Completion = timeline duration grew by one clip. That is the reliable
     // signal (clips land in 15-20s with Veo 3.1 Lite). No placeholder check -
     // the UI does not consistently restore it after generation.
@@ -1012,6 +1071,7 @@ async uploadRefViaSendKeys(filePath) {
                     .some(b => /always approve/i.test(b.innerText || '') || (b.innerText || '').trim() === 'Approve'),
             }));
             if (st.__error) continue;
+            if (await this.checkCreditsOut()) throw new Error('CREDITS_EXHAUSTED');
             if (st.approve) await this.autoApproveCredits();
             if (st.failed) { failedEarly = true; break; }
         }
@@ -1165,6 +1225,7 @@ async doExtendScene(scene, sceneNum) {
             this.sequenceSuspect = true;
         }
         this.okScenes.push(sceneNum);
+        this._countClip();
         return now;
     }
     async exportSceneVideo() {
@@ -1220,9 +1281,12 @@ async doExtendScene(scene, sceneNum) {
         banner('âœ‚ï¸  SPLITTING WITH FFMPEG');
         fs.mkdirSync(this.outputDir, { recursive: true });
         const results = [];
-        for (const n of this.okScenes) {
+        // Offsets are this timeline's own positions: in a fresh-project
+        // block (story continued under another account) scene 9 is clip 1
+        // HERE, so it sits at 0s, not 64s.
+        this.okScenes.forEach((n, i) => {
             const out = path.join(this.outputDir, `scene-${String(n).padStart(2, '0')}.mp4`);
-            const ss = (n - 1) * CONFIG.SCENE_SECONDS;
+            const ss = i * CONFIG.SCENE_SECONDS;
             try {
                 execFileSync('ffmpeg', ['-y', '-ss', String(ss), '-t', String(CONFIG.SCENE_SECONDS),
                     '-i', fullFile, '-c:v', 'libx264', '-c:a', 'aac', out], { stdio: 'pipe', timeout: 300000 });
@@ -1231,7 +1295,7 @@ async doExtendScene(scene, sceneNum) {
             } catch (e) {
                 log(`   âŒ ffmpeg failed for scene ${n}: ${String(e.message).slice(0, 120)}`);
             }
-        }
+        });
         return results;
     }
 
@@ -1245,16 +1309,25 @@ async doExtendScene(scene, sceneNum) {
         await this.checkPause();
 
         try {
-            if (sceneNum === 1) {
+            // A fresh-project block starts its FIRST scene through the
+            // project-grid path (text-to-video), whatever its number -
+            // there is no editor or timeline to extend yet.
+            const startOnGrid = sceneNum === 1
+                || (this.freshProject && sceneNum === this.fromScene && !this._editorSeen);
+            if (startOnGrid) {
                 await this.gotoProject();
                 await this.prepareScene1(scene);
-                this.okScenes.push(1);
+                this.okScenes.push(sceneNum);
+                this._countClip();
             } else {
                 await this.ensureEditor();
                 await this.doExtendScene(scene, sceneNum);
             }
         } catch (e) {
             const msg = e.message || String(e);
+            // A drained account cannot make the remaining scenes either -
+            // bubble up so run() can export what exists and hand over.
+            if (/CREDITS_EXHAUSTED/.test(msg)) throw e;
             log(`\n   âŒ SCENE ${sceneNum} FAILED: ${msg}`);
             await this.logFailedPrompt(sceneNum, msg, scene.veo3_prompt);
             log('   â­ï¸  Continuing to next scene (story order may need a re-run of this scene)');
@@ -1304,12 +1377,22 @@ ${'='.repeat(70)}
         if (!this.opts.toScene) this.toScene = this.scenes.length;
         if (this.fromScene > 1) {
             log(`â–¶ï¸  Resume mode: scenes ${this.fromScene}-${this.toScene}`);
-            this.okScenes = Array.from({ length: this.fromScene - 1 }, (_, i) => i + 1);
+            if (!this.freshProject) {
+                this.okScenes = Array.from({ length: this.fromScene - 1 }, (_, i) => i + 1);
+            }
         }
 
-        for (let i = this.fromScene - 1; i < this.toScene; i++) {
-            await this.processSceneWithRetry(this.scenes[i], i);
-            await this.checkPause();
+        let creditsOut = false;
+        try {
+            for (let i = this.fromScene - 1; i < this.toScene; i++) {
+                await this.processSceneWithRetry(this.scenes[i], i);
+                await this.checkPause();
+            }
+        } catch (e) {
+            // Account drained mid-story: not fatal - fall through so the
+            // clips that DID land get exported, then signal the caller.
+            if (!/CREDITS_EXHAUSTED/.test(e.message || String(e))) throw e;
+            creditsOut = true;
         }
 
         const failed = [];
@@ -1342,6 +1425,7 @@ ${'='.repeat(70)}
             log('âŒ No scenes succeeded - nothing to export.');
         }
 
+        this.creditsExhausted = creditsOut;
         this.browser && this.browser.disconnect();
     }
 }
@@ -1357,6 +1441,8 @@ function parseArgs(argv) {
         else if (a === '--skip-refs') opts.skipRefs = true;
         else if (a === '--extend-model') opts.extendModel = argv[++i];
         else if (a === '--cdp') opts.cdp = `http://127.0.0.1:${argv[++i]}`;
+        else if (a === '--account') opts.account = argv[++i];
+        else if (a === '--fresh-project') opts.freshProject = true;
         else opts._.push(a);
     }
     return opts;
@@ -1365,7 +1451,7 @@ function parseArgs(argv) {
 (async () => {
     const opts = parseArgs(process.argv);
     if (!opts._.length) {
-        console.log('Usage: node veo3_flow_new_ui.js <story.json> [--project-url URL] [--from N] [--to N] [--skip-refs] [--cdp 9222]');
+        console.log('Usage: node veo3_flow_new_ui.js <story.json> [--project-url URL] [--from N] [--to N] [--skip-refs] [--cdp 9222] [--account X] [--fresh-project]');
         process.exit(1);
     }
     const engine = new Veo3FlowNewUI(opts._[0], opts);
@@ -1377,6 +1463,15 @@ function parseArgs(argv) {
     } catch (e) {
         console.error(`\nâŒ FATAL: ${e.message}`);
         process.exit(1);
+    }
+    if (engine.creditsExhausted) {
+        // Sentinel the GUI parses to rotate accounts. Exit code 3 = the
+        // signed-in account's monthly Veo credits are spent.
+        const last = engine.okScenes.length ? Math.max(...engine.okScenes) : (engine.fromScene - 1);
+        console.log(`CREDITS_EXHAUSTED after_scene=${last} account=${engine.accountLabel || ''}`);
+        console.log(`This account's monthly Veo credits are spent.`);
+        console.log(`The story can continue on the next account from scene ${last + 1} (fresh project).`);
+        process.exit(3);
     }
     process.exit(0);
 })();

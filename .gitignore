@@ -5,6 +5,8 @@ __pycache__/
 
 # ── Local state (contains your Flow project URLs) ───────────────────────────
 gui_settings.json
+# Same privacy rule: the credit pool's account list (emails).
+accounts.json
 
 # ── Generated media & per-run artifacts ─────────────────────────────────────
 *.mp4
