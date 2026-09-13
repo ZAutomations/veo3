@@ -99,6 +99,11 @@ for (const mode of ['--show', '--prompt']) {
         if (s.cast_types) console.log(`\n  cast types\n    ${s.cast_types.join(', ')}`);
         if (s.default_duration) console.log(`\n  length\n    ${s.default_duration}s by default`);
         if (s.direction) console.log(`\n  direction\n    ${s.direction}`);
+        // A fixed place is the one preset field that changes what the video looks
+        // like rather than what it says, so it is worth seeing at a glance.
+        if (s.setting) {
+            console.log(`\n  setting  (FIXED - this one place for the whole film)\n    ${s.setting}`);
+        }
         if (s.narration_scope) {
             console.log(`\n  narration scope\n    ${s.narration_scope}` +
                 (s.narration_scope === 'intro' ? '  (the opening clip only, then sound-led)' : ''));

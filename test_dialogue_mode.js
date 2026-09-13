@@ -39,7 +39,12 @@ ok('forbids glitch and blur', /no glitch/i.test(talk.avoid) && /no motion blur/i
 ok('describes the exchange shape in direction',
    /hook/i.test(talk.direction) && /aphorism/i.test(talk.direction) && /resolution/i.test(talk.direction));
 ok('says outright that nobody narrates', /no narrator/i.test(talk.direction));
-ok('names the rooms this genre lives in', /tearoom|veranda|library|cafe/i.test(talk.direction));
+// This genre used to name four possible rooms here, which each batch read as a
+// menu and picked from - so the film changed cafe every clip. The room moved to
+// the preset's `setting` field, which is one place, stated once.
+ok('locks the room instead of offering a menu of them',
+   /SAME room/i.test(talk.direction) && !/a cafe, a tearoom/i.test(talk.direction));
+ok('and points at the one place it happens', !!talk.setting);
 ok('offers the hook-rules-doubt-aphorism shape',
    (talk.story_shapes || []).some(s => /provocative/i.test(s) && /aphorism/i.test(s)));
 ok('is a human-only typed cast',

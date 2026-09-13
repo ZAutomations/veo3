@@ -1,0 +1,26 @@
+Character reference sheets for ""The Difference Between Love and Attachment""
+Generate each one, then upload it into Flow as a Character named exactly
+Elden, Kael (capital first letter).
+Every sheet must be made with the same medium or the cast will not match.
+
+=== ELDEN ===   (human)
+save as: character_refs/elden_reference_sheet.jpg
+
+-- image prompt --
+Cinematic digital manhwa style rendering of Elden, an elderly man with silver hair in sage green robes, full body, neutral standing pose, facing camera, soft lighting, plain neutral grey studio background
+-- image prompt --
+Cinematic digital manhwa style rendering of Elden, an elderly man with silver hair in sage green robes, full body, neutral standing pose, facing camera, soft lighting, plain neutral grey studio background
+
+-- identity text (must match this exactly in the story JSON) --
+Same Elden throughout - Cinematic digital manhwa character, soft 3D cel-shaded semi-realistic rendering, realistic adult human proportions. Elden is a 60-year-old man with a lean build, silver-white tied back hair, warm porcelain skin, and calm, wise brown eyes. He wears a dark sage green draped linen robe over a cream tunic. NOT live-action, NOT a photograph, NOT 3D CGI, NOT western cartoon, NOT chibi.
+
+=== KAEL ===   (human)
+save as: character_refs/kael_reference_sheet.jpg
+
+-- image prompt --
+Cinematic digital manhwa style rendering of Kael, a young man with dark brown hair in a dusty rose sweater, full body, neutral standing pose, facing camera, soft ambient lighting, plain neutral grey studio background
+-- image prompt --
+Cinematic digital manhwa style rendering of Kael, a young man with dark brown hair in a dusty rose sweater, full body, neutral standing pose, facing camera, soft ambient lighting, plain neutral grey studio background
+
+-- identity text (must match this exactly in the story JSON) --
+Same Kael throughout - Cinematic digital manhwa character, soft 3D cel-shaded semi-realistic rendering, realistic adult human proportions. Kael is a 20-year-old heartbroken man with a slender frame, messy dark brown hair, pale skin, and expressive, sorrowful hazel eyes. He wears a relaxed dusty rose knit sweater over a white collared shirt. NOT live-action, NOT a photograph, NOT 3D CGI, NOT western cartoon, NOT chibi.

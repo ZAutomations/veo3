@@ -70,12 +70,44 @@ field, 35mm lens, smooth subtle facial movement, high aesthetic detail.
              LISTENING rather than the one talking, insert shots on hands,
              teacups and folded letters, slow barely-there pushes.
 
-    Setting: a cafe, a tearoom, a sunlit veranda, a library corner.
+    Setting: ONE room, fixed for the whole film - see THE ONE ROOM below. The
+             pair never move and the room never changes.
 
     NEVER:   live-action or photographic realism, 3D CGI sheen, glitch, motion
              blur, exaggerated or comedic expressions, on-screen text,
              subtitles, captions, watermarks or UI, shouting matches, explicit
              content, cynicism, graphic conflict.
+
+
+==========================================================
+ THE ONE ROOM (FIXED - IT NEVER CHANGES)
+==========================================================
+
+This film happens in ONE place. Not one kind of place - one actual room, the
+same room in every single clip. The two of them sit down at the start and they
+are still sitting there at the end. Nothing takes them anywhere else.
+
+Copy this sentence into EVERY clip EXACTLY, word for word, as the first thing in
+"narrative_context":
+
+    A quiet tearoom corner by one tall window. A round marble-topped table sits
+    between two upholstered chairs, gauze curtains hang at the window, a small
+    vase of white orchids stands beside a stack of saucers, and a folded letter
+    rests on the table. Warm late-afternoon light falls from the window on the
+    left.
+
+Everything you write after that sentence must be new and different in each clip.
+That is where the film moves - not the room.
+
+    DO NOT  describe the room again, or add furniture to it
+    DO NOT  change the light, the time of day, or the weather
+    DO NOT  move them to a cafe, a veranda, a garden, a memory or a flashback
+    DO NOT  cut away to a street, a car, a phone screen, or another location
+
+Move the CAMERA instead. Wide two-shot, over-the-shoulder single, medium
+close-up, insert shot on the teacups. A different angle on the same room is what
+stops seven clips looking like one photograph. Changing the room is what makes
+the finished video look broken.
 
 
 ==========================================================
@@ -200,8 +232,8 @@ after. Every field below is required.
       "dialogue": [
         { "speaker": "Evelyn", "line": "Sit down, child. If he cannot read your silence, he will never respect your words." }
       ],
-      "narrative_context": "Wide two-shot in a sunlit conservatory. Evelyn sets down a porcelain teacup and looks directly at Clara, who has not touched her tea. Orchids behind them, gauze curtains moving slightly.",
-      "veo3_prompt": "[SHOT] Wide two-shot in a sunlit conservatory. Evelyn sets down a porcelain teacup and looks directly at Clara, who has not touched her tea. Orchids behind them, gauze curtains moving slightly.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Evelyn (on screen, speaking): \"Sit down, child. If he cannot read your silence, he will never respect your words.\"",
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. A wide two-shot holds both women at the table. Evelyn sets down her porcelain teacup and looks directly at Clara, who has not touched her tea.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. A wide two-shot holds both women at the table. Evelyn sets down her porcelain teacup and looks directly at Clara, who has not touched her tea.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Evelyn (on screen, speaking): \"Sit down, child. If he cannot read your silence, he will never respect your words.\"",
       "characters": ["evelyn", "clara"]
     },
     {
@@ -214,8 +246,8 @@ after. Every field below is required.
       "dialogue": [
         { "speaker": "Clara", "line": "But what if his anger is just because he cares too much?" }
       ],
-      "narrative_context": "Over-the-shoulder single on Clara. She turns her cup a quarter-turn, eyes down, then lifts them to Evelyn. Evelyn's hands stay still around her own cup.",
-      "veo3_prompt": "[SHOT] Over-the-shoulder single on Clara. She turns her cup a quarter-turn, eyes down, then lifts them to Evelyn. Evelyn's hands stay still around her own cup.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Clara (on screen, speaking): \"But what if his anger is just because he cares too much?\"",
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. An over-the-shoulder single on Clara. She turns her cup a quarter-turn, eyes down, then lifts them to Evelyn. Evelyn’s hands stay still around her own cup.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. An over-the-shoulder single on Clara. She turns her cup a quarter-turn, eyes down, then lifts them to Evelyn. Evelyn’s hands stay still around her own cup.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Clara (on screen, speaking): \"But what if his anger is just because he cares too much?\"",
       "characters": ["evelyn", "clara"]
     },
     {
@@ -228,8 +260,8 @@ after. Every field below is required.
       "dialogue": [
         { "speaker": "Evelyn", "line": "A man who needs you loud to feel powerful will make your quiet moments feel like a crime." }
       ],
-      "narrative_context": "Medium close-up on Evelyn, the camera favouring her listening face before she speaks. Warm afternoon light across the table; a folded letter under Clara's saucer.",
-      "veo3_prompt": "[SHOT] Medium close-up on Evelyn, the camera favouring her listening face before she speaks. Warm afternoon light across the table; a folded letter under Clara's saucer.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Evelyn (on screen, speaking): \"A man who needs you loud to feel powerful will make your quiet moments feel like a crime.\"",
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. A medium close-up on Evelyn, the camera resting on her listening face before she speaks, then drifting closer. The folded letter sits beside Clara’s saucer.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. A medium close-up on Evelyn, the camera resting on her listening face before she speaks, then drifting closer. The folded letter sits beside Clara’s saucer.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Evelyn (on screen, speaking): \"A man who needs you loud to feel powerful will make your quiet moments feel like a crime.\"",
       "characters": ["evelyn", "clara"]
     }
   ]
@@ -251,13 +283,18 @@ RULES FOR THE FIELDS ABOVE
 
   _scene_title                A short internal label. Never shown on screen.
 
-  narrative_context           What we SEE. Describe the shot, the framing, who
-                              is doing what with their hands and eyes. Do NOT
-                              put dialogue in here.
+  narrative_context           What we SEE. It must BEGIN with the room sentence
+                              from THE ONE ROOM, copied word for word, and only
+                              then describe the shot, the framing, and who is
+                              doing what with their hands and eyes. Move the
+                              camera, never the pair. Do NOT put dialogue in
+                              here, and do NOT describe the room again after
+                              that opening sentence.
 
   veo3_prompt                 Build it by pasting the three parts together
                               EXACTLY like the example:
-                                  [SHOT] <copy narrative_context here>
+                                  [SHOT] <copy narrative_context here, room
+                                  sentence and all>
                                   [LOOK] <copy the style string here>
                                   [AUDIO] <Speaker (on screen, speaking):
                                   "line">  <next line, two spaces apart>
@@ -288,6 +325,10 @@ RULES FOR THE FIELDS ABOVE
   [ ] Is "script_line" empty in every single clip?
   [ ] Does every clip's veo3_prompt have all three tags: [SHOT], [LOOK], [AUDIO]?
   [ ] Is the style string in [LOOK] identical in every clip?
+  [ ] Does EVERY clip's narrative_context begin with the identical room sentence,
+      word for word? Compare them side by side.
+  [ ] Does any clip mention a different place, add furniture, or change the light?
+      If yes, delete it - the room is fixed.
   [ ] Is the output bare JSON, with no text before or after it?
 
 
@@ -297,9 +338,9 @@ RULES FOR THE FIELDS ABOVE
 
    TITLE:  Never Marry a Man Who Fears Your Silence
 
-   ANGLE:  A grandmother and her granddaughter, in a sunlit conservatory over
-           tea. The granddaughter is engaged to a man whose anger she keeps
-           excusing. The grandmother never once tells her to leave him - she
-           tells her what her silence is worth.
+   ANGLE:  A grandmother and her granddaughter, at a table in the quiet tearoom,
+           over tea that neither of them drinks. The granddaughter is engaged
+           to a man whose anger she keeps excusing. The grandmother never once
+           tells her to leave him - she tells her what her silence is worth.
 
    CLIPS:  7 clips of 8 seconds, 9:16 vertical.

@@ -394,6 +394,15 @@ function lookBlock(p) {
         `CAST TEMPLATE (every character description must follow this shape): ${p.cast_idiom}`,
         `PALETTE: ${p.palette}`,
         `CAMERA: ${p.camera}`,
+        // One place, named once, for the whole film. Scenes are written in
+        // separate batches that share no state beyond the previous clip's
+        // spoken line, so a genre set in a single room had nothing holding the
+        // room still: each batch quietly chose its own. Stating it here is what
+        // reaches every batch, and buildStory repeats it in every [SHOT] line so
+        // it survives even a clip that ignores this.
+        ...(p.setting
+            ? [`SETTING (FIXED - the entire film happens in this one place and never leaves it): ${p.setting}`]
+            : []),
         // Free-text direction for genres that need it. An animal film has to be
         // told that the animal behaves like an animal; nothing in LOOK or CAMERA
         // says that, and left unsaid the model writes it as a small person.
@@ -590,6 +599,22 @@ function scenesPrompt(p, cast, outline, from, to, soFar) {
                         insert them.`
         : `  "characters"        - always [] for this video. It has no cast.`;
 
+    // When the preset names one place, the room is not the model's to write.
+    // It is supplied verbatim and repeated in every clip, so a clip that
+    // re-describes the room is a clip fighting the setting - and one that
+    // moves the pair is the exact drift this field exists to stop.
+    const settingRule = p.setting
+        ? `  "narrative_context" - 60 to 100 words describing what is ON SCREEN BESIDES
+                        the room: who is present, what they do, the mood and the
+                        camera. THE PLACE IS FIXED and already supplied - do NOT
+                        describe it, do NOT redecorate it, do NOT move the two of
+                        them anywhere else, and never name a different location.
+                        Vary the framing, the angle and who is in focus from clip
+                        to clip; the place stays exactly the same.`
+        : `  "narrative_context" - 80 to 130 words describing what is ON SCREEN: the setting,
+                        who is present, what they do, the light, the mood, and the
+                        camera.`;
+
     // Sound-led genres get a different audio job per clip. A narrated travelogue
     // over what should be a visual film is the failure this prevents: the model
     // narrates every beat by default, because every other preset does.
@@ -663,9 +688,8 @@ ${beatList}
 
 For EACH clip above, in order, return:
 ${fields}
-  "narrative_context" - 80 to 130 words describing what is ON SCREEN: the setting,
-                        who is present, what they do, the light, the mood, and the
-                        camera. Describe the action and the emotion. Do NOT name a
+${settingRule}
+                        Describe the action and the emotion. Do NOT name a
                         rendering medium, a studio or an art style - the look is
                         already fixed above and naming it again is what makes
                         scenes drift apart.
@@ -720,6 +744,14 @@ function buildStory(p, cast, meta, scenes) {
     const speech = (s) => (s.dialogue || [])
         .map(d => ({ speaker: String(d.speaker || '').trim(), line: String(d.line || '').trim() }))
         .filter(d => d.speaker && d.line);
+    // The fixed room, in front of every shot, verbatim. Asking the model to keep
+    // the place still is a request; repeating it into each [SHOT] is what makes
+    // it true - whatever a clip's own text says, the room handed to the video
+    // model is the same one in all of them. The clip's own description follows
+    // it, so the two read as one scene brief.
+    const shot = (s) => p.setting
+        ? `${p.setting} ${String(s.narrative_context || '').trim()}`.trim()
+        : s.narrative_context;
     return {
         title: TITLE,
         description: meta.description,
@@ -758,12 +790,12 @@ function buildStory(p, cast, meta, scenes) {
             // literal sounds of the place is what stops a clip with no
             // voice-over from arriving with nothing on the audio track at all.
             ...(intro ? { sound_context: s.sound_context || '' } : {}),
-            narrative_context: s.narrative_context,
+            narrative_context: shot(s),
             // A clip with no narration carries its sound brief in the AUDIO slot
             // instead of an empty narrator line, which the video model would
             // otherwise fill with invented dialogue. A dialogue clip carries the
             // lines themselves, attributed, so the model knows who says what.
-            veo3_prompt: `[SHOT] ${s.narrative_context}\n[LOOK] ${p.style}\n[AUDIO] ` +
+            veo3_prompt: `[SHOT] ${shot(s)}\n[LOOK] ${p.style}\n[AUDIO] ` +
                 (dialogue
                     ? (speech(s).length
                         ? speech(s).map(d => `${d.speaker} (on screen, speaking): "${d.line}"`).join('  ')
@@ -855,6 +887,14 @@ function validate(story, cast, p = {}) {
             if (w > WORDS_HARD) bad.push(`clip ${n}: narration is ${w} words, over the ${WORDS_HARD}-word limit for ${SECONDS}s`);
         }
         if (!String(s.narrative_context || '').trim()) bad.push(`clip ${n}: no narrative_context`);
+        // A preset that fixes the place has to have that place actually appear in
+        // every clip, or the film quietly goes back to one room per scene - which
+        // is what it did before this field existed. Checked here as well as
+        // written in, because a hand-written story never passes through the scene
+        // prompt that would otherwise have supplied it.
+        if (p.setting && !String(s.narrative_context || '').includes(p.setting)) {
+            bad.push(`clip ${n}: does not carry the preset's fixed setting - this film happens in one place, so every clip's narrative_context must contain it verbatim`);
+        }
         // Only demand characters when the story actually has a cast. A
         // no-character story is legitimate (see `cast` in styles.json), but a
         // scene naming somebody who was never designed would become an
