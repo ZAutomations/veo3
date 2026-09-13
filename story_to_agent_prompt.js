@@ -15,6 +15,8 @@
  * What it reads from the story JSON:
  *   title, description, style          -> header + STYLE line
  *   scenes[].script_line               -> the narration, read verbatim
+ *   scenes[].sound_context             -> the sound brief for a clip with no narration
+ *   scenes[].dialogue                  -> [{speaker, line}] for a spoken dialogue story
  *   scenes[].narrative_context         -> visual brief for the scene
  *   scenes[].characters                -> union becomes the @mention list
  *   scenes[].veo3_prompt               -> scanned for the narrator / silent rules
@@ -139,6 +141,19 @@ const everySceneNarrated = scenes.length > 0 &&
 const NARRATED = typeof story.narrated === 'boolean'
     ? story.narrated
     : (everySceneNarrated || /narrator|voice[\s-]?over|voiceover/i.test(allVp));
+// `narration_scope: "intro"` is the third mode: one spoken hook over the opening
+// clip, then a film carried entirely by sound. It is neither fully narrated nor
+// silent, and both of those rule blocks are wrong for it - the narrated one
+// promises a voice-over in every clip and forbids a scene from dropping it, and
+// the silent one drops the hook. Only write_story.js sets this field, so a story
+// without it keeps whichever of the other two modes it had.
+const INTRO = story.narration_scope === 'intro';
+// `narration_scope: "dialogue"` is the inverse mode: nobody narrates at all and
+// the cast speak on screen. Every other rule set here is built on a narrator -
+// this one has to say so explicitly, because an agent told nothing about voices
+// will narrate a conversation, and an agent told "no dialogue" will refuse to
+// make the characters speak at all.
+const DIALOGUE = story.narration_scope === 'dialogue';
 const SILENT = typeof story.silent_cast === 'boolean'
     ? story.silent_cast
     : /remain silent|mouths closed|no character dialogue|not speaking/i.test(allVp);
@@ -164,7 +179,41 @@ if (story.description) L.push(story.description);
 if (story.moral) L.push(`Message of the story: ${story.moral}`);
 L.push('');
 
-if (NARRATED) {
+if (DIALOGUE) {
+    L.push('CRITICAL FORMAT - this is a SPOKEN DIALOGUE VIDEO, not a narrated one:');
+    L.push('- There is NO narrator and NO voice-over anywhere in this video. Nothing is');
+    L.push('  described out loud. Do not add a narrator, and do not voice the story yourself.');
+    L.push('- Every word spoken is spoken by one of the characters, ON SCREEN, in their own');
+    L.push('  voice, from the DIALOGUE lines below. Read them exactly as written - do not');
+    L.push('  rewrite, shorten, merge or reorder them.');
+    L.push('- The characters must visibly speak these lines: mouths move, they look at each');
+    L.push('  other, they react to what was just said. This is a conversation, not a tableau.');
+    L.push('- Do not invent any line that is not in the DIALOGUE block. No extra dialogue,');
+    L.push('  no inner monologue, no narrator summary, no on-screen captions.');
+    L.push('- Each character keeps their own voice across all the clips, and the same two');
+    L.push('  people stay in the same room with the same light throughout.');
+    L.push('- Room tone and the quiet ambience of the place sit under the voices. No music');
+    L.push('  that competes with the speaking.');
+    L.push('');
+} else if (NARRATED && INTRO) {
+    L.push('CRITICAL FORMAT - this is a SOUND-LED FILM with one spoken opening hook:');
+    if (SILENT && charNames.length) {
+        L.push('- The characters are SILENT. Mouths closed. They never speak and have NO dialogue.');
+    } else {
+        L.push('- The story is carried by what is seen and heard, not by dialogue.');
+    }
+    L.push(`- CLIP 1 ONLY has a voice-over${VOICE ? ` (${VOICE})` : ''}, reading that scene's`);
+    L.push('  NARRATION line below word for word. Do not rewrite or shorten it.');
+    L.push('- Clips 2 onward have NO voice-over and NO narration of any kind. Do not add one,');
+    L.push('  do not continue the sentence, and do not summarise what happened. The scenes');
+    L.push('  after the hook are silent except for their own sound and the music.');
+    L.push('- Those clips are driven by their SOUND line below: the real sounds of the place.');
+    L.push('  Every clip carries its sound. A clip that comes back quiet is a clip to redo.');
+    L.push('- One restrained music bed runs under the whole film, including clip 1, and never');
+    L.push('  swells over the sounds of the place.');
+    L.push('- Use the SAME narrator voice in clip 1 as specified, and do not reuse it later.');
+    L.push('');
+} else if (NARRATED) {
     L.push('CRITICAL FORMAT - this is a NARRATED STORYTELLING VIDEO, not a dialogue drama:');
     if (SILENT && charNames.length) {
         L.push('- The characters are SILENT. Mouths closed. They never speak and have NO dialogue.');
@@ -188,6 +237,8 @@ L.push('SCENES:');
 L.push('');
 let withNarration = 0;
 let withVisual = 0;
+let withSound = 0;
+let withDialogue = 0;
 for (const sc of scenes) {
     const n = sc._scene_number != null ? sc._scene_number : (scenes.indexOf(sc) + 1);
     const title = sc._scene_title ? ` - ${sc._scene_title}` : '';
@@ -204,6 +255,35 @@ for (const sc of scenes) {
         if (m) narration = m[1].trim();
     }
 
+    // Sound brief, for the sound-led mode. script_line is still tried first:
+    // clip 1 carries both, and a clip that somehow has both must not lose its
+    // hook. The [AUDIO] fallback is what write_story.js emits for a clip with
+    // no narration, so older or hand-edited stories resolve the same way.
+    let sound = sc.sound_context ? String(sc.sound_context).trim() : '';
+    if (!sound) {
+        const m = vp.match(/Natural sound only:\s*([\s\S]*)$/i);
+        if (m) sound = m[1].trim();
+    }
+
+    // Dialogue, for the spoken mode. The fallback reads the attributed lines out
+    // of veo3_prompt, which is the same shape write_story.js emits, so a
+    // hand-edited story resolves without needing the field.
+    let lines = Array.isArray(sc.dialogue)
+        ? sc.dialogue
+            .map(d => ({ speaker: String((d && d.speaker) || '').trim(), line: String((d && d.line) || '').trim() }))
+            .filter(d => d.speaker && d.line)
+        : [];
+    if (!lines.length && DIALOGUE) {
+        const m = vp.match(/\[AUDIO\]\s*([\s\S]*)$/i);
+        const seg = m ? m[1] : '';
+        if (seg && !/^No dialogue in this clip/i.test(seg.trim())) {
+            lines = seg.split(/\s{2,}/).map(part => {
+                const mm = part.match(/^(.+?)\s*\(on screen[^)]*\)\s*:\s*"(.*)"\s*$/);
+                return mm ? { speaker: mm[1].trim(), line: mm[2].trim() } : null;
+            }).filter(Boolean);
+        }
+    }
+
     // Visual: narrative_context, or the [SHOT]/[LOOK] sections of veo3_prompt.
     let visual = sc.narrative_context ? String(sc.narrative_context).trim() : '';
     if (!visual) {
@@ -213,11 +293,32 @@ for (const sc of scenes) {
     }
 
     L.push(`Scene ${n}${title}`);
-    if (narration) {
+    if (DIALOGUE) {
+        // Nobody narrates in this mode, so the NARRATION line is not emitted at
+        // all - leaving it in with "(none found)" would invite the agent to fill
+        // the gap with a narrator.
+        if (lines.length) withDialogue++;
+        L.push('DIALOGUE (spoken on screen, read exactly):');
+        if (lines.length) {
+            lines.forEach(d => L.push(`  ${d.speaker}: "${d.line}"`));
+        } else {
+            L.push('  (nobody speaks in this clip - a silent beat. No narration either.)');
+        }
+    } else if (narration) {
         withNarration++;
         L.push(`NARRATION (voice-over, read exactly): "${narration}"`);
-    } else {
+    } else if (!INTRO) {
         L.push('NARRATION: (none found in the story JSON for this scene)');
+    }
+    // In the sound-led mode every clip gets a sound brief, including clip 1 -
+    // the hook still has wind or traffic under it, and saying so is what keeps
+    // the music bed from being the only thing on the audio track.
+    if (INTRO) {
+        if (sound) withSound++;
+        L.push(sound
+            ? `SOUND (real sound of this scene, no voice-over): ${sound}`
+            : 'SOUND: (no sound brief in the story JSON for this scene - give it the natural '
+              + 'sounds of the place, and no voice-over)');
     }
     if (visual) {
         withVisual++;
@@ -234,7 +335,15 @@ L.push(charNames.length
     : 'This video has NO characters and no reference images. Do not add people, faces or '
       + 'dialogue. Distant unnamed figures are acceptable only where a scene needs a sense '
       + 'of scale, and they are scenery - never the subject, never in the foreground.');
-if (NARRATED) {
+if (DIALOGUE) {
+    L.push('Nobody narrates this video. Every spoken word belongs to one of the characters '
+        + 'above, on screen, and comes from the DIALOGUE lines - no added lines, no '
+        + 'narrator, and no one describing what the camera is showing.');
+} else if (NARRATED && INTRO) {
+    L.push('Do not add any character dialogue anywhere. The only spoken words in the whole '
+        + 'video are clip 1\'s voice-over - if any later clip comes back with someone '
+        + 'talking, it is wrong.');
+} else if (NARRATED) {
     L.push('Do not add any character dialogue anywhere - narration only.');
 }
 
@@ -263,15 +372,40 @@ if (SECONDS_OVER) {
     console.log('               only for a model that takes longer clips.');
 }
 console.log(`  characters : ${charNames.join(', ') || '(none)'}  ->  ${mentionList || '(no mentions)'}`);
-console.log(`  narrated   : ${NARRATED ? 'YES - voice-over rules added' : 'no'}`);
+// The `narrated` label keeps its exact old text so the summary of a story that
+// was already converted is unchanged; the dialogue mode adds its own line.
+console.log(`  narrated   : ${INTRO ? 'HOOK ONLY - clip 1 narrates, the rest are sound-led'
+    : NARRATED ? 'YES - voice-over rules added' : 'no'}`);
+if (DIALOGUE) {
+    console.log(`  speaking   : DIALOGUE - the cast speak on screen, no narrator`);
+    console.log(`  dialogue   : ${withDialogue}/${scenes.length} scenes have spoken lines`);
+    if (withDialogue < scenes.length) {
+        console.log(`               WARNING: ${scenes.length - withDialogue} scene(s) have no dialogue.`);
+        console.log('               A clip with nobody speaking is a silent beat - fine once,');
+        console.log('               but a conversation needs someone talking in most of it.');
+    }
+}
 console.log(`  narration  : ${withNarration}/${scenes.length} scenes have a line`);
-if (withNarration < scenes.length) {
+if (INTRO) {
+    // The missing narration here is the point, so the ordinary warning would be
+    // wrong. What matters instead is that every silent clip still has a sound.
+    if (!withNarration) {
+        console.log('               WARNING: no scene has narration. This preset opens on a spoken');
+        console.log('               hook - add script_line to clip 1 of the story JSON.');
+    }
+    console.log(`  sound      : ${withSound}/${scenes.length} scenes have a sound brief`);
+    if (withSound < scenes.length) {
+        console.log(`               WARNING: ${scenes.length - withSound} scene(s) have no sound brief.`);
+        console.log('               The agent will invent the audio for those clips. Add sound_context.');
+    }
+} else if (!DIALOGUE && withNarration < scenes.length) {
     console.log(`               WARNING: ${scenes.length - withNarration} scene(s) have no narration text.`);
     console.log('               The agent will INVENT those scenes. Add script_line to the story JSON.');
 }
 console.log(`  visuals    : ${withVisual}/${scenes.length} scenes have a visual brief`);
 console.log(`  silent cast: ${!charNames.length ? 'n/a - this story has no cast'
+    : DIALOGUE ? 'no - the cast speak, that is the point'
     : SILENT ? 'YES - no-dialogue rule added' : 'no'}`);
-console.log(`  narrator   : ${VOICE || (NARRATED ? '(unspecified)' : '-')}`);
+console.log(`  narrator   : ${DIALOGUE ? '(none - dialogue video)' : VOICE || (NARRATED ? '(unspecified)' : '-')}`);
 console.log(`  style      : ${story.style || '(none in story)'}`);
 console.log(`  size       : ${body.length} characters`);

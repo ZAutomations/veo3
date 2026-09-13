@@ -91,6 +91,19 @@ for (const mode of ['--show', '--prompt']) {
         console.log(`  palette\n    ${s.palette}\n`);
         console.log(`  camera\n    ${s.camera}`);
         if (s.audience) console.log(`\n  audience\n    ${s.audience}`);
+        // The optional fields. Each is printed only when the preset declares it,
+        // so the dump of a preset that declares none is unchanged - and this is
+        // described as "the full entry", which it was not: a preset's own length,
+        // its cast rules and its sound direction were all invisible here.
+        if (s.cast) console.log(`\n  cast\n    ${s.cast}`);
+        if (s.cast_types) console.log(`\n  cast types\n    ${s.cast_types.join(', ')}`);
+        if (s.default_duration) console.log(`\n  length\n    ${s.default_duration}s by default`);
+        if (s.direction) console.log(`\n  direction\n    ${s.direction}`);
+        if (s.narration_scope) {
+            console.log(`\n  narration scope\n    ${s.narration_scope}` +
+                (s.narration_scope === 'intro' ? '  (the opening clip only, then sound-led)' : ''));
+        }
+        if (s.sound_style) console.log(`\n  sound\n    ${s.sound_style}`);
         console.log('');
     }
     process.exit(0);

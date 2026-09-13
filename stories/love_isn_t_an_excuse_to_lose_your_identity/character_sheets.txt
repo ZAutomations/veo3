@@ -1,0 +1,26 @@
+Character reference sheets for "Love Isn't an Excuse to Lose Your Identity"
+Generate each one, then upload it into Flow as a Character named exactly
+Elena, Maya (capital first letter).
+Every sheet must be made with the same medium or the cast will not match.
+
+=== ELENA ===
+save as: character_refs/elena_reference_sheet.jpg
+
+-- image prompt --
+Full body reference sheet of a 48-year-old woman with brown hair in a loose bun, wearing graceful beige linen clothing, standing in a neutral pose, live-action emotional documentary photography style, plain neutral grey studio background
+-- image prompt --
+Full body reference sheet of a 48-year-old woman with brown hair in a loose bun, wearing graceful beige linen clothing, standing in a neutral pose, live-action emotional documentary photography style, plain neutral grey studio background
+
+-- identity text (must match this exactly in the story JSON) --
+Same Elena throughout - a 48-year-old woman of slim build with soft laughter lines, wearing elegant beige linen attire and silver earrings. Her warm brown hair is tied in a loose low bun. She has expressive, empathetic eyes and a gentle demeanor. Captured in live-action emotional documentary film style with warm golden lighting. Warm realistic adult human with realistic adult proportions, NOT cartoon, NOT anime, NOT glamorised.
+
+=== MAYA ===
+save as: character_refs/maya_reference_sheet.jpg
+
+-- image prompt --
+Full body reference sheet of a 19-year-old woman with shoulder-length dark brown hair, wearing a pastel lavender sweater and jeans, standing in a neutral pose, live-action emotional documentary photography style, plain neutral grey studio background
+-- image prompt --
+Full body reference sheet of a 19-year-old woman with shoulder-length dark brown hair, wearing a pastel lavender sweater and jeans, standing in a neutral pose, live-action emotional documentary photography style, plain neutral grey studio background
+
+-- identity text (must match this exactly in the story JSON) --
+Same Maya throughout - a 19-year-old female university student with slim athletic build, wearing a soft pastel lavender sweater and light jeans. She has shoulder-length wavy dark brown hair and eager, open facial expressions. Captured in live-action emotional documentary film style with natural soft lighting. Warm realistic adult human with realistic adult proportions, NOT cartoon, NOT anime, NOT glamorised.

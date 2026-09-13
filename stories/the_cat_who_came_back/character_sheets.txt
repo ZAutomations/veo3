@@ -1,0 +1,45 @@
+Character reference sheets for "The Cat Who Came Back"
+Generate each one, then upload it into Flow as a Character named exactly
+Barnaby, Martha, Arthur (capital first letter).
+Every sheet must be made with the same medium or the cast will not match.
+One image per character. Do not make a multi-angle sheet for the
+animals - the video model accepts at most 3 reference images, and a
+multi-view sheet counts as more than one.
+
+=== BARNABY ===   (animal)
+save as: character_refs/barnaby_reference_sheet.jpg
+
+This is an ANIMAL - one image only. Full body, standing,
+three-quarter view, so the face AND the coat markings are
+both readable. Every physical marker listed below must be
+visible in it, or the video model will not reproduce them.
+
+-- image prompt --
+Full body photograph of Barnaby, a lean domestic tabby cat with a V-shaped notched left ear tip and white chest patch, standing in three-quarter view, 35mm lens, natural studio lighting, plain neutral grey studio background
+-- image prompt --
+Full body photograph of Barnaby, a lean domestic tabby cat with a V-shaped notched left ear tip and white chest patch, standing in three-quarter view, 35mm lens, natural studio lighting, plain neutral grey studio background
+
+-- identity text (must match this exactly in the story JSON) --
+Same Barnaby throughout - Photorealistic living creature with true-to-life anatomy. A lean domestic shorthair stray cat with a wiry build, dense short tabby fur with dark brown stripes over greyish-brown base, pale green eyes, a prominent V-shaped notch on his left ear tip, and a distinctive teardrop-shaped white patch on his chest. Real fur texture visible. NOT cartoon, NOT anime, NOT stylised, NOT anthropomorphic.
+
+=== MARTHA ===   (human)
+save as: character_refs/martha_reference_sheet.jpg
+
+-- image prompt --
+Full body photograph of Martha, a 74-year-old woman wearing a faded navy cardigan and floral apron, neutral standing pose facing camera, 35mm lens, physical skin textures, soft studio lighting, plain neutral grey studio background
+-- image prompt --
+Full body photograph of Martha, a 74-year-old woman wearing a faded navy cardigan and floral apron, neutral standing pose facing camera, 35mm lens, physical skin textures, soft studio lighting, plain neutral grey studio background
+
+-- identity text (must match this exactly in the story JSON) --
+Same Martha throughout - Photorealistic living human with real skin texture and fine wrinkles. A frail 74-year-old woman with silver grey un-styled hair pinned back, wearing an oversized faded navy cardigan over a floral cotton apron, dark wool trousers, and worn brown leather slippers. Natural un-toned complexion. NOT cartoon, NOT anime, NOT stylised, NOT anthropomorphic.
+
+=== ARTHUR ===   (human)
+save as: character_refs/arthur_reference_sheet.jpg
+
+-- image prompt --
+Full body photograph of Arthur, a 68-year-old man wearing a dark olive waxed jacket and turtleneck, neutral standing pose facing camera, 35mm lens, realistic skin details, natural lighting, plain neutral grey studio background
+-- image prompt --
+Full body photograph of Arthur, a 68-year-old man wearing a dark olive waxed jacket and turtleneck, neutral standing pose facing camera, 35mm lens, realistic skin details, natural lighting, plain neutral grey studio background
+
+-- identity text (must match this exactly in the story JSON) --
+Same Arthur throughout - Photorealistic living human with real weather-worn skin texture. A stoic 68-year-old retired man with thin receded grey hair and rough stubble, wearing a heavy dark olive waxed jacket over a charcoal wool turtleneck sweater and faded denim work jeans. Weary facial expression. NOT cartoon, NOT anime, NOT stylised, NOT anthropomorphic.

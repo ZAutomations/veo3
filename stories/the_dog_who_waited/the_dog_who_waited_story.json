@@ -1,0 +1,164 @@
+{
+  "title": "The Dog Who Waited",
+  "description": "A stray dog waits daily at a rural bus stop for a young boy who fed him once, braving harsh winter weather until the boy's father arrives to take him home.",
+  "total_scenes": 10,
+  "video_duration": "80 seconds",
+  "target_audience": "Animal lovers, families, and fans of emotional streaming documentaries.",
+  "moral": "True loyalty and silent acts of compassion can bridge the deepest cold and bring lost souls together.",
+  "niche": "Animal Kindness",
+  "style": "Photorealistic 4K cinematic film, 35mm anamorphic lens quality, natural shallow depth of field, real-world lighting balance, physical micro-textures in fur, fabric and skin, restrained natural colour grading, premium streaming documentary quality",
+  "aspect_ratio": "16:9",
+  "scene_seconds": 8,
+  "narrated": true,
+  "silent_cast": true,
+  "narrator_voice": "warm male voice, gentle and unhurried, quiet emotional weight, documentary warmth",
+  "scenes": [
+    {
+      "_scene_number": 1,
+      "_scene_title": "First Shared Meal",
+      "_timing": "0:00-0:08",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "A simple gesture of unexpected generosity can anchor a stray soul to a single spot forever.",
+      "narrative_context": "Autumn sunlight filters through golden oak leaves along a dusty country road. The yellow school bus screeches to a gentle halt, opening its folding doors. Within the first two seconds, the tall, dried brush rustles violently, and Barnaby cautiously steps into the open, his scruffy honey-brown coat catching the warm afternoon light. His left ear tip shows a clear notch, and the white star on his chest stands out. Leo steps down from the bus in his faded yellow canvas jacket and dark grey knitted sweater. Smiling gently, Leo kneels onto the gravel and offers half a turkey sandwich. Barnaby's hesitation turns to cautious interest as he steps forward to take the food.",
+      "veo3_prompt": "[SHOT] Autumn sunlight filters through golden oak leaves along a dusty country road. The yellow school bus screeches to a gentle halt, opening its folding doors. Within the first two seconds, the tall, dried brush rustles violently, and Barnaby cautiously steps into the open, his scruffy honey-brown coat catching the warm afternoon light. His left ear tip shows a clear notch, and the white star on his chest stands out. Leo steps down from the bus in his faded yellow canvas jacket and dark grey knitted sweater. Smiling gently, Leo kneels onto the gravel and offers half a turkey sandwich. Barnaby's hesitation turns to cautious interest as he steps forward to take the food.\n[LOOK] Photorealistic 4K cinematic film, 35mm anamorphic lens quality, natural shallow depth of field, real-world lighting balance, physical micro-textures in fur, fabric and skin, restrained natural colour grading, premium streaming documentary quality\n[AUDIO] Narrator (V.O., warm male voice, gentle and unhurried, quiet emotional weight, documentary warmth): \"A simple gesture of unexpected generosity can anchor a stray soul to a single spot forever.\"",
+      "characters": [
+        "barnaby",
+        "leo"
+      ]
+    },
+    {
+      "_scene_number": 2,
+      "_scene_title": "A Silent Bond",
+      "_timing": "0:08-0:16",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "Kindness costs very little, yet its quiet weight lingers long after footsteps fade down the road.",
+      "narrative_context": "The golden sunset casts long, soft shadows across the rural dirt road. Leo turns and slowly walks away toward a distant farmhouse, his brown work boots kicking up light dust. Barnaby remains beside the weathered wooden bus shelter, his intelligent brown eyes locked on the receding figure of the ten-year-old boy. The camera holds a low, eye-level angle behind Barnaby, capturing the rhythmic shift of his weight as his tail gives a single, tentative wag. The quiet breeze rustles the dry autumn grass along the roadside. Barnaby sits, his dark muzzle tilted upward as he watches until Leo disappears past the bend in the road, establishing an unspoken connection.",
+      "veo3_prompt": "[SHOT] The golden sunset casts long, soft shadows across the rural dirt road. Leo turns and slowly walks away toward a distant farmhouse, his brown work boots kicking up light dust. Barnaby remains beside the weathered wooden bus shelter, his intelligent brown eyes locked on the receding figure of the ten-year-old boy. The camera holds a low, eye-level angle behind Barnaby, capturing the rhythmic shift of his weight as his tail gives a single, tentative wag. The quiet breeze rustles the dry autumn grass along the roadside. Barnaby sits, his dark muzzle tilted upward as he watches until Leo disappears past the bend in the road, establishing an unspoken connection.\n[LOOK] Photorealistic 4K cinematic film, 35mm anamorphic lens quality, natural shallow depth of field, real-world lighting balance, physical micro-textures in fur, fabric and skin, restrained natural colour grading, premium streaming documentary quality\n[AUDIO] Narrator (V.O., warm male voice, gentle and unhurried, quiet emotional weight, documentary warmth): \"Kindness costs very little, yet its quiet weight lingers long after footsteps fade down the road.\"",
+      "characters": [
+        "barnaby",
+        "leo"
+      ]
+    },
+    {
+      "_scene_number": 3,
+      "_scene_title": "The Daily Routine",
+      "_timing": "0:16-0:24",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "Day after day, hope transforms an ordinary stretch of dirt road into a sacred promise kept.",
+      "narrative_context": "Late afternoon light bathes the dilapidated wooden bus shelter in rich amber hues. Barnaby sits perfectly upright beside the weathered pine posts, his vigilant posture contrasting with the decaying structure behind him. The camera executes a slow push-in, focusing on his honey-brown fur and the distinct notched left ear as it tilts toward the faint sound of distant engine noise. Fallen oak leaves drift past his paws in the cool breeze. He does not wander or forage; his intelligent eyes remain fixed down the long stretch of empty rural pavement. The peaceful twilight deepens into cool slate shadows as he maintains his daily ritual of waiting.",
+      "veo3_prompt": "[SHOT] Late afternoon light bathes the dilapidated wooden bus shelter in rich amber hues. Barnaby sits perfectly upright beside the weathered pine posts, his vigilant posture contrasting with the decaying structure behind him. The camera executes a slow push-in, focusing on his honey-brown fur and the distinct notched left ear as it tilts toward the faint sound of distant engine noise. Fallen oak leaves drift past his paws in the cool breeze. He does not wander or forage; his intelligent eyes remain fixed down the long stretch of empty rural pavement. The peaceful twilight deepens into cool slate shadows as he maintains his daily ritual of waiting.\n[LOOK] Photorealistic 4K cinematic film, 35mm anamorphic lens quality, natural shallow depth of field, real-world lighting balance, physical micro-textures in fur, fabric and skin, restrained natural colour grading, premium streaming documentary quality\n[AUDIO] Narrator (V.O., warm male voice, gentle and unhurried, quiet emotional weight, documentary warmth): \"Day after day, hope transforms an ordinary stretch of dirt road into a sacred promise kept.\"",
+      "characters": [
+        "barnaby"
+      ]
+    },
+    {
+      "_scene_number": 4,
+      "_scene_title": "An Empty Bus",
+      "_timing": "0:24-0:32",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "When the familiar yellow frame rushes past, loyalty refuses to accept that the world has changed.",
+      "narrative_context": "A cloud of dust rises down the country highway as the yellow school bus approaches without slowing down. Barnaby rises instantly from the dirt, his body tense with anticipation, white chest patch prominent in the flat gray afternoon light. Within the first two seconds, the massive bus roars past the stop, its tires kicking up gravel and dry leaves. The camera stays low as the blast of air ruffles Barnaby's scruffy coat. His head turns rapidly, tracking the receding tail lights until they fade in the distance. Left entirely alone on the roadside, he lowers his head slightly, ears pinned back in quiet confusion.",
+      "veo3_prompt": "[SHOT] A cloud of dust rises down the country highway as the yellow school bus approaches without slowing down. Barnaby rises instantly from the dirt, his body tense with anticipation, white chest patch prominent in the flat gray afternoon light. Within the first two seconds, the massive bus roars past the stop, its tires kicking up gravel and dry leaves. The camera stays low as the blast of air ruffles Barnaby's scruffy coat. His head turns rapidly, tracking the receding tail lights until they fade in the distance. Left entirely alone on the roadside, he lowers his head slightly, ears pinned back in quiet confusion.\n[LOOK] Photorealistic 4K cinematic film, 35mm anamorphic lens quality, natural shallow depth of field, real-world lighting balance, physical micro-textures in fur, fabric and skin, restrained natural colour grading, premium streaming documentary quality\n[AUDIO] Narrator (V.O., warm male voice, gentle and unhurried, quiet emotional weight, documentary warmth): \"When the familiar yellow frame rushes past, loyalty refuses to accept that the world has changed.\"",
+      "characters": [
+        "barnaby"
+      ]
+    },
+    {
+      "_scene_number": 5,
+      "_scene_title": "The Arrival of Frost",
+      "_timing": "0:32-0:40",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "As autumn warmth surrenders to northern frost, patience becomes a shelter against the gathering cold.",
+      "narrative_context": "Soft, heavy snowflakes fall through the overcast twilight, coating the countryside in a quiet blanket of white. Underneath the snow-dusted bench of the dilapidated bus shelter, Barnaby lies tightly curled up against the wooden frame. His honey-brown coat is lightly dusted with frost, his dark muzzle resting on his front paws, showing the white star on his chest. A gentle handheld camera creeps closer, capturing the subtle rise and fall of his ribs and the rhythmic puffs of warm breath vaporizing in the freezing air. His notched ear twitches softly at the whisper of wind, maintaining his watchful presence amidst the cold landscape.",
+      "veo3_prompt": "[SHOT] Soft, heavy snowflakes fall through the overcast twilight, coating the countryside in a quiet blanket of white. Underneath the snow-dusted bench of the dilapidated bus shelter, Barnaby lies tightly curled up against the wooden frame. His honey-brown coat is lightly dusted with frost, his dark muzzle resting on his front paws, showing the white star on his chest. A gentle handheld camera creeps closer, capturing the subtle rise and fall of his ribs and the rhythmic puffs of warm breath vaporizing in the freezing air. His notched ear twitches softly at the whisper of wind, maintaining his watchful presence amidst the cold landscape.\n[LOOK] Photorealistic 4K cinematic film, 35mm anamorphic lens quality, natural shallow depth of field, real-world lighting balance, physical micro-textures in fur, fabric and skin, restrained natural colour grading, premium streaming documentary quality\n[AUDIO] Narrator (V.O., warm male voice, gentle and unhurried, quiet emotional weight, documentary warmth): \"As autumn warmth surrenders to northern frost, patience becomes a shelter against the gathering cold.\"",
+      "characters": [
+        "barnaby"
+      ]
+    },
+    {
+      "_scene_number": 6,
+      "_scene_title": "Fading Strength",
+      "_timing": "0:40-0:48",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "Even as winter strips away all comfort, a devoted heart remains steadfast against the biting wind.",
+      "narrative_context": "A harsh winter wind whips across the snowbound highway, blowing fine white powder across the frozen asphalt. Barnaby stands shivering at the edge of the road, his lean body trembling against the severe chill, yet his stance remains stubbornly upright and vigilant. Frost clings to his dark muzzle and scruffy fur. The camera pans slowly around his eye level, capturing the intense focus in his dark brown eyes as he stares down the silent, empty horizon. He shifts his icy paws in the deep snow, refusing to retreat to shelter. His solitary figure stands as a testament to unflinching endurance in the vast frozen landscape.",
+      "veo3_prompt": "[SHOT] A harsh winter wind whips across the snowbound highway, blowing fine white powder across the frozen asphalt. Barnaby stands shivering at the edge of the road, his lean body trembling against the severe chill, yet his stance remains stubbornly upright and vigilant. Frost clings to his dark muzzle and scruffy fur. The camera pans slowly around his eye level, capturing the intense focus in his dark brown eyes as he stares down the silent, empty horizon. He shifts his icy paws in the deep snow, refusing to retreat to shelter. His solitary figure stands as a testament to unflinching endurance in the vast frozen landscape.\n[LOOK] Photorealistic 4K cinematic film, 35mm anamorphic lens quality, natural shallow depth of field, real-world lighting balance, physical micro-textures in fur, fabric and skin, restrained natural colour grading, premium streaming documentary quality\n[AUDIO] Narrator (V.O., warm male voice, gentle and unhurried, quiet emotional weight, documentary warmth): \"Even as winter strips away all comfort, a devoted heart remains steadfast against the biting wind.\"",
+      "characters": [
+        "barnaby"
+      ]
+    },
+    {
+      "_scene_number": 7,
+      "_scene_title": "Headlights in Dusk",
+      "_timing": "0:48-0:56",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "As dusk falls, twin beams of light cut through the freezing mist, bringing a quiet chance at hope.",
+      "narrative_context": "A battered rust-red pickup truck slows down, its bright headlights sweeping across the snow-covered rural bus shelter. Barnaby sits tucked inside the wooden shelter, his honey-brown fur dusted with frost, his notched left ear twitching as he raises his head vigilantly. The truck door opens with a creak, and Arthur steps out into the biting evening air. He wears his heavy olive-green wax coat and charcoal woollen beanie, breath puffing into white clouds against the darkening slate sky. Arthur pauses, looking gently toward the shivering dog with tired, sympathetic eyes. The camera slowly pushes in low from behind Barnaby, framing the father's steady approach against the glowing headlights.",
+      "veo3_prompt": "[SHOT] A battered rust-red pickup truck slows down, its bright headlights sweeping across the snow-covered rural bus shelter. Barnaby sits tucked inside the wooden shelter, his honey-brown fur dusted with frost, his notched left ear twitching as he raises his head vigilantly. The truck door opens with a creak, and Arthur steps out into the biting evening air. He wears his heavy olive-green wax coat and charcoal woollen beanie, breath puffing into white clouds against the darkening slate sky. Arthur pauses, looking gently toward the shivering dog with tired, sympathetic eyes. The camera slowly pushes in low from behind Barnaby, framing the father's steady approach against the glowing headlights.\n[LOOK] Photorealistic 4K cinematic film, 35mm anamorphic lens quality, natural shallow depth of field, real-world lighting balance, physical micro-textures in fur, fabric and skin, restrained natural colour grading, premium streaming documentary quality\n[AUDIO] Narrator (V.O., warm male voice, gentle and unhurried, quiet emotional weight, documentary warmth): \"As dusk falls, twin beams of light cut through the freezing mist, bringing a quiet chance at hope.\"",
+      "characters": [
+        "barnaby",
+        "arthur"
+      ]
+    },
+    {
+      "_scene_number": 8,
+      "_scene_title": "A Familiar Scent",
+      "_timing": "0:56-1:04",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "A single familiar scent can bridge the widest divide between fear and trust.",
+      "narrative_context": "Arthur kneels down slowly in the packed snow, keeping his posture low and unobtrusive. He reaches into his coat pocket and extends a soft, yellow knitted scarf—the bright color matching Leo's jacket—holding it out with steady hands. Barnaby shifts his weight, the white star patch on his chest visible against his dark brown muzzle. He cautiously stretches his neck forward, nose twitching as he sniffs the fabric. The low eye-level camera tracks close on Barnaby's dark eyes as recognition softens his vigilant expression. The cold wind softly rustles the scruffy honey-brown fur around his ears while Arthur remains completely still, offering warmth and patience.",
+      "veo3_prompt": "[SHOT] Arthur kneels down slowly in the packed snow, keeping his posture low and unobtrusive. He reaches into his coat pocket and extends a soft, yellow knitted scarf—the bright color matching Leo's jacket—holding it out with steady hands. Barnaby shifts his weight, the white star patch on his chest visible against his dark brown muzzle. He cautiously stretches his neck forward, nose twitching as he sniffs the fabric. The low eye-level camera tracks close on Barnaby's dark eyes as recognition softens his vigilant expression. The cold wind softly rustles the scruffy honey-brown fur around his ears while Arthur remains completely still, offering warmth and patience.\n[LOOK] Photorealistic 4K cinematic film, 35mm anamorphic lens quality, natural shallow depth of field, real-world lighting balance, physical micro-textures in fur, fabric and skin, restrained natural colour grading, premium streaming documentary quality\n[AUDIO] Narrator (V.O., warm male voice, gentle and unhurried, quiet emotional weight, documentary warmth): \"A single familiar scent can bridge the widest divide between fear and trust.\"",
+      "characters": [
+        "barnaby",
+        "arthur"
+      ]
+    },
+    {
+      "_scene_number": 9,
+      "_scene_title": "Choosing Trust",
+      "_timing": "1:04-1:12",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "When kindness is offered without demand, a weary spirit finally finds the courage to take a step forward.",
+      "narrative_context": "Standing beside the open door of the pickup truck, Arthur rests one hand on the seat, inviting the dog inside. Barnaby hesitates for a fleeting second, then gently places one front paw onto Arthur's olive-green sleeve. Arthur's face relaxes into a soft, quiet smile. Barnaby steps up into the dimly lit, warm interior of the truck cab, his tail giving a slow, hesitant wag. The camera captures a close-up beat of the physical contact—paw on wax canvas coat—before panning gently to follow Barnaby as he settles onto the passenger seat, framed by the amber glow of the dashboard lights against the freezing dark outside.",
+      "veo3_prompt": "[SHOT] Standing beside the open door of the pickup truck, Arthur rests one hand on the seat, inviting the dog inside. Barnaby hesitates for a fleeting second, then gently places one front paw onto Arthur's olive-green sleeve. Arthur's face relaxes into a soft, quiet smile. Barnaby steps up into the dimly lit, warm interior of the truck cab, his tail giving a slow, hesitant wag. The camera captures a close-up beat of the physical contact—paw on wax canvas coat—before panning gently to follow Barnaby as he settles onto the passenger seat, framed by the amber glow of the dashboard lights against the freezing dark outside.\n[LOOK] Photorealistic 4K cinematic film, 35mm anamorphic lens quality, natural shallow depth of field, real-world lighting balance, physical micro-textures in fur, fabric and skin, restrained natural colour grading, premium streaming documentary quality\n[AUDIO] Narrator (V.O., warm male voice, gentle and unhurried, quiet emotional weight, documentary warmth): \"When kindness is offered without demand, a weary spirit finally finds the courage to take a step forward.\"",
+      "characters": [
+        "barnaby",
+        "arthur"
+      ]
+    },
+    {
+      "_scene_number": 10,
+      "_scene_title": "Warmth of Home",
+      "_timing": "1:12-1:20",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "In the end, the long wait is over, replaced by the enduring comfort of home.",
+      "narrative_context": "Arthur pushes open the wooden front door, leading Barnaby into a warm, bright country kitchen filled with soft golden light. Leo, wearing his faded yellow canvas jacket and dark grey sweater, drops to his knees on the wooden floor with pure joy. Barnaby pads forward eagerly, his honey-brown tail wagging as he presses his snout gently into Leo's open hands. Arthur stands by the doorway, taking off his charcoal beanie with a quiet sense of relief. The camera stays low at eye level with the child and dog, slowly pulling back to capture the emotional reunion as Leo wraps his arms around Barnaby's scruffy neck.",
+      "veo3_prompt": "[SHOT] Arthur pushes open the wooden front door, leading Barnaby into a warm, bright country kitchen filled with soft golden light. Leo, wearing his faded yellow canvas jacket and dark grey sweater, drops to his knees on the wooden floor with pure joy. Barnaby pads forward eagerly, his honey-brown tail wagging as he presses his snout gently into Leo's open hands. Arthur stands by the doorway, taking off his charcoal beanie with a quiet sense of relief. The camera stays low at eye level with the child and dog, slowly pulling back to capture the emotional reunion as Leo wraps his arms around Barnaby's scruffy neck.\n[LOOK] Photorealistic 4K cinematic film, 35mm anamorphic lens quality, natural shallow depth of field, real-world lighting balance, physical micro-textures in fur, fabric and skin, restrained natural colour grading, premium streaming documentary quality\n[AUDIO] Narrator (V.O., warm male voice, gentle and unhurried, quiet emotional weight, documentary warmth): \"In the end, the long wait is over, replaced by the enduring comfort of home.\"",
+      "characters": [
+        "barnaby",
+        "leo",
+        "arthur"
+      ]
+    }
+  ],
+  "character_descriptions": {
+    "barnaby": "Same Barnaby throughout - Photorealistic living creature with true-to-life anatomy. Medium-sized golden retriever and shepherd mix, lean natural build, scruffy honey-brown coat with dark muzzle markings, intelligent brown eyes. Unchanging physical markers: a prominent notch in his left ear tip and a distinct star-shaped white patch on his chest. Grounded real animal behavior, shivering in cold weather, vigilant stance. NOT cartoon, NOT anime, NOT stylised, NOT anthropomorphic.",
+    "leo": "Same Leo throughout - Photorealistic ordinary ten-year-old boy with true-to-life human anatomy, slim natural build, messy un-styled dark brown hair, pale skin tone with light freckles. Fixed multi-layered wardrobe that never changes: a faded yellow canvas jacket over a dark grey knitted sweater, blue jeans, and scuffed brown work boots. Ordinary child with gentle natural expressions. NOT cartoon, NOT anime, NOT stylised, NOT anthropomorphic.",
+    "arthur": "Same Arthur throughout - Photorealistic ordinary forty-year-old man with true-to-life human anatomy, stocky weathered build, short greying brown hair, tanned lined skin tone with subtle stubble. Fixed multi-layered wardrobe that never changes: a heavy olive-green wax work coat, dark denim trousers, a charcoal woollen beanie, and worn brown leather work boots. Ordinary tired father with gentle eyes. NOT cartoon, NOT anime, NOT stylised, NOT anthropomorphic."
+  },
+  "character_references": {
+    "barnaby": "./character_refs/barnaby_reference_sheet.jpg",
+    "leo": "./character_refs/leo_reference_sheet.jpg",
+    "arthur": "./character_refs/arthur_reference_sheet.jpg"
+  }
+}

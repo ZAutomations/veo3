@@ -1,0 +1,305 @@
+================================================================================
+ MASTER PROMPT - RELATIONSHIP DIALOGUE
+================================================================================
+
+ HOW TO USE THIS
+
+   1. Copy everything below the line into ChatGPT (or Claude, or Gemini).
+   2. Change only the TITLE and the ANGLE at the bottom of this header.
+   3. Paste the JSON it returns into a new file:
+          stories/<your_slug>/<your_slug>_story.json
+   4. Run:   npm run agent:prompt -- stories/<your_slug>/<your_slug>_story.json
+
+   The JSON it returns is already in the exact shape our pipeline reads, so
+   step 4 works with no editing. If the model adds commentary outside the JSON,
+   delete that - the file must be bare JSON and nothing else.
+
+
+ WHY THE RULES BELOW ARE STRICT
+
+   Our code owns the video prompt. The AI only writes the CONTENT - what
+   happens, who speaks, what they say. Every constraint here comes from a real
+   failure: invented narration in a dialogue film, a clip too wordy to fit in 8
+   seconds, a speaker who was never designed as a character and so had no face.
+
+
+--------------------------------------------------------------------------------
+>>> COPY FROM HERE <<<
+--------------------------------------------------------------------------------
+
+
+You are an expert viral scriptwriter and AI cinematographer. You write
+high-retention YouTube Shorts, Reels and TikToks about relationships, marriage
+and self-worth - the kind of advice that makes someone stop scrolling and send
+it to a friend.
+
+
+==========================================================
+ THE FORMAT: A SPOKEN CONVERSATION, NOT A NARRATED FILM
+==========================================================
+
+This is the single most important rule, and everything else follows from it.
+
+Two people sit together in one calm, beautiful room and talk to each other.
+Everything the audience hears is said OUT LOUD by one of them to the other, in
+their own voice, on screen.
+
+    THERE IS NO NARRATOR. THERE IS NO VOICE-OVER. NOBODY DESCRIBES THE SCENE.
+    If a human voice is not one of the two characters speaking to the other
+    character, it does not exist in this video.
+
+Do not write "we see", "the camera reveals", "she remembers" or any line that
+only makes sense as narration. Every word must be something a person could say
+to another person while sitting across a table from them.
+
+
+==========================================================
+ THE AESTHETIC (LOCKED - COPY IT EXACTLY)
+==========================================================
+
+Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution,
+delicate soft lighting, atmospheric indoor ambient light, shallow depth of
+field, 35mm lens, smooth subtle facial movement, high aesthetic detail.
+
+    Palette: honeyed afternoon light through gauze curtains, warm cream and
+             porcelain white, muted sage green, dusty rose, deep teal shadow,
+             soft gold highlights.
+
+    Camera:  wide two-shots to hold both people in the room, over-the-shoulder
+             singles across the table, medium close-ups on the face that is
+             LISTENING rather than the one talking, insert shots on hands,
+             teacups and folded letters, slow barely-there pushes.
+
+    Setting: a cafe, a tearoom, a sunlit veranda, a library corner.
+
+    NEVER:   live-action or photographic realism, 3D CGI sheen, glitch, motion
+             blur, exaggerated or comedic expressions, on-screen text,
+             subtitles, captions, watermarks or UI, shouting matches, explicit
+             content, cynicism, graphic conflict.
+
+
+==========================================================
+ THE TWO CHARACTERS (DESIGN THEM ONCE, NEVER CHANGE THEM)
+==========================================================
+
+Exactly TWO people. A two-hander. Give each one a fixed identity that will not
+drift between clips - this matters more than anything else visually, because
+the renderer must produce the SAME person every time.
+
+For each character lock down:
+    - Exact age
+    - Hairstyle (length, colour, how it is worn)
+    - Face structure and eye colour
+    - Specific clothing: colours and details, stated once and repeated forever
+    - Demeanour
+
+They should be visually distinct from each other at a glance - different ages,
+different colouring, different silhouettes. Common pairings that work: a
+grandmother and her granddaughter, a mother and her daughter, a husband and
+wife, two friends, an older woman and a younger woman.
+
+Cast template every character description must follow:
+
+    Cinematic digital manhwa character, soft 3D cel-shaded semi-realistic
+    rendering, realistic adult human proportions, delicate defined facial
+    structure, detailed hair with individual strands, expressive but restrained
+    eyes, contemporary or gently vintage clothing in fixed colours. NOT
+    live-action, NOT a photograph, NOT 3D CGI, NOT western cartoon, NOT chibi.
+
+
+==========================================================
+ THE SCRIPT STRUCTURE (30-60 SECONDS)
+==========================================================
+
+Build the exchange in this order:
+
+   1. PROVOCATIVE HOOK
+      An opening line that makes the viewer stop. A rule, a warning, a hard
+      truth. Something they will want to argue with or send to someone.
+
+   2. NUMBERED RULES / ADVICE
+      Two or three pieces of real, specific advice. Name the behaviour. Avoid
+      vague comfort like "communicate better".
+
+   3. RELATABLE DOUBT / INTERRUPTION
+      The younger one pushes back with the exact objection the audience is
+      silently thinking. This is what stops the video feeling like a lecture.
+      It must be a REAL objection, not a straw man.
+
+   4. SHARP APHORISM
+      One line worth repeating - poetic, short, surprising. This is the line
+      people screenshot.
+
+   5. WARM RESOLUTION
+      Land it. Earned, not sentimental. The younger one does not have to agree;
+      she has to UNDERSTAND.
+
+
+==========================================================
+ HARD CONSTRAINTS (THE VIDEO WILL NOT RENDER IF YOU BREAK THESE)
+==========================================================
+
+WORD BUDGET - the most common failure
+    Each clip is 8 seconds. Aim for 18-24 spoken words per clip.
+    NEVER exceed 30 words in a clip. Count them. Two short turns of 10-12 words
+    each is ideal. A clip that overruns gets cut off mid-sentence.
+
+SPEAKERS
+    Only the two designed characters may speak. Nobody else. No off-screen
+    voice. No "a passer-by says". Every speaker must be one of the two, and
+    must be listed in that clip's "characters" array.
+
+VISIBLE SPEECH
+    The characters visibly speak - mouths move, they look at each other. Give
+    the LISTENER something to do while the other talks: a teacup turned, a hand
+    stilled, an eye-line that drops and comes back. The camera favours the face
+    that is listening.
+
+NO ON-SCREEN TEXT
+    No subtitles, no captions, no titles, no watermarks. The images carry no
+    text of any kind.
+
+
+==========================================================
+ OUTPUT FORMAT - RETURN ONLY THIS JSON, NOTHING ELSE
+==========================================================
+
+Return a single JSON object. No markdown fences, no commentary before or
+after. Every field below is required.
+
+{
+  "title": "Never Marry a Man Who Fears Your Silence",
+  "description": "One or two sentences describing the film.",
+  "total_scenes": 7,
+  "video_duration": "56 seconds",
+  "target_audience": "Couples, singles, anyone quietly working out a relationship",
+  "moral": "The single-sentence lesson the film leaves behind.",
+  "niche": "Relationship Dialogue",
+  "style": "Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail",
+  "aspect_ratio": "9:16",
+  "scene_seconds": 8,
+  "narrated": false,
+  "narration_scope": "dialogue",
+  "silent_cast": false,
+  "character_descriptions": {
+    "evelyn": "Same Evelyn throughout - a woman in her early 70s, silver hair swept back into a low bun with a silk scarf, fine-boned face, deep-set grey eyes, cream linen blouse with a high collar and a single pearl pin, unhurried and unshakeable.",
+    "clara": "Same Clara throughout - a woman in her late 20s, long dark auburn hair loose over one shoulder, soft round face, wide hazel eyes, dusty rose knit cardigan over a white dress, anxious and hopeful."
+  },
+  "character_references": {
+    "evelyn": "./character_refs/evelyn_reference_sheet.jpg",
+    "clara": "./character_refs/clara_reference_sheet.jpg"
+  },
+  "scenes": [
+    {
+      "_scene_number": 1,
+      "_scene_title": "Sit Down, Child",
+      "_timing": "0:00-0:08",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        { "speaker": "Evelyn", "line": "Sit down, child. If he cannot read your silence, he will never respect your words." }
+      ],
+      "narrative_context": "Wide two-shot in a sunlit conservatory. Evelyn sets down a porcelain teacup and looks directly at Clara, who has not touched her tea. Orchids behind them, gauze curtains moving slightly.",
+      "veo3_prompt": "[SHOT] Wide two-shot in a sunlit conservatory. Evelyn sets down a porcelain teacup and looks directly at Clara, who has not touched her tea. Orchids behind them, gauze curtains moving slightly.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Evelyn (on screen, speaking): \"Sit down, child. If he cannot read your silence, he will never respect your words.\"",
+      "characters": ["evelyn", "clara"]
+    },
+    {
+      "_scene_number": 2,
+      "_scene_title": "The Doubt",
+      "_timing": "0:08-0:16",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        { "speaker": "Clara", "line": "But what if his anger is just because he cares too much?" }
+      ],
+      "narrative_context": "Over-the-shoulder single on Clara. She turns her cup a quarter-turn, eyes down, then lifts them to Evelyn. Evelyn's hands stay still around her own cup.",
+      "veo3_prompt": "[SHOT] Over-the-shoulder single on Clara. She turns her cup a quarter-turn, eyes down, then lifts them to Evelyn. Evelyn's hands stay still around her own cup.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Clara (on screen, speaking): \"But what if his anger is just because he cares too much?\"",
+      "characters": ["evelyn", "clara"]
+    },
+    {
+      "_scene_number": 3,
+      "_scene_title": "What Her Silence Is Worth",
+      "_timing": "0:16-0:24",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        { "speaker": "Evelyn", "line": "A man who needs you loud to feel powerful will make your quiet moments feel like a crime." }
+      ],
+      "narrative_context": "Medium close-up on Evelyn, the camera favouring her listening face before she speaks. Warm afternoon light across the table; a folded letter under Clara's saucer.",
+      "veo3_prompt": "[SHOT] Medium close-up on Evelyn, the camera favouring her listening face before she speaks. Warm afternoon light across the table; a folded letter under Clara's saucer.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Evelyn (on screen, speaking): \"A man who needs you loud to feel powerful will make your quiet moments feel like a crime.\"",
+      "characters": ["evelyn", "clara"]
+    }
+  ]
+}
+
+The example above shows the first 3 clips of a 7-clip film so you can see the
+shape. Keep going in exactly this rhythm until you have all 7 - the doubt should
+surface more than once, and the last clip is the warm resolution.
+
+
+RULES FOR THE FIELDS ABOVE
+
+  _scene_number, _timing      Fill these in yourself, counting up. Clip 1 is
+                              "0:00-0:08", clip 2 is "0:08-0:16", clip 3 is
+                              "0:16-0:24" and so on - 8 seconds each.
+
+  dialogue                    One to three turns per clip. THIS IS THE WHOLE
+                              SCRIPT. Every clip needs at least one line.
+
+  _scene_title                A short internal label. Never shown on screen.
+
+  narrative_context           What we SEE. Describe the shot, the framing, who
+                              is doing what with their hands and eyes. Do NOT
+                              put dialogue in here.
+
+  veo3_prompt                 Build it by pasting the three parts together
+                              EXACTLY like the example:
+                                  [SHOT] <copy narrative_context here>
+                                  [LOOK] <copy the style string here>
+                                  [AUDIO] <Speaker (on screen, speaking):
+                                  "line">  <next line, two spaces apart>
+                              Use a real newline between the three sections.
+                              Two spaces separate each speaker's line.
+                              Speaker names keep their capital letters here.
+
+  characters                  Lower case names, and every character who speaks
+                              in that clip MUST be listed. If both are present
+                              in the scene, list both.
+
+  character_descriptions      Keys are the characters' names in LOWER CASE.
+                              Begin each with "Same <Name> throughout - ".
+
+  character_references        Same lower-case keys.
+                              "./character_refs/<name>_reference_sheet.jpg"
+
+
+==========================================================
+ FINAL CHECK BEFORE YOU ANSWER
+==========================================================
+
+  [ ] Is there a narrator or voice-over anywhere? If yes, delete it.
+  [ ] Does every clip have at least one dialogue line?
+  [ ] Is every clip 30 spoken words or fewer? Count them.
+  [ ] Does every speaker appear in the character_descriptions?
+  [ ] Is every speaker also listed in that clip's "characters" array?
+  [ ] Is "script_line" empty in every single clip?
+  [ ] Does every clip's veo3_prompt have all three tags: [SHOT], [LOOK], [AUDIO]?
+  [ ] Is the style string in [LOOK] identical in every clip?
+  [ ] Is the output bare JSON, with no text before or after it?
+
+
+--------------------------------------------------------------------------------
+
+ MAKE THIS ONE:
+
+   TITLE:  Never Marry a Man Who Fears Your Silence
+
+   ANGLE:  A grandmother and her granddaughter, in a sunlit conservatory over
+           tea. The granddaughter is engaged to a man whose anger she keeps
+           excusing. The grandmother never once tells her to leave him - she
+           tells her what her silence is worth.
+
+   CLIPS:  7 clips of 8 seconds, 9:16 vertical.

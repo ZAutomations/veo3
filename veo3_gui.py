@@ -111,18 +111,23 @@ DEFAULTS = {
 def load_style_presets():
     """Read styles.json into the Agent tab's dropdown data.
 
-    Returns (displays, id_by_display, style_by_display). A preset is offered as
-    "Label  [id]" - the label is what a person picks by, the id is what styles.js
-    resolves. All three come back empty if the file is missing or malformed, so
-    the tab starts with a disabled button and a line saying why, instead of a
-    menu of ids that every apply would reject.
+    Returns (displays, id_by_display, style_by_display, length_by_display). A
+    preset is offered as "Label  [id]" - the label is what a person picks by,
+    the id is what styles.js resolves. All of them come back empty if the file
+    is missing or malformed, so the tab starts with a disabled button and a
+    line saying why, instead of a menu of ids that every apply would reject.
+
+    length_by_display only holds presets that declare `default_duration`. A
+    genre with a specified running length (an animal kindness film is 60-90s)
+    carries it here, so picking the preset fills the duration box rather than
+    leaving the number in a README nobody reads.
     """
     try:
         with open(STYLES_FILE, "r", encoding="utf-8") as f:
             styles = json.load(f).get("styles") or []
     except Exception:
-        return [], {}, {}
-    displays, id_by_display, style_by_display = [], {}, {}
+        return [], {}, {}, {}
+    displays, id_by_display, style_by_display, length_by_display = [], {}, {}, {}
     for s in styles:
         sid = str(s.get("id") or "").strip()
         if not sid:
@@ -136,7 +141,10 @@ def load_style_presets():
         displays.append(disp)
         id_by_display[disp] = sid
         style_by_display[disp] = str(s.get("style") or "")
-    return displays, id_by_display, style_by_display
+        want = s.get("default_duration")
+        if isinstance(want, int) and want > 0:
+            length_by_display[disp] = want
+    return displays, id_by_display, style_by_display, length_by_display
 
 
 class Veo3LauncherGUI:
@@ -271,7 +279,7 @@ class Veo3LauncherGUI:
         ttk.Label(f, text="Style preset:").grid(row=r, column=0, sticky="e", **pad)
         sty = tk.Frame(f, bg="#1e1e28")
         sty.grid(row=r, column=1, columnspan=2, sticky="w", padx=14)
-        self._gen_displays, self._gen_ids, _ = load_style_presets()
+        self._gen_displays, self._gen_ids, _, self._gen_lengths = load_style_presets()
         self.gen_preset_var = tk.StringVar()
         self.gen_preset_box = ttk.Combobox(sty, textvariable=self.gen_preset_var, width=44,
                                            values=self._gen_displays, state="readonly")
@@ -311,6 +319,10 @@ class Veo3LauncherGUI:
         for v in (self.gen_duration_var, self.gen_seconds_var):
             v.trace_add("write", lambda *a: self.update_gen_count())
         self.update_gen_count()
+        # Bound here, after the saved duration was restored above. Binding it
+        # earlier would fire while the preset box was being filled in and
+        # overwrite the length you last chose every time the GUI opened.
+        self.gen_preset_var.trace_add("write", self.follow_preset_length)
         r += 1
 
         ttk.Label(f, text="Gemini model:").grid(row=r, column=0, sticky="e", **pad)
@@ -390,6 +402,22 @@ class Veo3LauncherGUI:
                                f"(narration ~{n * 20} words total)")
         except (tk.TclError, ZeroDivisionError, ValueError):
             self.gen_count.set("")
+
+    def follow_preset_length(self, *_):
+        """Fill the duration box from the preset's own running length.
+
+        Only presets that declare `default_duration` move it - a genre with a
+        specified length (an animal kindness film runs 60-90s) carries that
+        number, and every other preset leaves your duration exactly as it was.
+        You can still edit the box afterwards; this only sets a starting point
+        when you switch preset.
+        """
+        try:
+            want = self._gen_lengths.get(self.gen_preset_var.get())
+        except AttributeError:
+            return
+        if want:
+            self.gen_duration_var.set(want)
 
     # ── the api key ring ──────────────────────────────────────
     @staticmethod
@@ -596,7 +624,7 @@ class Veo3LauncherGUI:
         ttk.Label(f, text="Style preset:").grid(row=r, column=0, sticky="e", **pad)
         sty = tk.Frame(f, bg="#1e1e28")
         sty.grid(row=r, column=1, columnspan=2, sticky="w", padx=14)
-        self._style_displays, self._style_ids, self._style_by_display = load_style_presets()
+        self._style_displays, self._style_ids, self._style_by_display, _ = load_style_presets()
         self.style_var = tk.StringVar()
         self.style_box = ttk.Combobox(sty, textvariable=self.style_var, width=44,
                                       values=self._style_displays, state="readonly")

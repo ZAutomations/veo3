@@ -1,0 +1,34 @@
+Character reference sheets for "The Gatekeeper of Cabin 4"
+Generate each one, then upload it into Flow as a Character named exactly
+Copper, Arthur (capital first letter).
+Every sheet must be made with the same medium or the cast will not match.
+One image per character. Do not make a multi-angle sheet for the
+animals - the video model accepts at most 3 reference images, and a
+multi-view sheet counts as more than one.
+
+=== COPPER ===   (animal)
+save as: character_refs/copper_reference_sheet.jpg
+
+This is an ANIMAL - one image only. Full body, standing,
+three-quarter view, so the face AND the coat markings are
+both readable. Every physical marker listed below must be
+visible in it, or the video model will not reproduce them.
+
+-- image prompt --
+Photorealistic Redbone Coonhound mix standing in three-quarter view, short reddish-brown fur, notched left ear tip, white chest patch clearly visible, warm brown eyes, natural studio lighting, cinematic 35mm photograph, physical fur micro-textures, plain neutral grey studio background
+-- image prompt --
+Photorealistic Redbone Coonhound mix standing in three-quarter view, short reddish-brown fur, notched left ear tip, white chest patch clearly visible, warm brown eyes, natural studio lighting, cinematic 35mm photograph, physical fur micro-textures, plain neutral grey studio background
+
+-- identity text (must match this exactly in the story JSON) --
+Same Copper throughout - photorealistic Redbone Coonhound mix, medium lean build, short reddish-brown coat with dense fur texture. Brown eyes with deep emotional weight. Unchanging physical markers: a distinct V-shaped notch on his left ear tip and a prominent white patch on his chest. Real canine anatomy and posture, shivers in cold weather, vigilant ear tilts. NOT cartoon, NOT anime, NOT stylised, NOT anthropomorphic.
+
+=== ARTHUR ===   (human)
+save as: character_refs/arthur_reference_sheet.jpg
+
+-- image prompt --
+Photorealistic forty-five-year-old male bank surveyor in neutral standing pose facing camera, wearing faded canvas jacket, flannel shirt, dark work trousers, scuffed boots, natural skin texture, cinematic 35mm photo, real-world lighting balance, plain neutral grey studio background
+-- image prompt --
+Photorealistic forty-five-year-old male bank surveyor in neutral standing pose facing camera, wearing faded canvas jacket, flannel shirt, dark work trousers, scuffed boots, natural skin texture, cinematic 35mm photo, real-world lighting balance, plain neutral grey studio background
+
+-- identity text (must match this exactly in the story JSON) --
+Same Arthur throughout - ordinary forty-five-year-old bank surveyor with a tired expression, short grey-ing brown un-styled hair, fair weathered skin tone, and hazel eyes. Wears a faded canvas work jacket over a flannel shirt, dark work trousers, and scuffed brown leather boots. Real human proportions and texture, natural posture without heroic framing. NOT cartoon, NOT anime, NOT stylised, NOT anthropomorphic.

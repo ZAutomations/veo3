@@ -487,6 +487,58 @@
       "avoid": "no named real scientists, universities or space agencies, no on-screen text, diagrams, labels or equations, no disaster-movie panic, screaming crowds or collapsing skylines, no pseudoscience, no invented physics, no glowing magic energy, no spiralling galaxies used as decoration",
       "cast_idiom": "Realistic adult humans with realistic adult proportions, ordinary modern clothing suited to the environment, calm observational expressions, natural available light. NOT cartoon, NOT anime, NOT stylised.",
       "cast": "optional"
+    },
+    {
+      "id": "animal-kindness",
+      "label": "Animal Kindness",
+      "kind": "niche",
+      "style": "Photorealistic 4K cinematic film, 35mm anamorphic lens quality, natural shallow depth of field, real-world lighting balance, physical micro-textures in fur, fabric and skin, restrained natural colour grading, premium streaming documentary quality",
+      "whisk": "Photorealistic 4k cinematic film still, 35mm anamorphic lens, natural depth of field, real-world lighting, micro-textures in fur and fabric, restrained natural colour",
+      "palette": "Natural earth tones, warm amber and cool slate shadows, muted greens, overcast greys, soft golden-hour warmth",
+      "camera": "Low intimate eye-level angles, slow push-ins, gentle handheld observation, steady tracking beside the animal, close-ups on eyes, ears and paws",
+      "audience": "Animal lovers, family audiences, viewers who share heartwarming stories",
+      "story_shapes": [
+        "a hook in the first two seconds, then one act of kindness, a separation, a long trial, an unexpected reversal, and a quiet payoff",
+        "an animal and a person help each other once, then have to find each other again",
+        "an animal makes a long journey home through weather and distance",
+        "an ordinary day broken by one small kindness that costs the giver something"
+      ],
+      "narration_voice": "warm male voice, gentle and unhurried, quiet emotional weight, documentary warmth",
+      "narration_scope": "intro",
+      "sound_style": "One restrained piano and string bed that never swells into a television score, under close diegetic sound throughout - wind in bare branches, gravel under paws, a bus engine idling and pulling away, rain on metal, a kettle, a door, breathing.",
+      "avoid": "no cartoon, anime or stylised anatomy, no anthropomorphic expressions, no fantasy or over-saturated look, no morphing or floating objects, no on-screen text, subtitles, captions, watermarks or UI, no dialogue, no graphic injury or on-screen death, no narration that states the moral, no wall-to-wall narration, no music that swells like a television score",
+      "cast_idiom": "Photorealistic living creatures with true-to-life anatomy and proportions. ANIMALS: the exact breed or mix, natural build and size, real fur with individual strands visible, correct eye colour, and two unchanging physical markers. HUMANS: ordinary modern people with real skin texture, natural un-styled hair, plain worn clothing. NOT cartoon, NOT anime, NOT stylised, NOT anthropomorphic.",
+      "direction": "Ground every animal in real behaviour - head turns, ear tilts, weight shifts, shivering, a vigilant stance, cautious hesitation. An animal is never a passive prop and never behaves like a person. Humans are ordinary and tired, never villains and never saints. Put a hook - a visual anomaly or a striking emotional beat - inside the first two seconds. Deliver the lesson through action and through what it costs, never by saying it.",
+      "cast": "required",
+      "cast_types": [
+        "animal",
+        "human"
+      ],
+      "default_duration": 80
+    },
+    {
+      "id": "relationship-dialogue",
+      "label": "Relationship Dialogue",
+      "kind": "niche",
+      "style": "Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail",
+      "whisk": "Cinematic digital manhwa illustration, soft 3D cel-shaded semi-realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, high aesthetic detail",
+      "palette": "Honeyed afternoon light through gauze curtains, warm cream and porcelain white, muted sage green, dusty rose, deep teal shadow, soft gold highlights",
+      "camera": "Wide two-shots to hold both people in the room, over-the-shoulder singles across the table, medium close-ups on the face that is listening rather than the one talking, insert shots on hands, teacups and folded letters, slow barely-there pushes",
+      "audience": "Couples, singles, anyone quietly working out a relationship",
+      "story_shapes": [
+        "a provocative opening line, then numbered rules, then the younger one pushes back, then a sharp aphorism, then a warm resolution",
+        "an older woman tells her granddaughter the thing nobody told her in time",
+        "two people disagree about the same relationship and both are partly right",
+        "a hard rule delivered kindly over tea, and the doubt it has to survive"
+      ],
+      "narration_scope": "dialogue",
+      "avoid": "no narrator and no voice-over of any kind, no on-screen text, subtitles, captions, watermarks or UI, no live-action or photographic realism, no 3D CGI sheen, no glitch, no motion blur, no exaggerated or comedic expressions, no shouting matches, no explicit content, no cynicism, no graphic conflict",
+      "cast_idiom": "Cinematic digital manhwa character, soft 3D cel-shaded semi-realistic rendering, realistic adult human proportions, delicate defined facial structure, detailed hair with individual strands, expressive but restrained eyes, contemporary or gently vintage clothing in fixed colours. NOT live-action, NOT a photograph, NOT 3D CGI, NOT western cartoon, NOT chibi.",
+      "direction": "This is a two-hander. Two people sit close in one calm, beautiful room - a cafe, a tearoom, a sunlit veranda, a library corner - and talk to each other. Everything said is said out loud by one of them to the other, in their own voice. There is no narrator and nobody describes the scene. Build the exchange as a hook that makes the viewer stop, then two or three numbered rules, then the younger one pushing back with the doubt the audience is actually feeling, then one sharp aphorism worth repeating, then a warm resolution. Give the listener something to do while the other speaks: a teacup turned, a hand stilled, an eye-line that drops and comes back. The camera favours the face that is listening. Let the warmth be earned by the truth of the advice, never by sentimentality.",
+      "cast": "required",
+      "cast_types": [
+        "human"
+      ]
     }
   ]
 }

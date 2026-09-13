@@ -152,6 +152,11 @@ It produces `stories/the_lantern_keeper/`:
 | `character_sheets.txt` | paste-ready image prompts, one block per character |
 | `character_refs/` | empty — the generated sheets go here |
 
+An animal character's block in `character_sheets.txt` also says it is an animal
+and that every physical marker has to be visible in the one image, because the
+video model rebuilds the animal from those markers in every clip. A story with
+no cast gets neither of those two files — there is nothing to draw.
+
 **It writes the story JSON, never the agent prompt.** That is deliberate.
 `story_to_agent_prompt.js` exists because a hand-written agent prompt once
 dropped the narrator voice-over and the silent-cast rule, and the agent invented
@@ -170,13 +175,16 @@ Three passes, in this order, because each one needs the last:
 1. **Cast and outline** — one call. The cast is written first, from one
    `cast_idiom`, so every character is described in the same medium. Generated
    independently they drift, which is the Michael/Sarah mismatch this repo
-   already produced by hand. The outline is a one-line beat per clip.
+   already produced by hand. When the preset declares `cast_types`, each
+   character is also given its own profile rule — the animal gets breed, coat
+   and unchanging markers, the person gets a face and a fixed wardrobe. The
+   outline is a one-line beat per clip.
 2. **Scenes** — in batches of `--scenes-per-call` (default 6). A 40-scene story
    cannot be written in one response; it truncates mid-JSON. Each batch is handed
    the real cast and the beats it must cover.
 
 Every call gets the same preset block — look, cast template, palette, camera,
-narrator, and the never-list — so nothing drifts between calls.
+direction, narrator, and the never-list — so nothing drifts between calls.
 
 **Nothing is written unless it validates.** A scene with no narration, a
 narration line over the word limit for its clip length, or a character who is not
@@ -190,7 +198,7 @@ through.
 |---|---|
 | `--title "..."` | required |
 | `--detail "..."` / `--detail-file PATH` | what the video is about |
-| `--duration N` | total seconds. Clips = `duration / seconds` |
+| `--duration N` | total seconds. Clips = `duration / seconds`. Default 56, or the preset's own `default_duration` if it has one |
 | `--seconds N` | seconds per clip, default 8 |
 | `--aspect R` | `16:9`, `9:16`, `1:1` |
 | `--preset ID` | required. `npm run styles` lists them |
@@ -279,6 +287,7 @@ for a complete template. The engine reads:
 | `scenes[].scene_builder_action` | `text_to_video` (scene 1) or `extend` (scenes 2+). Logged; the engine derives the real behaviour from scene position. |
 | `scenes[].characters` | Which `character_references` keys to attach for **this** scene. Omit or leave empty to attach all of them. |
 | `scenes[].veo3_prompt` | The prompt typed into the box. |
+| `scenes[].sound_context` | Only on a sound-led story (`narration_scope: "intro"`). The sounds of that place, for the clips that carry no narration. |
 | `_`-prefixed fields | Yours — notes, titles, timings. Ignored. |
 
 Layout:
@@ -481,13 +490,15 @@ you: `aspect_ratio` and `scene_seconds`. Leave them out and the builder falls
 back to 16:9 and 8 s — correct for YouTube, but silently so, and a story that
 wants vertical never gets it.
 
-Three more decide whether the prompt says the story is **narrated**:
+Three more decide whether the prompt says the story is **narrated** (and a
+fourth, `narration_scope`, decides whether it is narrated *at all*):
 
 | Field | Why it exists |
 |---|---|
 | `narrated` | `true` adds the voice-over rules block |
 | `silent_cast` | `true` adds "the characters are SILENT, mouths closed" |
 | `narrator_voice` | e.g. `"warm female voice"` — used in the narration line |
+| `narration_scope` | `"intro"` swaps the voice-over block for the sound-led one: a hook over clip 1, then each `scenes[].sound_context` as a `SOUND` line |
 
 They are optional, and older stories do not have them. Without them the builder
 guesses, and **the guess used to be wrong in a way that costs money**: it read
@@ -516,16 +527,23 @@ Two traps when converting:
 
 ### Style presets
 
-`styles.json` holds 24 looks — 13 content niches (`ww2-history`, `mafia`,
-`true-crime`, `science-what-if`, …) and 11 art styles (`ghibli`, `chibi`,
-`avatar-korra`, …). Each entry carries four text fields, and only the first two
-reach a prompt:
+`styles.json` holds 25 looks — 14 content niches (`ww2-history`, `mafia`,
+`true-crime`, `science-what-if`, `animal-kindness`, …) and 11 art styles
+(`ghibli`, `chibi`, `avatar-korra`, …). Only the first two rows below are picked
+up by a tool that copies text verbatim; the rest are composed into prompt lines:
 
 | Field | Goes to |
 |---|---|
-| `style` | the story's `style` field → the builder's `STYLE:` line |
+| `style` | the story's `style` field → the builder's `STYLE:` line and every `[LOOK]` |
+| `cast_idiom` | the `CAST TEMPLATE:` line — the shape every character description must follow |
+| `palette`, `camera` | the `PALETTE:` and `CAMERA:` lines of both the cast and the scene prompt |
+| `narration_voice` | the `NARRATOR:` line, and the `[AUDIO]` tag on every clip |
+| `avoid` | the `NEVER:` line |
+| `story_shapes` | offered to the model as shapes the outline may draw on |
+| `direction` | optional — a `DIRECTION:` line when a genre needs one (see below) |
+| `narration_scope` | optional — `"intro"` narrates the opening clip only (see below) |
+| `sound_style` | optional — a `SOUND:` line describing the sound bed (see below) |
 | `whisk` | image and character-sheet prompts |
-| `palette`, `camera` | notes for you; no tool reads them |
 | `label`, `id` | the menu — never sent anywhere |
 
 #### `cast` — whether the video needs characters at all
@@ -535,11 +553,123 @@ characters at all:
 
 | Value | Meaning | Presets |
 |---|---|---|
-| `required` | The genre is about people, so there is always a cast | the 11 art styles, `mafia`, `true-crime`, `relationship`, `fall-asleep` |
+| `required` | The genre is about a character, so there is always a cast | the 11 art styles, `mafia`, `true-crime`, `relationship`, `fall-asleep`, `animal-kindness` |
 | `optional` | The topic decides; no cast is a valid answer | `science-what-if`, `ww2-history`, `fern-documentary`, `health-wellness`, `personal-finance`, `travel-adventure`, `cooking`, `gaming-esports`, `technology-ai` |
 
 A missing field means `required`, so a preset written before this behaves
 exactly as it did.
+
+#### `cast_types` — when the cast is not all one species
+
+A cast is normally all people, and one profile shape describes all of them. An
+animal kindness film breaks that: the animal and the person are held together
+across cuts by completely different things. A person is recognised by a face, a
+haircut and a wardrobe; an animal by its breed, its coat markings and unchanging
+physical marks. One shared profile shape would end up specifying the dog's
+wardrobe.
+
+So a preset may declare which kinds its cast is drawn from:
+
+```json
+"cast_types": ["animal", "human"]
+```
+
+When it does, the writer asks for a `type` on every character and gives each one
+its own profile rule — the animal must state breed or mix, build, base fur
+colour, secondary coat markings, eye colour, and **at least two unchanging
+physical markers** (a notched ear tip, a chest patch, one white paw, an old
+scar). Those markers are the whole point: without them the model renders a
+different animal in every clip.
+
+The reference sheet changes with it too. An animal sheet is a **single** image,
+full body, standing, three-quarter view, so the face *and* the coat markings are
+both readable at once, and every marker has to be visible in it. One image, not
+a multi-angle sheet — the video model accepts at most 3 reference images, and a
+multi-view sheet counts as more than one.
+
+`type` is internal. It never reaches the story JSON, the style bible or the
+agent prompt; its only job is to pick the right profile while writing.
+
+A preset that declares no `cast_types` — every other one — is untouched, and its
+prompt is byte-identical to what it was before this existed.
+
+#### `default_duration` — a genre's own running length
+
+Some genres have a length. `animal-kindness` runs 60–90 seconds, so the preset
+carries `"default_duration": 80` and you get 10 clips instead of 7:
+
+```
+duration : 80s  ->  10 clips  (the Animal Kindness preset's own length)
+```
+
+An explicit `--duration` always wins, and a preset without the field leaves the
+56s default alone. In the GUI, picking such a preset in the Script tab fills the
+duration box for you — and the binding is added *after* the saved value is
+restored, so opening the GUI never overwrites the length you last chose.
+
+#### `direction` — how the genre has to be performed
+
+Free text for genres where the look and the camera don't say enough. An animal
+film has to be told that the animal behaves like an animal — nothing in `style`
+or `camera` says that, and left unsaid the model writes it as a small person. It
+lands as a `DIRECTION:` line in both prompts and as a `## Direction` section of
+the style bible:
+
+> Ground every animal in real behaviour - head turns, ear tilts, weight shifts,
+> shivering, a vigilant stance, cautious hesitation. An animal is never a passive
+> prop and never behaves like a person. Humans are ordinary and tired, never
+> villains and never saints. Put a hook - a visual anomaly or a striking
+> emotional beat - inside the first two seconds. Deliver the lesson through
+> action and through what it costs, never by saying it.
+
+#### `narration_scope` and `sound_style` — when the film shouldn't be narrated
+
+Some genres are better watched than described. `animal-kindness` carries
+`"narration_scope": "intro"`: one spoken hook over the opening clip, and then
+nothing but the sounds of the place and one music bed underneath. An absent
+field means narration throughout, which is what every other preset does.
+
+What changes when it is set:
+
+- **the outline step** is told the film is sound-led, so no beat may depend on a
+  line of narration to make sense
+- **the scene prompt** asks for `sound_context` instead — 25–45 words of the
+  real sounds of that place — and confines `script_line` to clip 1
+- **the story JSON** gains `narration_scope: "intro"` and a `sound_context` per
+  clip; a clip with no narration carries its sound brief in the `[AUDIO]` tag
+  instead of an empty narrator line, which the video model would otherwise fill
+  with invented dialogue
+- **validation** enforces both halves: clip 1 must have its hook, clips 2+ must
+  have no narration at all and must each carry a sound brief
+- **the agent prompt** switches to a third rule block — neither the narrated one
+  (which promises a voice-over in every clip and forbids a scene dropping it)
+  nor the silent one (which would drop the hook). Each clip gets a `SOUND` line
+  instead of `NARRATION`
+
+`sound_style` is the separate, optional description of that sound world — a
+`SOUND:` line in both prompts and a `## Sound` section of the bible. It is
+independent of `narration_scope`: a preset can want a described sound bed while
+still narrating every clip.
+
+```
+sound      : 10/10 scenes have a sound brief
+narrated   : HOOK ONLY - clip 1 narrates, the rest are sound-led
+```
+
+#### `animal-kindness`
+
+The preset this was built for: photoreal 4K, 35mm anamorphic, real fur and real
+weather, one animal and one person. Its `avoid` list bans cartoon and
+anthropomorphic anatomy, on-screen text, subtitles and watermarks, dialogue,
+graphic injury, and narration that states the moral — the lesson has to arrive
+through what the kindness costs. A third character is allowed only if the story
+genuinely cannot be told without them, because the video model takes at most 3
+reference images and a cast of three is the ceiling.
+
+It is also the one preset that is **sound-led**: a single spoken hook over clip 1
+(`narration_scope: "intro"`) and then wind, gravel, engines, rain and one
+restrained music bed for the remaining nine clips. Wall-to-wall narration over an
+animal film reads as a documentary voice explaining what you can already see.
 
 On an `optional` preset the model is asked to judge the topic. A "what if"
 or an explainer about a process, a place or a system normally needs **no**

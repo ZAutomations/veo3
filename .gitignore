@@ -17,10 +17,27 @@ logs/
 
 # Reference sheets are yours, not the repo's - but keep the folder + its README
 stories/**/character_refs/*
-!stories/example_story/character_refs/README.md
+# The example story's README is documentation, so it stays. Matched at any depth
+# because the example story has lived at stories/<name>/ and now at
+# stories/old/<name>/ - naming only the old path silently deleted the file from
+# the repo the moment the folder moved.
+!stories/**/example_story/character_refs/README.md
 
 # ── Old-UI tool copies kept locally for reference ───────────────────────────
 reference/
+
+# ── Portable copy for moving to another PC ──────────────────────────────────
+# A full copy of this folder - code, settings, stories and rendered media -
+# built to be carried to another machine and set up there with SETUP.bat.
+# Never part of the repo: it would duplicate every tracked file and drag
+# hundreds of megabytes of generated media along with it.
+Veo3_Portable/
+
+# ── Local-only drafts ───────────────────────────────────────────────────────
+# An earlier version of the "what if earth stopped" story, kept on disk but not
+# in the repo. The folder name carries a space and " old", so it is matched by
+# a glob rather than spelled out.
+stories/* old/
 
 # ── OS / editor noise ───────────────────────────────────────────────────────
 # Stray placeholder left over from before these story folders had content.

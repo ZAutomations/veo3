@@ -89,7 +89,12 @@ if (DETAIL_FILE) {
     }
 }
 const PRESET_ID = typeof flag('--preset') === 'string' ? flag('--preset').trim() : '';
-const DURATION = num('--duration', 56);
+// 0 means "not given". A preset may declare `default_duration` - an animal
+// kindness film is specified at 60-90s while a what-if explainer is not - and
+// the preset's own number only applies when the creator stayed silent. An
+// explicit --duration always wins, so this can never override a choice.
+const DURATION_FLAG = num('--duration', 0);
+let DURATION = DURATION_FLAG || 56;
 const SECONDS = num('--seconds', 8);
 const ASPECT = typeof flag('--aspect') === 'string' ? flag('--aspect').trim() : '16:9';
 // Pinned rather than "gemini-flash-latest" on purpose: an alias silently changes
@@ -349,21 +354,59 @@ function slugify(s) {
 }
 
 // ── prompts ------------------------------------------------------------------
-const SCENES = Math.max(1, Math.round(DURATION / SECONDS));
+// Both are `let` because a preset may carry `default_duration`, which is applied
+// once the preset is loaded and before any prompt is built. Everything that
+// reads them runs after that point.
+let SCENES = Math.max(1, Math.round(DURATION / SECONDS));
+function usePresetDuration(p) {
+    if (DURATION_FLAG || !p.default_duration) return false;
+    DURATION = p.default_duration;
+    SCENES = Math.max(1, Math.round(DURATION / SECONDS));
+    return true;
+}
 // Narration has to finish inside the clip. The Bridge story runs 15-23 words per
 // 8s scene, which is ordinary narration pace; 26 is the hard stop so a scene
 // never has to be rushed or cut off mid-sentence.
 const WORDS_MAX = 24;
 const WORDS_HARD = 28;
+// Spoken dialogue is a different budget: it is exchanged rather than read, so the
+// clip has to hold two or three short turns plus the pause between them, and
+// speech with interruptions carries fewer words per second than narration.
+// Derived from SECONDS rather than fixed, so `--seconds 5` tightens the lines
+// instead of silently overflowing them - which the narration budget above still
+// does, and is the reason this one is not written the same way.
+const D_WORDS_MAX = Math.max(6, Math.round(SECONDS * 3));
+const D_WORDS_HARD = Math.max(8, Math.round(SECONDS * 3.75));
 const mmss = (n) => `${Math.floor((n * SECONDS) / 60)}:${String((n * SECONDS) % 60).padStart(2, '0')}`;
 
 function lookBlock(p) {
+    // `narration_scope: "dialogue"` is the fourth way a video can carry sound:
+    // the characters speak on screen and nobody narrates. It is the inverse of
+    // every other preset, whose whole rule set is "the visuals illustrate the
+    // narration" - so the narrator line is replaced rather than added to.
+    const dialogue = p.narration_scope === 'dialogue';
+    // `narration_scope: "intro"` means the voice-over exists only over the
+    // opening clip. Every other preset narrates throughout, so an absent field
+    // leaves the line exactly as it always was.
+    const intro = p.narration_scope === 'intro';
     return [
         `LOOK: ${p.style}`,
         `CAST TEMPLATE (every character description must follow this shape): ${p.cast_idiom}`,
         `PALETTE: ${p.palette}`,
         `CAMERA: ${p.camera}`,
-        `NARRATOR: ${p.narration_voice}`,
+        // Free-text direction for genres that need it. An animal film has to be
+        // told that the animal behaves like an animal; nothing in LOOK or CAMERA
+        // says that, and left unsaid the model writes it as a small person.
+        ...(p.direction ? [`DIRECTION: ${p.direction}`] : []),
+        ...(dialogue
+            ? ['SPEAKING: two people talk to each other on screen, in their own voices. There is no narrator, no voice-over, and nobody describes the scene out loud.']
+            : intro
+                ? [`NARRATOR: ${p.narration_voice} - heard over the opening clip only, never again.`]
+                : [`NARRATOR: ${p.narration_voice}`]),
+        // Free-text sound bed for genres carried by sound rather than words.
+        // Independent of `narration_scope`: a preset can want a described sound
+        // world while still narrating every clip.
+        ...(p.sound_style ? [`SOUND: ${p.sound_style}`] : []),
         `NEVER: ${p.avoid}`,
     ].join('\n');
 }
@@ -375,6 +418,27 @@ function castPrompt(p) {
     // `cast: "required" | "optional"`, and an absent field means required so
     // every preset written before this behaves as it did.
     const optional = p.cast === 'optional';
+    // A preset may declare which kinds of character its cast is drawn from. An
+    // animal-kindness film has an animal AND a person, and the two need
+    // genuinely different identity profiles: a person is held across cuts by
+    // face, hair and a fixed wardrobe, an animal by breed, coat markings and
+    // unchanging physical marks. One shared profile shape would end up
+    // specifying the dog's wardrobe. A preset that declares no types keeps
+    // exactly the human-shaped rule it had before.
+    const types = Array.isArray(p.cast_types)
+        ? p.cast_types.map(t => String(t).trim().toLowerCase()).filter(Boolean)
+        : [];
+    const typed = types.length > 0;
+    const needAnimal = types.includes('animal');
+    // A sound-led preset narrates the opening clip and nothing else, so the
+    // beats have to be planned as a wordless film from the start. Left unsaid,
+    // call 1 writes beats that only make sense with a line of narration over
+    // them, and call 2 then has to invent narration to rescue them.
+    const intro = p.narration_scope === 'intro';
+    // A dialogue preset has no narrator at all, so its beats are conversational
+    // turns rather than visual beats. Call 1 has to know that, or it plans a
+    // montage that call 2 then has to fill with two people talking at nothing.
+    const dialogue = p.narration_scope === 'dialogue';
     const castRule = optional
         ? `4. Decide whether this video needs a cast at all.
    This genre is often about a process, a place or a system rather than a person.
@@ -387,6 +451,14 @@ function castPrompt(p) {
        write nothing else about a cast.
    If you do write one, use 2 or 3 characters at most; a small cast stays consistent.
    For EACH character give:`
+        : needAnimal
+        ? `4. Design the cast. This genre is one animal and the person whose life it
+   crosses - TWO characters: one animal, one human. A third is allowed only if
+   the story genuinely cannot be told without them, because the video model
+   accepts at most 3 reference images and a cast of three is the ceiling. Never
+   return an empty list, and never a cast of people alone: the animal carries
+   the story.
+   For EACH character give:`
         : `4. Design the cast. Use 2 or 3 characters at most; a small cast stays
    consistent. This genre is about people, so there is always a cast - never
    return an empty list.
@@ -394,6 +466,45 @@ function castPrompt(p) {
     const castFields = optional
         ? `     (only when the list is not empty)`
         : '';
+    // The identity profile, branched on type. Everything after the markers is
+    // shared: the model must be told WHY the markers matter, or it treats them
+    // as decoration and drops half of them.
+    const typeField = typed
+        ? `     "type"        - one of: ${types.join(', ')}\n`
+        : '';
+    const descField = typed
+        ? `     "description" - 55 to 75 words, STARTING with "Same <name> throughout - "
+                     and following the CAST TEMPLATE exactly, plus the rules for
+                     its type:
+                       animal - the exact breed or mix, build and size, base fur
+                         colour, secondary coat markings, eye colour, and at least
+                         TWO unchanging physical markers (a notched ear tip, a
+                         chest patch, one white paw, an old scar). Those markers
+                         are what hold the animal together across cuts - without
+                         them the model renders a different animal in every clip.
+                       human  - age, build, hair, face and skin tone, in one fixed
+                         multi-layered wardrobe that never changes.
+                     End with the NEVER guard restated as "NOT ..." so the model
+                     cannot drift. Every character must be described in the SAME
+                     medium.`
+        : `     "description" - 55 to 75 words, STARTING with "Same <name> throughout - " and
+                     following the CAST TEMPLATE exactly. State age, build,
+                     clothing, hair, face, and the rendering medium. End with the
+                     NEVER guard restated as "NOT ..." so the model cannot drift.
+                     Every character must be described in the SAME medium.`;
+    const sheetField = typed
+        ? `     "sheet_prompt" - a 30 to 45 word prompt for an image generator to make that
+                     character's ONE reference sheet. It must be a SINGLE image:
+                     the video model takes at most 3 reference images, and a
+                     multi-view sheet counts as more than one.
+                       animal - full body, standing, three-quarter view, so the
+                         face AND the coat markings are both readable in that one
+                         image. Every physical marker must be visible in it.
+                       human  - full body, neutral standing pose, facing camera.
+                     Include the medium and consistent lighting.`
+        : `     "sheet_prompt" - a 30 to 45 word prompt for an image generator to make that
+                     character's reference sheet: full body, neutral standing
+                     pose, consistent lighting. Include the medium.`;
     return `You are writing the character bible for a ${p.label} video.
 
 TITLE: ${TITLE}
@@ -409,14 +520,8 @@ TASK
 3. Write "target_audience" (max 12 words).
 ${castRule}${castFields}
      "name"        - one word, capitalised, no spaces (e.g. "Mira")
-     "description" - 55 to 75 words, STARTING with "Same <name> throughout - " and
-                     following the CAST TEMPLATE exactly. State age, build,
-                     clothing, hair, face, and the rendering medium. End with the
-                     NEVER guard restated as "NOT ..." so the model cannot drift.
-                     Every character must be described in the SAME medium.
-     "sheet_prompt" - a 30 to 45 word prompt for an image generator to make that
-                     character's reference sheet: full body, neutral standing
-                     pose, consistent lighting. Include the medium.
+${typeField}${descField}
+${sheetField}
                      Every sheet in the cast must end with this exact background
                      phrase, word for word, with nothing added to it:
                      "plain neutral grey studio background"
@@ -428,18 +533,44 @@ ${castRule}${castFields}
      "beat"  - one sentence: what happens in this clip and what changes.
    The ${SCENES} beats must form ONE story with a turn and an ending, not a list
    of nice moments. Draw on these shapes that suit this look:
-${(p.story_shapes || []).map(s => `     - ${s}`).join('\n')}
+${(p.story_shapes || []).map(s => `     - ${s}`).join('\n')}${intro ? `
+   This film is SOUND-LED. The only spoken words in it are the opening hook, so
+   every beat after beat 1 has to land through what is SEEN and HEARD - a look,
+   a movement, a sound. No beat may need a line of narration to make sense, and
+   no beat may be a person explaining something.` : ''}${dialogue ? `
+   This film is a CONVERSATION, not a montage. Every beat is something one of the
+   two says to the other, in one calm room. Write each beat as the turn it turns
+   on - the hook that stops the viewer, a rule, the doubt that pushes back, the
+   aphorism worth repeating, the resolution - not as a description of what is
+   seen. A beat that is only a picture has nothing for anyone to say.` : ''}
 
 Return ONLY this JSON, no other text:
-{"description":"","moral":"","target_audience":"","characters":[{"name":"","description":"","sheet_prompt":""}],"outline":[{"title":"","beat":""}]}`;
+{"description":"","moral":"","target_audience":"","characters":[{"name":"",${typed ? '"type":"",' : ''}"description":"","sheet_prompt":""}],"outline":[{"title":"","beat":""}]}`;
 }
 
 function scenesPrompt(p, cast, outline, from, to, soFar) {
+    const intro = p.narration_scope === 'intro';
+    // Dialogue-led genres invert the audio job completely: there is no narrator
+    // to write for, and the lines belong to the cast. Left to itself the model
+    // writes narration here, because narration is what every other preset wants.
+    const dialogue = p.narration_scope === 'dialogue';
     const beatList = outline.slice(from, to).map((o, i) =>
         `  Clip ${from + i + 1} - "${o.title}": ${o.beat}`).join('\n');
-    const prev = soFar.length
-        ? `\nTHE PREVIOUS CLIP ENDED LIKE THIS (continue from it, do not repeat it):\n  "${soFar[soFar.length - 1].script_line}"\n`
+    // A sound-led preset narrates only the opening clip, so a later batch can
+    // follow a clip that has no script_line at all. Falling back to the sound
+    // brief keeps "continue from this" meaningful instead of quoting an empty
+    // string and telling the model the last clip ended in silence - and a
+    // dialogue story has neither, so its last exchange is quoted instead.
+    const lastSoFar = soFar[soFar.length - 1];
+    const lastText = lastSoFar
+        ? (lastSoFar.script_line || lastSoFar.sound_context
+            || (lastSoFar.dialogue || []).map(d => `${d.speaker}: ${d.line}`).join(' / ')
+            || '')
         : '';
+    const prevLabel = dialogue
+        ? 'THE PREVIOUS CLIP ENDED WITH THIS EXCHANGE (carry the conversation on from it, do not repeat it):'
+        : 'THE PREVIOUS CLIP ENDED LIKE THIS (continue from it, do not repeat it):';
+    const prev = lastText ? `\n${prevLabel}\n  "${lastText}"\n` : '';
     // A story with no cast is a real case, not a broken one: the visuals are the
     // subject and the narrator carries it. Spelling that out stops the model
     // from populating `characters` with people who were never designed, which
@@ -459,23 +590,79 @@ function scenesPrompt(p, cast, outline, from, to, soFar) {
                         insert them.`
         : `  "characters"        - always [] for this video. It has no cast.`;
 
+    // Sound-led genres get a different audio job per clip. A narrated travelogue
+    // over what should be a visual film is the failure this prevents: the model
+    // narrates every beat by default, because every other preset does.
+    const audioBlock = dialogue
+        ? `
+HOW THIS FILM SPEAKS - the two of them talk, on screen, to each other:
+  There is NO narrator and NO voice-over anywhere in this film. Every word spoken
+  is spoken by one of the cast above, out loud, in the room, to the other one.
+  So do not write a line of narration, and never put a description of the scene
+  into a character's mouth - nobody says what the camera can already see.
+  Write speech as people actually say it: contractions, short sentences, one
+  cutting the other off. Every clip needs at least one exchange.
+`
+        : intro
+        ? `
+AUDIO MODEL - this film is SOUND-LED, not narrated:
+  Clip 1 opens with a single spoken hook. That is the ONLY narration in the whole
+  film. Every clip after it has NO voice-over and NO dialogue - they are carried
+  by the sounds of the place and by one continuous music bed underneath the lot.
+  Writing narration into them is the main way this goes wrong. Give every clip a
+  sound brief instead.
+`
+        : '';
+    const fields = dialogue
+        ? `  "scene_title"       - the beat's title
+  "dialogue"          - the lines spoken in THIS clip, in the order they are said,
+                        as an array of objects:
+                          {"speaker": "<a cast name, spelled exactly as above>",
+                           "line": "what they say, out loud"}
+                        Two to four turns per clip, and at least one - this film is
+                        a conversation, so a clip with nobody speaking has nothing
+                        in it. Keep each line ${Math.round(D_WORDS_MAX / 2)} words or fewer;
+                        across ALL the lines in one clip the total is ${D_WORDS_MAX} words
+                        or fewer, hard limit ${D_WORDS_HARD}, because it all has to be
+                        said aloud inside ${SECONDS} seconds. Punctuate for speech, not
+                        for prose. The last line of the clip should be worth hearing
+                        on its own.`
+        : intro
+        ? `  "scene_title"       - the beat's title
+  "script_line"       - ONLY on clip 1. Leave it as "" for every other clip.
+                        On clip 1 it is the HOOK: ONE sentence, ${WORDS_MAX} words or
+                        fewer, hard limit ${WORDS_HARD}, read verbatim as voice-over and
+                        fitting inside ${SECONDS} seconds. Present tense. It has to earn
+                        the next 70 seconds, so open on the striking image.
+  "sound_context"     - 25 to 45 words of SOUND, for EVERY clip including the first:
+                        the real sounds this place would make and how the music sits
+                        under them. Wind, an engine, gravel, rain, a kettle, a door,
+                        breathing, an animal settling. Not a score description, and
+                        never a line of narration in disguise.`
+        : `  "scene_title"       - the beat's title
+  "script_line"       - the NARRATION, spoken by the narrator. ONE sentence,
+                        ${WORDS_MAX} words or fewer, hard limit ${WORDS_HARD}. It is read
+                        verbatim as voice-over, so it must sound natural spoken
+                        aloud and must fit inside ${SECONDS} seconds. Present tense.`;
+    const skeleton = dialogue
+        ? `{"scenes":[{"scene_title":"","dialogue":[{"speaker":"","line":""}],"narrative_context":"","characters":[]}]}`
+        : intro
+        ? `{"scenes":[{"scene_title":"","script_line":"","sound_context":"","narrative_context":"","characters":[]}]}`
+        : `{"scenes":[{"scene_title":"","script_line":"","narrative_context":"","characters":[]}]}`;
+
     return `You are writing clips ${from + 1} to ${to} of a ${SCENES}-clip ${p.label} video.
 
 TITLE: ${TITLE}
 DETAIL FROM THE CREATOR: ${DETAIL || '(none given)'}
 ${lookBlock(p)}
-
+${audioBlock}
 ${castBlock}
 ${prev}
 THE BEATS FOR THESE CLIPS (one clip each, same order):
 ${beatList}
 
 For EACH clip above, in order, return:
-  "scene_title"       - the beat's title
-  "script_line"       - the NARRATION, spoken by the narrator. ONE sentence,
-                        ${WORDS_MAX} words or fewer, hard limit ${WORDS_HARD}. It is read
-                        verbatim as voice-over, so it must sound natural spoken
-                        aloud and must fit inside ${SECONDS} seconds. Present tense.
+${fields}
   "narrative_context" - 80 to 130 words describing what is ON SCREEN: the setting,
                         who is present, what they do, the light, the mood, and the
                         camera. Describe the action and the emotion. Do NOT name a
@@ -493,10 +680,28 @@ For EACH clip above, in order, return:
 ${charRule}
 
 Write exactly ${to - from} clips. Return ONLY this JSON, no other text:
-{"scenes":[{"scene_title":"","script_line":"","narrative_context":"","characters":[]}]}`;
+${skeleton}`;
 }
 
 // ── assemble + validate ------------------------------------------------------
+// A preset that declares `cast_types` is answered with a `type` per character,
+// and that type decides which identity profile the reference sheet gets. Models
+// drop fields, so a missing type is filled in when the preset leaves no
+// ambiguity - and left blank when it does, because guessing "human" for the dog
+// would hand an animal a person's wardrobe rules.
+function normaliseCast(p, cast) {
+    const types = Array.isArray(p.cast_types)
+        ? p.cast_types.map(t => String(t).trim().toLowerCase()).filter(Boolean)
+        : [];
+    return (cast || []).map(c => {
+        let t = types.length ? String(c.type || '').trim().toLowerCase() : '';
+        if (types.length && (!t || !types.includes(t))) {
+            t = types.length === 1 ? types[0] : '';
+        }
+        return { ...c, type: t };
+    });
+}
+
 function buildStory(p, cast, meta, scenes) {
     const descriptions = {}, references = {};
     for (const c of cast) {
@@ -505,6 +710,16 @@ function buildStory(p, cast, meta, scenes) {
         references[key] = `./character_refs/${key}_reference_sheet.jpg`;
     }
     const total = scenes.length * SECONDS;
+    const intro = p.narration_scope === 'intro';
+    const dialogue = p.narration_scope === 'dialogue';
+    // Both flags mean what they say, and a dialogue film is the one case where
+    // neither is true: nobody narrates, and the cast is anything but silent.
+    const scope = dialogue ? 'dialogue' : intro ? 'intro' : null;
+    // The speakers, as written, so their lines read on screen with the same
+    // spelling the agent will @-mention them by.
+    const speech = (s) => (s.dialogue || [])
+        .map(d => ({ speaker: String(d.speaker || '').trim(), line: String(d.line || '').trim() }))
+        .filter(d => d.speaker && d.line);
     return {
         title: TITLE,
         description: meta.description,
@@ -519,18 +734,43 @@ function buildStory(p, cast, meta, scenes) {
         // Explicit, so the prompt builder never has to guess from prose whether
         // this is a narrated story. Guessing is what dropped the voice-over rules
         // on stories that carry script_line but no veo3_prompt.
-        narrated: true,
-        silent_cast: true,
-        narrator_voice: p.narration_voice,
+        narrated: !dialogue,
+        // Only written when the preset asks for it, so every story written
+        // before this field existed stays byte-identical. "intro" means the
+        // voice-over runs over the opening clip and stops, "dialogue" means the
+        // characters speak and nobody narrates; an absent field means the usual
+        // narration throughout.
+        ...(scope ? { narration_scope: scope } : {}),
+        silent_cast: !dialogue,
+        // A dialogue story has no narrator voice, and writing a stale one in
+        // would give the agent a voice to cast even though nobody narrates.
+        ...(dialogue ? {} : { narrator_voice: p.narration_voice }),
         scenes: scenes.map((s, i) => ({
             _scene_number: i + 1,
             _scene_title: s.scene_title,
             _timing: `${mmss(i)}-${mmss(i + 1)}`,
             scene_builder_action: 'text_to_video',
             extend_from_last_frame: false,
-            script_line: s.script_line,
+            script_line: dialogue ? '' : s.script_line,
+            // What is said in this clip, by whom. The whole film is this array.
+            ...(dialogue ? { dialogue: speech(s) } : {}),
+            // The sound brief only exists for sound-led presets. Naming the
+            // literal sounds of the place is what stops a clip with no
+            // voice-over from arriving with nothing on the audio track at all.
+            ...(intro ? { sound_context: s.sound_context || '' } : {}),
             narrative_context: s.narrative_context,
-            veo3_prompt: `[SHOT] ${s.narrative_context}\n[LOOK] ${p.style}\n[AUDIO] Narrator (V.O., ${p.narration_voice}): "${s.script_line}"`,
+            // A clip with no narration carries its sound brief in the AUDIO slot
+            // instead of an empty narrator line, which the video model would
+            // otherwise fill with invented dialogue. A dialogue clip carries the
+            // lines themselves, attributed, so the model knows who says what.
+            veo3_prompt: `[SHOT] ${s.narrative_context}\n[LOOK] ${p.style}\n[AUDIO] ` +
+                (dialogue
+                    ? (speech(s).length
+                        ? speech(s).map(d => `${d.speaker} (on screen, speaking): "${d.line}"`).join('  ')
+                        : 'No dialogue in this clip. Room tone and the ambient sound of the place only.')
+                    : (intro && !String(s.script_line || '').trim())
+                        ? `No voice-over in this clip. Natural sound only: ${s.sound_context}`
+                        : `Narrator (V.O., ${p.narration_voice}): "${s.script_line}"`),
             characters: (s.characters || []).map(x => String(x).toLowerCase()),
         })),
         character_descriptions: descriptions,
@@ -538,16 +778,78 @@ function buildStory(p, cast, meta, scenes) {
     };
 }
 
-function validate(story, cast) {
+function validate(story, cast, p = {}) {
     const bad = [];
     const names = cast.map(c => c.name.toLowerCase());
+    const types = Array.isArray(p.cast_types)
+        ? p.cast_types.map(t => String(t).trim().toLowerCase()).filter(Boolean)
+        : [];
+    // A type the preset does not allow is a real error. A MISSING type is not -
+    // the description still carries the identity, and the sheets fall back to
+    // the neutral wording - so it is deliberately not a failure here.
+    cast.forEach(c => {
+        const t = String(c.type || '').trim().toLowerCase();
+        if (types.length && t && !types.includes(t)) {
+            bad.push(`"${c.name}" is typed "${t}", which ${p.label || 'this preset'} does not allow (${types.join(', ')})`);
+        }
+    });
     if (!story.description) bad.push('description is empty');
     if (!story.moral) bad.push('moral is empty');
     if (!story.scenes.length) bad.push('no scenes');
+    // A sound-led story narrates one clip and then stops. Both halves of that
+    // are checked, because each fails silently on its own: leftover narration
+    // turns the film back into a documentary, and a missing sound brief leaves
+    // the clip with an empty audio track for the video model to fill.
+    const intro = p.narration_scope === 'intro';
+    // A dialogue story is checked on the opposite things: every line has to
+    // belong to somebody in the cast, and the whole exchange has to fit inside
+    // the clip. A line attributed to a name that was never designed becomes an
+    // @-mention for a Character that does not exist, which is the same failure
+    // the character check below exists to prevent.
+    const dialogue = p.narration_scope === 'dialogue';
     story.scenes.forEach((s, i) => {
         const n = i + 1;
-        if (!String(s.script_line || '').trim()) {
-            bad.push(`clip ${n}: no script_line - the agent would INVENT this scene`);
+        if (dialogue) {
+            if (String(s.script_line || '').trim()) {
+                bad.push(`clip ${n}: has a script_line, but this preset is spoken dialogue - there is no narrator`);
+            }
+            const lines = s.dialogue || [];
+            if (!lines.length) {
+                bad.push(`clip ${n}: no dialogue - this film is a conversation, so every clip needs a line`);
+            }
+            let words = 0;
+            lines.forEach((d, j) => {
+                const who = String(d.speaker || '').trim();
+                const text = String(d.line || '').trim();
+                if (!who) bad.push(`clip ${n}: dialogue line ${j + 1} has no speaker`);
+                else if (cast.length && !names.includes(who.toLowerCase())) {
+                    bad.push(`clip ${n}: "${who}" speaks but is not in the cast (${names.join(', ')})`);
+                }
+                if (!text) bad.push(`clip ${n}: dialogue line ${j + 1} has no words in it`);
+                words += text ? text.split(/\s+/).length : 0;
+            });
+            if (words > D_WORDS_HARD) {
+                bad.push(`clip ${n}: ${words} spoken words across ${lines.length} line(s), over the ${D_WORDS_HARD}-word limit for ${SECONDS}s of dialogue`);
+            }
+            // The speaker has to be on screen for the line to be said on
+            // camera, and the model needs them listed to attach their reference.
+            lines.forEach(d => {
+                const who = String(d.speaker || '').trim().toLowerCase();
+                if (who && names.includes(who) && !s.characters.map(x => String(x).toLowerCase()).includes(who)) {
+                    bad.push(`clip ${n}: "${d.speaker}" speaks but is not listed in characters`);
+                }
+            });
+        } else if (intro && n > 1) {
+            if (String(s.script_line || '').trim()) {
+                bad.push(`clip ${n}: has narration, but this preset narrates the opening clip only`);
+            }
+            if (!String(s.sound_context || '').trim()) {
+                bad.push(`clip ${n}: no sound_context - with no narration this clip would be silent`);
+            }
+        } else if (!String(s.script_line || '').trim()) {
+            bad.push(intro
+                ? 'clip 1: no script_line - the opening hook is the only narration this film has'
+                : `clip ${n}: no script_line - the agent would INVENT this scene`);
         } else {
             const w = s.script_line.trim().split(/\s+/).length;
             if (w > WORDS_HARD) bad.push(`clip ${n}: narration is ${w} words, over the ${WORDS_HARD}-word limit for ${SECONDS}s`);
@@ -586,12 +888,24 @@ function writePackage(dir, p, story, cast) {
     fs.writeFileSync(storyPath, JSON.stringify(story, null, 2) + '\n', 'utf8');
 
     if (cast.length) {
+        const hasAnimal = cast.some(c => c.type === 'animal');
         const sheets = Object.entries(story.character_descriptions).map(([k, desc]) => {
             const c = cast.find(x => x.name.toLowerCase() === k) || {};
             return [
-                `=== ${k.toUpperCase()} ===`,
+                `=== ${k.toUpperCase()} ===${c.type ? `   (${c.type})` : ''}`,
                 `save as: character_refs/${k}_reference_sheet.jpg`,
                 '',
+                // An animal sheet has one job a human sheet does not: it has to
+                // make the breed and the coat markings readable in a single
+                // image, because those, not a face, are what the video model
+                // reproduces from cut to cut.
+                ...(c.type === 'animal'
+                    ? ['This is an ANIMAL - one image only. Full body, standing,',
+                       'three-quarter view, so the face AND the coat markings are',
+                       'both readable. Every physical marker listed below must be',
+                       'visible in it, or the video model will not reproduce them.',
+                       '']
+                    : []),
                 '-- image prompt --',
                 c.sheet_prompt || '(none generated - describe the character in the medium above)',
                 '-- image prompt --',
@@ -606,8 +920,13 @@ function writePackage(dir, p, story, cast) {
             `Character reference sheets for "${story.title}"\n` +
             `Generate each one, then upload it into Flow as a Character named exactly\n` +
             `${cast.map(c => c.name).join(', ')} (capital first letter).\n` +
-            `Every sheet must be made with the same medium or the cast will not match.\n\n` +
-            sheets + '\n', 'utf8');
+            `Every sheet must be made with the same medium or the cast will not match.\n` +
+            (hasAnimal
+                ? 'One image per character. Do not make a multi-angle sheet for the\n' +
+                  'animals - the video model accepts at most 3 reference images, and a\n' +
+                  'multi-view sheet counts as more than one.\n'
+                : '') +
+            '\n' + sheets + '\n', 'utf8');
     }
 
     const bible = [
@@ -628,9 +947,24 @@ function writePackage(dir, p, story, cast) {
         '## Camera',
         p.camera,
         '',
-        '## Narrator',
-        p.narration_voice,
-        '',
+        ...(p.direction ? ['## Direction', p.direction, ''] : []),
+        ...(p.narration_scope === 'dialogue'
+            ? ['## Voices',
+               'No narrator and no voice-over. The cast speak on screen, to each other,',
+               'and every word in the film comes out of one of their mouths.',
+               '',
+               '## Script',
+               ...story.scenes.map(sc => {
+                   const who = (sc.dialogue || []).map(d => `**${d.speaker}:** "${d.line}"`);
+                   return `- *${sc._scene_title}* — ${who.length ? who.join(' ') : '(silent beat)'}`;
+               }),
+               '']
+            : ['## Narrator',
+               p.narration_voice,
+               ...(p.narration_scope === 'intro'
+                   ? ['', 'Heard over the opening clip only. Clips 2 onward carry no voice-over', 'at all - they run on their own sound and the music under it.', '']
+                   : [''])]),
+        ...(p.sound_style ? ['## Sound', p.sound_style, ''] : []),
         '## Never',
         p.avoid,
         '',
@@ -694,13 +1028,20 @@ if (require.main === module) (async () => {
     }
 
     const p = loadPreset(PRESET_ID);
+    // A preset may carry its own length - an animal kindness film is specified
+    // at 60-90s, where most genres are happy at 56. Applied here, before the
+    // prompts are built and before the run is described on screen, so the
+    // printed duration is the one that actually gets used. An explicit
+    // --duration wins and this does nothing.
+    const fromPreset = usePresetDuration(p);
     const slug = slugify(TITLE);
     const dir = OUT_DIR || path.join(STORIES_DIR, slug);
 
     console.log(`\n  title    : ${TITLE}`);
     console.log(`  preset   : ${p.label}  [${p.id}]`);
     console.log(`  format   : ${ASPECT}, ${SECONDS}s per clip`);
-    console.log(`  duration : ${DURATION}s  ->  ${SCENES} clips`);
+    console.log(`  duration : ${DURATION}s  ->  ${SCENES} clips` +
+                (fromPreset ? `  (the ${p.label} preset's own length)` : ''));
     console.log(`  folder   : ${dir}`);
 
     if (DRY) {
@@ -749,7 +1090,7 @@ if (require.main === module) (async () => {
         // 1. cast + outline
         process.stdout.write('\n  [1/2] writing the cast and outline ... ');
         const meta = await ask(ring, MODEL, castPrompt(p), 8192);
-        const cast = meta.characters || [];
+        const cast = normaliseCast(p, meta.characters || []);
         const outline = meta.outline || [];
         // Only a preset that declares `cast: "required"` is allowed to fail
         // here. For an optional-cast genre an empty list is an ANSWER - the
@@ -779,7 +1120,7 @@ if (require.main === module) (async () => {
 
         const story = buildStory(p, cast, meta, scenes);
 
-        const bad = validate(story, cast);
+        const bad = validate(story, cast, p);
         if (bad.length) {
             console.error('\n  REFUSING TO WRITE. The generated story failed validation:');
             for (const b of bad) console.error(`    - ${b}`);
@@ -822,4 +1163,5 @@ module.exports = {
     slugify, buildStory, validate, writePackage, loadPreset,
     castPrompt, scenesPrompt, parseJson, geminiText,
     apiKeys, maskKey, isQuotaError, isTransient, KeyRing, ask, callApi,
+    normaliseCast, usePresetDuration, lookBlock,
 };
