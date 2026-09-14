@@ -329,7 +329,13 @@ class Veo3FlowNewUI {
         log(`âœ… Automation browser attached (CDP ${this.cdpUrl}, profile: ${this.accountLabel || CONFIG.CHROME_PROFILE})`);
 
         const pages = await this.browser.pages();
-        this.page = pages.find(p => (p.url() || '').includes('flow.google.com')) || pages[pages.length - 1] || await this.browser.newPage();
+        // Prefer a tab already inside a project/editor over one sitting on
+        // the Flow home page - the browser often carries both.
+        const flowPages = pages.filter(p => /flow\.google\.com/i.test(p.url() || ''));
+        this.page = flowPages.find(p => /\/project\//i.test(p.url() || ''))
+                 || flowPages[0]
+                 || pages[pages.length - 1]
+                 || await this.browser.newPage();
         this.page.setDefaultTimeout(120000);
         this.page.setDefaultNavigationTimeout(120000);
         log(`âœ… Page: ${this.page.url().slice(0, 90)}`);

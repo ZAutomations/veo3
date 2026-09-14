@@ -288,13 +288,24 @@ function pickerFn() {
 
     const browser = await puppeteer.connect({ browserURL: CDP_URL, defaultViewport: null });
     const pages = await browser.pages();
-    const page = pages.find(p => /flow\.google\.com/i.test(p.url() || ''));
+    // Prefer a tab that is actually IN a project over one sitting on the
+    // Flow home page: the browser often carries both, and first-match
+    // grabbed whichever loaded first - the home tab - and then failed the
+    // project-id check below even though the project was open all along.
+    const flowTabs = pages.filter(p => /flow\.google\.com/i.test(p.url() || ''));
+    const page = flowTabs.find(p => /\/project\//i.test(p.url() || ''))
+              || flowTabs.find(p => /\/edit\/|\/scene\//i.test(p.url() || ''))
+              || flowTabs[0];
     if (!page) {
-        console.error('No Flow tab found. Open a Flow project first.');
+        console.error('No Flow tab found in the AUTOMATION browser. Open a Flow project there.');
         console.error('Open tabs:\n  ' + pages.map(p => p.url()).join('\n  '));
+        await browser.disconnect();
         process.exit(1);
     }
     log(`Flow tab: ${page.url()}`);
+    if (flowTabs.length > 1) {
+        log(`${flowTabs.length} Flow tabs open - using the one inside a project.`);
+    }
 
     async function snap(label) {
         const data = await page.evaluate(snapshotFn);

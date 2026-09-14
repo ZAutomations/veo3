@@ -420,7 +420,10 @@ async function hoverPass(page, log) {
 
     const browser = await puppeteer.connect({ browserURL: CDP_URL, defaultViewport: null });
     const pages = await browser.pages();
-    const page = pages.find(p => /flow\.google\.com/i.test(p.url() || ''));
+    // Same as agent_mode.js: prefer the project tab over a Flow home tab
+    // when the browser is carrying both.
+    const flowTabs = pages.filter(p => /flow\.google\.com/i.test(p.url() || ''));
+    const page = flowTabs.find(p => /\/project\//i.test(p.url() || '')) || flowTabs[0];
     if (!page) {
         console.error('No Flow tab found. Open the Flow project first.');
         console.error('Open tabs:\n  ' + pages.map(p => p.url()).join('\n  '));
