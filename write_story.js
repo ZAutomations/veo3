@@ -403,6 +403,12 @@ function lookBlock(p) {
         ...(p.setting
             ? [`SETTING (FIXED - the entire film happens in this one place and never leaves it): ${p.setting}`]
             : []),
+        // Fixed stage positions, the same idea one level down: the room is
+        // locked, and so is who sits where. Repeated into every [SHOT] by
+        // buildStory, so a clip that ignores the rule still carries it.
+        ...(p.blocking
+            ? [`BLOCKING (FIXED - never changes for the whole film): ${p.blocking}`]
+            : []),
         // Free-text direction for genres that need it. An animal film has to be
         // told that the animal behaves like an animal; nothing in LOOK or CAMERA
         // says that, and left unsaid the model writes it as a small person.
@@ -609,8 +615,20 @@ function scenesPrompt(p, cast, outline, from, to, soFar) {
                         camera. THE PLACE IS FIXED and already supplied - do NOT
                         describe it, do NOT redecorate it, do NOT move the two of
                         them anywhere else, and never name a different location.
-                        Vary the framing, the angle and who is in focus from clip
-                        to clip; the place stays exactly the same.`
+                        THE SEATING IS FIXED TOO - whoever sat on the left in
+                        clip 1 is on the left in every clip: never swap their
+                        sides, never stand them up, never walk them out of
+                        frame. Vary only the action, the expression and the
+                        camera angle; the place and the positions stay put.
+CAMERA ANGLE - pick it by who is speaking, and NAME it in the last sentence
+  of the narrative_context:
+    - one of them speaks  -> over-the-shoulder medium close-up from behind
+                             the OTHER one, framed tight on the SPEAKER, the
+                             listener a soft-focus edge in the foreground.
+    - both speak, or a
+      wordless beat       -> the wide two-shot at eye level, both in frame.
+  Cut between angles, never pan, never zoom, and keep the same axis so their
+  left and right positions never flip. The speaking face is the sharp one.`
         : `  "narrative_context" - 80 to 130 words describing what is ON SCREEN: the setting,
                         who is present, what they do, the light, the mood, and the
                         camera.`;
@@ -749,9 +767,8 @@ function buildStory(p, cast, meta, scenes) {
     // it true - whatever a clip's own text says, the room handed to the video
     // model is the same one in all of them. The clip's own description follows
     // it, so the two read as one scene brief.
-    const shot = (s) => p.setting
-        ? `${p.setting} ${String(s.narrative_context || '').trim()}`.trim()
-        : s.narrative_context;
+    const shot = (s) => [p.setting, p.blocking, String(s.narrative_context || '').trim()]
+        .filter(Boolean).join(' ');
     return {
         title: TITLE,
         description: meta.description,
