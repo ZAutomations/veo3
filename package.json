@@ -16,13 +16,25 @@
     "styles": "node styles.js",
     "story": "node write_story.js",
     "story:models": "node write_story.js --list-models",
+    "mcp": "node mcp_server.js",
+    "project": "node project_setup.js",
+    "analyze": "node analyze_video.js",
+    "test:mcp": "node test_mcp.js",
+    "test:analyze": "node test_analyze_video.js",
+    "test:contentmap": "node test_content_map.js",
+    "test:project": "node test_project_setup.js",
+    "test:genai": "node test_genai_presets.js",
+    "test:mcpgui": "python test_mcp_gui.py",
     "test:keys": "node test_key_ring.js",
     "test:cast": "node test_no_cast.js",
     "test:types": "node test_cast_types.js",
     "test:scope": "node test_narration_scope.js",
     "test:dialogue": "node test_dialogue_mode.js",
-    "check": "node --check veo3_flow_new_ui.js && node --check probe_editor.js && node --check agent_mode.js && node --check agent_watch.js && node --check agent_download.js && node --check join_clips.js && node --check story_to_agent_prompt.js && node --check styles.js && node --check write_story.js && node --check probe_agent.js && node --check probe_instructions.js && node --check probe_mention.js && node test_key_ring.js && node test_no_cast.js && node test_cast_types.js && node test_narration_scope.js && node test_dialogue_mode.js && node test_fixed_setting.js",
-    "test:setting": "node test_fixed_setting.js"
+    "check": "node --check veo3_flow_new_ui.js && node --check probe_editor.js && node --check agent_mode.js && node --check agent_watch.js && node --check agent_download.js && node --check join_clips.js && node --check story_to_agent_prompt.js && node --check styles.js && node --check write_story.js && node --check probe_agent.js && node --check probe_instructions.js && node --check probe_mention.js && node --check mention_target.js && node test_key_ring.js && node test_no_cast.js && node test_cast_types.js && node test_narration_scope.js && node test_dialogue_mode.js && node test_fixed_setting.js && node test_cast_identity.js && node test_mention_target.js && node test_place_plate.js && node --check mcp_server.js && node test_mcp.js && node --check analyze_video.js && node test_analyze_video.js && node test_content_map.js && node --check project_setup.js && node test_project_setup.js && node test_genai_presets.js",
+    "test:setting": "node test_fixed_setting.js",
+    "test:identity": "node test_cast_identity.js",
+    "test:mention": "node test_mention_target.js",
+    "test:place": "node test_place_plate.js"
   },
   "engines": {
     "node": ">=18"

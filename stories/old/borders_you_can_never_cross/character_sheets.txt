@@ -1,0 +1,22 @@
+Reference image for "Borders You Can Never Cross" - the place
+Generate it, then SAVE IT in this story's character_refs/ folder
+under the name given below.
+Do NOT create a Flow Character for it, and do not touch the Character
+tab. A Flow Character is re-invented for every clip, which is what made
+faces and wardrobes drift from cut to cut. A plain image mentioned with
+@Name is handed to the model as reference pixels and holds. Stage 2 does
+that upload and mention for you - you only supply the file.
+
+=== PLACE - VIRTUAL GLOBE ===
+save as: character_refs/Virtual Globe.jpg
+
+This is the ONE place this film happens in. Every clip is shot here,
+with the same furniture and the same light. Generate it as ONE image
+of the place EMPTY - no people and no animals - seen straight on and
+wide, evenly lit, the whole space readable.
+
+-- image prompt --
+Photorealistic 3D satellite globe in dark space, floating sphere with detailed realistic terrain, ocean blue textures, cloud cover, and clean stylised flat color fills marking geographic regions. Wide straight-on view, no people, no text, no labels, no watermarks, digital 3D map rendering medium.
+
+-- place text (must match this exactly in the story JSON) --
+A photorealistic 3D digital satellite globe floating in dark space, lit by a bright overhead directional light. Topographic mountain terrain, ocean blues, and cloud layers wrap around the rotating sphere. Styled flat color fills define national territories without flags or text labels. The environment remains static, with smooth camera movements zooming into glowing border highlights.

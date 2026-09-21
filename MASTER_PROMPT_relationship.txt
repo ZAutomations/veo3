@@ -14,6 +14,29 @@
    step 4 works with no editing. If the model adds commentary outside the JSON,
    delete that - the file must be bare JSON and nothing else.
 
+   This is the MANUAL path. `npm run story -- --preset relationship-dialogue`
+   does the same thing automatically, and is the maintained one - it reads the
+   look straight out of styles.json, so it can never fall behind it. Everything
+   below is a hand-kept copy of that preset's look and rules: if you change the
+   look THERE, change it here as well, or the two paths will quietly produce
+   different films.
+
+   This file is written for `relationship-dialogue`, the DRAWN preset - the
+   2.5D semi-realistic medium. Its twin `relationship-dialogue-real` uses the
+   same rules but a photorealistic look, which is owned by styles.json; that one
+   has no hand-kept copy here, so use
+   `npm run story -- --preset relationship-dialogue-real` for it. Do not simply
+   swap "photorealistic" into the strings below - the preset changes more than
+   the medium.
+
+   YOU DESIGN BOTH PEOPLE. There is no fixed face: the two characters are yours
+   for THIS story, drawn in the 2.5D semi-realistic medium below, and held
+   consistent across the clips by their descriptions and their reference sheets.
+
+   THE PLACE IS PER FILM, NOT HARDCODED. You choose ONE place to suit THIS story
+   - a bed, a desk, a room, a bench - name it, describe it, and never leave it.
+   There is no fixed tearoom any more.
+
 
  WHY THE RULES BELOW ARE STRICT
 
@@ -57,86 +80,109 @@ to another person while sitting across a table from them.
  THE AESTHETIC (LOCKED - COPY IT EXACTLY)
 ==========================================================
 
-Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution,
-delicate soft lighting, atmospheric indoor ambient light, shallow depth of
-field, 35mm lens, smooth subtle facial movement, high aesthetic detail.
+2.5D semi-realistic anime illustration, high-end digital painting, 8K
+resolution, ultra-detailed textures, delicate soft lighting, atmospheric
+ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement,
+high aesthetic detail.
 
     Palette: honeyed afternoon light through gauze curtains, warm cream and
-             porcelain white, muted sage green, dusty rose, deep teal shadow,
-             soft gold highlights.
+             porcelain white, mustard yellow and off-white, indigo and dusty
+             rose, deep teal shadow, henna brown, oxidised silver, soft gold
+             highlights.
 
-    Camera:  wide two-shots to hold both people in the room, over-the-shoulder
-             singles across the table, medium close-ups on the face that is
-             LISTENING rather than the one talking, insert shots on hands,
-             teacups and folded letters, slow barely-there pushes.
+    Camera:  a static locked-off camera, no movement while a line is spoken.
+             When one of them speaks: a clean CUT to an over-the-shoulder medium
+             close-up from behind the listener, framed tight on the SPEAKING
+             face, the listener a soft-focus edge in the foreground. When both
+             speak, or the beat needs air: the wide two-shot at eye level with
+             both in frame. No pans, no dollies, no zooms, no scene transitions.
 
-    Setting: ONE room, fixed for the whole film - see THE ONE ROOM below. The
-             pair never move and the room never changes.
+    Setting: ONE place, fixed for the whole film - YOU choose it, see THE ONE
+             PLACE below. The pair never change where they are and the place
+             never changes.
 
-    NEVER:   live-action or photographic realism, 3D CGI sheen, glitch, motion
-             blur, exaggerated or comedic expressions, on-screen text,
-             subtitles, captions, watermarks or UI, shouting matches, explicit
-             content, cynicism, graphic conflict.
+    NEVER:   no narrator and no voice-over of any kind, no on-screen text,
+             subtitles, captions, watermarks or UI, no live-action or
+             photographic realism, no 3D CGI sheen, no flat cel-shaded cartoon
+             look, no chibi or super-deformed proportions, no glitch, no motion
+             blur, no exaggerated or comedic expressions, no shouting matches,
+             no explicit content, no cynicism, no graphic conflict.
 
 
 ==========================================================
- THE ONE ROOM (FIXED - IT NEVER CHANGES)
+ THE ONE PLACE (YOU CHOOSE IT ONCE - IT NEVER CHANGES)
 ==========================================================
 
-This film happens in ONE place. Not one kind of place - one actual room, the
-same room in every single clip. The two of them sit down at the start and they
-are still sitting there at the end. Nothing takes them anywhere else.
+This film happens in ONE place. Not one kind of place - one actual place, the
+same one in every single clip, chosen to suit THIS story. A couple arguing about
+money belongs at a desk; a couple reconnecting belongs on a bed; two people
+holding their ground stand in a room. Pick the place the story needs, then never
+leave it. The two of them are in it at the start and still in it at the end.
 
-Copy this sentence into EVERY clip EXACTLY, word for word, as the first thing in
-"narrative_context":
+Choose the place yourself and write it THREE ways:
 
-    A quiet tearoom corner by one tall window. A round marble-topped table sits
-    between two upholstered chairs, gauze curtains hang at the window, a small
-    vase of white orchids stands beside a stack of saucers, and a folded letter
-    rests on the table. Warm late-afternoon light falls from the window on the
-    left.
+    "place_name"        - 1 or 2 words, what a person would call it: "Bedroom",
+                          "Kitchen Table", "Park Bench". This becomes the image's
+                          asset name - keep it short and plain.
+    "place_description" - 45 to 70 words describing the fixed place ON ITS OWN,
+                          with nobody in it. Say the furniture or landmarks, what
+                          is on the walls or the ground, where the light comes
+                          from, and the time of day. Write it so it reads
+                          identically every time it is repeated.
+    "place_prompt"      - a 40 to 60 word prompt for an image generator to make
+                          that place as ONE image: the EMPTY place, no people and
+                          no animals, a straight-on wide view, evenly lit, the
+                          whole space readable. Same medium as the cast sheets.
+                          Say that it is empty of people, and that there is no
+                          text, no labels and no watermark.
 
-Everything you write after that sentence must be new and different in each clip.
-That is where the film moves - not the room.
+Then copy "place_description" into EVERY clip EXACTLY, word for word, as the
+first thing in "narrative_context". Everything you write after that sentence must
+be new and different in each clip. That is where the film moves - not the place.
 
-    DO NOT  describe the room again, or add furniture to it
+    DO NOT  describe the place again, or add furniture to it
     DO NOT  change the light, the time of day, or the weather
     DO NOT  move them to a cafe, a veranda, a garden, a memory or a flashback
     DO NOT  cut away to a street, a car, a phone screen, or another location
 
 Move the CAMERA instead. Wide two-shot, over-the-shoulder single, medium
-close-up, insert shot on the teacups. A different angle on the same room is what
-stops seven clips looking like one photograph. Changing the room is what makes
-the finished video look broken.
+close-up, an insert shot on whatever is in their hands. A different angle on the
+same place is what stops seven clips looking like one photograph. Changing the
+place is what makes the finished video look broken.
 
 
 ==========================================================
- THE TWO CHARACTERS (DESIGN THEM ONCE, NEVER CHANGE THEM)
+ THE TWO CHARACTERS (YOU DESIGN BOTH)
 ==========================================================
 
-Exactly TWO people. A two-hander. Give each one a fixed identity that will not
-drift between clips - this matters more than anything else visually, because
-the renderer must produce the SAME person every time.
+This is a two-hander, so there are exactly two people in the film. There is no
+fixed face: BOTH are yours to design for THIS story, and the story cannot be
+told without them - a conversation has two sides, not a crowd. Nobody else
+appears.
 
-For each character lock down:
-    - Exact age
-    - Hairstyle (length, colour, how it is worn)
-    - Face structure and eye colour
-    - Specific clothing: colours and details, stated once and repeated forever
-    - Demeanour
+Design each of the two the same way: give them a name, and a 55-to-75-word
+description that starts "Same <name> throughout - ". State age, build, hair,
+face and skin tone, in one fixed multi-layered wardrobe that never changes, and
+end with the NEVER guard restated as "NOT ..." so the model cannot drift -
+exactly as the field spec below explains.
 
-They should be visually distinct from each other at a glance - different ages,
-different colouring, different silhouettes. Common pairings that work: a
-grandmother and her granddaughter, a mother and her daughter, a husband and
-wife, two friends, an older woman and a younger woman.
+Both are drawn in the SAME medium - the 2.5D semi-realistic look in THE
+AESTHETIC above: realistic adult proportions with gently idealised features,
+large luminous eyes with long lashes, a small refined nose, soft blushing
+cheeks, glossy semi-realistic skin, and hair rendered strand by strand. Indian
+household styling - a saree or salwar-kameez whose colours, border and pallu are
+stated once, henna mehndi on the hands and forearms, oxidised silver jhumka
+earrings, glass bangles and a delicate necklace - fixed for that character and
+never changed. NOT chibi, NOT super-deformed, NOT a flat cel-shaded cartoon,
+NOT live-action, NOT a photograph, NOT 3D CGI.
 
-Cast template every character description must follow:
+Both hold their positions for the whole film and never leave the shot.
 
-    Cinematic digital manhwa character, soft 3D cel-shaded semi-realistic
-    rendering, realistic adult human proportions, delicate defined facial
-    structure, detailed hair with individual strands, expressive but restrained
-    eyes, contemporary or gently vintage clothing in fixed colours. NOT
-    live-action, NOT a photograph, NOT 3D CGI, NOT western cartoon, NOT chibi.
+    The one laying down the rules holds the screen-LEFT position, angled facing
+    right; the one hearing them holds screen-RIGHT, angled facing left. Whether
+    the story has them seated or standing, they NEVER swap sides, NEVER leave
+    the frame, and the camera NEVER crosses the axis between them. Neither of
+    them changes clothes, hairstyle or jewellery between clips.
 
 
 ==========================================================
@@ -154,17 +200,17 @@ Build the exchange in this order:
       vague comfort like "communicate better".
 
    3. RELATABLE DOUBT / INTERRUPTION
-      The younger one pushes back with the exact objection the audience is
-      silently thinking. This is what stops the video feeling like a lecture.
-      It must be a REAL objection, not a straw man.
+      The one on the receiving end pushes back with the exact objection the
+      audience is silently thinking. This is what stops the video feeling like a
+      lecture. It must be a REAL objection, not a straw man.
 
    4. SHARP APHORISM
       One line worth repeating - poetic, short, surprising. This is the line
       people screenshot.
 
    5. WARM RESOLUTION
-      Land it. Earned, not sentimental. The younger one does not have to agree;
-      she has to UNDERSTAND.
+      Land it. Earned, not sentimental. The one hearing it does not have to
+      agree; they have to UNDERSTAND.
 
 
 ==========================================================
@@ -177,15 +223,14 @@ WORD BUDGET - the most common failure
     each is ideal. A clip that overruns gets cut off mid-sentence.
 
 SPEAKERS
-    Only the two designed characters may speak. Nobody else. No off-screen
-    voice. No "a passer-by says". Every speaker must be one of the two, and
-    must be listed in that clip's "characters" array.
+    Only the two characters may speak. Nobody else. No off-screen voice. No "a
+    passer-by says". Every speaker must be one of the two, and must be listed in
+    that clip's "characters" array.
 
 VISIBLE SPEECH
     The characters visibly speak - mouths move, they look at each other. Give
     the LISTENER something to do while the other talks: a teacup turned, a hand
-    stilled, an eye-line that drops and comes back. The camera favours the face
-    that is listening.
+    stilled, an eye-line that drops and comes back.
 
 NO ON-SCREEN TEXT
     No subtitles, no captions, no titles, no watermarks. The images carry no
@@ -207,34 +252,39 @@ after. Every field below is required.
   "target_audience": "Couples, singles, anyone quietly working out a relationship",
   "moral": "The single-sentence lesson the film leaves behind.",
   "niche": "Relationship Dialogue",
-  "style": "Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail",
+  "style": "2.5D semi-realistic anime illustration, high-end digital painting, 8K resolution, ultra-detailed textures, delicate soft lighting, atmospheric ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail",
   "aspect_ratio": "9:16",
   "scene_seconds": 8,
   "narrated": false,
   "narration_scope": "dialogue",
   "silent_cast": false,
+  "place": {
+    "name": "Bedroom",
+    "description": "A quiet bedroom at dusk, one low wooden bed against the left wall, two stacked pillows and a crumpled cream quilt, a small brass lamp on a bedside table, a framed wedding photo above the headboard, and sheer curtains across the window at the back. Warm lamplight falls from the left and the room is otherwise still.",
+    "prompt": "2.5D semi-realistic anime illustration, high-end digital painting, 8K ultra-detailed textures. An empty bedroom at dusk: a low wooden bed with a cream quilt, a small brass lamp on a bedside table, a framed photo above the headboard, sheer curtains at the window. Warm lamplight from the left. Straight-on wide view, evenly lit, whole space readable. No people, no animals, no text, no labels, no watermark."
+  },
   "character_descriptions": {
-    "evelyn": "Same Evelyn throughout - a woman in her early 70s, silver hair swept back into a low bun with a silk scarf, fine-boned face, deep-set grey eyes, cream linen blouse with a high collar and a single pearl pin, unhurried and unshakeable.",
-    "clara": "Same Clara throughout - a woman in her late 20s, long dark auburn hair loose over one shoulder, soft round face, wide hazel eyes, dusty rose knit cardigan over a white dress, anxious and hopeful."
+    "meera": "Same Meera throughout - 20, Indian, petite, small oval face, soft rounded jaw. Large dark brown eyes, thick lashes, winged liner, softly blushing cheeks, full coral lips smiling warmly. Long dark brown hair in a loose half-updo. Mustard-yellow embroidered blouse, off-white saree with a fine blue striped border, pallu over her left shoulder. Intricate dark-brown henna mehndi on hands and forearms, oxidised silver jhumka earrings with pearl drops, glass bangles, a silver cluster necklace.",
+    "arjun": "Same Arjun throughout - 24, Indian, tall and lean, square jaw with light stubble. Deep-set dark brown eyes, straight brows, a broad nose, a calm closed mouth. Short black hair, neat and side-parted. Plain cream linen kurta with a mandarin collar, grey cotton trousers, a thin leather watch on his left wrist. NOT a different build, NOT a different hairstyle, NOT a changed wardrobe."
   },
   "character_references": {
-    "evelyn": "./character_refs/evelyn_reference_sheet.jpg",
-    "clara": "./character_refs/clara_reference_sheet.jpg"
+    "meera": "./character_refs/meera.jpg",
+    "arjun": "./character_refs/arjun.jpg"
   },
   "scenes": [
     {
       "_scene_number": 1,
-      "_scene_title": "Sit Down, Child",
+      "_scene_title": "The Rule",
       "_timing": "0:00-0:08",
       "scene_builder_action": "text_to_video",
       "extend_from_last_frame": false,
       "script_line": "",
       "dialogue": [
-        { "speaker": "Evelyn", "line": "Sit down, child. If he cannot read your silence, he will never respect your words." }
+        { "speaker": "Arjun", "line": "A man who needs you loud to feel strong will never hear you when you are quiet." }
       ],
-      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. A wide two-shot holds both women at the table. Evelyn sets down her porcelain teacup and looks directly at Clara, who has not touched her tea.",
-      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. A wide two-shot holds both women at the table. Evelyn sets down her porcelain teacup and looks directly at Clara, who has not touched her tea.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Evelyn (on screen, speaking): \"Sit down, child. If he cannot read your silence, he will never respect your words.\"",
-      "characters": ["evelyn", "clara"]
+      "narrative_context": "A quiet bedroom at dusk, one low wooden bed against the left wall, two stacked pillows and a crumpled cream quilt, a small brass lamp on a bedside table, a framed wedding photo above the headboard, and sheer curtains across the window at the back. Warm lamplight falls from the left and the room is otherwise still. A wide two-shot holds both of them on the edge of the bed, Arjun on the left and Meera on the right. Arjun sets the brass lamp down and looks at Meera, who keeps her hands in her lap.",
+      "veo3_prompt": "[SHOT] A quiet bedroom at dusk, one low wooden bed against the left wall, two stacked pillows and a crumpled cream quilt, a small brass lamp on a bedside table, a framed wedding photo above the headboard, and sheer curtains across the window at the back. Warm lamplight falls from the left and the room is otherwise still. A wide two-shot holds both of them on the edge of the bed, Arjun on the left and Meera on the right. Arjun sets the brass lamp down and looks at Meera, who keeps her hands in her lap.\n[LOOK] 2.5D semi-realistic anime illustration, high-end digital painting, 8K resolution, ultra-detailed textures, delicate soft lighting, atmospheric ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Arjun (on screen, speaking): \"A man who needs you loud to feel strong will never hear you when you are quiet.\"",
+      "characters": ["arjun", "meera"]
     },
     {
       "_scene_number": 2,
@@ -244,11 +294,11 @@ after. Every field below is required.
       "extend_from_last_frame": false,
       "script_line": "",
       "dialogue": [
-        { "speaker": "Clara", "line": "But what if his anger is just because he cares too much?" }
+        { "speaker": "Meera", "line": "But what if his anger is just because he cares too much?" }
       ],
-      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. An over-the-shoulder single on Clara. She turns her cup a quarter-turn, eyes down, then lifts them to Evelyn. Evelyn’s hands stay still around her own cup.",
-      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. An over-the-shoulder single on Clara. She turns her cup a quarter-turn, eyes down, then lifts them to Evelyn. Evelyn’s hands stay still around her own cup.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Clara (on screen, speaking): \"But what if his anger is just because he cares too much?\"",
-      "characters": ["evelyn", "clara"]
+      "narrative_context": "A quiet bedroom at dusk, one low wooden bed against the left wall, two stacked pillows and a crumpled cream quilt, a small brass lamp on a bedside table, a framed wedding photo above the headboard, and sheer curtains across the window at the back. Warm lamplight falls from the left and the room is otherwise still. An over-the-shoulder medium close-up from behind Arjun, framed tight on Meera. She turns the quilt edge in her fingers, eyes down, then lifts them to him. Arjun's hands stay still on his knee, a soft-focus edge in the foreground.",
+      "veo3_prompt": "[SHOT] A quiet bedroom at dusk, one low wooden bed against the left wall, two stacked pillows and a crumpled cream quilt, a small brass lamp on a bedside table, a framed wedding photo above the headboard, and sheer curtains across the window at the back. Warm lamplight falls from the left and the room is otherwise still. An over-the-shoulder medium close-up from behind Arjun, framed tight on Meera. She turns the quilt edge in her fingers, eyes down, then lifts them to him. Arjun's hands stay still on his knee, a soft-focus edge in the foreground.\n[LOOK] 2.5D semi-realistic anime illustration, high-end digital painting, 8K resolution, ultra-detailed textures, delicate soft lighting, atmospheric ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Meera (on screen, speaking): \"But what if his anger is just because he cares too much?\"",
+      "characters": ["arjun", "meera"]
     },
     {
       "_scene_number": 3,
@@ -258,11 +308,11 @@ after. Every field below is required.
       "extend_from_last_frame": false,
       "script_line": "",
       "dialogue": [
-        { "speaker": "Evelyn", "line": "A man who needs you loud to feel powerful will make your quiet moments feel like a crime." }
+        { "speaker": "Arjun", "line": "A man who needs you loud to feel powerful will make your quiet moments feel like a crime." }
       ],
-      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. A medium close-up on Evelyn, the camera resting on her listening face before she speaks, then drifting closer. The folded letter sits beside Clara’s saucer.",
-      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. A medium close-up on Evelyn, the camera resting on her listening face before she speaks, then drifting closer. The folded letter sits beside Clara’s saucer.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Evelyn (on screen, speaking): \"A man who needs you loud to feel powerful will make your quiet moments feel like a crime.\"",
-      "characters": ["evelyn", "clara"]
+      "narrative_context": "A quiet bedroom at dusk, one low wooden bed against the left wall, two stacked pillows and a crumpled cream quilt, a small brass lamp on a bedside table, a framed wedding photo above the headboard, and sheer curtains across the window at the back. Warm lamplight falls from the left and the room is otherwise still. An over-the-shoulder medium close-up from behind Meera, framed tight on Arjun before he speaks. The brass lamp sits lit beside Meera's hand.",
+      "veo3_prompt": "[SHOT] A quiet bedroom at dusk, one low wooden bed against the left wall, two stacked pillows and a crumpled cream quilt, a small brass lamp on a bedside table, a framed wedding photo above the headboard, and sheer curtains across the window at the back. Warm lamplight falls from the left and the room is otherwise still. An over-the-shoulder medium close-up from behind Meera, framed tight on Arjun before he speaks. The brass lamp sits lit beside Meera's hand.\n[LOOK] 2.5D semi-realistic anime illustration, high-end digital painting, 8K resolution, ultra-detailed textures, delicate soft lighting, atmospheric ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Arjun (on screen, speaking): \"A man who needs you loud to feel powerful will make your quiet moments feel like a crime.\"",
+      "characters": ["arjun", "meera"]
     }
   ]
 }
@@ -280,20 +330,27 @@ RULES FOR THE FIELDS ABOVE
 
   dialogue                    One to three turns per clip. THIS IS THE WHOLE
                               SCRIPT. Every clip needs at least one line.
+                              Only the two characters you designed ever
+                              speak.
 
   _scene_title                A short internal label. Never shown on screen.
 
-  narrative_context           What we SEE. It must BEGIN with the room sentence
-                              from THE ONE ROOM, copied word for word, and only
-                              then describe the shot, the framing, and who is
-                              doing what with their hands and eyes. Move the
-                              camera, never the pair. Do NOT put dialogue in
-                              here, and do NOT describe the room again after
-                              that opening sentence.
+  place                       The ONE place you chose for this film, as an
+                              object with "name", "description" and "prompt".
+                              It is the place the whole film happens in.
+
+  narrative_context           What we SEE. It must BEGIN with the
+                              "place_description" from THE ONE PLACE, copied word
+                              for word, and only then describe the shot, the
+                              framing, and who is doing what with their hands and
+                              eyes. Move the camera, never the pair, and never
+                              move them out of their positions. Do NOT put
+                              dialogue in here, and do NOT describe the place
+                              again after that opening sentence.
 
   veo3_prompt                 Build it by pasting the three parts together
                               EXACTLY like the example:
-                                  [SHOT] <copy narrative_context here, room
+                                  [SHOT] <copy narrative_context here, place
                                   sentence and all>
                                   [LOOK] <copy the style string here>
                                   [AUDIO] <Speaker (on screen, speaking):
@@ -303,14 +360,18 @@ RULES FOR THE FIELDS ABOVE
                               Speaker names keep their capital letters here.
 
   characters                  Lower case names, and every character who speaks
-                              in that clip MUST be listed. If both are present
-                              in the scene, list both.
+                              in that clip MUST be listed. Both of them are in
+                              every clip, so this is always
+                              ["arjun", "meera"] - the two names you gave.
 
-  character_descriptions      Keys are the characters' names in LOWER CASE.
-                              Begin each with "Same <Name> throughout - ".
+  character_descriptions      Keys are the lower-case names of the two
+                              characters you designed, and the values are their
+                              two descriptions from THE TWO CHARACTERS, written
+                              character for character. Do not insert anyone else.
 
-  character_references        Same lower-case keys.
-                              "./character_refs/<name>_reference_sheet.jpg"
+  character_references        Same lower-case keys, each pointing at the sheet
+                              you will draw for that character:
+                                  "./character_refs/<name>.jpg"
 
 
 ==========================================================
@@ -318,6 +379,12 @@ RULES FOR THE FIELDS ABOVE
 ==========================================================
 
   [ ] Is there a narrator or voice-over anywhere? If yes, delete it.
+  [ ] Are there exactly two characters, both designed for this story, and both
+      in the same 2.5D semi-realistic medium?
+  [ ] Are the two character_descriptions copied character for character?
+  [ ] Did you choose ONE place for this film, name it, and describe it?
+  [ ] Is "character_references" pointing at each character's
+      ./character_refs/ sheet?
   [ ] Does every clip have at least one dialogue line?
   [ ] Is every clip 30 spoken words or fewer? Count them.
   [ ] Does every speaker appear in the character_descriptions?
@@ -325,10 +392,11 @@ RULES FOR THE FIELDS ABOVE
   [ ] Is "script_line" empty in every single clip?
   [ ] Does every clip's veo3_prompt have all three tags: [SHOT], [LOOK], [AUDIO]?
   [ ] Is the style string in [LOOK] identical in every clip?
-  [ ] Does EVERY clip's narrative_context begin with the identical room sentence,
-      word for word? Compare them side by side.
+  [ ] Does EVERY clip's narrative_context begin with the identical place
+      description, word for word? Compare them side by side.
   [ ] Does any clip mention a different place, add furniture, or change the light?
-      If yes, delete it - the room is fixed.
+      If yes, delete it - the place is fixed.
+  [ ] Do they ever swap sides or leave their positions? They must not.
   [ ] Is the output bare JSON, with no text before or after it?
 
 
@@ -338,9 +406,14 @@ RULES FOR THE FIELDS ABOVE
 
    TITLE:  Never Marry a Man Who Fears Your Silence
 
-   ANGLE:  A grandmother and her granddaughter, at a table in the quiet tearoom,
-           over tea that neither of them drinks. The granddaughter is engaged
-           to a man whose anger she keeps excusing. The grandmother never once
-           tells her to leave him - she tells her what her silence is worth.
+   ANGLE:  Arjun, 24, and Meera, 20, on the edge of their bed at dusk, neither
+           of them ready to sleep. Meera keeps excusing the anger of a man she
+           once knew; Arjun never tells her what to do - he tells her what her
+           silence is worth.
+
+   PLACE:  Choose the place yourself. This angle suits a bedroom, but if you
+           write a different story, choose the place that story needs - a desk,
+           a kitchen table, a room they stand in - and keep it for the whole
+           film.
 
    CLIPS:  7 clips of 8 seconds, 9:16 vertical.

@@ -134,6 +134,27 @@ const goodBody = { candidates: [{ content: { parts: [{ text: '{"ok":1}' }] } }] 
     await W.ask(ring4, 'm', 'p', 100);
     eq('second call goes straight to the good key', seen, ['good']);
 
+    // 5. a dead model in a CHAIN falls back to the next model
+    const modelsTried = [];
+    global.fetch = async (url) => {
+        const model = String(url).split('/models/')[1].split(':')[0];
+        modelsTried.push(model);
+        if (model === 'bad') {
+            return { ok: false, status: 404, text: async () => JSON.stringify({ error: { message: 'model not found' } }) };
+        }
+        return { ok: true, status: 200, text: async () => JSON.stringify(goodBody) };
+    };
+    const out5 = await W.ask(new W.KeyRing(['k']), ['bad', 'good'], 'p', 100);
+    eq('fell back to the next model', out5, { ok: 1 });
+    eq('tried the models newest-first', modelsTried, ['bad', 'good']);
+
+    // 6. a lone dead model still throws, rather than passing silently
+    let threw5 = null;
+    try { await W.ask(new W.KeyRing(['k']), ['bad'], 'p', 100); } catch (err) { threw5 = err; }
+    ok('a chain of one that 404s throws', !!threw5);
+    ok('and is recognisable as a model error', W.isModelError(threw5));
+    ok('a quota error is not a model error', !W.isModelError(Object.assign(new Error('quota'), { status: 429 })));
+
     global.fetch = realFetch;
     console.log(`\n${pass} passed, ${fail} failed\n`);
     process.exit(fail ? 1 : 0);

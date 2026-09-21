@@ -1,0 +1,353 @@
+{
+  "title": "His 5 Rules Ended His Marriage",
+  "description": "After demanding total control through five strict marital rules immediately after their wedding, an arrogant husband is quietly informed by his wife that he is being evicted with nothing.",
+  "total_scenes": 13,
+  "video_duration": "104 seconds",
+  "target_audience": "Adults interested in relationship dynamics, drama, and instant karma stories.",
+  "moral": "Attempts to control and demean a partner can instantly shatter a marriage before it even begins.",
+  "niche": "Relationship Dialogue",
+  "style": "Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail",
+  "aspect_ratio": "9:16",
+  "scene_seconds": 8,
+  "narrated": false,
+  "narration_scope": "dialogue",
+  "silent_cast": false,
+  "scenes": [
+    {
+      "_scene_number": 1,
+      "_scene_title": "The Unspoken Rules",
+      "_timing": "0:00-0:08",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Julian",
+          "line": "Now that the wedding is over, listen carefully. This house has rules."
+        },
+        {
+          "speaker": "Evelyn",
+          "line": "Rules? We just said our vows."
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): Julian sits on screen-LEFT at the round marble table, angled facing right, and stays planted in that chair for the whole film. Evelyn sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Across the round marble table, Julian leans forward with a cold, deliberate composure, his sharp dark eyes fixed on his bride. The warm honeyed light from the tall window catches the edge of his blue suit jacket. Evelyn sits motionless opposite him in her cream sweater, holding his gaze with quiet stillness. Her fingers rest lightly beside her porcelain saucer. The camera pulls in slowly from a wide two-shot, capturing the sudden shift in mood as the silence between them tautens into quiet tension. Static wide two-shot at eye level, both Julian and Evelyn in frame facing each other, locked eye contact. Static stable camera, no scene transitions.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): Julian sits on screen-LEFT at the round marble table, angled facing right, and stays planted in that chair for the whole film. Evelyn sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Across the round marble table, Julian leans forward with a cold, deliberate composure, his sharp dark eyes fixed on his bride. The warm honeyed light from the tall window catches the edge of his blue suit jacket. Evelyn sits motionless opposite him in her cream sweater, holding his gaze with quiet stillness. Her fingers rest lightly beside her porcelain saucer. The camera pulls in slowly from a wide two-shot, capturing the sudden shift in mood as the silence between them tautens into quiet tension. Static wide two-shot at eye level, both Julian and Evelyn in frame facing each other, locked eye contact. Static stable camera, no scene transitions.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Julian (on screen, speaking): \"Now that the wedding is over, listen carefully. This house has rules.\"  Evelyn (on screen, speaking): \"Rules? We just said our vows.\"",
+      "characters": [
+        "julian",
+        "evelyn"
+      ]
+    },
+    {
+      "_scene_number": 2,
+      "_scene_title": "Total Financial Control",
+      "_timing": "0:08-0:16",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Julian",
+          "line": "Rule one: Your salary goes directly into my bank account."
+        },
+        {
+          "speaker": "Evelyn",
+          "line": "Into your account?"
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): Julian sits on screen-LEFT at the round marble table, angled facing right, and stays planted in that chair for the whole film. Evelyn sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. The camera shifts to a tight over-the-shoulder angle behind Evelyn, focusing on Julian’s unyielding expression. He speaks smoothly, tapping one finger against the smooth marble table to emphasize his absolute authority. Evelyn remains completely steady, her face framed in shadow while golden sunlight illuminates the side of Julian’s face. She does not flinch or raise her voice; instead, her amber eyes study him with careful, unreadable observation as he lays out his financial demand. Over-the-shoulder medium close-up from behind Evelyn, framed tight on Julian speaking; Evelyn silent in soft-focus foreground. Static stable camera, no scene transitions.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): Julian sits on screen-LEFT at the round marble table, angled facing right, and stays planted in that chair for the whole film. Evelyn sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. The camera shifts to a tight over-the-shoulder angle behind Evelyn, focusing on Julian’s unyielding expression. He speaks smoothly, tapping one finger against the smooth marble table to emphasize his absolute authority. Evelyn remains completely steady, her face framed in shadow while golden sunlight illuminates the side of Julian’s face. She does not flinch or raise her voice; instead, her amber eyes study him with careful, unreadable observation as he lays out his financial demand. Over-the-shoulder medium close-up from behind Evelyn, framed tight on Julian speaking; Evelyn silent in soft-focus foreground. Static stable camera, no scene transitions.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Julian (on screen, speaking): \"Rule one: Your salary goes directly into my bank account.\"  Evelyn (on screen, speaking): \"Into your account?\"",
+      "characters": [
+        "julian",
+        "evelyn"
+      ]
+    },
+    {
+      "_scene_number": 3,
+      "_scene_title": "Isolation Mandate",
+      "_timing": "0:16-0:24",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Julian",
+          "line": "Rule two: Delete all male contacts from your phone immediately."
+        },
+        {
+          "speaker": "Evelyn",
+          "line": "Every contact?"
+        },
+        {
+          "speaker": "Julian",
+          "line": "Without exception."
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): Julian sits on screen-LEFT at the round marble table, angled facing right, and stays planted in that chair for the whole film. Evelyn sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. A medium close-up favors Evelyn as she listens to his command. Her delicate facial expression remains composed, though her gaze drops briefly to the phone resting on the marble tabletop near the vase of orchids. The warm afternoon sun casts soft shadows across her features. In the background, Julian stays rigid in his chair, his tone firm and devoid of warmth. Evelyn turns her face back toward him, her calm demeanor contrasting sharply with the harsh stringency of his words. Over-the-shoulder medium close-up from behind Evelyn, framed tight on Julian speaking; Evelyn silent in soft-focus foreground. Static stable camera, no scene transitions.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): Julian sits on screen-LEFT at the round marble table, angled facing right, and stays planted in that chair for the whole film. Evelyn sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. A medium close-up favors Evelyn as she listens to his command. Her delicate facial expression remains composed, though her gaze drops briefly to the phone resting on the marble tabletop near the vase of orchids. The warm afternoon sun casts soft shadows across her features. In the background, Julian stays rigid in his chair, his tone firm and devoid of warmth. Evelyn turns her face back toward him, her calm demeanor contrasting sharply with the harsh stringency of his words. Over-the-shoulder medium close-up from behind Evelyn, framed tight on Julian speaking; Evelyn silent in soft-focus foreground. Static stable camera, no scene transitions.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Julian (on screen, speaking): \"Rule two: Delete all male contacts from your phone immediately.\"  Evelyn (on screen, speaking): \"Every contact?\"  Julian (on screen, speaking): \"Without exception.\"",
+      "characters": [
+        "julian",
+        "evelyn"
+      ]
+    },
+    {
+      "_scene_number": 4,
+      "_scene_title": "Quiet Compliance",
+      "_timing": "0:24-0:32",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Evelyn",
+          "line": "Go on. What else?"
+        },
+        {
+          "speaker": "Julian",
+          "line": "I am glad you are paying attention."
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): Julian sits on screen-LEFT at the round marble table, angled facing right, and stays planted in that chair for the whole film. Evelyn sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Focusing closely on Evelyn's hands, the camera captures her gently turning the handle of her teacup. Her movements are slow, deliberate, and entirely unbothered. Julian sits slightly back, misinterpreting her calm reaction as total submission, a self-satisfied tilt to his chin. The tea reflects soft gold highlights under the window light. As Evelyn raises her eyes to look directly at him again, the mood in the quiet room grows heavy with understated suspense. Static wide two-shot at eye level, both Julian and Evelyn in frame facing each other, locked eye contact. Static stable camera, no scene transitions.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): Julian sits on screen-LEFT at the round marble table, angled facing right, and stays planted in that chair for the whole film. Evelyn sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Focusing closely on Evelyn's hands, the camera captures her gently turning the handle of her teacup. Her movements are slow, deliberate, and entirely unbothered. Julian sits slightly back, misinterpreting her calm reaction as total submission, a self-satisfied tilt to his chin. The tea reflects soft gold highlights under the window light. As Evelyn raises her eyes to look directly at him again, the mood in the quiet room grows heavy with understated suspense. Static wide two-shot at eye level, both Julian and Evelyn in frame facing each other, locked eye contact. Static stable camera, no scene transitions.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Evelyn (on screen, speaking): \"Go on. What else?\"  Julian (on screen, speaking): \"I am glad you are paying attention.\"",
+      "characters": [
+        "julian",
+        "evelyn"
+      ]
+    },
+    {
+      "_scene_number": 5,
+      "_scene_title": "Domestic Servitude",
+      "_timing": "0:32-0:40",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Julian",
+          "line": "Rule three: Fresh meals three times a day. No ordering takeout."
+        },
+        {
+          "speaker": "Evelyn",
+          "line": "Three fresh meals daily."
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): Julian sits on screen-LEFT at the round marble table, angled facing right, and stays planted in that chair for the whole film. Evelyn sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. The shot frames Julian in a low-angle medium close-up, casting a subtle shadow over his sharp features while warm light touches the back of his slate blue jacket. He dictates his expectations with matter-of-fact arrogance, folding his hands over the edge of the table. Across from him, Evelyn sits in soft focus, listening patiently. Her silence carries a hidden weight, though she nods once with controlled politeness, allowing him to continue speaking without interruption. Over-the-shoulder medium close-up from behind Evelyn, framed tight on Julian speaking; Evelyn silent in soft-focus foreground. Static stable camera, no scene transitions.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): Julian sits on screen-LEFT at the round marble table, angled facing right, and stays planted in that chair for the whole film. Evelyn sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. The shot frames Julian in a low-angle medium close-up, casting a subtle shadow over his sharp features while warm light touches the back of his slate blue jacket. He dictates his expectations with matter-of-fact arrogance, folding his hands over the edge of the table. Across from him, Evelyn sits in soft focus, listening patiently. Her silence carries a hidden weight, though she nods once with controlled politeness, allowing him to continue speaking without interruption. Over-the-shoulder medium close-up from behind Evelyn, framed tight on Julian speaking; Evelyn silent in soft-focus foreground. Static stable camera, no scene transitions.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Julian (on screen, speaking): \"Rule three: Fresh meals three times a day. No ordering takeout.\"  Evelyn (on screen, speaking): \"Three fresh meals daily.\"",
+      "characters": [
+        "julian",
+        "evelyn"
+      ]
+    },
+    {
+      "_scene_number": 6,
+      "_scene_title": "Cutting Ties",
+      "_timing": "0:40-0:48",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Julian",
+          "line": "Rule four: Cut off your single friends."
+        },
+        {
+          "speaker": "Evelyn",
+          "line": "My friends?"
+        },
+        {
+          "speaker": "Julian",
+          "line": "A married woman has no business around bad influences."
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): Julian sits on screen-LEFT at the round marble table, angled facing right, and stays planted in that chair for the whole film. Evelyn sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. An over-the-shoulder view from behind Julian places Evelyn at the center of the frame. She tilts her head slightly, her amber eyes narrowing almost imperceptibly as Julian delivers his insult toward her companions. Late-afternoon light filters through the gauze curtains, bathing the quiet tea corner in deep teal shadows and pale gold glow. Evelyn rests her fingertips lightly on the edge of the folded letter on the table, absorbing his words with icy grace. Over-the-shoulder medium close-up from behind Evelyn, framed tight on Julian speaking; Evelyn silent in soft-focus foreground. Static stable camera, no scene transitions.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): Julian sits on screen-LEFT at the round marble table, angled facing right, and stays planted in that chair for the whole film. Evelyn sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. An over-the-shoulder view from behind Julian places Evelyn at the center of the frame. She tilts her head slightly, her amber eyes narrowing almost imperceptibly as Julian delivers his insult toward her companions. Late-afternoon light filters through the gauze curtains, bathing the quiet tea corner in deep teal shadows and pale gold glow. Evelyn rests her fingertips lightly on the edge of the folded letter on the table, absorbing his words with icy grace. Over-the-shoulder medium close-up from behind Evelyn, framed tight on Julian speaking; Evelyn silent in soft-focus foreground. Static stable camera, no scene transitions.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Julian (on screen, speaking): \"Rule four: Cut off your single friends.\"  Evelyn (on screen, speaking): \"My friends?\"  Julian (on screen, speaking): \"A married woman has no business around bad influences.\"",
+      "characters": [
+        "julian",
+        "evelyn"
+      ]
+    },
+    {
+      "_scene_number": 7,
+      "_scene_title": "Waiting For The Final Rule",
+      "_timing": "0:48-0:56",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Evelyn",
+          "line": "And the fifth rule?"
+        },
+        {
+          "speaker": "Julian",
+          "line": "The last one is absolute."
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): Julian sits on screen-LEFT at the round marble table, angled facing right, and stays planted in that chair for the whole film. Evelyn sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. A tight over-the-shoulder shot frames Julian's back as Evelyn sits perfectly still across the table. The warm afternoon light accentuates her serene expression as she gently lowers her porcelain teacup back onto its saucer. She gazes at him with unbothered grace, completely composed despite his controlling demands. Julian leans forward slightly, taking her quiet demeanor as total submission. The camera slowly pushes in on Evelyn's attentive eyes as she quietly prompts him for his final demand. Static wide two-shot at eye level, both Julian and Evelyn in frame facing each other, locked eye contact. Static stable camera, no scene transitions.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): Julian sits on screen-LEFT at the round marble table, angled facing right, and stays planted in that chair for the whole film. Evelyn sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. A tight over-the-shoulder shot frames Julian's back as Evelyn sits perfectly still across the table. The warm afternoon light accentuates her serene expression as she gently lowers her porcelain teacup back onto its saucer. She gazes at him with unbothered grace, completely composed despite his controlling demands. Julian leans forward slightly, taking her quiet demeanor as total submission. The camera slowly pushes in on Evelyn's attentive eyes as she quietly prompts him for his final demand. Static wide two-shot at eye level, both Julian and Evelyn in frame facing each other, locked eye contact. Static stable camera, no scene transitions.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Evelyn (on screen, speaking): \"And the fifth rule?\"  Julian (on screen, speaking): \"The last one is absolute.\"",
+      "characters": [
+        "julian",
+        "evelyn"
+      ]
+    },
+    {
+      "_scene_number": 8,
+      "_scene_title": "The Absolute Authority",
+      "_timing": "0:56-1:04",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Julian",
+          "line": "Rule five: My word is final. No arguments, no backtalk."
+        },
+        {
+          "speaker": "Julian",
+          "line": "Agree, and we might have a good marriage."
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): Julian sits on screen-LEFT at the round marble table, angled facing right, and stays planted in that chair for the whole film. Evelyn sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. The camera shifts to a medium close-up on Julian as he tilts his chin upward, radiating smug authority. Sunlight catches the edge of his tailored suit jacket as he folds his hands over the table. Evelyn remains in the soft background blur, silently watching his rigid posture. Julian speaks with calculated triumph, confident that he has asserted complete dominance over their new life together. The camera lingers on his cold satisfaction as he finishes laying down his conditions. Over-the-shoulder medium close-up from behind Evelyn, framed tight on Julian speaking; Evelyn silent in soft-focus foreground. Static stable camera, no scene transitions.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): Julian sits on screen-LEFT at the round marble table, angled facing right, and stays planted in that chair for the whole film. Evelyn sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. The camera shifts to a medium close-up on Julian as he tilts his chin upward, radiating smug authority. Sunlight catches the edge of his tailored suit jacket as he folds his hands over the table. Evelyn remains in the soft background blur, silently watching his rigid posture. Julian speaks with calculated triumph, confident that he has asserted complete dominance over their new life together. The camera lingers on his cold satisfaction as he finishes laying down his conditions. Over-the-shoulder medium close-up from behind Evelyn, framed tight on Julian speaking; Evelyn silent in soft-focus foreground. Static stable camera, no scene transitions.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Julian (on screen, speaking): \"Rule five: My word is final. No arguments, no backtalk.\"  Julian (on screen, speaking): \"Agree, and we might have a good marriage.\"",
+      "characters": [
+        "julian",
+        "evelyn"
+      ]
+    },
+    {
+      "_scene_number": 9,
+      "_scene_title": "The Tables Turn",
+      "_timing": "1:04-1:12",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Evelyn",
+          "line": "I understand."
+        },
+        {
+          "speaker": "Evelyn",
+          "line": "Now listen to my only rule."
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): Julian sits on screen-LEFT at the round marble table, angled facing right, and stays planted in that chair for the whole film. Evelyn sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. The camera cuts to a tight focus on Evelyn's face as her posture remains impossibly relaxed. A faint, knowing smile touches the corner of her lips. She unclasps her hands from her lap and rests her fingertips lightly against the marble tabletop beside the folded letter. Across from her, Julian's shadow falls long across the teacups. The calm authority in her quiet voice shifts the tension in the space entirely, catching Julian completely off guard. Over-the-shoulder medium close-up from behind Julian, framed tight on Evelyn speaking; Julian silent in soft-focus foreground. Static stable camera, no scene transitions.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): Julian sits on screen-LEFT at the round marble table, angled facing right, and stays planted in that chair for the whole film. Evelyn sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. The camera cuts to a tight focus on Evelyn's face as her posture remains impossibly relaxed. A faint, knowing smile touches the corner of her lips. She unclasps her hands from her lap and rests her fingertips lightly against the marble tabletop beside the folded letter. Across from her, Julian's shadow falls long across the teacups. The calm authority in her quiet voice shifts the tension in the space entirely, catching Julian completely off guard. Over-the-shoulder medium close-up from behind Julian, framed tight on Evelyn speaking; Julian silent in soft-focus foreground. Static stable camera, no scene transitions.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Evelyn (on screen, speaking): \"I understand.\"  Evelyn (on screen, speaking): \"Now listen to my only rule.\"",
+      "characters": [
+        "julian",
+        "evelyn"
+      ]
+    },
+    {
+      "_scene_number": 10,
+      "_scene_title": "Unchecked Arrogance",
+      "_timing": "1:12-1:20",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Julian",
+          "line": "Excuse me?"
+        },
+        {
+          "speaker": "Julian",
+          "line": "You don't make rules here."
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): Julian sits on screen-LEFT at the round marble table, angled facing right, and stays planted in that chair for the whole film. Evelyn sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. A sharp angle over Evelyn's shoulder captures Julian's immediate posture shift. His sharp eyes narrow in sudden irritation, a disbelieving smirk breaking his composure. He rests one forearm heavily on the table, leaning forward to press his presence onto her space. Evelyn meets his hard glare without flinching, her eyes steady and cool beneath the warm ambient light. The camera holds on Julian's fleeting arrogance as he dismisses her audacity to challenge his authority. Over-the-shoulder medium close-up from behind Evelyn, framed tight on Julian speaking; Evelyn silent in soft-focus foreground. Static stable camera, no scene transitions.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): Julian sits on screen-LEFT at the round marble table, angled facing right, and stays planted in that chair for the whole film. Evelyn sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. A sharp angle over Evelyn's shoulder captures Julian's immediate posture shift. His sharp eyes narrow in sudden irritation, a disbelieving smirk breaking his composure. He rests one forearm heavily on the table, leaning forward to press his presence onto her space. Evelyn meets his hard glare without flinching, her eyes steady and cool beneath the warm ambient light. The camera holds on Julian's fleeting arrogance as he dismisses her audacity to challenge his authority. Over-the-shoulder medium close-up from behind Evelyn, framed tight on Julian speaking; Evelyn silent in soft-focus foreground. Static stable camera, no scene transitions.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Julian (on screen, speaking): \"Excuse me?\"  Julian (on screen, speaking): \"You don't make rules here.\"",
+      "characters": [
+        "julian",
+        "evelyn"
+      ]
+    },
+    {
+      "_scene_number": 11,
+      "_scene_title": "The Reality Check",
+      "_timing": "1:20-1:28",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Evelyn",
+          "line": "Rule one: Pack your bags and leave."
+        },
+        {
+          "speaker": "Evelyn",
+          "line": "This house was bought under my trust."
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): Julian sits on screen-LEFT at the round marble table, angled facing right, and stays planted in that chair for the whole film. Evelyn sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. The camera pulls back into a wide two-shot, holding both figures framed against the tall window. Evelyn speaks without raising her voice, her tone crisp and unyielding. She smoothly picks up the folded paper from the table and taps it gently against the marble surface. Julian's dismissive posture instantly freezes. The golden light through the gauze curtain highlights the stark contrast between her calm, collected stature and the sudden stiffness creeping into his spine. Over-the-shoulder medium close-up from behind Julian, framed tight on Evelyn speaking; Julian silent in soft-focus foreground. Static stable camera, no scene transitions.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): Julian sits on screen-LEFT at the round marble table, angled facing right, and stays planted in that chair for the whole film. Evelyn sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. The camera pulls back into a wide two-shot, holding both figures framed against the tall window. Evelyn speaks without raising her voice, her tone crisp and unyielding. She smoothly picks up the folded paper from the table and taps it gently against the marble surface. Julian's dismissive posture instantly freezes. The golden light through the gauze curtain highlights the stark contrast between her calm, collected stature and the sudden stiffness creeping into his spine. Over-the-shoulder medium close-up from behind Julian, framed tight on Evelyn speaking; Julian silent in soft-focus foreground. Static stable camera, no scene transitions.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Evelyn (on screen, speaking): \"Rule one: Pack your bags and leave.\"  Evelyn (on screen, speaking): \"This house was bought under my trust.\"",
+      "characters": [
+        "julian",
+        "evelyn"
+      ]
+    },
+    {
+      "_scene_number": 12,
+      "_scene_title": "The Prenup Reveal",
+      "_timing": "1:28-1:36",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Evelyn",
+          "line": "That prenup leaves you with nothing."
+        },
+        {
+          "speaker": "Julian",
+          "line": "Wait... what did you just say?!"
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): Julian sits on screen-LEFT at the round marble table, angled facing right, and stays planted in that chair for the whole film. Evelyn sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. A close-up frames Julian's face as the air drains from his expression. The arrogance in his eyes vanishes, replaced by utter shock and rising panic as Evelyn's words hit home. Across the table, Evelyn sits quietly, her expression coolly aloof as she watches his realization set in. The slow camera push locks onto Julian's open mouth and trembling gaze as the full weight of his mistake settles over the quiet space. Over-the-shoulder medium close-up from behind Julian, framed tight on Evelyn speaking; Julian silent in soft-focus foreground. Static stable camera, no scene transitions.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): Julian sits on screen-LEFT at the round marble table, angled facing right, and stays planted in that chair for the whole film. Evelyn sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. A close-up frames Julian's face as the air drains from his expression. The arrogance in his eyes vanishes, replaced by utter shock and rising panic as Evelyn's words hit home. Across the table, Evelyn sits quietly, her expression coolly aloof as she watches his realization set in. The slow camera push locks onto Julian's open mouth and trembling gaze as the full weight of his mistake settles over the quiet space. Over-the-shoulder medium close-up from behind Julian, framed tight on Evelyn speaking; Julian silent in soft-focus foreground. Static stable camera, no scene transitions.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Evelyn (on screen, speaking): \"That prenup leaves you with nothing.\"  Julian (on screen, speaking): \"Wait... what did you just say?!\"",
+      "characters": [
+        "julian",
+        "evelyn"
+      ]
+    },
+    {
+      "_scene_number": 13,
+      "_scene_title": "Left With Nothing",
+      "_timing": "1:36-1:44",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Julian",
+          "line": "You... you can't do this."
+        },
+        {
+          "speaker": "Evelyn",
+          "line": "It is already done. Drink your tea, then leave."
+        },
+        {
+          "speaker": "Julian",
+          "line": "Evelyn..."
+        },
+        {
+          "speaker": "Evelyn",
+          "line": "Goodbye, Julian."
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): Julian sits on screen-LEFT at the round marble table, angled facing right, and stays planted in that chair for the whole film. Evelyn sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Julian sits frozen, his arrogant posture dissolving into rigid disbelief as the reality hits him. Evelyn remains entirely unruffled. She reaches out with quiet elegance, gently adjusting her teacup on its delicate saucer before bringing it to her lips. The camera slowly pushes in on her calm face in profile, holding her in crisp focus while Julian sits stunned in the shallow depth of field behind her. With one final, gentle look, she lowers her eyes, closing the chapter completely. Static wide two-shot at eye level, both Julian and Evelyn in frame facing each other, locked eye contact. Static stable camera, no scene transitions.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): Julian sits on screen-LEFT at the round marble table, angled facing right, and stays planted in that chair for the whole film. Evelyn sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Julian sits frozen, his arrogant posture dissolving into rigid disbelief as the reality hits him. Evelyn remains entirely unruffled. She reaches out with quiet elegance, gently adjusting her teacup on its delicate saucer before bringing it to her lips. The camera slowly pushes in on her calm face in profile, holding her in crisp focus while Julian sits stunned in the shallow depth of field behind her. With one final, gentle look, she lowers her eyes, closing the chapter completely. Static wide two-shot at eye level, both Julian and Evelyn in frame facing each other, locked eye contact. Static stable camera, no scene transitions.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Julian (on screen, speaking): \"You... you can't do this.\"  Evelyn (on screen, speaking): \"It is already done. Drink your tea, then leave.\"  Julian (on screen, speaking): \"Evelyn...\"  Evelyn (on screen, speaking): \"Goodbye, Julian.\"",
+      "characters": [
+        "julian",
+        "evelyn"
+      ]
+    }
+  ],
+  "character_descriptions": {
+    "julian": "Same Julian throughout - Cinematic digital manhwa character, soft 3D cel-shaded semi-realistic rendering, realistic adult human proportions, delicate defined facial structure, detailed sharp black hair, dark narrow eyes, pale skin tone, wearing a fitted slate blue tailor-made suit with a crisp white shirt. NOT live-action, NOT a photograph, NOT 3D CGI, NOT western cartoon, NOT chibi.",
+    "evelyn": "Same Evelyn throughout - Cinematic digital manhwa character, soft 3D cel-shaded semi-realistic rendering, realistic adult human proportions, delicate defined facial structure, long wavy chestnut hair, calm amber eyes, fair skin, wearing a cream cashmere wrap sweater over a dusty rose silk slip dress. NOT live-action, NOT a photograph, NOT 3D CGI, NOT western cartoon, NOT chibi."
+  },
+  "character_references": {
+    "julian": "./character_refs/julian_reference_sheet.jpg",
+    "evelyn": "./character_refs/evelyn_reference_sheet.jpg"
+  }
+}

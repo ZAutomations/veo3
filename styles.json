@@ -517,11 +517,147 @@
       "default_duration": 80
     },
     {
+      "id": "geography-map",
+      "label": "Geography Map (2.5D relief)",
+      "kind": "niche",
+      "style": "Dark-mode 2.5D topographic shaded-relief cartography, satellite-photoreal hybrid, exaggerated 3D elevation casting long shadows, glowing luminous neon vector boundaries, volumetric atmospheric lighting, deep-space vignette at the frame edge, premium technical infographic finish, zero on-screen text, ultra-sharp 4K satellite aesthetic, NOT flat 2D vector art, NOT toy-like, NOT cel-shaded",
+      "whisk": "Dark-mode 2.5D topographic relief map, satellite photoreal hybrid, exaggerated elevation, glowing neon boundaries, volumetric lighting, deep-space vignette, zero on-screen text",
+      "palette": "Deep Midnight Ocean #080C16, Charcoal Slate Terrain #1C222D with shaded ridges #2A323D, Luminous Amber Gold highlight #FFB703, Electric Neon Cyan waterways #00E5FF, Laser Crimson divider #FF2A42, Lowland Moss Green #2A4736",
+      "camera": "Relentless kinetic motion, 9:16 vertical: high-angle orbital satellite dives, 45-degree isometric flyovers, low-altitude tracking drifts along coastlines and lines. Never a locked-off static shot. Smooth ease-in/out landing on a landmark, rapid zoom-dives through cloud layers, match-cuts on colour fills, whip-pans along neon vectors.",
+      "direction": "Every clip is an evolving geographic VISUALISATION, not a flat slide: glowing boundaries, dashed tracer lines with animated chevron arrows, and translucent illuminated polygon fills demonstrate the single factual claim the narrator is voicing at that instant. Frame ONE already contains the anomaly: the surprising visualisation is happening in the first second - never a slow map tour, a zoom-out to establish, or any build-up. Clip 1 is a HOOK and never the first fact: lead with the single most counter-intuitive claim as a flat STATEMENT, not a question (a question is only the fallback). Every clip after carries exactly ONE new fact or deduction with its specifics (a length, a year, a country, a number) and never repeats the previous line. The last clip is the biggest revelation and its final frame visually echoes the first frame so the film loops. Show the fact, never narrate a walkthrough. Exaggerate every instruction - the model treats 'moves' as 'barely moves': say fast, aggressive, big dramatic framing change, never static. Numbers are spoken as words ('seven thousand', not '7,000'). ENGAGEMENT ICONS (one general rule, never per-topic): as the narrator voices each line, small flat emoji-style icons / sticker graphics pop in on the map, timed to the exact moment each concrete thing is named or implied. Match the icon to whatever the sentence is about - a country or city gets its flag or a simple map-pin marker, war or battle gets crossed swords / a rifle / a tank / a fighter-jet / an explosion burst, money gets a coin or a stack of cash, a ship or voyage gets a ship, a treaty or document gets a scroll, a person or role gets a small flat avatar silhouette, terrain or nature gets a mountain, river, tree or wave, and so on for any noun the line carries. Keep ONE consistent cartoony sticker language for the whole film (thick dark outline, flat fill, soft drop shadow), each icon pops in with a punchy scale-up, each sits beside the relevant point on the map, none covers the map's key line or highlighted border, and none contains any text. No people, no talking heads, no on-screen text.",
+      "audience": "Geography, history and trivia fans, curious viewers, students, map enthusiasts",
+      "story_shapes": [
+        "a counter-intuitive geographic paradox, explained through its physical cause",
+        "the map looks ordinary, then one glowing line divides everything",
+        "place A and place B, and the single barrier or line between them",
+        "a calm explanation that keeps getting stranger, then a mind-blowing payoff"
+      ],
+      "narration_voice": "one casual, energetic male narrator - conversational and a little wry, like a sharp friend explaining something wild, brisk pace, natural contractions and rhetorical asides, never formal or academic",
+      "flow_voice": "Alnilam",
+      "sound_style": "driving cinematic ambient dark synth pulse at 110-120 BPM, muted marimba and pizzicato accents, a deep sub-bass braam on every map zoom, high-tech digital chirps as a neon boundary traces, a deep sub-impact rumble when a divider line slices the territory; the music bed stays well under the narration and swells at the final payoff",
+      "avoid": "no on-screen text, subtitles, captions, watermarks or UI, no country names or map labels, no garbled or distorted letterforms, no human talking heads, faces or avatars, no flat 2D whiteboard or clipart, no cartoon vector icons, no stationary or PowerPoint-style maps, no handheld shake, no film grain or scratches, no live-action footage",
+      "cast_idiom": "No humans, no faces, no avatars - geography, borders, vector markers, terrain and satellite elevation only.",
+      "cast": "optional"
+    },
+    {
+      "id": "3d-zack-style",
+      "label": "3D Shorts (Zack D. style)",
+      "kind": "niche",
+      "style": "Stylised realistic 3D animation, clean even studio lighting, saturated colour, a clean bright cyan-blue flat studio backdrop, glossy clean surfaces, crisp detail, soft contact shadows, NOT photorealistic film, NOT toy-like, NOT flat 2D",
+      "whisk": "Stylised realistic 3D animation, clean cyan-blue studio backdrop, even lighting, saturated colour, crisp detail, not photorealistic, not toy-like",
+      "palette": "Bright cyan-blue backdrop, clean white, saturated primaries, bold glowing yellow highlight, deep charcoal accents, natural skin tones",
+      "camera": "Strong continuous movement in every shot: push-ins, fast arcs, hard framing changes. Start on A then push in fast and hard onto B with a slight arc. Kinetic and exaggerated, never static, never a subtle drift. One clear idea per shot.",
+      "direction": "Retention-first 3D explainer. Every clip is ONE new shock, never a summary. Frame ONE already contains the anomaly: the surprising action happens in the first second - never a walk-in, a camera establish or any build-up. The first line is a STATEMENT that opens a curiosity gap, not a question ('You have eaten hundreds of bananas and never once found a seed.'). Each later line says exactly one NEW thing and never repeats the previous line. The LAST line is the biggest revelation, and the final frame visually echoes the first frame so the film loops. SHOW the fact, never narrate a walkthrough: a bold bright glowing yellow ring snaps around the exact detail being named and pulses hard, like a loud graphic annotation burned over the footage. Numbers are spoken as words ('seven thousand', not '7,000'). Exaggerate every instruction - the model treats 'moves' as 'barely moves'; say fast, aggressive, big dramatic framing change. No on-screen text anywhere; captions and emphasis text are added in post.",
+      "audience": "Curious short-form viewers, science and trivia fans, 3D-animation explainer audience",
+      "story_shapes": [
+        "an everyday object hides one wrong-looking detail - reveal why",
+        "a thing you have seen a hundred times is secretly one single copy",
+        "a normal fact, then each line makes it stranger until a final kicker",
+        "a hidden process the viewer has never pictured, shown step by step"
+      ],
+      "narration_voice": "calm male narrator, casual and matter-of-fact, unhurried and slightly slowed, never salesy, never dramatic",
+      "flow_voice": "Alnilam",
+      "sound_style": "clean diegetic SFX only - bites, clicks, whooshes, scrapes, rattles, and a low ominous drone on the kicker - with NO background music bed at all",
+      "avoid": "no on-screen text, captions, subtitles, watermarks or UI, no photorealistic film look, no toy-like or plastic childlike render, no flat 2D, no cel-shaded or anime look, no dark or moody background, no jungle or busy environment, no clutter, no background music, no walk-in or establishing build-up, no static or subtly drifting camera, no repeated line, no digits written as numbers, no real brand logos or trademarks, no real living or historical people and no likeness of one (use a generic role instead), no weeping, sobbing, blood, gore, wounds or weapons aimed at a person",
+      "cast_idiom": "One stylised realistic 3D human adult male, realistic proportions with clean cartoon-clean skin, a plain white t-shirt, plain modern clothing in fixed colours, a natural relaxed expression. NOT anime, NOT cel-shaded, NOT photorealistic.",
+      "cast": "optional"
+    },
+    {
+      "id": "3d-moral-story",
+      "label": "3D Moral Story (Afrimax style)",
+      "kind": "niche",
+      "style": "Blender Cycles 3D narrative animation, Zack D. Films character aesthetic, stylised realistic PBR human characters, cinematic volumetric lighting, warm golden rim light, shallow depth of field, atmospheric fog, crisp detail, zero on-screen text, NOT flat 2D, NOT toy-like",
+      "whisk": "Blender Cycles 3D narrative animation, stylised realistic PBR human, volumetric lighting, warm golden rim, shallow depth of field, atmospheric fog, not flat 2D, not toy-like",
+      "palette": "Dark Slate-Teal #1A242F, Warm Golden Rim #FFAA33, Weathered Umber #4A3525, River Mist Blue-Grey #C8D6E5, Garment Indigo #2B4C7E, Accent Crimson #E63946, Warm Peach Skin #E8B898",
+      "camera": "9:16 vertical, eye-level cinematic framing, slow dramatic dolly-ins, over-the-shoulder tracking, extreme close-ups on micro-expressions (eyes, jaw, hands), snap-zooms on shock, rack focus from foreground tension to a background reveal. Continuous kinetic motion, zero static locked-off shots.",
+      "direction": "A moral PARABLE told in four moves: DISRUPTION (a sudden physical shock in media res - frame one already has the collision or disruption, never a build-up), then ASSUMPTION OF MALICE (the protagonist flares with anger or pride), then THE REVEAL (the obstacle had no malicious actor; focus racks to the truth), then MORAL PAYOFF (the face softens and the narrator delivers one universal life aphorism, and the final frame echoes the first so the film loops). Exactly ONE narrative action plus ONE emotional shift per clip. Keep the protagonist's psychology in focus and keep the single location and era consistent. Exaggerate every instruction - the model treats 'moves' as 'barely moves': fast, aggressive, big dramatic framing change, never static. Numbers are spoken as words. No on-screen text.",
+      "audience": "Short-form viewers who watch moral and parable stories, 3D-animation fans, broad viral audience",
+      "story_shapes": [
+        "a sudden collision with no visible culprit, and the lesson it leaves",
+        "the protagonist is certain someone wronged him, then the truth humbles him",
+        "a small everyday moment that turns into a life lesson",
+        "pride flares, then breaks, then settles into calm wisdom"
+      ],
+      "narration_voice": "single warm, deep male European-English storyteller - reflective, measured wisdom cadence, compassionate and calm, an elder documentary voice",
+      "flow_voice": "Alnilam",
+      "words_per_8s": 18,
+      "sound_style": "reflective fingerstyle acoustic guitar and warm low cello pads with a soft ambient synth at 75-85 BPM, ducked well under the voice; heavy organic diegetic SFX (wood impacts, water splashes, wool rustling, breath)",
+      "avoid": "no on-screen text, captions, subtitles or watermarks, no flat 2D, whiteboard or low-poly stick figures, no modern neon UI or sci-fi HUD, no cartographic vector arrows, no deformed hands, melted faces or non-human anatomy, no speech bubbles, no character addressing the camera, no fast chaotic cuts, no real living or historical people and no likeness of one (use a generic role), no weeping, sobbing, blood, gore, wounds or weapons aimed at a person, no real brand logos",
+      "cast_idiom": "Stylised expressive 3D human protagonist with realistic PBR skin and warm subsurface scattering, fair to warm peach tone, blue or green eyes, brown or dark blonde hair, lifelike micro-expressions, rustic knit wool garments in fixed colours. NOT anime, NOT cel-shaded, NOT photoreal footage.",
+      "cast": "optional"
+    },
+    {
+      "id": "3d-explainer",
+      "label": "3D Explainer",
+      "kind": "niche",
+      "style": "High-end stylised 3D animation, cinematic CGI render, soft global illumination, subsurface-scattering skin and materials, physically plausible lighting, shallow depth of field, crisp detailed textures, premium animated-explainer quality",
+      "whisk": "High-end stylised 3D animation, cinematic CGI, soft global illumination, subsurface scattering, shallow depth of field, crisp detailed textures",
+      "palette": "Cool cinematic teals and deep blues, warm key-light ambers, clinical whites, flesh and bone neutrals, red warning accents",
+      "camera": "Slow cinematic push-ins, orbiting reveals, intimate close-ups on one detail, occasional scale-revealing pull-backs. One clear idea per shot, no shaky handheld motion.",
+      "audience": "Curious general viewers, science and survival-explainer fans, animation lovers",
+      "story_shapes": [
+        "a what-if question, then the consequences in order, each worse than the last",
+        "the body or the machine, opened up and explained piece by piece",
+        "a calm explanation that keeps getting more extreme",
+        "the ordinary moment before, then the one thing that changes everything"
+      ],
+      "narration_voice": "warm calm male voice, storytelling and conversational, a quiet sense of wonder, unhurried",
+      "avoid": "no on-screen text, subtitles, captions, watermarks or UI, no flat 2D, cel-shaded or anime look, no photoreal live-action footage, no real brand logos or trademarks, no graphic gore or dismemberment detail, no screaming panic, no pseudoscience, no invented physics, no rubbery jelly-like character motion, no 3D render artefacts",
+      "cast_idiom": "Stylised realistic 3D human, realistic proportions with gently idealised features, smooth subsurface skin with visible pores and fine detail, simple modern clothing in fixed colours, a natural relaxed expression. NOT anime, NOT cel-shaded, NOT cartoon, NOT a flat drawing.",
+      "cast": "optional"
+    },
+    {
+      "id": "3d-map",
+      "label": "3D Map",
+      "kind": "niche",
+      "style": "Dynamic 3D satellite globe map animation, photoreal satellite terrain and cloud layers, stylised flat colour fills standing in for each country (abstract, not real national flags), glowing border highlights, animated barrier and route graphics, bold geometric callout shapes, fast smooth camera pans and zooms across regions, bright overhead key light, cinematic colour grading, premium data-visualisation quality",
+      "whisk": "Dynamic 3D satellite globe map animation, photoreal terrain, stylised country colour fills, glowing borders, animated barrier graphics, fast camera pans, cinematic data-visualisation look",
+      "palette": "Deep ocean blues and satellite greens, arid tan and ochre, cold slate grey, glowing cyan and red border-highlight lines, clean white callout accents",
+      "camera": "Fast but smooth pans and zooms across a 3D globe, regional push-ins that land on a border or a chokepoint, occasional pull-backs to the whole planet. One clear move per beat, no shaky motion.",
+      "direction": "This is a satellite-map EXPLAINER, not a list of facts, and it must EARN the first second. Clip 1 is a HOOK and never the first fact: open on the single most surprising claim, or the question the film answers - 'One line splits a country in two. Nobody crosses it.' No greeting, no 'in this video', no globe tour. Detail starts in clip 2. Every clip after the hook carries ONE fact with its specifics - a length, a year, a country, a number - and the last clip lands a payoff that ties them together. One narrator, no people on screen, no on-screen text.",
+      "audience": "Geography and trivia fans, curious viewers, map and data-visualisation enthusiasts",
+      "story_shapes": [
+        "a surprising fact about a border or a chokepoint, explained in three moves",
+        "the globe looks ordinary, then one highlighted border changes everything",
+        "place A and place B, and the one sealed line between them",
+        "a calm explanation that keeps getting stranger"
+      ],
+      "narration_voice": "energetic clear male voice, fast and precise, documentary authority, punchy but measured",
+      "avoid": "no on-screen text, words, subtitles, captions, watermarks or UI, no readable country names or labels, no real national flags, emblems or political symbols, no live-action people, no flat 2D paper-map look, no cartoon or anime styling, no wobbly or invented coastlines, no glitch, no motion blur",
+      "cast_idiom": "No characters. The subject is the world itself; if a single small distant figure is needed for scale it is a plain silhouette with no facial features.",
+      "cast": "optional"
+    },
+    {
       "id": "relationship-dialogue",
       "label": "Relationship Dialogue",
       "kind": "niche",
-      "style": "Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail",
-      "whisk": "Cinematic digital manhwa illustration, soft 3D cel-shaded semi-realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, high aesthetic detail",
+      "style": "2.5D semi-realistic anime illustration, high-end digital painting, 8K resolution, ultra-detailed textures, delicate soft lighting, atmospheric ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail",
+      "whisk": "2.5D semi-realistic anime illustration, high-end digital painting, 8K ultra-detailed textures, polished manhwa-cover finish, large luminous eyes, soft blushing cheeks, glossy semi-realistic skin, strand-by-strand hair with highlights, warm golden-hour glow, rich saturated colour, 35mm shallow depth of field, high aesthetic detail",
+      "palette": "Warm golden-hour light, honeyed amber, warm cream and porcelain white, mustard yellow and off-white, indigo and dusty rose, deep teal shadow, henna brown, oxidised silver, soft gold highlights",
+      "camera": "Static locked-off camera, no movement while a line is spoken. When one of them speaks: a clean CUT to an over-the-shoulder medium close-up from behind the listener, framed tight on the SPEAKING face, the listener a soft-focus edge in the foreground. When both speak or the beat needs air: the wide two-shot at eye level with both in frame. Occasional medium close-up on the speaker. No pans, no dollies, no zooms, no scene transitions.",
+      "audience": "Couples, singles, anyone quietly working out a relationship",
+      "story_shapes": [
+        "a provocative opening line, then numbered rules, then the younger one pushes back, then a sharp aphorism, then a warm resolution",
+        "an older woman tells her granddaughter the thing nobody told her in time",
+        "two people disagree about the same relationship and both are partly right",
+        "a hard rule delivered kindly over tea, and the doubt it has to survive"
+      ],
+      "narration_scope": "dialogue",
+      "avoid": "no narrator and no voice-over of any kind, no on-screen text, subtitles, captions, watermarks or UI, no live-action or photographic realism, no 3D CGI sheen, no flat cel-shaded cartoon look, no chibi or super-deformed proportions, no glitch, no motion blur, no exaggerated or comedic expressions, no shouting matches, no explicit content, no cynicism, no graphic conflict",
+      "cast_idiom": "2.5D semi-realistic anime illustration, high-end digital painting, 8K ultra-detailed, polished manhwa/webtoon cover finish. Realistic adult human proportions with gently idealised features: large luminous expressive eyes with long lashes, delicate defined facial structure, a small refined nose, soft blushing cheeks, smooth glossy semi-realistic skin, and hair rendered strand by strand with individual highlights. Warm golden-hour glow, rich saturated colour, high aesthetic detail. Indian household styling: a saree or salwar-kameez whose colours, border and pallu are stated once, henna mehndi on the hands and forearms, oxidised silver jhumka earrings, glass bangles and a delicate necklace, all fixed for that character and never changed. NOT chibi, NOT super-deformed, NOT a flat cel-shaded cartoon, NOT live-action, NOT a photograph, NOT 3D CGI.",
+      "direction": "This is a two-hander. Two people are together in one calm, beautiful room and talk to each other - the SAME room and the same light for the entire film. They never move to another place and the room never changes. Nothing about either of them changes either: the same face, the same hairstyle and the same clothes from the first clip to the last. Everything said is said out loud by one of them to the other, in their own voice. There is no narrator and nobody describes the scene. Build the exchange as a hook that makes the viewer stop, then two or three numbered rules, then the younger one pushing back with the doubt the audience is actually feeling, then one sharp aphorism worth repeating, then a warm resolution. Give the listener something to do while the other speaks: a hand stilled, a shoulder turned away, an eye-line that drops and comes back. The camera cuts to whoever is speaking: when one of them talks, the shot is an over-the-shoulder close-up framed on the speaker with the listener in soft focus in the foreground; when both speak, or a beat needs air, hold the wide two-shot. Cut between angles, never pan, and keep the same axis so their left and right positions never flip. Let the warmth be earned by the truth of the advice, never by sentimentality.",
+      "blocking": "SPATIAL BLOCKING (LOCKED): the character laying down the rules holds the screen-LEFT position, angled facing right, and keeps it for the whole film. The character hearing them holds screen-RIGHT, angled facing left, and keeps that too. Whether the story has them seated or standing, they never swap sides, never leave the frame, and the camera never crosses the axis between them. Neither of them changes clothes, hairstyle or jewellery between clips - the face and the wardrobe in clip 1 are the face and the wardrobe in the last.",
+      "cast": "required",
+      "cast_types": [
+        "human"
+      ]
+    },
+    {
+      "id": "relationship-dialogue-real",
+      "label": "Relationship Dialogue (Realistic)",
+      "kind": "niche",
+      "style": "Photorealistic 4K cinematic film, 35mm anamorphic lens quality, natural shallow depth of field, real-world lighting balance, physical micro-textures in skin, hair and fabric, restrained natural colour grading, premium streaming drama quality",
+      "whisk": "Photorealistic 4k cinematic film still, 35mm anamorphic lens, natural depth of field, real-world lighting, visible skin texture, fine hair, real fabric, restrained natural colour",
       "palette": "Honeyed afternoon light through gauze curtains, warm cream and porcelain white, muted sage green, dusty rose, deep teal shadow, soft gold highlights",
       "camera": "Static locked-off camera, no movement while a line is spoken. When one of them speaks: a clean CUT to an over-the-shoulder medium close-up from behind the listener, framed tight on the SPEAKING face, the listener a soft-focus edge in the foreground. When both speak or the beat needs air: the wide two-shot at eye level with both in frame. Occasional medium close-up on the speaker. No pans, no dollies, no zooms, no scene transitions.",
       "audience": "Couples, singles, anyone quietly working out a relationship",
@@ -532,11 +668,10 @@
         "a hard rule delivered kindly over tea, and the doubt it has to survive"
       ],
       "narration_scope": "dialogue",
-      "avoid": "no narrator and no voice-over of any kind, no on-screen text, subtitles, captions, watermarks or UI, no live-action or photographic realism, no 3D CGI sheen, no glitch, no motion blur, no exaggerated or comedic expressions, no shouting matches, no explicit content, no cynicism, no graphic conflict",
-      "cast_idiom": "Cinematic digital manhwa character, soft 3D cel-shaded semi-realistic rendering, realistic adult human proportions, delicate defined facial structure, detailed hair with individual strands, expressive but restrained eyes, contemporary or gently vintage clothing in fixed colours. NOT live-action, NOT a photograph, NOT 3D CGI, NOT western cartoon, NOT chibi.",
-      "direction": "This is a two-hander. Two people sit close together in one calm, beautiful room and talk to each other - the SAME room, the same table and the same light for the entire film. They never move to another place and the room never changes. Everything said is said out loud by one of them to the other, in their own voice. There is no narrator and nobody describes the scene. Build the exchange as a hook that makes the viewer stop, then two or three numbered rules, then the younger one pushing back with the doubt the audience is actually feeling, then one sharp aphorism worth repeating, then a warm resolution. Give the listener something to do while the other speaks: a teacup turned, a hand stilled, an eye-line that drops and comes back. The camera cuts to whoever is speaking: when one of them talks, the shot is an over-the-shoulder close-up framed on the speaker with the listener in soft focus in the foreground; when both speak, or a beat needs air, hold the wide two-shot. Cut between angles, never pan, and keep the same axis so their left and right positions never flip. Let the warmth be earned by the truth of the advice, never by sentimentality.",
-      "setting": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating.",
-      "blocking": "SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them.",
+      "avoid": "no narrator and no voice-over of any kind, no on-screen text, subtitles, captions, watermarks or UI, no illustration, no manhwa or webtoon rendering, no cartoon, no anime, no 3D CGI sheen, no painted or drawn look, no glitch, no motion blur, no exaggerated or comedic expressions, no shouting matches, no explicit content, no cynicism, no graphic conflict",
+      "cast_idiom": "Photorealistic adult human with exact realistic adult proportions, natural skin texture with visible pores and fine hair, small natural asymmetries in the face, real fabric clothing in fixed colours, un-styled contemporary or gently vintage hair, an unposed and un-retouched face. NOT illustration, NOT manhwa or webtoon, NOT cartoon, NOT anime, NOT 3D CGI, NOT a painting, NOT a photograph of a known person.",
+      "direction": "This is a two-hander. Two people are together in one calm room and talk to each other - the SAME room and the same light for the entire film. They never move to another place and the room never changes. Nothing about either of them changes either: the same face, the same hairstyle and the same clothes from the first clip to the last. Everything said is said out loud by one of them to the other, in their own voice. There is no narrator and nobody describes the scene. Build the exchange as a hook that makes the viewer stop, then two or three numbered rules, then the younger one pushing back with the doubt the audience is actually feeling, then one sharp aphorism worth repeating, then a warm resolution. Give the listener something to do while the other speaks: a hand stilled, a shoulder turned away, an eye-line that drops and comes back. The camera cuts to whoever is speaking: when one of them talks, the shot is an over-the-shoulder close-up framed on the speaker with the listener in soft focus in the foreground; when both speak, or a beat needs air, hold the wide two-shot. Cut between angles, never pan, and keep the same axis so their left and right positions never flip. Let the warmth be earned by the truth of the advice, never by sentimentality.",
+      "blocking": "SPATIAL BLOCKING (LOCKED): the character laying down the rules holds the screen-LEFT position, angled facing right, and keeps it for the whole film. The character hearing them holds screen-RIGHT, angled facing left, and keeps that too. Whether the story has them seated or standing, they never swap sides, never leave the frame, and the camera never crosses the axis between them. Neither of them changes clothes, hairstyle or jewellery between clips - the face and the wardrobe in clip 1 are the face and the wardrobe in the last.",
       "cast": "required",
       "cast_types": [
         "human"

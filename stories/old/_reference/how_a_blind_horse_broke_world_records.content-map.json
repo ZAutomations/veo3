@@ -1,0 +1,134 @@
+{
+  "title_suggestion": "How a Blind Horse Broke World Records",
+  "preset_suggestion": "3d-zack-style",
+  "format": {
+    "source_duration_s": 33,
+    "clip_seconds": 8,
+    "narration": true,
+    "on_screen_text": true,
+    "medium": "stylised 3D explainer"
+  },
+  "style": "Clean, smooth 3D character animation with bright, direct lighting and vibrant outdoor lighting. Smooth camera pans and close-up medical cuts.",
+  "narration": "Clear, steady, and uplifting narrative tone.",
+  "never_change": "The white horse and the female trainer character model.",
+  "facts": [
+    {
+      "t": "0:01",
+      "places": [
+        "Riding Pen"
+      ],
+      "detail": "A trainer places a blindfold over her horse's eyes."
+    },
+    {
+      "t": "0:03",
+      "places": [
+        "Riding Pen"
+      ],
+      "detail": "The horse is initially hesitant to walk without sight."
+    },
+    {
+      "t": "0:07",
+      "places": [
+        "Riding Pen"
+      ],
+      "detail": "Repeated practice builds the horse's confidence walking blind."
+    },
+    {
+      "t": "0:11",
+      "places": [
+        "Paddock"
+      ],
+      "detail": "The horse developed painful, debilitating eye conditions."
+    },
+    {
+      "t": "0:15",
+      "places": [
+        "Veterinary Clinic"
+      ],
+      "detail": "One severely damaged eye required surgical removal."
+    },
+    {
+      "t": "0:18",
+      "places": [
+        "Riding Pen"
+      ],
+      "detail": "Blindness training began before the second eye failed."
+    },
+    {
+      "t": "0:24",
+      "places": [
+        "Veterinary Clinic"
+      ],
+      "detail": "The second failing eye was eventually surgically removed."
+    },
+    {
+      "t": "0:27",
+      "places": [
+        "Forest Trail",
+        "Indoor Arena"
+      ],
+      "detail": "The fully blind horse achieved outdoor riding, jumping competitions, and three world records."
+    }
+  ],
+  "clips": [
+    {
+      "index": 1,
+      "t_start": "0:00",
+      "t_end": "0:10",
+      "places": [
+        "Riding Pen"
+      ],
+      "points": [
+        "A trainer puts a blindfold on her horse.",
+        "The horse hesitates at first due to fear.",
+        "Consistent guided practice builds its trust and walking ability."
+      ],
+      "visual": "Medium shot of trainer blindfolding horse, transitioning to a time-lapse clock overlay as they walk."
+    },
+    {
+      "index": 2,
+      "t_start": "0:10",
+      "t_end": "0:18",
+      "places": [
+        "Paddock",
+        "Veterinary Clinic"
+      ],
+      "points": [
+        "Severe disease affected both eyes of the horse.",
+        "The worst eye was surgically extracted and stitched."
+      ],
+      "visual": "Zoom into the horse's diseased eye, followed by a vet performing surgical closure."
+    },
+    {
+      "index": 3,
+      "t_start": "0:18",
+      "t_end": "0:26",
+      "places": [
+        "Riding Pen",
+        "Veterinary Clinic"
+      ],
+      "points": [
+        "Proactive blindfold training prepared the horse for total vision loss.",
+        "The remaining eye was ultimately removed as well."
+      ],
+      "visual": "Close-up of blindfold placement over the remaining eye, followed by surgical removal graphic."
+    },
+    {
+      "index": 4,
+      "t_start": "0:26",
+      "t_end": "0:33",
+      "places": [
+        "Forest Trail",
+        "Indoor Arena"
+      ],
+      "points": [
+        "The horse adapted successfully to total blindness.",
+        "It completed trail rides, show jumping, and secured three world records."
+      ],
+      "visual": "Tracking shot of horse trail riding, jumping stadium hurdles, and trainer holding award plaques."
+    }
+  ],
+  "coverage": "Every individual fact listed appears sequentially in exactly one clip segment.",
+  "notes": "Timings are tight due to fast graphic transitions during medical sequences.",
+  "source_url": "https://www.youtube.com/shorts/Cf2M2yK1jKc"
+}

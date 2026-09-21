@@ -1,0 +1,45 @@
+Reference sheets for "Couples Argument Gone Wrong" - the cast and the place
+Generate each one, then SAVE IT in this story's character_refs/
+folder under the name given below.
+Do NOT create a Flow Character for it, and do not touch the Character
+tab. A Flow Character is re-invented for every clip, which is what made
+faces and wardrobes drift from cut to cut. A plain image mentioned with
+@Name is handed to the model as reference pixels and holds. Stage 2 does
+that upload and mention for you - you only supply the file.
+Every sheet must be made with the same medium or the cast will not match.
+Each sheet is ONE image file showing the same individual from several
+angles. Keep it to one file per character: the video model accepts at
+most 3 reference images, and the place plate takes one of those slots -
+so a cast of 2 or 3 is the ceiling.
+
+=== MAYA ===
+save as: character_refs/maya_reference_sheet.jpg
+
+-- image prompt --
+3D rendered character reference sheet of Maya from multiple angles: full-body front, three-quarter, side profile, and head-and-shoulders close-up. She wears a dark sweater and fitted trousers under soft practical lighting. CGI skin texture, realistic proportions, plain neutral grey studio background
+
+-- identity text (must match this exactly in the story JSON) --
+Same Maya throughout - 3D rendered human with CGI skin texture, realistic adult proportions, natural expression, plain modern dark sweater and fitted trousers, soft practical light on her face. She is a woman in her late twenties with dark hair tied in a neat bun, expressing stern annoyance. NOT cartoon, NOT anime, NOT flat 2D, NOT plastic skin.
+
+=== LEO ===
+save as: character_refs/leo_reference_sheet.jpg
+
+-- image prompt --
+3D rendered character reference sheet of Leo from multiple angles: full-body front, three-quarter, side profile, and head-and-shoulders close-up. He wears a beige henley shirt and dark jeans under soft lighting. CGI skin texture, realistic proportions, plain neutral grey studio background
+
+-- identity text (must match this exactly in the story JSON) --
+Same Leo throughout - 3D rendered human with CGI skin texture, realistic adult proportions, natural expression, plain modern beige henley shirt and dark jeans, soft practical light on his face. He is a man in his early thirties with short brown hair, exhibiting a relaxed smirk. NOT cartoon, NOT anime, NOT flat 2D, NOT plastic skin.
+
+=== PLACE - APARTMENT LIVING ROOM ===
+save as: character_refs/Apartment Living Room.jpg
+
+This is the ONE place this film happens in. Every clip is shot here,
+with the same furniture and the same light. Generate it as ONE image
+of the place EMPTY - no people and no animals - seen straight on and
+wide, evenly lit, the whole space readable.
+
+-- image prompt --
+3D rendered wide view of an empty luxury apartment living room at night with floor-to-ceiling city windows. Warm lamp light illuminates a sleek sofa, glass coffee table, and polished hardwood floor. CGI textures, cinematic lighting, shallow depth of field, no people, no animals, no text, no labels, no watermarks.
+
+-- place text (must match this exactly in the story JSON) --
+Apartment Living Room features a modern luxury lounge at night with floor-to-ceiling windows showing cool urban city lights outside. Inside, warm ambient lighting illuminates a plush dark grey sofa, a sleek glass coffee table, polished hardwood flooring, and abstract wall art. The space maintains a fixed night atmosphere with warm lamp light mixing with cool window glow, never changing or redecorating.

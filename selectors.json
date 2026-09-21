@@ -1,0 +1,13 @@
+{
+  "_readme": [
+    "Overrides for the Flow DOM. Anything set here wins over the built-in defaults.",
+    "When a run starts failing because Flow changed its UI, this is the file to edit -",
+    "no code change and no restart of the tool beyond the next run.",
+    "",
+    "Leave a key out to keep the built-in value. Delete this file to go back to defaults.",
+    "Run `node show_config.js` to print the values currently in effect and where each came from."
+  ],
+  "selectors": {},
+  "patterns": {},
+  "timings": {}
+}

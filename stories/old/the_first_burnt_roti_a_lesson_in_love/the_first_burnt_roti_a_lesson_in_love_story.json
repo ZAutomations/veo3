@@ -1,0 +1,258 @@
+{
+  "title": "The First Burnt Roti (A Lesson in Love)",
+  "description": "A newlywed husband gently reassures his anxious wife after a cooking mistake, reminding her that marriage is built on mutual grace and partnership rather than perfection.",
+  "total_scenes": 9,
+  "video_duration": "72 seconds",
+  "target_audience": "Newlyweds and young couples seeking realistic, comforting relationship wisdom.",
+  "moral": "A peaceful marriage is not about being perfect; it is about replacing criticism with grace when your partner stumbles.",
+  "niche": "Relationship Dialogue (Realistic)",
+  "style": "Photorealistic 4K cinematic film, 35mm anamorphic lens quality, natural shallow depth of field, real-world lighting balance, physical micro-textures in skin, hair and fabric, restrained natural colour grading, premium streaming drama quality",
+  "place": {
+    "name": "Tearoom",
+    "description": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating.",
+    "prompt": "Photorealistic 4K cinematic film still, 35mm anamorphic lens, natural depth of field, real-world textures. An empty tearoom corner: a round marble-topped table set between two empty upholstered chairs, gauze curtains at one tall window, a small vase of white orchids beside a stack of saucers, a folded letter on the table. Warm late-afternoon light falls from the left. Straight-on wide view, evenly lit, whole space readable. No people, no animals, no text, no labels, no watermark."
+  },
+  "aspect_ratio": "9:16",
+  "scene_seconds": 8,
+  "narrated": false,
+  "narration_scope": "dialogue",
+  "silent_cast": false,
+  "scenes": [
+    {
+      "_scene_number": 1,
+      "_scene_title": "The Unexpected Reassurance",
+      "_timing": "0:00-0:08",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Kabir",
+          "line": "You don't need to panic, Meera. Perfection was never required."
+        },
+        {
+          "speaker": "Meera",
+          "line": "I wanted breakfast to be flawless for us."
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Kabir sits on the left side of the table, his demeanor calm and comforting. Meera sits opposite him on the right, her fingers nervously tracing the marble table edge near the orchid vase, her eyes wide with anxiety. Honeyed sunlight fills the room, highlighting the quiet tension between them. Kabir offers a warm, reassuring smile to soothe her panic. The camera angle is a wide two-shot at eye level.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Kabir sits on the left side of the table, his demeanor calm and comforting. Meera sits opposite him on the right, her fingers nervously tracing the marble table edge near the orchid vase, her eyes wide with anxiety. Honeyed sunlight fills the room, highlighting the quiet tension between them. Kabir offers a warm, reassuring smile to soothe her panic. The camera angle is a wide two-shot at eye level.\n[LOOK] Photorealistic 4K cinematic film, 35mm anamorphic lens quality, natural shallow depth of field, real-world lighting balance, physical micro-textures in skin, hair and fabric, restrained natural colour grading, premium streaming drama quality\n[AUDIO] Kabir (on screen, speaking): \"You don't need to panic, Meera. Perfection was never required.\"  Meera (on screen, speaking): \"I wanted breakfast to be flawless for us.\"",
+      "characters": [
+        "kabir",
+        "meera"
+      ]
+    },
+    {
+      "_scene_number": 2,
+      "_scene_title": "First Rule of Grace",
+      "_timing": "0:08-0:16",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Kabir",
+          "line": "Our first rule: flawless effort is never the price of love."
+        },
+        {
+          "speaker": "Meera",
+          "line": "Is it really that simple?"
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Kabir leans slightly forward from his chair on the left, resting his forearm on the cold marble surface with an earnest expression. On the right, Meera sits frozen, her hand pausing near a teacup saucer as she absorbs his statement. Her shoulders drop slightly as a wave of quiet relief touches her face. The warm afternoon light accentuates the soft gauze of the curtains behind them. The camera angle is an over-the-shoulder medium close-up from behind Meera, framed tight on Kabir speaking.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Kabir leans slightly forward from his chair on the left, resting his forearm on the cold marble surface with an earnest expression. On the right, Meera sits frozen, her hand pausing near a teacup saucer as she absorbs his statement. Her shoulders drop slightly as a wave of quiet relief touches her face. The warm afternoon light accentuates the soft gauze of the curtains behind them. The camera angle is an over-the-shoulder medium close-up from behind Meera, framed tight on Kabir speaking.\n[LOOK] Photorealistic 4K cinematic film, 35mm anamorphic lens quality, natural shallow depth of field, real-world lighting balance, physical micro-textures in skin, hair and fabric, restrained natural colour grading, premium streaming drama quality\n[AUDIO] Kabir (on screen, speaking): \"Our first rule: flawless effort is never the price of love.\"  Meera (on screen, speaking): \"Is it really that simple?\"",
+      "characters": [
+        "kabir",
+        "meera"
+      ]
+    },
+    {
+      "_scene_number": 3,
+      "_scene_title": "Second Rule of Support",
+      "_timing": "0:16-0:24",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Kabir",
+          "line": "Rule two: when one stumbles, the other offers help, not rebuke."
+        },
+        {
+          "speaker": "Meera",
+          "line": "Even when I burn the meal completely?"
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Kabir remains seated on the left, looking directly across at Meera with steady, affectionate eyes. Meera, seated on the right, tilts her head slightly, a faint half-smile battling her residual anxiety. Soft shadows fall across the marble table between them, framing the white orchid vase. Kabir gently touches the folded letter on the table to emphasize his point. The camera angle is an over-the-shoulder medium close-up from behind Meera, framed tight on Kabir speaking.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Kabir remains seated on the left, looking directly across at Meera with steady, affectionate eyes. Meera, seated on the right, tilts her head slightly, a faint half-smile battling her residual anxiety. Soft shadows fall across the marble table between them, framing the white orchid vase. Kabir gently touches the folded letter on the table to emphasize his point. The camera angle is an over-the-shoulder medium close-up from behind Meera, framed tight on Kabir speaking.\n[LOOK] Photorealistic 4K cinematic film, 35mm anamorphic lens quality, natural shallow depth of field, real-world lighting balance, physical micro-textures in skin, hair and fabric, restrained natural colour grading, premium streaming drama quality\n[AUDIO] Kabir (on screen, speaking): \"Rule two: when one stumbles, the other offers help, not rebuke.\"  Meera (on screen, speaking): \"Even when I burn the meal completely?\"",
+      "characters": [
+        "kabir",
+        "meera"
+      ]
+    },
+    {
+      "_scene_number": 4,
+      "_scene_title": "The Newlywed Fear",
+      "_timing": "0:24-0:32",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Meera",
+          "line": "I am terrified of failing as your wife."
+        },
+        {
+          "speaker": "Kabir",
+          "line": "You could never fail me."
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Meera sits on the right, dropping her gaze to her lap before looking up with raw vulnerability in her large brown eyes. Her hands tremble slightly in her lap over her saree pallu. Kabir, seated on the left, watches her with deep empathy, his expression softening instantly. The warm golden sunlight casts a soft glow over her face and silver jhumkas. The camera angle is an over-the-shoulder medium close-up from behind Kabir, framed tight on Meera speaking.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Meera sits on the right, dropping her gaze to her lap before looking up with raw vulnerability in her large brown eyes. Her hands tremble slightly in her lap over her saree pallu. Kabir, seated on the left, watches her with deep empathy, his expression softening instantly. The warm golden sunlight casts a soft glow over her face and silver jhumkas. The camera angle is an over-the-shoulder medium close-up from behind Kabir, framed tight on Meera speaking.\n[LOOK] Photorealistic 4K cinematic film, 35mm anamorphic lens quality, natural shallow depth of field, real-world lighting balance, physical micro-textures in skin, hair and fabric, restrained natural colour grading, premium streaming drama quality\n[AUDIO] Meera (on screen, speaking): \"I am terrified of failing as your wife.\"  Kabir (on screen, speaking): \"You could never fail me.\"",
+      "characters": [
+        "kabir",
+        "meera"
+      ]
+    },
+    {
+      "_scene_number": 5,
+      "_scene_title": "Pushing Back with Doubt",
+      "_timing": "0:32-0:40",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Meera",
+          "line": "How do we grow if we ignore each other's blunders?"
+        },
+        {
+          "speaker": "Kabir",
+          "line": "We don't ignore them. We carry them together."
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Meera leans slightly back in her chair on the right, her brows knitting with genuine confusion as she seeks clarification. Kabir stays anchored on the left, holding her gaze calmly without any sign of frustration. The peaceful tearoom remains bathed in quiet afternoon light, with a light breeze fluttering the thin curtains beside the tall window. The camera angle is a wide two-shot at eye level.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Meera leans slightly back in her chair on the right, her brows knitting with genuine confusion as she seeks clarification. Kabir stays anchored on the left, holding her gaze calmly without any sign of frustration. The peaceful tearoom remains bathed in quiet afternoon light, with a light breeze fluttering the thin curtains beside the tall window. The camera angle is a wide two-shot at eye level.\n[LOOK] Photorealistic 4K cinematic film, 35mm anamorphic lens quality, natural shallow depth of field, real-world lighting balance, physical micro-textures in skin, hair and fabric, restrained natural colour grading, premium streaming drama quality\n[AUDIO] Meera (on screen, speaking): \"How do we grow if we ignore each other's blunders?\"  Kabir (on screen, speaking): \"We don't ignore them. We carry them together.\"",
+      "characters": [
+        "kabir",
+        "meera"
+      ]
+    },
+    {
+      "_scene_number": 6,
+      "_scene_title": "Third Rule of Teamwork",
+      "_timing": "0:40-0:48",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Kabir",
+          "line": "Rule three: every setback is a shared task, not an individual failure."
+        },
+        {
+          "speaker": "Meera",
+          "line": "So we fix it together?"
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Kabir speaks with firm conviction from his seat on the left, reaching across the marble table to gently rest his hand near hers. On the right, Meera looks down at his hand, her anxious expression dissolving into warmth and quiet confidence. The soft afternoon light illuminates the gentle tearoom setting, highlighting their shared moment of understanding. The camera angle is an over-the-shoulder medium close-up from behind Meera, framed tight on Kabir speaking.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Kabir speaks with firm conviction from his seat on the left, reaching across the marble table to gently rest his hand near hers. On the right, Meera looks down at his hand, her anxious expression dissolving into warmth and quiet confidence. The soft afternoon light illuminates the gentle tearoom setting, highlighting their shared moment of understanding. The camera angle is an over-the-shoulder medium close-up from behind Meera, framed tight on Kabir speaking.\n[LOOK] Photorealistic 4K cinematic film, 35mm anamorphic lens quality, natural shallow depth of field, real-world lighting balance, physical micro-textures in skin, hair and fabric, restrained natural colour grading, premium streaming drama quality\n[AUDIO] Kabir (on screen, speaking): \"Rule three: every setback is a shared task, not an individual failure.\"  Meera (on screen, speaking): \"So we fix it together?\"",
+      "characters": [
+        "kabir",
+        "meera"
+      ]
+    },
+    {
+      "_scene_number": 7,
+      "_scene_title": "A Team, Not an Exam",
+      "_timing": "0:48-0:56",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Kabir",
+          "line": "Exactly. We're a team here, Meera, not an exam."
+        },
+        {
+          "speaker": "Meera",
+          "line": "I don't have to be perfect?"
+        },
+        {
+          "speaker": "Kabir",
+          "line": "Never. Just present."
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Kabir remains seated on the left in his cream linen kurta, leaning slightly forward with a gentle, reassuring expression. Meera sits opposite on the right, her hands resting near the stack of saucers as her tense shoulders finally begin to drop in relief. Soft honeyed light streams through the gauze curtains, accentuating the peaceful, intimate atmosphere between them. Kabir smiles with quiet sincerity, reassuring her completely. The camera frames the scene in a wide two-shot at eye level.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Kabir remains seated on the left in his cream linen kurta, leaning slightly forward with a gentle, reassuring expression. Meera sits opposite on the right, her hands resting near the stack of saucers as her tense shoulders finally begin to drop in relief. Soft honeyed light streams through the gauze curtains, accentuating the peaceful, intimate atmosphere between them. Kabir smiles with quiet sincerity, reassuring her completely. The camera frames the scene in a wide two-shot at eye level.\n[LOOK] Photorealistic 4K cinematic film, 35mm anamorphic lens quality, natural shallow depth of field, real-world lighting balance, physical micro-textures in skin, hair and fabric, restrained natural colour grading, premium streaming drama quality\n[AUDIO] Kabir (on screen, speaking): \"Exactly. We're a team here, Meera, not an exam.\"  Meera (on screen, speaking): \"I don't have to be perfect?\"  Kabir (on screen, speaking): \"Never. Just present.\"",
+      "characters": [
+        "meera",
+        "kabir"
+      ]
+    },
+    {
+      "_scene_number": 8,
+      "_scene_title": "Softening the Heart",
+      "_timing": "0:56-1:04",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Meera",
+          "line": "Thank you for the tea. And the grace."
+        },
+        {
+          "speaker": "Kabir",
+          "line": "Always. Drink up while it's warm."
+        },
+        {
+          "speaker": "Meera",
+          "line": "I feel like I can breathe now."
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Meera reaches forward to wrap both hands around the warm teacup on the marble table, her fingers relaxing against the smooth porcelain. Kabir sits opposite on the left, watching her attentively with an encouraging smile. A soft, vulnerable expression softens Meera's features as her lingering anxiety melts away into quiet relief. The camera sits in an over-the-shoulder medium close-up from behind Kabir, framed tight on Meera's speaking face.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Meera reaches forward to wrap both hands around the warm teacup on the marble table, her fingers relaxing against the smooth porcelain. Kabir sits opposite on the left, watching her attentively with an encouraging smile. A soft, vulnerable expression softens Meera's features as her lingering anxiety melts away into quiet relief. The camera sits in an over-the-shoulder medium close-up from behind Kabir, framed tight on Meera's speaking face.\n[LOOK] Photorealistic 4K cinematic film, 35mm anamorphic lens quality, natural shallow depth of field, real-world lighting balance, physical micro-textures in skin, hair and fabric, restrained natural colour grading, premium streaming drama quality\n[AUDIO] Meera (on screen, speaking): \"Thank you for the tea. And the grace.\"  Kabir (on screen, speaking): \"Always. Drink up while it's warm.\"  Meera (on screen, speaking): \"I feel like I can breathe now.\"",
+      "characters": [
+        "meera",
+        "kabir"
+      ]
+    },
+    {
+      "_scene_number": 9,
+      "_scene_title": "The Shared Promise",
+      "_timing": "1:04-1:12",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Kabir",
+          "line": "Whatever comes, we handle it with grace first."
+        },
+        {
+          "speaker": "Meera",
+          "line": "Grace first. I like that rule."
+        },
+        {
+          "speaker": "Kabir",
+          "line": "Then it's a promise."
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Kabir extends his hand across the marble tabletop, gently resting it over Meera's hand beside the teacup. Meera turns her palm up, intertwining her fingers with his as a quiet, grounded smile brightens her face. Warm gold sunlight pours through the window, framing them both in absolute harmony amidst the soft shadows of the tearoom. The camera holds the scene in a wide two-shot at eye level.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Kabir extends his hand across the marble tabletop, gently resting it over Meera's hand beside the teacup. Meera turns her palm up, intertwining her fingers with his as a quiet, grounded smile brightens her face. Warm gold sunlight pours through the window, framing them both in absolute harmony amidst the soft shadows of the tearoom. The camera holds the scene in a wide two-shot at eye level.\n[LOOK] Photorealistic 4K cinematic film, 35mm anamorphic lens quality, natural shallow depth of field, real-world lighting balance, physical micro-textures in skin, hair and fabric, restrained natural colour grading, premium streaming drama quality\n[AUDIO] Kabir (on screen, speaking): \"Whatever comes, we handle it with grace first.\"  Meera (on screen, speaking): \"Grace first. I like that rule.\"  Kabir (on screen, speaking): \"Then it's a promise.\"",
+      "characters": [
+        "meera",
+        "kabir"
+      ]
+    }
+  ],
+  "character_descriptions": {
+    "meera": "Same Meera throughout - 20, Indian, petite, small oval face, soft rounded jaw. Large dark brown eyes, thick lashes, winged liner, arched brows, small straight nose, softly blushing cheeks, full coral-toned lips in a warm closed-mouth smile. Long dark brown hair, side-parted, half-up, loose strands framing her face. Mustard-yellow embroidered blouse, off-white saree with a fine blue striped border, pallu over her left shoulder, oxidised silver jhumka earrings with pearl drops, a silver cluster necklace.",
+    "kabir": "Same Kabir throughout - 24 years old, photorealistic adult human with exact realistic adult proportions, natural tan skin texture with visible pores and fine hair, textured dark wavy hair, kind dark eyes, warm smile. He wears a casual cream linen kurta. Unposed, un-retouched face with small natural asymmetries. NOT illustration, NOT manhwa or webtoon, NOT cartoon, NOT anime, NOT 3D CGI, NOT a painting, NOT a photograph of a known person."
+  },
+  "character_references": {
+    "meera": "./house_refs/Meera.png",
+    "kabir": "./character_refs/kabir_reference_sheet.jpg"
+  }
+}

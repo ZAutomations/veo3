@@ -1,0 +1,26 @@
+{
+  "_note": [
+    "THE STANDING CAST - the people who appear in every video.",
+    "",
+    "INTENTIONALLY EMPTY. This channel does not hardcode faces. The relationship",
+    "dialogue preset defines the LOOK (2.5D semi-realistic - see `cast_idiom` in",
+    "styles.json), the story designs its own two people in that style, and their",
+    "identity text plus a reference sheet hold them across the clips.",
+    "",
+    "Add a character here ONLY if you want the same face to return in every",
+    "video. The shape is:",
+    "",
+    "  { \"name\": \"Meera\", \"type\": \"human\",",
+    "    \"reference\": \"./house_refs/Meera.png\",",
+    "    \"description\": \"Same Meera throughout - ... (55 to 75 words)\",",
+    "    \"sheet_prompt\": \"...\" }",
+    "",
+    "`reference` is the image stage 2 uploads; `description` is the identity text",
+    "repeated into every clip. `name` is only a label - it keys the story JSON and",
+    "decides the @mention, and it is not part of the description.",
+    "",
+    "Veo 3.1 takes at most 3 reference images and the place plate spends one of",
+    "them, so a standing cast of two plus the plate is the ceiling."
+  ],
+  "characters": []
+}

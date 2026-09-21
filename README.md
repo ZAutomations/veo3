@@ -148,14 +148,107 @@ It produces `stories/the_lantern_keeper/`:
 | File | What it is |
 |---|---|
 | `the_lantern_keeper_story.json` | the story, in the schema stage 1 reads |
-| `style_bible.md` | the look, cast, palette, narrator and rules, for you to keep |
-| `character_sheets.txt` | paste-ready image prompts, one block per character |
+| `style_bible.md` | the look, place, cast, palette, narrator and rules, for you to keep |
+| `character_sheets.txt` | paste-ready image prompts, one block per character, plus the place plate |
 | `character_refs/` | empty — the generated sheets go here |
 
 An animal character's block in `character_sheets.txt` also says it is an animal
 and that every physical marker has to be visible in the one image, because the
-video model rebuilds the animal from those markers in every clip. A story with
-no cast gets neither of those two files — there is nothing to draw.
+video model rebuilds the animal from those markers in every clip.
+
+### The standing cast — the same faces in every video
+
+Call 1 designs a new cast for every story, which means every video had a
+different young woman — sora, elena, ananya. Voice, format and thumbnail stayed
+consistent and the faces did not, and a channel whose lead is a different person
+each week has no lead.
+
+So the cast is designed **once**, in `house_cast.json` at the project root, from
+the reference image the creator supplied, and every story reuses it:
+
+```jsonc
+{
+  "characters": [
+    { "name": "Meera", "type": "human",
+      "reference": "./house_refs/Meera.png",   // the sheet stage 2 uploads
+      "description": "Same Meera throughout - 20, Indian, ...",  // 55-75 words
+      "sheet_prompt": "..." }                  // to make more angles of her
+  ]
+}
+```
+
+`name` is only a label — it keys the story JSON and decides the `@`mention stage
+2 attaches, and changing it does not change the face.
+
+`house_refs/` next to it holds their reference sheets, made once and used by
+every story. Nothing is redrawn per story: the writer skips the cast blocks in
+`character_sheets.txt` entirely and only asks for the place plate, and stage 2
+uploads the sheets from `house_refs/` and `@`-mentions them exactly as before.
+
+**It applies to the human-only presets**, which is `relationship-dialogue` and
+`relationship-dialogue-real`. An animal film, a what-if explainer or a genre
+that declares no cast types is left exactly as it was — dropping an unrelated
+adult into a genre that never had a cast is worse than not having the feature.
+
+**One character is the current state.** The man in these films is whoever the
+story needs and is still designed per story. To fix him too, add a second entry
+with his own reference image — the file takes as many as it names. Mind the Veo
+3.1 ceiling: the cast plus the place plate may not exceed 3 reference images.
+
+| | |
+|---|---|
+| `node write_story.js ... --no-house-cast` | design a fresh cast for one story |
+| `node write_story.js ... --cast my.json` | use a different cast file |
+
+**Changing a character**: edit the `description` and the `sheet_prompt`, then
+regenerate that character's sheet. Stories written afterwards use the new
+wording; a story already written keeps the old text, because descriptions are
+copied into its JSON at write time.
+
+**A reference that was never drawn is called out**, in `character_sheets.txt`.
+Stage 2 skips a reference it cannot open *without failing*, so a missing sheet
+would otherwise become a cast that drifts with no error printed anywhere.
+
+### One place per film
+
+Every story happens in **one place**, and that place is a reference image rather
+than a paragraph of instruction. It is chosen for the film — a tearoom, a park
+bench, a kitchen table, a hotel bed — and described once, but describing it was
+not enough: a whole story's clips each already carried the place text verbatim
+and the place still changed between them, exactly as the cast did before the
+cast got sheets. So it gets a plate.
+
+The plate is the last block in `character_sheets.txt`: one image of the place
+**empty** — no people, no animals — seen straight on and wide. Save it into
+`character_refs/` under the name the block gives. Stage 2 uploads it with the
+sheets, and the agent prompt `@`-mentions it in every clip, so the model is
+handed the pixels instead of one more description of them.
+
+`relationship-dialogue` and its realistic twin fix their own place (a tearoom);
+every other preset leaves it to the story, so a different film gets a different
+place.
+
+**`relationship-dialogue-real` is the same film in a filmed look.** The scheme,
+the rules, the locked tearoom, the camera and the blocking are identical to
+`relationship-dialogue`; what differs is `style`, `cast_idiom`, `avoid` and
+`setting_prompt`, which are photographic instead of 2.5D semi-realistic. Pick it
+per story — the drawn version is untouched and still there.
+
+These four fields are what decide whether a cast and a place come out drawn or
+photographed, and they have to agree: change `style` and `cast_idiom` but leave
+`setting_prompt` illustrated and the people are photographed while the room is
+drawn, which reads worse than staying cartoon. A preset that bans photographic
+realism in `avoid` has to lose that clause too, or the story writer is told to do
+the opposite of the brief. Nothing generates prompts from `whisk` — `styles.js`
+only prints it.
+
+**The plate spends one of the three reference images Veo 3.1 accepts**, so a cast
+of two plus a place is the deepest cast that still fits, and a cast of three
+leaves no room for one. `story_to_agent_prompt.js` says so when a story asks for
+more mentions than the ceiling allows.
+
+A story with no cast gets neither `character_sheets.txt` nor `character_refs/`,
+unless it has a place — in which case it gets both, holding the plate alone.
 
 **It writes the story JSON, never the agent prompt.** That is deliberate.
 `story_to_agent_prompt.js` exists because a hand-written agent prompt once
@@ -165,8 +258,9 @@ would also lose the derived `@mention` list and the FORMAT line. So the writer
 stops at the JSON and stage 1 does the rest.
 
 **It spends no Flow credits.** This is text generation only. The character
-sheets are still made by hand in an image tool, then uploaded into Flow as
-Characters, then the Agent Mode stages run as before.
+sheets are still made by hand in an image tool, saved into `character_refs/`
+(or `house_refs/` for the standing cast), then uploaded by stage 2 as plain
+**images** — never as Flow Characters, which drift between clips.
 
 ### How it writes
 
@@ -178,7 +272,11 @@ Three passes, in this order, because each one needs the last:
    already produced by hand. When the preset declares `cast_types`, each
    character is also given its own profile rule — the animal gets breed, coat
    and unchanging markers, the person gets a face and a fixed wardrobe. The
-   outline is a one-line beat per clip.
+   outline is a one-line beat per clip. When the **[standing
+   cast](#the-standing-cast--the-same-faces-in-every-video)** applies there is
+   nothing to design: the characters are handed over and the model is told to
+   return an empty `characters` array, so the cast field spec is dropped from the
+   prompt and the steps after it are renumbered.
 2. **Scenes** — in batches of `--scenes-per-call` (default 6). A 40-scene story
    cannot be written in one response; it truncates mid-JSON. Each batch is handed
    the real cast and the beats it must cover.
@@ -202,6 +300,8 @@ through.
 | `--seconds N` | seconds per clip, default 8 |
 | `--aspect R` | `16:9`, `9:16`, `1:1` |
 | `--preset ID` | required. `npm run styles` lists them |
+| `--cast FILE` | use a cast file other than `house_cast.json` |
+| `--no-house-cast` | design a fresh cast for this one story |
 | `--model NAME` | default `gemini-3.6-flash` |
 | `--key K` | a Gemini key. Repeat for several; they fall back in order |
 | `--key-index N` | use only the Nth key saved in `gui_settings.json` |
@@ -581,17 +681,25 @@ physical markers** (a notched ear tip, a chest patch, one white paw, an old
 scar). Those markers are the whole point: without them the model renders a
 different animal in every clip.
 
-The reference sheet changes with it too. An animal sheet is a **single** image,
-full body, standing, three-quarter view, so the face *and* the coat markings are
-both readable at once, and every marker has to be visible in it. One image, not
-a multi-angle sheet — the video model accepts at most 3 reference images, and a
-multi-view sheet counts as more than one.
+The reference sheet changes with it too. An animal sheet is **one image of
+several angles** — a full-body front, three-quarter and profile view plus a
+head-and-shoulders close-up — and **every physical marker must be visible
+somewhere in it**, or the video model will not reproduce them. A single
+front-facing view was tried and is not enough: the model has one angle to work
+from, invents the rest, and the animal drifts from clip to clip. It is still
+ONE image file, so it costs one of the three reference slots.
 
 `type` is internal. It never reaches the story JSON, the style bible or the
 agent prompt; its only job is to pick the right profile while writing.
 
 A preset that declares no `cast_types` — every other one — is untouched, and its
 prompt is byte-identical to what it was before this existed.
+
+**`cast_types` is also what decides who gets the [standing
+cast](#the-standing-cast--the-same-faces-in-every-video).** A preset whose cast
+is `["human"]` and nothing else is drawn from `house_cast.json` and nobody is
+invented; anything else — an animal film, a what-if explainer, a genre with no
+types at all — designs its own cast as before.
 
 #### `default_duration` — a genre's own running length
 
@@ -792,7 +900,9 @@ agent_download.js          pull generated clips out of Flow (stage 3)
 join_clips.js              ffmpeg concat -> one final mp4 (stage 4)
 agent_watch.js             read-only watcher; records what the agent says
 styles.js                  style presets - list, inspect, apply to a story
-styles.json                the 23 presets themselves (data, not code)
+styles.json                the style presets themselves (data, not code; `npm run styles` lists them)
+house_cast.json            the standing cast - the characters in every video
+house_refs/                their reference sheets, made once, used by every story
 write_story.js             title + preset -> story JSON, style bible, sheet prompts
 veo3_gui.py                tkinter launcher - all three paths, in tabs
 probe_editor.js            diagnostic - dumps the editor timeline DOM

@@ -49,6 +49,10 @@ AGENT_ENGINE = os.path.join(BASE_DIR, "agent_mode.js")
 PROMPT_BUILDER = os.path.join(BASE_DIR, "story_to_agent_prompt.js")
 STYLES_TOOL = os.path.join(BASE_DIR, "styles.js")
 STYLES_FILE = os.path.join(BASE_DIR, "styles.json")
+# The second preset list, toggled between with the "List:" dropdown next to every
+# preset picker. Classic is styles.json; GENAI Presets is genai_styles.json.
+GENAI_STYLES_FILE = os.path.join(BASE_DIR, "genai_styles.json")
+PRESET_GROUPS = ["Classic", "GENAI Presets"]
 WRITER = os.path.join(BASE_DIR, "write_story.js")
 DOWNLOADER = os.path.join(BASE_DIR, "agent_download.js")
 JOINER = os.path.join(BASE_DIR, "join_clips.js")
@@ -56,6 +60,57 @@ SETTINGS_FILE = os.path.join(BASE_DIR, "gui_settings.json")
 ACCOUNT_MGR = os.path.join(BASE_DIR, "account_manager.js")
 ACCOUNTS_FILE = os.path.join(BASE_DIR, "accounts.json")
 STORIES_DIR = os.path.join(BASE_DIR, "stories")
+MCP_SERVER = os.path.join(BASE_DIR, "mcp_server.js")
+
+
+def read_xlsx_rows(path):
+    """Read the first worksheet of an .xlsx with no third-party package.
+
+    An .xlsx is a zip of XML: shared strings, then one sheet whose cells
+    reference them. That is all a batch-import needs, so the GUI stays
+    dependency-free rather than pulling in openpyxl just to read two columns.
+    Returns a list of rows, each a list of cell strings.
+    """
+    import zipfile
+    import re as _re
+    import xml.etree.ElementTree as ET
+
+    ns = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+    with zipfile.ZipFile(path) as z:
+        names = z.namelist()
+        shared = []
+        if "xl/sharedStrings.xml" in names:
+            root = ET.fromstring(z.read("xl/sharedStrings.xml"))
+            for si in root.findall(f"{ns}si"):
+                shared.append("".join(t.text or "" for t in si.iter(f"{ns}t")))
+        sheets = sorted(n for n in names
+                        if n.startswith("xl/worksheets/sheet") and n.endswith(".xml"))
+        if not sheets:
+            return []
+        root = ET.fromstring(z.read(sheets[0]))
+        rows = []
+        for row in root.iter(f"{ns}row"):
+            cells = {}
+            for c in row.findall(f"{ns}c"):
+                col = _re.match(r"[A-Z]+", c.get("r") or "") or None
+                col = col.group(0) if col else "A"
+                t = c.get("t")
+                v = c.find(f"{ns}v")
+                inline = c.find(f"{ns}is")
+                if t == "s" and v is not None and v.text is not None:
+                    idx = int(v.text)
+                    val = shared[idx] if 0 <= idx < len(shared) else ""
+                elif t == "inlineStr" and inline is not None:
+                    val = "".join(x.text or "" for x in inline.iter(f"{ns}t"))
+                elif v is not None:
+                    val = v.text or ""
+                else:
+                    val = ""
+                cells[col] = str(val).strip()
+            if cells:
+                ordered = sorted(cells.keys(), key=lambda k: (len(k), k))
+                rows.append([cells[k] for k in ordered])
+        return rows
 
 # ── palette ─────────────────────────────────────────────────────
 # Every colour the GUI paints with, in one place, so the scheme can be
@@ -92,13 +147,35 @@ DEFAULTS = {
     "no_submit": True,
     "watch_secs": 300,
     "clips_dir": "",
+    # ---- MCP tab ----
+    "mcp_links": "",
+    "mcp_ideas": "",
+    "mcp_preset": "",
+    "mcp_seconds": 8,
+    "mcp_clips": 8,
+    # ON: a pasted video link decides the length - the film is written to the
+    # reference's own duration and "clips (min)" is ignored. OFF: the clips box
+    # is a hard limit for every preset.
+    "mcp_match_ref": True,
+    "mcp_aspect": "9:16",
+    "mcp_generate": False,
+    "mcp_download": True,
+    "mcp_join": True,
+    "mcp_new_project": True,
+    "mcp_generate_refs": True,
+    "mcp_auto_approve": True,
+    "mcp_verbose": True,
+    "mcp_from": 1,
+    "mcp_to": 0,
+    "mcp_last_dir": "",
     # Console pane width in px, remembered between runs. 0 = never dragged
     # (use the default 20% share).
     "console_width": 0,
-    # Clip format. Agent Mode has no settings panel, so these reach Flow as words
-    # in the prompt. 16:9 is YouTube's shape; the first two stories came out that
-    # way only because it is Flow's default, not because anything asked for it.
-    "aspect_ratio": "16:9",
+    # Clip format. The aspect ratio is set in Flow's own Settings menu (the tune
+    # icon beside the prompt box), not by the prompt, so the default is "Flow":
+    # the tool says nothing about the ratio and you pick it in Flow. A real ratio
+    # can still be chosen here and it is written into the prompt.
+    "aspect_ratio": "Flow",
     # 8s is the ceiling for Veo 3.1 - Lite [Lower Priority]. The spinbox stops
     # there on purpose; a longer clip needs the CLI or the story JSON, and the
     # builder warns when you go over.
@@ -119,14 +196,17 @@ DEFAULTS = {
     # Its own copy rather than sharing the Agent tab's: a story is written once
     # and read back by the Agent tab from the story JSON, so these two never need
     # to agree, and sharing them would silently rewrite the other tab's fields.
-    "gen_aspect_ratio": "16:9",
+    "gen_aspect_ratio": "Flow",
     "gen_scene_seconds": 8,
-    "gen_preset": "ghibli",
+    "gen_preset": "relationship-dialogue",
+    # Which preset list the pickers show: "Classic" (styles.json) or
+    # "GENAI Presets" (genai_styles.json).
+    "preset_group": "Classic",
     # Pinned, not "gemini-flash-latest": an alias changes the model under you
     # between runs with nothing on screen to say why. Google retired the previous
     # default within hours of this being written, so press "List models" and pick
     # from what your key can actually use - that list is the only source of truth.
-    "gemini_model": "gemini-3.6-flash",
+    "gemini_model": "gemini-3.8-flash,gemini-3.7-flash,gemini-3.6-flash",
     # Lands in gui_settings.json, which is gitignored. Never logged or echoed.
     #
     # A list, not a single key. write_story.js walks it in order and moves to the
@@ -137,8 +217,13 @@ DEFAULTS = {
 }
 
 
-def load_style_presets():
-    """Read styles.json into the Agent tab's dropdown data.
+def preset_file(group):
+    """Which file a preset group reads from."""
+    return GENAI_STYLES_FILE if str(group or "").lower().startswith("genai") else STYLES_FILE
+
+
+def load_style_presets(group="Classic"):
+    """Read a preset list into the dropdown data.
 
     Returns (displays, id_by_display, style_by_display, length_by_display). A
     preset is offered as "Label  [id]" - the label is what a person picks by,
@@ -152,7 +237,7 @@ def load_style_presets():
     leaving the number in a README nobody reads.
     """
     try:
-        with open(STYLES_FILE, "r", encoding="utf-8") as f:
+        with open(preset_file(group), "r", encoding="utf-8") as f:
             styles = json.load(f).get("styles") or []
     except Exception:
         return [], {}, {}, {}
@@ -237,6 +322,14 @@ class Veo3LauncherGUI:
         style.configure("Console.TLabel", foreground=TEXT_DIM,
                         font=("Segoe UI", 8, "bold"))
 
+        # Progress for the running generation. clam draws a trough plus a bar
+        # with a border, so both colours have to be set or it renders as the
+        # default blue-grey slab against the dark panel.
+        style.configure("Engine.Horizontal.TProgressbar",
+                        troughcolor=INPUT, background=ACCENT,
+                        bordercolor=BORDER, lightcolor=ACCENT, darkcolor=ACCENT_DK,
+                        borderwidth=0, thickness=8)
+
         # Tabs sit on the window background; the selected one adopts the
         # panel colour so it reads as part of the content below it.
         style.configure("TNotebook", background=BG, borderwidth=0,
@@ -262,7 +355,8 @@ class Veo3LauncherGUI:
         style.map("TButton",
                   background=[("pressed", BORDER), ("active", "#2b2b3b")],
                   focuscolor=[("active", ACCENT)])
-        # The loud one per panel: the primary action (Run engine, Write story).
+        # The accent fill marks a Run button: Write story, Run engine, and the
+        # five stage buttons in Agent Mode. Everything secondary stays flat.
         style.configure("Accent.TButton", background=ACCENT, foreground="#0d1a12",
                         borderwidth=0, lightcolor=ACCENT, darkcolor=ACCENT,
                         bordercolor=ACCENT, padding=(12, 6))
@@ -343,6 +437,19 @@ class Veo3LauncherGUI:
         outwrap.grid(row=2, column=2, sticky="nsew", padx=(0, 14), pady=(8, 10))
         ttk.Label(outwrap, text="ENGINE OUTPUT", style="Console.TLabel").pack(
             anchor="w", pady=(0, 4))
+        # Progress for the running generation, above the console rather than
+        # in a tab so it is visible whichever tab you happen to be on. Flow
+        # only sometimes exposes a real percentage, so this is the engine's
+        # best number, real when available and an estimate when not.
+        progwrap = tk.Frame(outwrap, bg=SURFACE)
+        progwrap.pack(fill="x", pady=(0, 6))
+        self.progress = ttk.Progressbar(progwrap, orient="horizontal",
+                                        mode="determinate", maximum=100,
+                                        style="Engine.Horizontal.TProgressbar")
+        self.progress.pack(fill="x")
+        self.progress_label = tk.Label(progwrap, text="idle", bg=SURFACE,
+                                       fg=TEXT_DIM, font=("Segoe UI", 9), anchor="w")
+        self.progress_label.pack(fill="x", pady=(3, 0))
         # width=1 keeps the Text's natural request tiny so the column's
         # minsize (set by the sash) is what actually decides the pane width.
         self.output = tk.Text(outwrap, width=1, bg=INPUT, fg=CONSOLE_FG,
@@ -395,6 +502,12 @@ class Veo3LauncherGUI:
 
         # Each tab scrolls. The Script and Agent tabs hold more rows than a
         # small screen shows at once, and a cut-off options panel is unusable.
+        # Which preset list every picker shows: Classic or GENAI Presets. One
+        # shared variable, so switching it on any tab switches it everywhere.
+        self.preset_group_var = tk.StringVar(value=self.settings.get("preset_group", "Classic"))
+        if self.preset_group_var.get() not in PRESET_GROUPS:
+            self.preset_group_var.set(PRESET_GROUPS[0])
+        self.preset_group_var.trace_add("write", lambda *a: self.on_preset_group_change())
         self._tab_canvases = []
         scr_tab, scr = self.make_scrollable_tab()
         ing_tab, ing = self.make_scrollable_tab()
@@ -407,11 +520,14 @@ class Veo3LauncherGUI:
         self.agent_tab = agt_tab
         acc_tab, acc = self.make_scrollable_tab()
         self.nb.add(acc_tab, text="Accounts")
+        mcp_tab, mcp = self.make_scrollable_tab()
+        self.nb.add(mcp_tab, text="MCP")
 
         self.build_script_tab(scr)
         self.build_ingredients_tab(ing)
         self.build_agent_tab(agt)
         self.build_accounts_tab(acc)
+        self.build_mcp_tab(mcp)
         # One binding for all three tabs - see _on_tab_wheel for why it is a
         # single bind_all rather than one binding per canvas.
         self.root.bind_all("<MouseWheel>", self._on_tab_wheel)
@@ -425,6 +541,13 @@ class Veo3LauncherGUI:
         self.root.rowconfigure(2, weight=1)
 
         self.proc = None
+        # Progress line state. The engine prints "[PROGRESS] pct=NN scene=N"
+        # while a clip generates; stream_output runs on a reader thread, so the
+        # value is stashed here and a single scheduled callback applies it on
+        # the Tk thread. Without the pending flag a burst of progress lines
+        # would queue one callback each and the UI would lag behind the run.
+        self._pending_progress = None
+        self._progress_scheduled = False
         # credit-pool state: which account's browser we last started,
         # how far the story got before a drain, and the continuation ctx.
         self._browser_account = None
@@ -537,6 +660,42 @@ class Veo3LauncherGUI:
                   style="Hint.TLabel").grid(row=r, column=0, **pad)
         self._refresh_accounts_list()
 
+    # ── preset list toggle ────────────────────────────────────
+    def on_preset_group_change(self, *_):
+        """The List: dropdown was switched - repopulate every preset picker."""
+        self.settings["preset_group"] = self.preset_group_var.get()
+        self.refresh_preset_lists()
+
+    def refresh_preset_lists(self):
+        """Reload the Script, Agent and MCP preset pickers from the chosen list.
+
+        A selection made in the other list no longer exists, so it falls back to
+        the first entry rather than staying as a dead name the next run rejects.
+        """
+        group = self.preset_group_var.get()
+        d, ids, _, lengths = load_style_presets(group)
+        self._gen_displays, self._gen_ids, self._gen_lengths = d, ids, lengths
+        self.gen_preset_box.configure(values=d or ["styles.json missing or empty"])
+        if self.gen_preset_var.get() not in d:
+            self.gen_preset_var.set(d[0] if d else "styles.json missing or empty")
+
+        d2, ids2, bydisp2, _ = load_style_presets(group)
+        self._style_displays, self._style_ids, self._style_by_display = d2, ids2, bydisp2
+        self.style_box.configure(values=d2 or ["styles.json missing or empty"])
+        if self.style_var.get() not in d2:
+            self.style_var.set(d2[0] if d2 else "styles.json missing or empty")
+
+        d3, ids3, bydisp3, _ = load_style_presets(group)
+        self._mcp_displays, self._mcp_ids, self._mcp_by_display = d3, ids3, bydisp3
+        self.mcp_preset_box.configure(values=d3 or ["styles.json missing or empty"])
+        if self.mcp_preset_var.get() not in d3:
+            self.mcp_preset_var.set(d3[0] if d3 else "styles.json missing or empty")
+
+        try:
+            self._console(f"Preset list: {group} - {len(d)} preset(s).")
+        except Exception:
+            pass
+
     def build_script_tab(self, f):
         pad = dict(padx=14, pady=5)
         f.columnconfigure(1, weight=1)
@@ -581,6 +740,10 @@ class Veo3LauncherGUI:
                                            style="Preset.TCombobox")
         self.gen_preset_box.pack(side="left")
         ttk.Button(sty, text="Manage…", command=self.open_styles_help).pack(side="left", padx=(8, 0))
+        ttk.Label(sty, text="List:").pack(side="left", padx=(10, 4))
+        self.gen_group_box = ttk.Combobox(sty, textvariable=self.preset_group_var, width=13,
+                                          values=PRESET_GROUPS, state="readonly")
+        self.gen_group_box.pack(side="left")
         if self._gen_displays:
             want = self.settings.get("gen_preset") or ""
             for disp, sid in self._gen_ids.items():
@@ -603,9 +766,9 @@ class Veo3LauncherGUI:
         ttk.Spinbox(fmt, from_=1, to=8, textvariable=self.gen_seconds_var,
                     width=4).pack(side="left")
         ttk.Label(fmt, text="sec per clip", style="Hint.TLabel").pack(side="left", padx=(6, 18))
-        self.gen_aspect_var = tk.StringVar(value=self.settings.get("gen_aspect_ratio", "16:9"))
+        self.gen_aspect_var = tk.StringVar(value=self.settings.get("gen_aspect_ratio", "Flow"))
         ttk.Combobox(fmt, textvariable=self.gen_aspect_var, width=6,
-                     values=["16:9", "9:16", "1:1"]).pack(side="left")
+                     values=["Flow", "16:9", "9:16", "1:1"]).pack(side="left")
         ttk.Label(fmt, text="aspect", style="Hint.TLabel").pack(side="left", padx=(6, 0))
         r += 1
 
@@ -624,13 +787,15 @@ class Veo3LauncherGUI:
         ttk.Label(f, text="Gemini model:").grid(row=r, column=0, sticky="e", **pad)
         md = tk.Frame(f, bg=SURFACE)
         md.grid(row=r, column=1, columnspan=2, sticky="ew", padx=14)
-        self.gen_model_var = tk.StringVar(value=self.settings.get("gemini_model", "gemini-3.6-flash"))
-        # Editable, not readonly: "List models" fills it from the API, but a model
-        # the list has not seen yet can still be typed in without waiting for it.
-        self.gen_model_box = ttk.Combobox(md, textvariable=self.gen_model_var, width=30)
+        self.gen_model_var = tk.StringVar(value=self.settings.get("gemini_model", "gemini-3.8-flash,gemini-3.7-flash,gemini-3.6-flash"))
+        # Editable, not readonly: "List models" fills it from the API, and the box
+        # also accepts a CHAIN - "a,b,c" - which the writer walks newest-first when
+        # a model is busy (503) or not on this key (404).
+        self.gen_model_box = ttk.Combobox(md, textvariable=self.gen_model_var, width=46)
         self.gen_model_box.pack(side="left")
         ttk.Button(md, text="List models", command=self.list_models).pack(side="left", padx=(8, 0))
-        ttk.Label(md, text="fills this list from your key - nothing is spent",
+        ttk.Button(md, text="Flash chain", command=self.use_flash_chain).pack(side="left", padx=(6, 0))
+        ttk.Label(md, text="one model, or a chain a,b,c - tried in order",
                   style="Hint.TLabel").pack(side="left", padx=(10, 0))
         r += 1
 
@@ -927,6 +1092,10 @@ class Veo3LauncherGUI:
         self.style_box.pack(side="left")
         self.style_apply = ttk.Button(line1, text="Apply to story", command=self.apply_style)
         self.style_apply.pack(side="left", padx=(8, 0))
+        ttk.Label(line1, text="List:").pack(side="left", padx=(10, 4))
+        self.agent_group_box = ttk.Combobox(line1, textvariable=self.preset_group_var, width=13,
+                                            values=PRESET_GROUPS, state="readonly")
+        self.agent_group_box.pack(side="left")
         if self._style_displays:
             want = self.settings.get("style_preset") or ""
             for disp, sid in self._style_ids.items():
@@ -954,7 +1123,7 @@ class Veo3LauncherGUI:
         # can be typed here without waiting for this list to learn about it.
         self.aspect_var = tk.StringVar(value=self.settings["aspect_ratio"])
         ttk.Combobox(line2, textvariable=self.aspect_var, width=7,
-                     values=["16:9", "9:16", "1:1"]).pack(side="left", padx=(6, 4))
+                     values=["Flow", "16:9", "9:16", "1:1"]).pack(side="left", padx=(6, 4))
         ttk.Label(line2, text="aspect", style="Hint.TLabel").pack(side="left", padx=(0, 14))
         self.seconds_var = tk.IntVar(value=self.settings["scene_seconds"])
         ttk.Spinbox(line2, from_=1, to=8, textvariable=self.seconds_var,
@@ -998,7 +1167,10 @@ class Veo3LauncherGUI:
             box.grid(row=0, column=col, sticky="n", padx=(0, 14))
             ttk.Label(box, text=f"{num}. {title}", style="Step.TLabel").pack(anchor="w")
             ttk.Label(box, text=sub, style="Hint.TLabel", justify="left", wraplength=170).pack(anchor="w", pady=(0, 4))
-            ttk.Button(box, text="Run", command=cmd, width=20).pack(anchor="w")
+            # The same accent fill as "Run engine" and "Write story", so a Run
+            # button is the green one on every tab rather than only two of them.
+            ttk.Button(box, text="Run", command=cmd, width=20,
+                       style="Accent.TButton").pack(anchor="w")
 
         stage(stages, 0, "1", "Build prompt", "story JSON →\nagent_prompt.txt", self.build_prompt)
         stage(stages, 1, "2", "Run agent", "type prompt, attach\nmentions, submit", self.run_agent)
@@ -1098,12 +1270,12 @@ class Veo3LauncherGUI:
                 if p == self.story_var.get():
                     self.to_var.set(n)
                 if p == self.agent_story_var.get():
-                    # A story JSON may carry its own clip format, and the builder
-                    # prefers it. Load it into the controls so the fields show what
-                    # the prompt will actually say - otherwise they read 16:9 while
-                    # the prompt emits 9:16, and nothing on screen says so.
-                    if data.get("aspect_ratio"):
-                        self.aspect_var.set(str(data["aspect_ratio"]))
+                    # The aspect control is NOT overwritten from the story. It is
+                    # the authority now: Build prompt and Run agent pass it to the
+                    # builder as --aspect, which beats the story's own value.
+                    # Syncing it from the story used to snap a "Flow" or a
+                    # landscape choice back to the story's 9:16 the moment the
+                    # story was (re)loaded - the exact lock this fixes.
                     try:
                         if data.get("scene_seconds"):
                             self.seconds_var.set(int(data["scene_seconds"]))
@@ -1137,7 +1309,7 @@ class Veo3LauncherGUI:
             "watch_secs": self.read_int(self.watch_var, 300),
             "clips_dir": self.resolved_clips_dir(),
             "reverse": bool(self.reverse_var.get()),
-            "aspect_ratio": self.aspect_var.get().strip() or "16:9",
+            "aspect_ratio": self.aspect_var.get().strip() or "Flow",
             "scene_seconds": self.read_seconds(),
             "style_preset": self._style_ids.get(self.style_var.get(), ""),
             "auto_rotate": bool(self.auto_rotate_var.get()) if hasattr(self, "auto_rotate_var")
@@ -1146,9 +1318,10 @@ class Veo3LauncherGUI:
             "gen_detail": self.gen_detail.get("1.0", "end").strip(),
             "gen_duration": self.read_int(self.gen_duration_var, 56),
             "gen_scene_seconds": self.read_int(self.gen_seconds_var, 8),
-            "gen_aspect_ratio": self.gen_aspect_var.get().strip() or "16:9",
+            "gen_aspect_ratio": self.gen_aspect_var.get().strip() or "Flow",
             "gen_preset": self._gen_ids.get(self.gen_preset_var.get(), ""),
-            "gemini_model": self.gen_model_var.get().strip() or "gemini-3.6-flash",
+            "preset_group": self.preset_group_var.get() if hasattr(self, "preset_group_var") else self.settings.get("preset_group", "Classic"),
+            "gemini_model": self.gen_model_var.get().strip() or "gemini-3.8-flash,gemini-3.7-flash,gemini-3.6-flash",
             # Anything typed into the entry but not yet Added counts too, so a
             # key pasted and immediately used without pressing Add still works
             # rather than silently running with no key.
@@ -1156,6 +1329,24 @@ class Veo3LauncherGUI:
             # Cleared: the list is now the only source. Leaving a stale single
             # key here would resurrect an old key the user had removed.
             "gemini_api_key": "",
+            # mcp tab - guarded so a settings save never depends on the tab
+            # having been built yet.
+            "mcp_links": self._mcp_text(self.mcp_links) if hasattr(self, "mcp_links") else self.settings.get("mcp_links", ""),
+            "mcp_ideas": self._mcp_text(self.mcp_ideas) if hasattr(self, "mcp_ideas") else self.settings.get("mcp_ideas", ""),
+            "mcp_preset": self._mcp_preset_id() if hasattr(self, "mcp_preset_var") else self.settings.get("mcp_preset", ""),
+            "mcp_seconds": self.read_int(self.mcp_seconds_var, 8) if hasattr(self, "mcp_seconds_var") else self.settings.get("mcp_seconds", 8),
+            "mcp_clips": self.read_int(self.mcp_clips_var, 0) if hasattr(self, "mcp_clips_var") else self.settings.get("mcp_clips", 0),
+            "mcp_match_ref": bool(self.mcp_match_ref_var.get()) if hasattr(self, "mcp_match_ref_var") else self.settings.get("mcp_match_ref", True),
+            "mcp_aspect": (self.mcp_aspect_var.get().strip() or "Flow") if hasattr(self, "mcp_aspect_var") else self.settings.get("mcp_aspect", "Flow"),
+            "mcp_generate": bool(self.mcp_generate_var.get()) if hasattr(self, "mcp_generate_var") else self.settings.get("mcp_generate", False),
+            "mcp_download": bool(self.mcp_download_var.get()) if hasattr(self, "mcp_download_var") else self.settings.get("mcp_download", True),
+            "mcp_join": bool(self.mcp_join_var.get()) if hasattr(self, "mcp_join_var") else self.settings.get("mcp_join", True),
+            "mcp_new_project": bool(self.mcp_new_project_var.get()) if hasattr(self, "mcp_new_project_var") else self.settings.get("mcp_new_project", True),
+            "mcp_generate_refs": bool(self.mcp_generate_refs_var.get()) if hasattr(self, "mcp_generate_refs_var") else self.settings.get("mcp_generate_refs", True),
+            "mcp_auto_approve": bool(self.mcp_auto_approve_var.get()) if hasattr(self, "mcp_auto_approve_var") else self.settings.get("mcp_auto_approve", True),
+            "mcp_verbose": bool(self.mcp_verbose_var.get()) if hasattr(self, "mcp_verbose_var") else self.settings.get("mcp_verbose", True),
+            "mcp_from": self.read_int(self.mcp_from_var, 1) if hasattr(self, "mcp_from_var") else self.settings.get("mcp_from", 1),
+            "mcp_to": self.read_int(self.mcp_to_var, 0) if hasattr(self, "mcp_to_var") else self.settings.get("mcp_to", 0),
         })
 
     def effective_keys(self):
@@ -1210,8 +1401,36 @@ class Veo3LauncherGUI:
         if os.path.normcase(self.clips_var.get().strip()) != os.path.normcase(want):
             self.clips_var.set(want)
 
+    def story_folder_of(self, folder):
+        """The story folder `folder` sits inside, or '' when it is in none.
+
+        A story folder is identifiable because it directly holds a *_story.json -
+        the same marker resolved_clips_dir relies on. Walking up to find that
+        marker is what keeps other_story_of honest now that the finished stories
+        live under stories/old/: every one of them shares that first path
+        segment, so a test that only compared first segments saw them all as the
+        same story and the wrong-folder guard below could never fire again.
+        """
+        try:
+            nroot = os.path.normcase(os.path.abspath(STORIES_DIR))
+            cur = os.path.abspath(folder)
+            while os.path.normcase(cur).startswith(nroot + os.sep):
+                try:
+                    if any(n.lower().endswith("_story.json")
+                           for n in os.listdir(cur)):
+                        return cur
+                except OSError:
+                    pass
+                parent = os.path.dirname(cur)
+                if parent == cur:
+                    break
+                cur = parent
+            return ""
+        except Exception:
+            return ""
+
     def other_story_of(self, folder, story_path):
-        """Name the story folder `folder` belongs to, if it is not the loaded one.
+        """The story folder `folder` belongs to, if it is not the loaded one.
 
         Returns '' when the folder is fine: either it is inside the loaded
         story, or it is somewhere outside stories/ entirely (a custom output
@@ -1220,19 +1439,13 @@ class Veo3LauncherGUI:
         productions, and the join then reads a manifest that does not match the
         story being built.
         """
-        try:
-            root = os.path.normcase(os.path.abspath(STORIES_DIR))
-            f = os.path.normcase(os.path.abspath(folder))
-            if not f.startswith(root + os.sep):
-                return ""
-            mine = os.path.normcase(os.path.abspath(self.story_dir(story_path)))
-            if not mine.startswith(root + os.sep):
-                return ""
-            rel_f = os.path.relpath(f, root).split(os.sep)[0]
-            rel_m = os.path.relpath(mine, root).split(os.sep)[0]
-            return rel_f if rel_f != rel_m else ""
-        except Exception:
+        mine = self.story_folder_of(self.story_dir(story_path))
+        if not mine:
             return ""
+        theirs = self.story_folder_of(folder)
+        if not theirs or os.path.normcase(theirs) == os.path.normcase(mine):
+            return ""
+        return theirs
 
     def correct_clips_dir(self, what="download"):
         """Refuse to work in another story's folder, and say so.
@@ -1255,8 +1468,9 @@ class Veo3LauncherGUI:
         messagebox.showwarning(
             "Wrong story folder",
             f"The clips folder points at a different story:\n\n"
-            f"    set to :  {other}\n"
-            f"    loaded :  {os.path.basename(self.story_dir(story))}\n\n"
+            f"    clips folder :  {os.path.abspath(out)}\n"
+            f"    belongs to   :  {os.path.basename(other)}\n"
+            f"    story loaded :  {os.path.basename(self.story_dir(story))}\n\n"
             f"{'Downloading' if what == 'download' else 'Joining'} there would mix two "
             f"stories together.\n\nSwitching to:\n{right}")
         self.clips_var.set(right)
@@ -1451,6 +1665,7 @@ class Veo3LauncherGUI:
     def _handle_proc_exit(self, code):
         """Engine finished. Code 3 = the account's Veo credits are spent."""
         self._refresh_accounts_list()
+        self._reset_progress("idle")
         ctx = getattr(self, "_rotate_ctx", None)
         if code != 3 or not ctx:
             return
@@ -1496,6 +1711,7 @@ class Veo3LauncherGUI:
             return False
         self.output.delete("1.0", "end")
         self.output.insert("end", f"🚀 {what}\n\n")
+        self._reset_progress("starting...")
         # chcp 65001 makes the new console render UTF-8 (emojis) correctly;
         # encoding="utf-8" fixes decoding of the engine's output into this panel.
         shell_cmd = "chcp 65001 >nul && " + subprocess.list2cmdline(cmd)
@@ -1596,6 +1812,10 @@ class Veo3LauncherGUI:
                 return
             self._launch(cmd, f"Writing '{title}' with {self.settings['gemini_model']}...")
 
+    def use_flash_chain(self):
+        """Put the default flash chain back: newest first, then the next two."""
+        self.gen_model_var.set("gemini-3.8-flash,gemini-3.7-flash,gemini-3.6-flash")
+
     def list_models(self):
         """Fill the model dropdown from what this key can actually use.
 
@@ -1624,11 +1844,13 @@ class Veo3LauncherGUI:
                                  (p.stderr or "No models came back.").strip()[:400])
             return
         self.gen_model_box.configure(values=models)
-        # Keep whatever is selected if it survived; otherwise move to the first
-        # entry rather than leaving a dead name in the box for the next run.
-        if self.gen_model_var.get() not in models:
+        current = self.gen_model_var.get().strip()
+        if "," in current:
+            # A chain is a deliberate choice; leave it alone.
+            self.output.insert("end", f"Chain kept: {current}\n\n")
+        elif current not in models:
             self.output.insert("end",
-                               f"⚠️  '{self.gen_model_var.get()}' is not on this list - "
+                               f"⚠️  '{current}' is not on this list - "
                                f"it would fail.\n\n")
             self.gen_model_var.set(models[0])
         self.output.insert("end", f"{len(models)} models available. Picked: "
@@ -1679,11 +1901,43 @@ class Veo3LauncherGUI:
                       "--seconds", str(self.settings["scene_seconds"])],
                      "Building agent_prompt.txt from the story JSON...")
 
+    def _refresh_prompt(self, story):
+        """Rebuild agent_prompt.txt from the current controls, synchronously.
+
+        Run agent types whatever agent_prompt.txt holds, and that file is only as
+        fresh as the last Build prompt click. So a ratio or clip length changed
+        afterwards never reached Flow - which is why choosing landscape still
+        produced portrait clips, from a prompt still saying 9:16. Rebuilding here
+        makes stage 1 and stage 2 one action.
+        """
+        cmd = ["node", PROMPT_BUILDER, story,
+               "--aspect", self.settings["aspect_ratio"],
+               "--seconds", str(self.settings["scene_seconds"])]
+        shell_cmd = "chcp 65001 >nul && " + subprocess.list2cmdline(cmd)
+        try:
+            r = subprocess.run(shell_cmd, cwd=BASE_DIR, capture_output=True,
+                               text=True, encoding="utf-8", errors="replace",
+                               shell=True, timeout=180)
+        except Exception as e:
+            messagebox.showerror("Build prompt failed", str(e))
+            return False
+        if r.returncode != 0:
+            messagebox.showerror(
+                "Build prompt failed",
+                ((r.stdout or "") + (r.stderr or "")).strip()[-1200:])
+            return False
+        return True
+
     def run_agent(self):
         self.collect_inputs()
         story = self.agent_story_var.get().strip()
         if not story or not os.path.exists(story):
             messagebox.showerror("Missing story", "Pick a valid story JSON first.")
+            return
+        self.save_settings()
+        # Rebuild the prompt from the controls right now, so a ratio or clip
+        # length changed since the last Build prompt actually reaches Flow.
+        if not self._refresh_prompt(story):
             return
         # Stage 1 is a prerequisite, not an optional extra: this file is what
         # agent_mode.js types, and an earlier run's copy may be stale or gone.
@@ -1698,7 +1952,13 @@ class Veo3LauncherGUI:
         # make sure that is the ACTIVE account's before it starts.
         if not self._ensure_active_browser():
             return
+        # --refs is what keeps the cast stable. The "@" picker offers each
+        # character as either a raw Image or a saved Flow Character, and only
+        # the Image holds the face across clips - the Character is re-derived
+        # per clip and drifts. Passing the story JSON uploads the sheets (once;
+        # they are skipped on later runs) so an Image tile exists to pick.
         cmd = ["node", AGENT_ENGINE, "--file", prompt_file,
+               "--refs", story,
                "--cdp", str(self.settings["cdp_port"]),
                "--watch", str(self.settings["watch_secs"])]
         if self.settings["model_hint"]:
@@ -1768,6 +2028,8 @@ class Veo3LauncherGUI:
                         self._credits_scene = int(line.split("after_scene=")[1].split()[0])
                     except Exception:
                         pass
+                elif "[PROGRESS] pct=" in line:
+                    self._on_progress(line)
         except Exception:
             pass
         code = self.proc.wait()
@@ -1778,6 +2040,448 @@ class Veo3LauncherGUI:
             self.root.after(0, lambda: self._handle_proc_exit(code))
         except Exception:
             pass
+
+    # ── progress line ─────────────────────────────────────────
+    def _on_progress(self, line):
+        """Parse an engine "[PROGRESS] pct=NN scene=N" line.
+
+        Called from the reader thread, so it only stashes the value; the
+        widget update happens on the Tk thread via a single scheduled call.
+        """
+        pct, scene = None, ""
+        try:
+            for part in line.split("[PROGRESS]")[1].split():
+                if part.startswith("pct="):
+                    pct = int(float(part[4:]))
+                elif part.startswith("scene="):
+                    scene = part[6:]
+        except Exception:
+            return
+        if pct is None:
+            return
+        self._pending_progress = (pct, scene)
+        if not self._progress_scheduled:
+            self._progress_scheduled = True
+            try:
+                self.root.after(0, self._apply_progress)
+            except Exception:
+                self._progress_scheduled = False
+
+    def _apply_progress(self):
+        self._progress_scheduled = False
+        pending = self._pending_progress
+        if not pending:
+            return
+        pct, scene = pending
+        try:
+            self.progress["value"] = max(0, min(100, pct))
+            where = f"scene {scene} - " if scene else ""
+            self.progress_label.config(text=f"{where}{pct}%  generating")
+        except Exception:
+            pass
+
+    def _reset_progress(self, text="idle"):
+        self._pending_progress = None
+        try:
+            self.progress["value"] = 0
+            self.progress_label.config(text=text)
+        except Exception:
+            pass
+
+    # ── MCP tab ───────────────────────────────────────────────
+    # A batch builder that drives mcp_server.js directly (the GUI acts as an MCP
+    # client). Same tool layer the agents see, so there is one batch
+    # implementation, not two - and because it runs here, it can use the account
+    # pool before a generating batch.
+    def build_mcp_tab(self, f):
+        pad = dict(padx=14, pady=5)
+        f.columnconfigure(1, weight=1)
+        r = 0
+
+        intro = tk.Frame(f, bg=CARD, highlightthickness=1, highlightbackground=BORDER)
+        intro.grid(row=r, column=0, columnspan=3, sticky="ew", padx=10, pady=(10, 8))
+        tk.Label(intro, text="Batch builder - feeds the MCP server", bg=CARD, fg=ACCENT,
+                 font=("Segoe UI", 10, "bold"), anchor="w").pack(fill="x", padx=10, pady=(8, 2))
+        tk.Label(intro, justify="left", anchor="w", bg=CARD, fg=TEXT, font=("Segoe UI", 9),
+                 text=("Video links (one per line) are analysed and made into films. Ideas are written\n"
+                       "from scratch:   Title | preset | detail   (preset and detail optional).\n"
+                       "Import a .txt / .csv / .xlsx too: a row with a link is a reference; a row with a\n"
+                       "title in column A and the details in column B is an idea. Films are made ONE BY ONE.")
+                 ).pack(fill="x", padx=10, pady=(0, 10))
+        r += 1
+
+        tk.Label(f, text="Video links:").grid(row=r, column=0, sticky="ne", **pad)
+        self.mcp_links = tk.Text(f, height=5, bg=INPUT, fg=TEXT, insertbackground=TEXT,
+                                 font=("Consolas", 9), wrap="none")
+        self.mcp_links.grid(row=r, column=1, columnspan=2, sticky="ew", **pad)
+        self._mcp_set_text(self.mcp_links, self.settings.get("mcp_links", ""))
+        r += 1
+
+        tk.Label(f, text="Ideas:").grid(row=r, column=0, sticky="ne", **pad)
+        self.mcp_ideas = tk.Text(f, height=7, bg=INPUT, fg=TEXT, insertbackground=TEXT,
+                                 font=("Consolas", 9), wrap="none")
+        self.mcp_ideas.grid(row=r, column=1, columnspan=2, sticky="ew", **pad)
+        self._mcp_set_text(self.mcp_ideas, self.settings.get("mcp_ideas", ""))
+        r += 1
+
+        imp = tk.Frame(f, bg=SURFACE)
+        imp.grid(row=r, column=0, columnspan=3, sticky="w", padx=14, pady=5)
+        ttk.Button(imp, text="Import file…", command=self.mcp_import_file).pack(side="left")
+        ttk.Label(imp, text=".txt / .csv / .xlsx   (links, or Title in col A + details in col B)",
+                  style="Hint.TLabel").pack(side="left", padx=8)
+        r += 1
+
+        line1 = tk.Frame(f, bg=SURFACE)
+        line1.grid(row=r, column=0, columnspan=3, sticky="w", padx=14, pady=5)
+        ttk.Label(line1, text="Preset:").pack(side="left")
+        self._mcp_displays, self._mcp_ids, self._mcp_by_display, _ = load_style_presets()
+        self.mcp_preset_var = tk.StringVar()
+        self.mcp_preset_box = ttk.Combobox(line1, textvariable=self.mcp_preset_var, width=24,
+                                           values=self._mcp_displays, state="readonly")
+        self.mcp_preset_box.pack(side="left", padx=(6, 16))
+        ttk.Label(line1, text="List:").pack(side="left")
+        self.mcp_group_box = ttk.Combobox(line1, textvariable=self.preset_group_var, width=13,
+                                          values=PRESET_GROUPS, state="readonly")
+        self.mcp_group_box.pack(side="left", padx=(6, 16))
+        for disp, sid in self._mcp_ids.items():
+            if sid == (self.settings.get("mcp_preset") or ""):
+                self.mcp_preset_var.set(disp)
+                break
+        ttk.Label(line1, text="sec/clip:").pack(side="left")
+        self.mcp_seconds_var = tk.IntVar(value=int(self.settings.get("mcp_seconds", 8)))
+        ttk.Spinbox(line1, from_=4, to=10, textvariable=self.mcp_seconds_var, width=4).pack(side="left", padx=(6, 16))
+        ttk.Label(line1, text="clips (min):").pack(side="left")
+        self.mcp_clips_var = tk.IntVar(value=int(self.settings.get("mcp_clips", 8)))
+        ttk.Spinbox(line1, from_=0, to=60, textvariable=self.mcp_clips_var, width=4).pack(side="left", padx=(6, 16))
+        ttk.Label(line1, text="ratio:").pack(side="left")
+        self.mcp_aspect_var = tk.StringVar(value=self.settings.get("mcp_aspect", "9:16"))
+        ttk.Combobox(line1, textvariable=self.mcp_aspect_var, width=6,
+                     values=["9:16", "16:9", "1:1", "Flow"]).pack(side="left", padx=(6, 0))
+        r += 1
+
+        line1b = tk.Frame(f, bg=SURFACE)
+        line1b.grid(row=r, column=0, columnspan=3, sticky="w", padx=14, pady=5)
+        self.mcp_match_ref_var = tk.BooleanVar(value=bool(self.settings.get("mcp_match_ref", True)))
+        ttk.Checkbutton(line1b, text="Match the video link's own length",
+                        variable=self.mcp_match_ref_var).pack(side="left")
+        ttk.Label(line1b,
+                  text="ON: scenes are built to the linked video's duration - the clips box above is ignored.\n"
+                       "OFF: the clips box is the limit (a 2-minute link is still cut to that many clips).",
+                  style="Hint.TLabel").pack(side="left", padx=8)
+        r += 1
+
+        line2 = tk.Frame(f, bg=SURFACE)
+        line2.grid(row=r, column=0, columnspan=3, sticky="w", padx=14, pady=5)
+        self.mcp_generate_var = tk.BooleanVar(value=bool(self.settings.get("mcp_generate", False)))
+        ttk.Checkbutton(line2, text="Generate (spends credits)",
+                        variable=self.mcp_generate_var).pack(side="left")
+        self.mcp_download_var = tk.BooleanVar(value=bool(self.settings.get("mcp_download", True)))
+        ttk.Checkbutton(line2, text="Download", variable=self.mcp_download_var).pack(side="left", padx=(12, 0))
+        self.mcp_join_var = tk.BooleanVar(value=bool(self.settings.get("mcp_join", True)))
+        ttk.Checkbutton(line2, text="Join", variable=self.mcp_join_var).pack(side="left", padx=(12, 0))
+        self.mcp_new_project_var = tk.BooleanVar(value=bool(self.settings.get("mcp_new_project", True)))
+        ttk.Checkbutton(line2, text="New project per film",
+                        variable=self.mcp_new_project_var).pack(side="left", padx=(12, 0))
+        self.mcp_generate_refs_var = tk.BooleanVar(value=bool(self.settings.get("mcp_generate_refs", True)))
+        ttk.Checkbutton(line2, text="Refs in Flow",
+                        variable=self.mcp_generate_refs_var).pack(side="left", padx=(12, 0))
+        self.mcp_auto_approve_var = tk.BooleanVar(value=bool(self.settings.get("mcp_auto_approve", True)))
+        ttk.Checkbutton(line2, text="Auto-approve", variable=self.mcp_auto_approve_var).pack(side="left", padx=(12, 0))
+        self.mcp_verbose_var = tk.BooleanVar(value=bool(self.settings.get("mcp_verbose", True)))
+        ttk.Checkbutton(line2, text="Show title + detail in summary",
+                        variable=self.mcp_verbose_var).pack(side="left", padx=(12, 0))
+        r += 1
+
+        line3 = tk.Frame(f, bg=SURFACE)
+        line3.grid(row=r, column=0, columnspan=3, sticky="w", padx=14, pady=5)
+        ttk.Label(line3, text="From:").pack(side="left")
+        self.mcp_from_var = tk.IntVar(value=int(self.settings.get("mcp_from", 1)))
+        ttk.Spinbox(line3, from_=1, to=999, textvariable=self.mcp_from_var, width=5).pack(side="left", padx=(6, 16))
+        ttk.Label(line3, text="To (0 = end):").pack(side="left")
+        self.mcp_to_var = tk.IntVar(value=int(self.settings.get("mcp_to", 0)))
+        ttk.Spinbox(line3, from_=0, to=999, textvariable=self.mcp_to_var, width=5).pack(side="left", padx=(6, 16))
+        ttk.Label(line3, text="Flow runs strictly one film at a time.", style="Hint.TLabel").pack(side="left")
+        r += 1
+
+        acts = tk.Frame(f, bg=SURFACE)
+        acts.grid(row=r, column=0, columnspan=3, sticky="w", padx=14, pady=(8, 4))
+        ttk.Button(acts, text="Write stories only",
+                   command=lambda: self.run_mcp_batch(False)).pack(side="left")
+        ttk.Button(acts, text="Generate batch",
+                   command=lambda: self.run_mcp_batch(True)).pack(side="left", padx=8)
+        ttk.Button(acts, text="Stop", command=self.stop_mcp).pack(side="left")
+        r += 1
+
+        ag = tk.Frame(f, bg=SURFACE)
+        ag.grid(row=r, column=0, columnspan=3, sticky="w", padx=14, pady=(4, 10))
+        ttk.Button(ag, text="Copy MCP config", command=self.copy_mcp_config).pack(side="left")
+        ttk.Button(ag, text="Copy agent instruction",
+                   command=self.copy_agent_instruction).pack(side="left", padx=8)
+        ttk.Label(ag, text="paste into opencode / Claude Code / Cursor",
+                  style="Hint.TLabel").pack(side="left", padx=4)
+        r += 1
+
+    @staticmethod
+    def _mcp_text(widget):
+        return widget.get("1.0", "end").strip()
+
+    @staticmethod
+    def _mcp_set_text(widget, text):
+        if text:
+            widget.insert("1.0", text)
+
+    def _mcp_preset_id(self):
+        return self._mcp_ids.get(self.mcp_preset_var.get(), "")
+
+    def _ui(self, fn):
+        """Run fn on the Tk thread (workers call this)."""
+        try:
+            self.root.after(0, fn)
+        except Exception:
+            pass
+
+    def _console(self, line):
+        try:
+            self.output.insert("end", line if line.endswith("\n") else line + "\n")
+            self.output.see("end")
+        except Exception:
+            pass
+
+    def mcp_import_file(self):
+        p = filedialog.askopenfilename(
+            title="Import video links or ideas",
+            initialdir=self.settings.get("mcp_last_dir") or BASE_DIR,
+            filetypes=[("Links or ideas", "*.txt *.csv *.xlsx"), ("All files", "*.*")])
+        if not p:
+            return
+        self.settings["mcp_last_dir"] = os.path.dirname(p)
+        try:
+            refs, ideas = self._read_items_file(p)
+        except Exception as e:
+            messagebox.showerror("Could not read the file", str(e))
+            return
+        if refs:
+            old = self._mcp_text(self.mcp_links)
+            self.mcp_links.delete("1.0", "end")
+            self.mcp_links.insert("1.0", (old + "\n" if old else "") + "\n".join(refs))
+        if ideas:
+            old = self._mcp_text(self.mcp_ideas)
+            self.mcp_ideas.delete("1.0", "end")
+            self.mcp_ideas.insert("1.0", (old + "\n" if old else "") +
+                                  "\n".join(self._idea_line(i) for i in ideas))
+        self._console(f"Imported {len(refs)} link(s) and {len(ideas)} idea(s) from {os.path.basename(p)}")
+
+    @staticmethod
+    def _idea_line(idea):
+        title = idea.get("title", "")
+        preset = idea.get("preset", "")
+        detail = idea.get("detail", "")
+        if preset:
+            return f"{title} | {preset} | {detail}"
+        return f"{title} | {detail}" if detail else title
+
+    def _read_items_file(self, path):
+        ext = os.path.splitext(path)[1].lower()
+        if ext in (".txt", ".md"):
+            # Text has no columns, so a "Title | preset | detail" line is split
+            # on the pipe here - the same separator the Ideas box uses.
+            with open(path, encoding="utf-8", errors="replace") as fh:
+                rows = [[c.strip() for c in ln.split("|")]
+                        for ln in fh
+                        if ln.strip() and not ln.lstrip().startswith("#")]
+        elif ext == ".csv":
+            import csv
+            with open(path, newline="", encoding="utf-8", errors="replace") as fh:
+                rows = [[(c or "").strip() for c in row] for row in csv.reader(fh)]
+        elif ext == ".xlsx":
+            rows = read_xlsx_rows(path)
+        elif ext == ".xls":
+            raise ValueError("Old .xls is not supported - open it and Save As .xlsx or CSV.")
+        else:
+            raise ValueError(f"Unsupported file type: {ext or '(none)'}")
+        return self._rows_to_items(rows)
+
+    @staticmethod
+    def _rows_to_items(rows):
+        refs, ideas = [], []
+        for idx, row in enumerate(rows):
+            cells = [(c or "").strip() for c in row]
+            url = next((c for c in cells if c.lower().startswith("http")), "")
+            if url:
+                refs.append(url)
+                continue
+            nonempty = [c for c in cells if c]
+            if not nonempty:
+                continue
+            # Drop an obvious header row so a spreadsheet with column names does
+            # not become a film titled "Title".
+            if idx == 0 and nonempty[0].lower() in ("title", "video title", "name", "topic"):
+                continue
+            title = nonempty[0]
+            detail = nonempty[1] if len(nonempty) > 1 else ""
+            ideas.append({"title": title, "detail": detail})
+        return refs, ideas
+
+    def _parse_idea_lines(self):
+        ideas = []
+        for ln in self.mcp_ideas.get("1.0", "end").splitlines():
+            ln = ln.strip()
+            if not ln or ln.startswith("#"):
+                continue
+            parts = [p.strip() for p in ln.split("|")]
+            title = parts[0] if parts else ""
+            if not title:
+                continue
+            if len(parts) >= 3:
+                ideas.append({"title": title, "preset": parts[1], "detail": " | ".join(parts[2:])})
+            elif len(parts) == 2:
+                ideas.append({"title": title, "detail": parts[1]})
+            else:
+                ideas.append({"title": title})
+        return ideas
+
+    def run_mcp_batch(self, generate):
+        self.collect_inputs()
+        self.save_settings()
+        links = [l.strip() for l in self.mcp_links.get("1.0", "end").splitlines()
+                 if l.strip().lower().startswith("http")]
+        ideas = self._parse_idea_lines()
+        if not links and not ideas:
+            messagebox.showinfo("Nothing to do", "Add video links and/or ideas first, or import a file.")
+            return
+        total = len(links) + len(ideas)
+        if generate and not messagebox.askyesno(
+                "Generate batch",
+                f"Generate {total} film(s) now?\n\nThis drives Flow one film at a time and SPENDS "
+                f"credits. It can take a long time. You can Stop, then Resume with From/To."):
+            return
+        if generate and not self._ensure_active_browser():
+            return
+        if not os.path.exists(MCP_SERVER):
+            messagebox.showerror("MCP server missing", f"Not found:\n{MCP_SERVER}")
+            return
+
+        args = {
+            "aspect": self.mcp_aspect_var.get().strip() or "Flow",
+            "seconds": self.read_int(self.mcp_seconds_var, 8),
+            "generate": bool(generate),
+            "submit": bool(generate),
+            "download": bool(self.mcp_download_var.get()),
+            "join": bool(self.mcp_join_var.get()),
+            "auto_approve": bool(self.mcp_auto_approve_var.get()),
+            "new_project": bool(self.mcp_new_project_var.get()),
+            "generate_refs": bool(self.mcp_generate_refs_var.get()),
+            "model": self.settings.get("gemini_model") or "gemini-3.8-flash,gemini-3.7-flash,gemini-3.6-flash",
+            "veo_model": self.settings.get("model_hint") or "",
+            "verbose": bool(self.mcp_verbose_var.get()),
+            "cdp": self.read_int(self.cdp_var, 9222),
+            "watch": self.read_int(self.watch_var, 300),
+        }
+        preset = self._mcp_preset_id()
+        if preset:
+            args["preset"] = preset
+        clips = self.read_int(self.mcp_clips_var, 0)
+        if clips > 0:
+            args["clips"] = clips
+        # The batch decides: match_ref true = the link's own duration wins and
+        # clips is ignored; false = clips is a hard limit for every preset.
+        args["match_ref"] = bool(self.mcp_match_ref_var.get())
+        frm = self.read_int(self.mcp_from_var, 1)
+        to = self.read_int(self.mcp_to_var, 0)
+        if frm > 1:
+            args["from"] = frm
+        if to > 0:
+            args["to"] = to
+        if links:
+            args["references"] = links
+        if ideas:
+            args["ideas"] = ideas
+
+        self.stop_mcp()
+        self.output.delete("1.0", "end")
+        self.output.insert("end", f"🚀 MCP batch: {len(links)} link(s), {len(ideas)} idea(s)   "
+                                 f"{'GENERATING' if generate else 'stories only'}\n\n")
+        self.output.see("end")
+        self._reset_progress("mcp batch")
+
+        def worker():
+            try:
+                from mcp_client import MCPClient
+            except Exception as e:
+                self._ui(lambda: messagebox.showerror("MCP client missing",
+                                                      f"mcp_client.py could not load:\n{e}"))
+                return
+            client = MCPClient(MCP_SERVER, cwd=BASE_DIR,
+                               log=lambda ln: self._ui(lambda l=ln: self._console(l)))
+            self._mcp_client = client
+            try:
+                client.start()
+                res = client.call_tool("batch_pipeline", args)
+                if res["text"]:
+                    self._ui(lambda: self._console("\n" + res["text"]))
+                tail = "\n✅ batch finished" + (" (with errors)" if res["isError"] else "")
+                self._ui(lambda: self._console(tail))
+            except Exception as e:
+                self._ui(lambda: self._console(f"\n❌ MCP error: {e}"))
+            finally:
+                client.stop()
+                self._mcp_client = None
+                self._ui(lambda: self._reset_progress("idle"))
+                self._ui(self.load_story_info)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def stop_mcp(self):
+        c = getattr(self, "_mcp_client", None)
+        if c:
+            try:
+                c.stop()
+            except Exception:
+                pass
+            self._mcp_client = None
+            self._console("\n🛑 Stopped the MCP batch.")
+
+    def copy_mcp_config(self):
+        cfg = json.dumps({"mcpServers": {"veo3-flow": {
+            "command": "node", "args": [MCP_SERVER.replace("\\", "/")]}}}, indent=2)
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(cfg)
+        except Exception:
+            pass
+        messagebox.showinfo("MCP config copied",
+                            "Paste into Cursor / Claude Desktop / opencode:\n\n" + cfg +
+                            "\n\n(opencode uses the same server under its `mcp` key.)")
+
+    def copy_agent_instruction(self):
+        links = [l.strip() for l in self.mcp_links.get("1.0", "end").splitlines()
+                 if l.strip().lower().startswith("http")]
+        ideas = self._parse_idea_lines()
+        preset = self._mcp_preset_id()
+        clips = self.read_int(self.mcp_clips_var, 0)
+        match_ref = bool(self.mcp_match_ref_var.get())
+        L = ["Using the veo3-flow MCP, call batch_pipeline with:"]
+        if links:
+            L.append("  references: " + json.dumps(links))
+        if ideas:
+            L.append("  ideas: " + json.dumps(ideas))
+        if preset:
+            L.append(f'  preset: "{preset}"')
+        if clips > 0:
+            L.append(f"  clips: {clips}" + ("" if not match_ref else "   # ignored while match_ref is true"))
+        L.append(f"  match_ref: {str(match_ref).lower()}   # "
+                 + ("true = build each link to its own duration; the clips number above is ignored"
+                    if match_ref else "false = the clips number above is the limit"))
+        L.append(f"  seconds: {self.read_int(self.mcp_seconds_var, 8)}")
+        L.append(f'  aspect: "{self.mcp_aspect_var.get().strip() or "Flow"}"')
+        L.append("  generate: false   # write the stories first, then review before spending credits")
+        text = "\n".join(L)
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(text)
+        except Exception:
+            pass
+        messagebox.showinfo("Agent instruction copied", text)
 
     def kill_engine(self):
         if self.proc and self.proc.poll() is None:

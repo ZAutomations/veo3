@@ -1,0 +1,15 @@
+Genre: live-action lifestyle montage explainer.
+Aesthetic: High-contrast dynamic live-action footage featuring fitness, dietary, and lifestyle moments. Clean lighting transitioning between moody indoor workout illumination and bright natural daylight. Fast-paced sequential jump cuts accompanied by prominent bold sans-serif typographic overlays.
+Format: 2 clips of 7s, narrated voice-over.
+Narration: Firm, direct, and energetic pace with authoritative clarity.
+Never change: Central bold sans-serif headline text paired with numbered point markers.
+Beats:
+1. Gym, Bedroom, Dining area - Introducing five natural methods to raise testosterone.; Ensuring sufficient sleep each night.; Cutting down on heavily processed and sugary foods. (visual: A muscular athlete curling dumbbells cuts to a man sleeping peacefully in bed, followed by someone biting into a large burger.)
+2. Graphic background, Bar, Oceanfront deck - Elevating intake of Vitamin D.; Reducing overall alcohol intake.; Committing to regular workout habits. (visual: Golden Vitamin D capsules floating in 3D transition to glasses of beer clinking, cutting to an athlete performing Bulgarian split squats by the sea.)
+EVERY FACT (each one must appear somewhere, in your own words):
+  - Gym [0:00]: Five natural lifestyle strategies can increase testosterone levels.
+  - Bedroom [0:02]: Prioritizing adequate and quality nightly rest.
+  - Dining area [0:04]: Restricting dietary intake of refined sugars and processed foods.
+  - Graphic background [0:06]: Increasing daily consumption or exposure to Vitamin D.
+  - Bar [0:08]: Minimizing regular alcohol consumption.
+  - Oceanfront deck [0:10]: Engaging in consistent physical exercise routines.

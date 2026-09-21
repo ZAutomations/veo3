@@ -1,0 +1,26 @@
+Character reference sheets for "His 5 Rules Ended His Marriage"
+Generate each one, then upload it into Flow as a Character named exactly
+Julian, Evelyn (capital first letter).
+Every sheet must be made with the same medium or the cast will not match.
+
+=== JULIAN ===   (human)
+save as: character_refs/julian_reference_sheet.jpg
+
+-- image prompt --
+Cinematic digital manhwa character, handsome man with sharp dark hair in a slate blue tailored suit, full body, neutral standing pose, facing camera, delicate soft lighting, soft 3D cel-shaded realism, plain neutral grey studio background
+-- image prompt --
+Cinematic digital manhwa character, handsome man with sharp dark hair in a slate blue tailored suit, full body, neutral standing pose, facing camera, delicate soft lighting, soft 3D cel-shaded realism, plain neutral grey studio background
+
+-- identity text (must match this exactly in the story JSON) --
+Same Julian throughout - Cinematic digital manhwa character, soft 3D cel-shaded semi-realistic rendering, realistic adult human proportions, delicate defined facial structure, detailed sharp black hair, dark narrow eyes, pale skin tone, wearing a fitted slate blue tailor-made suit with a crisp white shirt. NOT live-action, NOT a photograph, NOT 3D CGI, NOT western cartoon, NOT chibi.
+
+=== EVELYN ===   (human)
+save as: character_refs/evelyn_reference_sheet.jpg
+
+-- image prompt --
+Cinematic digital manhwa character, elegant woman with wavy chestnut hair in cream sweater and dusty rose dress, full body, neutral standing pose, facing camera, delicate soft lighting, soft 3D cel-shaded realism, plain neutral grey studio background
+-- image prompt --
+Cinematic digital manhwa character, elegant woman with wavy chestnut hair in cream sweater and dusty rose dress, full body, neutral standing pose, facing camera, delicate soft lighting, soft 3D cel-shaded realism, plain neutral grey studio background
+
+-- identity text (must match this exactly in the story JSON) --
+Same Evelyn throughout - Cinematic digital manhwa character, soft 3D cel-shaded semi-realistic rendering, realistic adult human proportions, delicate defined facial structure, long wavy chestnut hair, calm amber eyes, fair skin, wearing a cream cashmere wrap sweater over a dusty rose silk slip dress. NOT live-action, NOT a photograph, NOT 3D CGI, NOT western cartoon, NOT chibi.

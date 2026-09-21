@@ -23,14 +23,22 @@ console.log('\n--- the preset is well formed ---');
 ok('exists', !!talk);
 ok('narration_scope is dialogue', talk.narration_scope === 'dialogue', talk.narration_scope);
 ok('rather than a second relationship preset id', talk.id !== 'relationship');
-ok('carries the manhwa style anchor', /digital manhwa/i.test(talk.style) && /cel-shaded/i.test(talk.style));
-ok('keeps the 4k and lens language', /4k resolution/i.test(talk.style) && /35mm lens/i.test(talk.style));
+ok('carries the semi-realistic medium anchor',
+   /2\.5D semi-realistic/i.test(talk.style) && /8K/i.test(talk.style), talk.style);
+ok('keeps the 8K and lens language', /8K resolution/i.test(talk.style) && /35mm lens/i.test(talk.style));
 ok('the style anchor does not name a real studio',
    !/studio|pixar|disney|ghibli|netflix|marvel/i.test(talk.style), talk.style);
 ok('the cast idiom inverts the usual guard - NOT live-action',
    /NOT live-action/.test(talk.cast_idiom) && /NOT a photograph/.test(talk.cast_idiom));
-ok('the cast idiom asks for manhwa, cel-shaded people',
-   /manhwa/i.test(talk.cast_idiom) && /cel-shaded/i.test(talk.cast_idiom));
+// The medium moved from manhwa to 2.5D semi-realism, which is a narrower target
+// than "not live-action": the failure mode is no longer a photograph, it is a
+// flat cel-shaded cartoon, so the guard has to name that instead.
+ok('the cast idiom asks for the semi-realistic medium',
+   /2\.5D semi-realistic/i.test(talk.cast_idiom), talk.cast_idiom);
+ok('and rules the flat cartoon out by name',
+   /NOT a flat cel-shaded cartoon/.test(talk.cast_idiom) && /NOT chibi/.test(talk.cast_idiom));
+ok('and still rules out the photograph',
+   /NOT a photograph/.test(talk.cast_idiom) && /NOT 3D CGI/.test(talk.cast_idiom));
 ok('forbids a narrator', /no narrator/i.test(talk.avoid));
 ok('forbids on-screen text', /no on-screen text/i.test(talk.avoid));
 ok('forbids subtitles and watermarks',
@@ -40,11 +48,11 @@ ok('describes the exchange shape in direction',
    /hook/i.test(talk.direction) && /aphorism/i.test(talk.direction) && /resolution/i.test(talk.direction));
 ok('says outright that nobody narrates', /no narrator/i.test(talk.direction));
 // This genre used to name four possible rooms here, which each batch read as a
-// menu and picked from - so the film changed cafe every clip. The room moved to
-// the preset's `setting` field, which is one place, stated once.
-ok('locks the room instead of offering a menu of them',
+// menu and picked from - so the film changed cafe every clip. The place is now
+// chosen once per story by call 1, so the preset hardcodes no room at all.
+ok('keeps the pair in one room instead of offering a menu of them',
    /SAME room/i.test(talk.direction) && !/a cafe, a tearoom/i.test(talk.direction));
-ok('and points at the one place it happens', !!talk.setting);
+ok('and hardcodes no place for the film', !talk.setting && !talk.setting_name);
 ok('offers the hook-rules-doubt-aphorism shape',
    (talk.story_shapes || []).some(s => /provocative/i.test(s) && /aphorism/i.test(s)));
 ok('is a human-only typed cast',

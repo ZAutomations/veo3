@@ -1,0 +1,26 @@
+Character reference sheets for "His 5 Rules Ended His Marriage3"
+Generate each one, then upload it into Flow as a Character named exactly
+Victor, Elena (capital first letter).
+Every sheet must be made with the same medium or the cast will not match.
+
+=== VICTOR ===   (human)
+save as: character_refs/victor_reference_sheet.jpg
+
+-- image prompt --
+Cinematic digital manhwa character, Victor, soft 3D cel-shaded semi-realistic rendering, adult male, full body, neutral standing pose, facing camera, short sleek black hair, charcoal suit, delicate soft lighting, plain neutral grey studio background
+-- image prompt --
+Cinematic digital manhwa character, Victor, soft 3D cel-shaded semi-realistic rendering, adult male, full body, neutral standing pose, facing camera, short sleek black hair, charcoal suit, delicate soft lighting, plain neutral grey studio background
+
+-- identity text (must match this exactly in the story JSON) --
+Same Victor throughout - Cinematic digital manhwa character, soft 3D cel-shaded semi-realistic rendering, realistic adult human proportions, delicate defined facial structure, short sleek black hair with individual strands, arrogant dark eyes, wearing a tailored charcoal grey double-breasted suit with a deep navy silk tie. NOT live-action, NOT a photograph, NOT 3D CGI, NOT western cartoon, NOT chibi.
+
+=== ELENA ===   (human)
+save as: character_refs/elena_reference_sheet.jpg
+
+-- image prompt --
+Cinematic digital manhwa character, Elena, soft 3D cel-shaded semi-realistic rendering, adult female, full body, neutral standing pose, facing camera, long chestnut hair, cream blouse, sage green skirt, plain neutral grey studio background
+-- image prompt --
+Cinematic digital manhwa character, Elena, soft 3D cel-shaded semi-realistic rendering, adult female, full body, neutral standing pose, facing camera, long chestnut hair, cream blouse, sage green skirt, plain neutral grey studio background
+
+-- identity text (must match this exactly in the story JSON) --
+Same Elena throughout - Cinematic digital manhwa character, soft 3D cel-shaded semi-realistic rendering, realistic adult human proportions, delicate defined facial structure, long chestnut hair with individual strands, calm composed hazel eyes, wearing a tailored cream silk blouse with a muted sage green high-waisted skirt. NOT live-action, NOT a photograph, NOT 3D CGI, NOT western cartoon, NOT chibi.

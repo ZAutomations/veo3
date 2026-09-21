@@ -1,0 +1,42 @@
+Reference sheets for "The First Burnt Roti (A Lesson in Love)" - the cast and the place
+Generate each one, then SAVE IT in this story's character_refs/
+folder under the name given below.
+Do NOT create a Flow Character for it, and do not touch the Character
+tab. A Flow Character is re-invented for every clip, which is what made
+faces and wardrobes drift from cut to cut. A plain image mentioned with
+@Name is handed to the model as reference pixels and holds. Stage 2 does
+that upload and mention for you - you only supply the file.
+Every sheet must be made with the same medium or the cast will not match.
+Each sheet is ONE image file showing the same individual from several
+angles. Keep it to one file per character: the video model accepts at
+most 3 reference images, and the place plate takes one of those slots -
+so a cast of 2 or 3 is the ceiling.
+
+The cast of this film - Meera - already has
+its reference sheets. They were made once and live in house_refs/ at the
+top of the project, so there is nothing to redraw for this story and no
+sheet block for them below. Stage 2 uploads them from there and
+@Meera resolves to the same file in every story.
+
+=== KABIR ===   (human)
+save as: character_refs/kabir_reference_sheet.jpg
+
+-- image prompt --
+Photorealistic character reference sheet of one identical 24-year-old Indian man in a cream linen kurta across several angles: a full-body front view, full-body three-quarter view, full-body side profile, and head-and-shoulders close-up. Evenly spaced in a row with identical hair, outfit, and lighting in every view. No text, no labels, no watermark. plain neutral grey studio background
+
+-- identity text (must match this exactly in the story JSON) --
+Same Kabir throughout - 24 years old, photorealistic adult human with exact realistic adult proportions, natural tan skin texture with visible pores and fine hair, textured dark wavy hair, kind dark eyes, warm smile. He wears a casual cream linen kurta. Unposed, un-retouched face with small natural asymmetries. NOT illustration, NOT manhwa or webtoon, NOT cartoon, NOT anime, NOT 3D CGI, NOT a painting, NOT a photograph of a known person.
+
+=== PLACE - TEAROOM ===
+save as: character_refs/Tearoom.jpg
+
+This is the ONE place this film happens in. Every clip is shot here,
+with the same furniture and the same light. Generate it as ONE image
+of the place EMPTY - no people and no animals - seen straight on and
+wide, evenly lit, the whole space readable.
+
+-- image prompt --
+Photorealistic 4K cinematic film still, 35mm anamorphic lens, natural depth of field, real-world textures. An empty tearoom corner: a round marble-topped table set between two empty upholstered chairs, gauze curtains at one tall window, a small vase of white orchids beside a stack of saucers, a folded letter on the table. Warm late-afternoon light falls from the left. Straight-on wide view, evenly lit, whole space readable. No people, no animals, no text, no labels, no watermark.
+
+-- place text (must match this exactly in the story JSON) --
+A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating.

@@ -77,7 +77,8 @@ ok('NOT character_refs/', !fs.existsSync(path.join(dir, 'character_refs')));
 
 const bible = fs.readFileSync(path.join(dir, 'style_bible.md'), 'utf8');
 ok('bible says there is no cast', /None\. This topic is about the world/.test(bible));
-ok('bible skips the sheet step', /no reference sheets and no Characters/i.test(bible));
+ok('bible skips the sheet step',
+   /no reference sheets/i.test(bible) && /skip straight to stage 1/i.test(bible));
 ok('bible has no empty ** entries', !/\*\* \*\*|\*\*\*\*/.test(bible));
 ok('bible is not missing the look', bible.includes(sci.style));
 const written = JSON.parse(fs.readFileSync(p1, 'utf8'));

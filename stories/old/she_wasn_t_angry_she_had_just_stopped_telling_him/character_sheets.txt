@@ -1,0 +1,45 @@
+Reference sheets for "She Wasn't Angry. She Had Just Stopped Telling Him." - the cast and the place
+Generate each one, then SAVE IT in this story's character_refs/
+folder under the name given below.
+Do NOT create a Flow Character for it, and do not touch the Character
+tab. A Flow Character is re-invented for every clip, which is what made
+faces and wardrobes drift from cut to cut. A plain image mentioned with
+@Name is handed to the model as reference pixels and holds. Stage 2 does
+that upload and mention for you - you only supply the file.
+Every sheet must be made with the same medium or the cast will not match.
+Each sheet is ONE image file showing the same individual from several
+angles. Keep it to one file per character: the video model accepts at
+most 3 reference images, and the place plate takes one of those slots -
+so a cast of 2 or 3 is the ceiling.
+
+=== MIRA ===   (human)
+save as: character_refs/mira_reference_sheet.jpg
+
+-- image prompt --
+2.5D semi-realistic anime illustration model sheet of one identical 27-year-old Indian woman, Mira. Full-body front view, three-quarter view, side profile, and head-and-shoulders close-up. Wearing dusty-rose cotton kurta with gold border, long dark hair over one shoulder. High-end digital painting, no text, no labels, no watermark, plain neutral grey studio background
+
+-- identity text (must match this exactly in the story JSON) --
+Same Mira throughout - 2.5D semi-realistic anime illustration, high-end digital painting, 8K ultra-detailed, polished manhwa cover finish. Realistic adult human female, 27 years old, soft features, long dark wavy hair loose over one shoulder, large luminous tired brown eyes with long lashes, smooth semi-realistic skin. Wearing a dusty-rose cotton kurta set with thin gold border, small gold stud earrings, plain gold wedding band. Henna mehndi on forearms. NOT chibi, NOT 3D CGI, NOT live-action, NOT photographic realism.
+
+=== DEV ===   (human)
+save as: character_refs/dev_reference_sheet.jpg
+
+-- image prompt --
+2.5D semi-realistic anime illustration model sheet of one identical 30-year-old Indian man, Dev. Full-body front view, three-quarter view, side profile, and head-and-shoulders close-up. Wearing plain charcoal t-shirt, grey pyjamas, short dark hair, stubble. High-end digital painting, no text, no labels, no watermark, plain neutral grey studio background
+
+-- identity text (must match this exactly in the story JSON) --
+Same Dev throughout - 2.5D semi-realistic anime illustration, high-end digital painting, 8K ultra-detailed, polished manhwa cover finish. Realistic adult human male, 30 years old, short dark hair, light stubble, kind but distracted brown eyes, subtle facial structure, smooth semi-realistic skin. Wearing a plain charcoal t-shirt, grey pyjama trousers, and a silver wedding ring. NOT chibi, NOT 3D CGI, NOT live-action, NOT photographic realism, NOT flat cel-shaded cartoon.
+
+=== PLACE - BEDROOM ===
+save as: character_refs/Bedroom.jpg
+
+This is the ONE place this film happens in. Every clip is shot here,
+with the same furniture and the same light. Generate it as ONE image
+of the place EMPTY - no people and no animals - seen straight on and
+wide, evenly lit, the whole space readable.
+
+-- image prompt --
+2.5D semi-realistic anime illustration of an empty late-night bedroom. Low wooden bed with crumpled cream quilt, brass bedside lamp glowing warm amber on left nightstand, half-open window in background with soft city hum. High-end digital painting, warm lighting, deep shadows, 8K, no people, no text, no labels, no watermark.
+
+-- place text (must match this exactly in the story JSON) --
+A dimly lit late-night bedroom featuring a low wooden bed framed against a neutral wall with a crumpled cream quilt. On the left, a warm brass bedside lamp casts soft amber light, while deep soft shadows fill the room. A half-open window reveals city lights outside, and a smartphone lies face-down on the wooden nightstand. Fixed room that never changes.

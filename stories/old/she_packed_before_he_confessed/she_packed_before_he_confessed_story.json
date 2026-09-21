@@ -1,0 +1,225 @@
+{
+  "title": "She Packed Before He Confessed",
+  "description": "An unfaithful husband confesses his secret affair expecting an emotional explosion, only to discover his poised wife has already signed a lease and moved on in silence.",
+  "total_scenes": 8,
+  "video_duration": "64 seconds",
+  "target_audience": "Fans of romantic drama, manhwa stories, and quiet relationship closure tales.",
+  "moral": "The loudest closure is not screaming or fighting, but absolute indifference and quiet self-respect.",
+  "niche": "Relationship Dialogue",
+  "style": "Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail",
+  "aspect_ratio": "9:16",
+  "scene_seconds": 8,
+  "narrated": false,
+  "narration_scope": "dialogue",
+  "silent_cast": false,
+  "scenes": [
+    {
+      "_scene_number": 1,
+      "_scene_title": "The Delayed Confession",
+      "_timing": "0:00-0:08",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Julian",
+          "line": "I can't hide it anymore. I betrayed us, Elena."
+        },
+        {
+          "speaker": "Elena",
+          "line": "I know, Julian. You can stop bracing now."
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Julian sits hunched on the right side of the marble table, his hands trembling slightly as he leans forward in terror. Across from him on the left, Elena sits with perfect poise, her dark brown braid resting over her cream sweater. She gently rotates her porcelain teacup without a single flinch or change in her calm gaze. The warm afternoon sun catches dust motes between them. The camera holds the wide two-shot at eye level with both in frame.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Julian sits hunched on the right side of the marble table, his hands trembling slightly as he leans forward in terror. Across from him on the left, Elena sits with perfect poise, her dark brown braid resting over her cream sweater. She gently rotates her porcelain teacup without a single flinch or change in her calm gaze. The warm afternoon sun catches dust motes between them. The camera holds the wide two-shot at eye level with both in frame.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Julian (on screen, speaking): \"I can't hide it anymore. I betrayed us, Elena.\"  Elena (on screen, speaking): \"I know, Julian. You can stop bracing now.\"",
+      "characters": [
+        "elena",
+        "julian"
+      ]
+    },
+    {
+      "_scene_number": 2,
+      "_scene_title": "A Quiet Reflection",
+      "_timing": "0:08-0:16",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Julian",
+          "line": "You aren't going to yell? Scream at me?"
+        },
+        {
+          "speaker": "Elena",
+          "line": "Anger is a gift. It is reserved for hope."
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Julian grips the edge of the marble table, his brow furrowed in panicked confusion at her utter lack of rage. Elena remains seated on the left, looking down at the white orchids before bringing her calm brown eyes back to meet his frantic gaze. Her voice carries an unshakeable, gentle finality that terrifies him. The late sunlight illuminates the side of her face. The camera cuts to an over-the-shoulder medium close-up from behind Julian, framed tight on Elena speaking.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Julian grips the edge of the marble table, his brow furrowed in panicked confusion at her utter lack of rage. Elena remains seated on the left, looking down at the white orchids before bringing her calm brown eyes back to meet his frantic gaze. Her voice carries an unshakeable, gentle finality that terrifies him. The late sunlight illuminates the side of her face. The camera cuts to an over-the-shoulder medium close-up from behind Julian, framed tight on Elena speaking.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Julian (on screen, speaking): \"You aren't going to yell? Scream at me?\"  Elena (on screen, speaking): \"Anger is a gift. It is reserved for hope.\"",
+      "characters": [
+        "elena",
+        "julian"
+      ]
+    },
+    {
+      "_scene_number": 3,
+      "_scene_title": "The First Rule",
+      "_timing": "0:16-0:24",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Elena",
+          "line": "Marriages do not break during confessions."
+        },
+        {
+          "speaker": "Julian",
+          "line": "Then when did ours end?"
+        },
+        {
+          "speaker": "Elena",
+          "line": "In the quiet months, when you stopped respecting me."
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Elena sits with stoic elegance on the left, her hands folded neatly in her lap over dusty rose trousers. Julian fidgets in his dark linen shirt on the right, visibly weighed down by delayed guilt and desperation. The atmosphere is quiet and thick with unspoken grief, bathed in golden light from the gauze curtained window. Elena speaks softly, her posture unyielding. The camera cuts to an over-the-shoulder medium close-up from behind Julian, framed tight on Elena speaking.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Elena sits with stoic elegance on the left, her hands folded neatly in her lap over dusty rose trousers. Julian fidgets in his dark linen shirt on the right, visibly weighed down by delayed guilt and desperation. The atmosphere is quiet and thick with unspoken grief, bathed in golden light from the gauze curtained window. Elena speaks softly, her posture unyielding. The camera cuts to an over-the-shoulder medium close-up from behind Julian, framed tight on Elena speaking.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Elena (on screen, speaking): \"Marriages do not break during confessions.\"  Julian (on screen, speaking): \"Then when did ours end?\"  Elena (on screen, speaking): \"In the quiet months, when you stopped respecting me.\"",
+      "characters": [
+        "elena",
+        "julian"
+      ]
+    },
+    {
+      "_scene_number": 4,
+      "_scene_title": "The Desperate Pushback",
+      "_timing": "0:24-0:32",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Julian",
+          "line": "Please, just yell at me! Give me a chance to explain!"
+        },
+        {
+          "speaker": "Elena",
+          "line": "There is nothing left to explain."
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Julian leans sharply across the marble table, his chest heaving as panic takes over. His eyes implore her to react, searching her face for any trace of hurt or anger. Elena does not flinch, her composure entirely unbothered as she sits still on the left side of the frame. A heavy, painful tension hangs over the tea saucers and folded letter. The camera cuts to an over-the-shoulder medium close-up from behind Elena, framed tight on Julian speaking.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Julian leans sharply across the marble table, his chest heaving as panic takes over. His eyes implore her to react, searching her face for any trace of hurt or anger. Elena does not flinch, her composure entirely unbothered as she sits still on the left side of the frame. A heavy, painful tension hangs over the tea saucers and folded letter. The camera cuts to an over-the-shoulder medium close-up from behind Elena, framed tight on Julian speaking.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Julian (on screen, speaking): \"Please, just yell at me! Give me a chance to explain!\"  Elena (on screen, speaking): \"There is nothing left to explain.\"",
+      "characters": [
+        "elena",
+        "julian"
+      ]
+    },
+    {
+      "_scene_number": 5,
+      "_scene_title": "The Hidden Truth",
+      "_timing": "0:32-0:40",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Elena",
+          "line": "I signed my new lease two months ago."
+        },
+        {
+          "speaker": "Julian",
+          "line": "Two months? You knew all this time?"
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Elena reaches into her pocket and gently places a gleaming wedding band and a folded document onto the marble surface between them. Julian stares at the lease agreement in utter shock, his breath catching in his throat as his face pales. Elena maintains her gentle, cool gaze, her posture relaxed yet final. Sunlight glints off the key placed beside the paper. The camera cuts to the wide two-shot at eye level with both in frame.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Elena reaches into her pocket and gently places a gleaming wedding band and a folded document onto the marble surface between them. Julian stares at the lease agreement in utter shock, his breath catching in his throat as his face pales. Elena maintains her gentle, cool gaze, her posture relaxed yet final. Sunlight glints off the key placed beside the paper. The camera cuts to the wide two-shot at eye level with both in frame.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Elena (on screen, speaking): \"I signed my new lease two months ago.\"  Julian (on screen, speaking): \"Two months? You knew all this time?\"",
+      "characters": [
+        "elena",
+        "julian"
+      ]
+    },
+    {
+      "_scene_number": 6,
+      "_scene_title": "A Sharp Aphorism",
+      "_timing": "0:40-0:48",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Elena",
+          "line": "Tears are for saving what remains."
+        },
+        {
+          "speaker": "Julian",
+          "line": "And what is left for us?"
+        },
+        {
+          "speaker": "Elena",
+          "line": "Silence. The mourning was finished long ago."
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Elena prepares to rise, holding herself with quiet dignity on the left side of the table. Julian sits frozen on the right, overwhelmed by the realization that he is far too late to fix anything. The soft golden light filters past the orchids, framing Elena's calm facial expression. Her final words linger in the warm afternoon air without bitterness. The camera cuts to an over-the-shoulder medium close-up from behind Julian, framed tight on Elena speaking.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Elena prepares to rise, holding herself with quiet dignity on the left side of the table. Julian sits frozen on the right, overwhelmed by the realization that he is far too late to fix anything. The soft golden light filters past the orchids, framing Elena's calm facial expression. Her final words linger in the warm afternoon air without bitterness. The camera cuts to an over-the-shoulder medium close-up from behind Julian, framed tight on Elena speaking.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Elena (on screen, speaking): \"Tears are for saving what remains.\"  Julian (on screen, speaking): \"And what is left for us?\"  Elena (on screen, speaking): \"Silence. The mourning was finished long ago.\"",
+      "characters": [
+        "elena",
+        "julian"
+      ]
+    },
+    {
+      "_scene_number": 7,
+      "_scene_title": "The Earned Peace",
+      "_timing": "0:48-0:56",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Julian",
+          "line": "So you feel... nothing at all?"
+        },
+        {
+          "speaker": "Elena",
+          "line": "I feel at peace, Julian. I hope you find it too."
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Julian slumps back in his chair on the right, his hands trembling slightly against the marble table as total realization sinks in. On the left, Elena rests her hands gently in her lap, her expression smooth and entirely unburdened. Warm afternoon light catches the soft edges of her knit sweater as she looks at him without malice. The shot is a wide two-shot at eye level, both in frame.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Julian slumps back in his chair on the right, his hands trembling slightly against the marble table as total realization sinks in. On the left, Elena rests her hands gently in her lap, her expression smooth and entirely unburdened. Warm afternoon light catches the soft edges of her knit sweater as she looks at him without malice. The shot is a wide two-shot at eye level, both in frame.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Julian (on screen, speaking): \"So you feel... nothing at all?\"  Elena (on screen, speaking): \"I feel at peace, Julian. I hope you find it too.\"",
+      "characters": [
+        "elena",
+        "julian"
+      ]
+    },
+    {
+      "_scene_number": 8,
+      "_scene_title": "Walking Away Clean",
+      "_timing": "0:56-1:04",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Julian",
+          "line": "Is this really goodbye?"
+        },
+        {
+          "speaker": "Elena",
+          "line": "Goodbye, Julian. Be well."
+        }
+      ],
+      "narrative_context": "A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Julian leans forward from his seat on the right, his eyes searching her face in quiet desperation. Elena sits poised on the left, calmly draping her folded coat across her lap and smoothing the fabric with steady hands. Her eyes offer a faint, polite smile of finality without a single drop of regret. The shot is an over-the-shoulder medium close-up from behind Julian, framed tight on Elena with Julian a soft-focus edge in the foreground.",
+      "veo3_prompt": "[SHOT] A quiet tearoom corner by one tall window. A round marble-topped table sits between two upholstered chairs, gauze curtains hang at the window, a small vase of white orchids stands beside a stack of saucers, and a folded letter rests on the table. Warm late-afternoon light falls from the window on the left. The room is LOCKED: static background, unchanging spatial layout, the same furniture, the same light, the same camera axis in every clip - no scene transitions, no redecorating. SPATIAL BLOCKING (LOCKED): the character laying down the rules sits on screen-LEFT at the table, angled facing right, and stays planted in that chair for the whole film. The character hearing them sits on screen-RIGHT, angled facing left, and stays planted there too. They never swap sides, never stand up, never leave the frame, and the camera never crosses the axis between them. Julian leans forward from his seat on the right, his eyes searching her face in quiet desperation. Elena sits poised on the left, calmly draping her folded coat across her lap and smoothing the fabric with steady hands. Her eyes offer a faint, polite smile of finality without a single drop of regret. The shot is an over-the-shoulder medium close-up from behind Julian, framed tight on Elena with Julian a soft-focus edge in the foreground.\n[LOOK] Cinematic digital manhwa art style, soft 3D cel-shaded realism, 4k resolution, delicate soft lighting, atmospheric indoor ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Julian (on screen, speaking): \"Is this really goodbye?\"  Elena (on screen, speaking): \"Goodbye, Julian. Be well.\"",
+      "characters": [
+        "elena",
+        "julian"
+      ]
+    }
+  ],
+  "character_descriptions": {
+    "elena": "Same Elena throughout - Cinematic digital manhwa character, soft 3D cel-shaded semi-realistic rendering, age twenty-eight, slim graceful build, porcelain skin, long dark brown hair in a loose low braid, calm brown eyes. Wears a soft oversized cream knit sweater over a white silk camisole and tailored dusty rose trousers. Refined, controlled poise. NOT live-action, NOT a photograph, NOT 3D CGI, NOT western cartoon, NOT chibi.",
+    "julian": "Same Julian throughout - Cinematic digital manhwa character, soft 3D cel-shaded semi-realistic rendering, age thirty, tall athletic build, light stubble, messy dark wavy hair, expressive dark eyes. Wears a dark charcoal linen button-down shirt with rolled sleeves over a grey undershirt and dark fitted trousers. Panicked, heavy with delayed guilt. NOT live-action, NOT a photograph, NOT 3D CGI, NOT western cartoon, NOT chibi."
+  },
+  "character_references": {
+    "elena": "./character_refs/elena_reference_sheet.jpg",
+    "julian": "./character_refs/julian_reference_sheet.jpg"
+  }
+}

@@ -23,6 +23,9 @@ const path = require('path');
 
 const HERE = __dirname;
 const STYLES_FILE = path.join(HERE, 'styles.json');
+// The GENAI list lives apart; --apply and --list see both, so an id is valid
+// whichever file it came from.
+const GENAI_STYLES_FILE = path.join(HERE, 'genai_styles.json');
 const argv = process.argv.slice(2);
 
 function flag(name, def = false) {
@@ -40,8 +43,13 @@ if (!fs.existsSync(STYLES_FILE)) {
     console.error(`styles.json not found next to this script (${STYLES_FILE})`);
     process.exit(1);
 }
-const db = JSON.parse(fs.readFileSync(STYLES_FILE, 'utf8'));
-const STYLES = db.styles || [];
+function loadList(file) {
+    try {
+        const db = JSON.parse(fs.readFileSync(file, 'utf8'));
+        return Array.isArray(db.styles) ? db.styles : [];
+    } catch (e) { return []; }
+}
+const STYLES = [...loadList(STYLES_FILE), ...loadList(GENAI_STYLES_FILE)];
 if (!STYLES.length) {
     console.error('styles.json has no styles[].');
     process.exit(1);

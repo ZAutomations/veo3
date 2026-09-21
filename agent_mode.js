@@ -32,8 +32,9 @@
  *   - Veo 3.1 - Lite [Lower Priority] makes AT MOST 8 SECONDS PER CLIP. Asking for a
  *     single "15-second" video makes the agent refuse or re-plan, because no single
  *     clip on this model can be that long.
- *   - Veo 3.1 accepts AT MOST 3 REFERENCE IMAGES (R2V). A multi-angle character
- *     SHEET can count as more than one - a single front-facing image is safer.
+ *   - Veo 3.1 accepts AT MOST 3 REFERENCE IMAGES (R2V), so a cast of 2-3 is the
+ *     ceiling. Each character contributes ONE image: the reference sheet, which
+ *     shows that character from several angles in a single file.
  *   - One scene per clip; several distinct scenes cannot share one clip.
  *   So ask for "N separate clips, one per scene, up to 8 seconds each". Total length
  *   is the SUM of the clips - it is not something you request.
@@ -68,11 +69,24 @@
  *   --auto-approve   click approval buttons the agent offers (SPENDS CREDITS)
  *   --paste          paste the prompt as one blob instead of real keystrokes
  *   --watch N        seconds to keep recording after submit (default 240)
+ *   --refs <what>    character reference sheets to put in the project before the
+ *                    prompt is typed, so "@name" can offer a raw IMAGE tile.
+ *                    A story .json (reads character_references), a folder, or a
+ *                    comma-separated list of images. THIS IS THE FIX FOR DRIFT:
+ *                    an Image tile holds the cast across clips, a saved Flow
+ *                    Character does not. See mention_target.js.
+ *   --no-upload-refs do not upload; only prefer an Image tile if one is already
+ *                    in the project.
  */
 
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
+// The "@" picker offers the same character as either a raw Image or a saved
+// Flow Character, and that choice - not the prompt text - decides whether the
+// cast holds across clips. See mention_target.js for the measurement.
+const MT = require('./mention_target.js');
+const W  = require('./write_story.js');
 
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -90,6 +104,10 @@ function flag(name, def = null) {
 }
 const CDP_PORT   = flag('--cdp', '9222');
 const CDP_URL    = `http://127.0.0.1:${CDP_PORT}`;
+// A specific project to open before anything else. project_setup.js prints this
+// URL, so a batch can give every film its own project instead of trusting
+// whichever tab happens to be open.
+const PROJECT_URL = typeof flag('--project-url') === 'string' ? flag('--project-url').trim() : '';
 
 // A full story is thousands of characters with line breaks - Windows cannot pass
 // that through --prompt "..." without mangling it. --file reads the story from a
@@ -136,6 +154,11 @@ const PROMPT_BASE = PROMPT
 const PROMPT_TEXT = (PROMPT_BASE && MODEL_HINT)
     ? `${PROMPT_BASE} Use ${MODEL_HINT} for all clips.`
     : PROMPT_BASE;
+// Belt-and-braces policy pass: strip wording the video model refuses outright
+// before it ever reaches the box. The writer already carries the rule; this
+// catches a slip. Long prompts still paste, so the text is otherwise untouched.
+const SEND_TEXT = W.sanitizeForPolicy(PROMPT_TEXT);
+if (SEND_TEXT !== PROMPT_TEXT) log('Policy sanitizer adjusted the prompt before sending.');
 
 // A long prompt must NOT be typed key by key - a 3000-character story at 45ms a
 // character is 2+ minutes of keystrokes. Paste it in one shot instead. This is
@@ -147,6 +170,71 @@ const NO_SUBMIT  = !!flag('--no-submit', false);
 const AUTO_APPROVE = !!flag('--auto-approve', false);
 const USE_PASTE  = !!flag('--paste', false);
 const WATCH_SECS = parseInt(flag('--watch', '240'), 10);
+// Veo fails a clip now and then (most often "Audio generation failed"). After
+// the first watch, click the Retry affordances and watch again - this many
+// rounds - so a run does not hand back a film with holes in it. 0 disables.
+const RETRY_ROUNDS = Math.max(0, parseInt(flag('--retry-rounds', '6'), 10));
+const RETRY_WATCH = parseInt(flag('--retry-watch', '90'), 10);
+// Expected clip count, read from the prompt ("Create N separate clips"). Used as
+// a gate: a partial film must not be downloaded and joined as if it were whole.
+const EXPECTED_CLIPS = (() => {
+    const m = String(PROMPT_TEXT || '').match(/create\s+(\d+)\s+separate\s+clips/i);
+    return m ? parseInt(m[1], 10) : 0;
+})();
+// Flow voice asset name(s) to attach via the "+" (Add ingredients) menu.
+// Repeatable: --voice Orus --voice Achernar. One for a narrator, two for a
+// two-hander so each character gets their own.
+const VOICES = (() => {
+    const out = [];
+    for (let i = 0; i < argv.length; i++) {
+        if (argv[i] === '--voice' && argv[i + 1] && !argv[i + 1].startsWith('--')) out.push(String(argv[i + 1]).trim());
+    }
+    return out.filter(Boolean);
+})();
+
+// ---- character reference sheets --------------------------------------------
+// A raw Image tile is what keeps the cast stable, and Flow only offers one if
+// the sheet is already in the project's asset list. --refs puts them there
+// automatically instead of leaving it as a manual upload step per project.
+//
+//   --refs <story.json>       read character_references out of a story package
+//   --refs <dir>              upload every image in a folder
+//   --refs a.jpg,b.jpg        upload named files
+//   --no-upload-refs          never upload; only prefer Image tiles if present
+const REFS_RAW    = flag('--refs');
+const UPLOAD_REFS = !flag('--no-upload-refs', false);
+const REFS = (() => {
+    const out = [];
+    if (typeof REFS_RAW !== 'string' || !REFS_RAW.trim()) return out;
+    for (const p of REFS_RAW.split(',').map(s => s.trim()).filter(Boolean)) {
+        if (!fs.existsSync(p)) { out.push({ name: path.basename(p, path.extname(p)), file: null, asked: p }); continue; }
+        if (fs.statSync(p).isDirectory()) {
+            for (const f of fs.readdirSync(p)) {
+                if (/\.(jpe?g|png|webp)$/i.test(f)) out.push({ name: path.basename(f, path.extname(f)), file: path.join(p, f) });
+            }
+        } else if (/\.json$/i.test(p)) {
+            let story = null;
+            try { story = JSON.parse(fs.readFileSync(p, 'utf8')); } catch (e) {
+                out.push({ name: path.basename(p), file: null, asked: `${p} (unreadable: ${e.message})` });
+                continue;
+            }
+            const storyDir = path.dirname(path.resolve(p));
+            const table = story.character_references || {};
+            const names = [...new Set([...Object.keys(table),
+                                       ...Object.keys(story.character_descriptions || {})])];
+            for (const n of names) out.push({ name: n, file: MT.resolveCharacterRef(table, n, storyDir) });
+            // The film's one place rides in the same folder and is attached the
+            // same way, but it is not a character, so it is not in the table
+            // above. Without this the plate never reaches the project and the
+            // @Place mention has nothing to bind to.
+            const placeName = story.place && String(story.place.name || '').trim();
+            if (placeName) out.push({ name: placeName, file: MT.resolveCharacterRef({}, placeName, storyDir) });
+        } else if (/\.(jpe?g|png|webp)$/i.test(p)) {
+            out.push({ name: path.basename(p, path.extname(p)), file: path.resolve(p) });
+        }
+    }
+    return out;
+})();
 
 const RUN_ID = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 const RUN_DIR = path.join(__dirname, 'logs', `agent_run_${RUN_ID}`);
@@ -223,6 +311,238 @@ function snapshotFn() {
     };
 }
 
+// ---- failure affordances ---------------------------------------------------
+// A failed clip surfaces twice. In the agent conversation it is a card with a
+// "Retry" button. In the media grid it is a tile that offers only "Reuse
+// prompt". This reads both, without clicking anything.
+function retryFn() {
+    const vis = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+    // The specific Veo failure wording, NOT a bare /error/ - that appears in
+    // unrelated UI and would make every page look broken.
+    const FAIL = /audio generation failed|failed to generate|generation failed|something went wrong|try a different prompt/i;
+    const body = document.body.innerText || '';
+    const failedText = FAIL.test(body);
+    const retryButtons = [...document.querySelectorAll('button')]
+        .filter(b => vis(b) && /^retry$/i.test((b.getAttribute('aria-label') || '').trim())).length;
+    // A failed media tile renders as an "error tile" holding a Reuse-prompt
+    // button. That is the precise anchor: matching a generic ancestor (the
+    // virtual-scroll container, a whole section) counts healthy tiles too.
+    const reuseInError = [...document.querySelectorAll('[class*=error-tile]')]
+        .filter(el => vis(el) && !!el.querySelector('button.reuse-prompt-button, button[aria-label="Reuse prompt"]'))
+        .length;
+    // A policy refusal reads very differently from a generation failure: the
+    // model says it cannot help with that. Count it so the agent can re-ask
+    // with a policy-safe wording instead of blindly clicking Retry.
+    const refusedText = /policy|violat|community guidelines|not allowed|cannot (generate|create|help)|can't (generate|create|help)|unable to (generate|create)|against our|blocked by|safety/i.test(body);
+    return { failedText, retryButtons, reuseInError, refusedText };
+}
+
+// Click them. Conversation Retry buttons are safe to click together. A failed
+// grid tile offers only "Reuse prompt": clicking it refills the prompt box and
+// Start generation resubmits it - so do at most ONE of those per round, since
+// the box holds one prompt at a time.
+async function clickFailures(page) {
+    return await page.evaluate(() => {
+        const vis = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+        let retry = 0, reuse = 0;
+        for (const b of [...document.querySelectorAll('button')]) {
+            if (vis(b) && /^retry$/i.test((b.getAttribute('aria-label') || '').trim()) && !b.disabled) {
+                b.click(); retry++;
+            }
+        }
+        if (!retry) {
+            const tile = [...document.querySelectorAll('[class*=error-tile]')].find(vis);
+            if (tile) {
+                const b = tile.querySelector('button.reuse-prompt-button, button[aria-label="Reuse prompt"]');
+                if (b && !b.disabled && vis(b)) { b.click(); reuse++; }
+            }
+        }
+        return { retry, reuse };
+    });
+}
+async function clickStart(page) {
+    return await page.evaluate(() => {
+        const b = document.querySelector('button[aria-label="Start generation"]');
+        if (!b || b.disabled) return false;
+        b.click();
+        return true;
+    });
+}
+
+// The playbook gotcha: the agent sometimes says it is "going to generate" but
+// never renders an approval card, so the run just sits there. Send it a plain
+// confirmation the way a human would.
+// A policy refusal cannot be fixed by clicking Retry - the same words will be
+// refused again. Re-ask in plain language for a policy-safe version, which is
+// also the sanitizer's job on the story side.
+async function policyNudge(page) {
+    const box = await page.evaluate(() => {
+        const pm = document.querySelector('flow-base-prompt-box .ProseMirror') || document.querySelector('.ProseMirror');
+        if (!pm) return null;
+        pm.focus();
+        const r = pm.getBoundingClientRect();
+        return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+    });
+    if (!box) return false;
+    await page.mouse.click(box.x, box.y);
+    await wait(400);
+    await page.keyboard.down('Control'); await page.keyboard.press('KeyA'); await page.keyboard.up('Control');
+    await page.keyboard.press('Backspace');
+    const msg = 'Regenerate only the clips that were refused for policy. Keep every other detail identical, but make the wording policy-safe: do not name or depict any real person, and remove any weeping, sobbing, blood, gore, wounds or weapons aimed at a person. Show only the visual action and keep the narration line.';
+    await page.keyboard.type(msg, { delay: 12 });
+    await wait(700);
+    await page.keyboard.press('Enter');
+    return true;
+}
+
+async function nudgeAgent(page) {    const box = await page.evaluate(() => {
+        const pm = document.querySelector('flow-base-prompt-box .ProseMirror') || document.querySelector('.ProseMirror');
+        if (!pm) return null;
+        pm.focus();
+        const r = pm.getBoundingClientRect();
+        return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+    });
+    if (!box) return false;
+    await page.mouse.click(box.x, box.y);
+    await wait(400);
+    await page.keyboard.down('Control'); await page.keyboard.press('KeyA'); await page.keyboard.up('Control');
+    await page.keyboard.press('Backspace');
+    await page.keyboard.type('Yes, generate it now', { delay: 25 });
+    await wait(600);
+    await page.keyboard.press('Enter');
+    return true;
+}
+
+// Attach a named voice from Flow's Voices library to the prompt box:
+//   "+" (Add ingredients) -> Voices filter -> search the name -> pick the
+//   asset-item -> "Add to prompt".
+// Without this Veo invents its own narrator and the voice drifts clip to clip.
+async function attachVoice(page, name) {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+        await page.keyboard.press('Escape');
+        await wait(700);
+        const btnBox = await page.evaluate(() => {
+            const b = [...document.querySelectorAll('button')].find((x) => !!x.querySelector('.add-menu-icon'))
+                || document.querySelector('button[aria-label="Add ingredients to the prompt box"]');
+            if (!b) return null;
+            b.scrollIntoView({ block: 'center' });
+            const r = b.getBoundingClientRect();
+            return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+        });
+        if (!btnBox) { log(`  attempt ${attempt}: no ingredients menu button`); await wait(1200); continue; }
+        await page.mouse.click(btnBox.x, btnBox.y);
+        await wait(2500);
+        const menuOpen = await page.evaluate(() => !!document.querySelector('input[aria-label="Search assets"]'));
+        if (!menuOpen) { log(`  attempt ${attempt}: ingredients menu did not open`); await wait(800); continue; }
+        await page.evaluate(() => {
+            const el = [...document.querySelectorAll('mat-list-item, [role="menuitem"], button, li, span')]
+                .find((x) => /^voices$/i.test((x.innerText || '').trim()));
+            if (el) el.click();
+        });
+        await wait(1300);
+        const preCount = await page.evaluate(() => document.querySelectorAll('button.asset-item').length);
+        log(`  (voice list shows ${preCount} item(s) before search)`);
+        const wantedSrc = '\\b' + String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b';
+        const findItem = () => page.evaluate((src) => {
+            const re = new RegExp(src, 'i');
+            const el = [...document.querySelectorAll('button.asset-item')].find((x) => re.test(x.innerText || ''));
+            if (!el) return null;
+            el.scrollIntoView({ block: 'center' });
+            const r = el.getBoundingClientRect();
+            return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2), text: (el.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 42) };
+        }, wantedSrc);
+        // The voices list is short, so SCAN it first. The search box is fussy
+        // about a full name and often says "No assets found" for an item that is
+        // plainly in the list, so it is only the fallback.
+        let item = await findItem();
+        if (!item) {
+            const query = String(name).slice(0, Math.max(3, Math.min(String(name).length, 4)));
+            const inp = await page.evaluate(() => {
+                // The top bar has input.search-input too, so match the aria-label
+                // that only the assets picker uses.
+                const i = document.querySelector('input[aria-label="Search assets"]')
+                    || [...document.querySelectorAll('input')].find((x) => /search assets/i.test(x.getAttribute('placeholder') || ''));
+                if (!i) return null;
+                const r = i.getBoundingClientRect();
+                return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+            });
+            if (inp) {
+                await page.mouse.click(inp.x, inp.y);
+                await wait(300);
+                await page.keyboard.down('Control'); await page.keyboard.press('KeyA'); await page.keyboard.up('Control');
+                await page.keyboard.press('Backspace');
+                await page.keyboard.type(query, { delay: 60 });
+                await wait(2200);
+                item = await findItem();
+            }
+        }
+        if (!item) {
+            const info = await page.evaluate(() => ({
+                items: [...document.querySelectorAll('button.asset-item')].map((x) => (x.innerText || '').replace(/voice_selection/i, '').replace(/\s+/g, ' ').trim()).slice(0, 20),
+                searchVal: (document.querySelector('input[aria-label="Search assets"]') || {}).value,
+                pane: (document.querySelector('.cdk-overlay-pane') || {}).innerText
+                    ? document.querySelector('.cdk-overlay-pane').innerText.replace(/\n/g, ' | ').slice(0, 200) : null,
+            }));
+            log(`  attempt ${attempt}: no voice matched "${name}" | listed=${JSON.stringify(info.items)} searchVal=${JSON.stringify(info.searchVal)} pane=${JSON.stringify(info.pane)}`);
+            await page.keyboard.press('Escape');
+            await wait(900);
+            continue;
+        }
+        // A REAL click: a synthetic .click() selects the row but does not arm the
+        // detail pane, so the "Add to prompt" button never appears.
+        await page.mouse.click(item.x, item.y);
+        log(`  selected voice: ${item.text}`);
+        await wait(2400);
+        const addBtn = await page.evaluate(() => {
+            const b = document.querySelector('[class*=detail-add-to]')
+                || [...document.querySelectorAll('button')].find((x) => /add to prompt/i.test((x.innerText || '').trim()));
+            if (!b) return null;
+            const r = b.getBoundingClientRect();
+            return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+        });
+        let added = false;
+        if (addBtn) { await page.mouse.click(addBtn.x, addBtn.y); added = true; }
+        await wait(1500);
+        await page.keyboard.press('Escape');
+        await wait(800);
+        log(`  voice "${name}" ${added ? 'added to the prompt' : 'selected, but Add-to-prompt not found'}`);
+        if (added) return true;
+    }
+    log(`  could not attach voice "${name}" after 3 attempts`);
+    return false;
+}
+
+// A short watch that also auto-approves, used between retry rounds.
+async function sweepFor(page, secs, tag) {
+    const APPROVE = /approve|confirm|proceed|go ahead|looks good|generate|continue|yes\b|create the|start/i;
+    const t0 = Date.now();
+    let lastTail = '';
+    while ((Date.now() - t0) / 1000 < secs) {
+        await wait(4000);
+        const cur = await page.evaluate(snapshotFn);
+        if (cur.tail !== lastTail) {
+            lastTail = cur.tail;
+            const fresh = cur.tail.split('\n').map(x => x.trim()).filter(Boolean).slice(-3);
+            for (const line of fresh) log(`        | ${line.slice(0, 120)}`);
+        }
+        if (AUTO_APPROVE) {
+            const cands = cur.buttons.filter(b => b.aria && APPROVE.test(b.aria) && !b.disabled &&
+                !/^(Settings|Agent instructions|Start generation|Start new session|New session|Home|Search|Favorite|Expand)$/i.test(b.aria));
+            if (cands.length) {
+                await page.evaluate((lbl) => {
+                    const b = [...document.querySelectorAll('button')].find(x => x.getAttribute('aria-label') === lbl);
+                    if (b) b.click();
+                }, cands[0].aria);
+                log(`        auto-clicked "${cands[0].aria}"`);
+                await wait(5000);
+            }
+        }
+    }
+    // No snapshot here: `snap` lives in the run scope, not at module level, and
+    // calling it from here crashed the retry pass with "snap is not defined".
+    return await page.evaluate(snapshotFn);
+}
+
 // ---- deep read of the "@" picker -------------------------------------------
 // The first dump only went 2 levels into .cdk-overlay-container and returned a
 // pane with no children, so the asset items were invisible to us. This goes all
@@ -283,6 +603,110 @@ function pickerFn() {
     };
 }
 
+// ---- reference-sheet upload -------------------------------------------------
+// Flow attaches reference PIXELS only for a raw Image tile. A saved Character is
+// a named entity the agent re-instantiates per clip, which is what drifts. So
+// the sheet has to be in the project's asset list, and the picker's own
+// "Upload media" entry is the way in.
+//
+// This runs BEFORE the prompt is typed, so the bare "@" it types to open the
+// picker can simply be cleared afterwards without disturbing anything.
+async function clearPromptBox(page, box) {
+    // Ctrl+A is unreliable here: the ProseMirror editor does not reliably hold
+    // focus after a mouse click, so a page-level select-all can miss it. Drive
+    // the editor's own selection and delete commands instead.
+    await page.mouse.click(box.x, box.y);
+    await wait(250);
+    const left = await page.evaluate(() => {
+        const pm = document.querySelector('flow-base-prompt-box .ProseMirror')
+                || document.querySelector('.ProseMirror');
+        if (!pm) return -1;
+        pm.focus();
+        const sel = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(pm);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        document.execCommand('delete', false, null);
+        // Mention chips can survive a text delete; drop them directly.
+        for (const chip of pm.querySelectorAll('.mention-chip')) chip.remove();
+        pm.dispatchEvent(new InputEvent('input', { bubbles: true }));
+        return (pm.innerText || '').trim().length;
+    });
+    if (left > 0) log(`   warning: prompt box still holds ${left} characters after clearing.`);
+    await wait(350);
+}
+
+// Is there already a raw Image tile for this name in the project? Re-uploading
+// on every run would pile up duplicate assets, so check before uploading.
+// Returns the choice if an Image tile is already there, else null.
+async function refImageAlreadyPresent(page, box, name) {
+    await page.mouse.click(box.x, box.y);
+    await wait(350);
+    await page.keyboard.type(' @' + name, { delay: 110 });
+    await wait(2600);
+    const pk = await page.evaluate(pickerFn);
+    const choice = MT.chooseMentionTile(pk.clickable || [], name);
+    await page.keyboard.press('Escape');
+    await wait(400);
+    await clearPromptBox(page, box);
+    return (choice.reason === 'ok' && choice.kind === 'image') ? choice : null;
+}
+
+async function uploadRefThroughPicker(page, box, file) {
+    await page.mouse.click(box.x, box.y);
+    await wait(400);
+    await page.keyboard.type(' @', { delay: 120 });
+    await wait(2400);
+
+    // The chooser can only be awaited once we know the click will cause it, so
+    // start listening first and give up on the wait rather than hanging.
+    const chooserP = page.waitForFileChooser({ timeout: 9000 }).catch(() => null);
+
+    const clicked = await page.evaluate(() => {
+        const root = document.querySelector('.cdk-overlay-container');
+        if (!root) return false;
+        const up = [...root.querySelectorAll('button, [role="menuitem"], a, li')]
+            .find(x => /upload media/i.test((x.innerText || '') + ' ' +
+                                           (x.getAttribute('aria-label') || '')));
+        if (!up) return false;
+        up.click();
+        return true;
+    });
+
+    if (!clicked) {
+        log('      no "Upload media" entry in the picker - skipped');
+        await page.keyboard.press('Escape');
+        await wait(400);
+        await clearPromptBox(page, box);
+        return false;
+    }
+
+    const chooser = await chooserP;
+    if (chooser) {
+        await chooser.accept([file]);
+    } else {
+        // Some builds render a hidden <input type=file> instead of a dialog.
+        const input = await page.$('input[type="file"]');
+        if (!input) {
+            log('      no file chooser appeared - skipped');
+            await page.keyboard.press('Escape');
+            await wait(400);
+            await clearPromptBox(page, box);
+            return false;
+        }
+        await input.uploadFile(file);
+    }
+
+    // The upload is a round trip; give it room, then close the picker and clear
+    // the "@" so the real prompt starts from an empty box.
+    await wait(7000);
+    await page.keyboard.press('Escape');
+    await wait(500);
+    await clearPromptBox(page, box);
+    return true;
+}
+
 (async () => {
     fs.mkdirSync(RUN_DIR, { recursive: true });
 
@@ -315,6 +739,13 @@ function pickerFn() {
     }
 
     // ---- 1. Agent Mode must run on the project home, NOT in the editor -----
+    // An explicit project wins: go straight to it, so one film per project is
+    // deterministic rather than "wherever the browser was left".
+    if (PROJECT_URL && page.url() !== PROJECT_URL) {
+        log(`Opening this film's project: ${PROJECT_URL}`);
+        await page.goto(PROJECT_URL, { waitUntil: 'domcontentloaded', timeout: 120000 });
+        await wait(5000);
+    }
     const m = page.url().match(/\/project\/([0-9a-f-]+)/i);
     if (!m) {
         console.error(`Cannot find a project id in ${page.url()}`);
@@ -418,6 +849,43 @@ function pickerFn() {
     await page.keyboard.up('Control');
     await wait(200);
 
+    // ---- 4c. Reference sheets in, BEFORE anything is typed ----------------
+    // Must happen first: it types a bare "@" to open the picker, and there is
+    // nothing in the box yet to disturb. An Image tile cannot be picked if the
+    // sheet was never uploaded to this project.
+    if (REFS.length) {
+        banner('REFERENCE IMAGES');
+        log(`${REFS.length} reference image(s) declared.`);
+        let ready = 0, missing = 0;
+        for (const r of REFS) {
+            if (!r.file) {
+                missing++;
+                log(`   MISSING  ${r.name}: no image found${r.asked ? ' (' + r.asked + ')' : ''}`);
+                continue;
+            }
+            log(`   ${r.name}: ${path.basename(r.file)}`);
+            if (!UPLOAD_REFS) { ready++; continue; }
+
+            // Skip the upload when a raw Image tile is already in the project.
+            const already = await refImageAlreadyPresent(page, box, r.name);
+            if (already) {
+                log(`      already an Image tile - not uploading again`);
+                ready++;
+                continue;
+            }
+
+            const okUpload = await uploadRefThroughPicker(page, box, r.file);
+            if (okUpload) ready++; else missing++;
+        }
+        log(`Uploaded/available: ${ready}   Missing: ${missing}`);
+        if (missing) {
+            log('A missing sheet means the picker can only offer that character as a');
+            log('saved Character, which is the kind that drifts. Expect drift for it.');
+        }
+        if (!UPLOAD_REFS) log('--no-upload-refs: uploads skipped, using tiles already in the project.');
+        await wait(1200);
+    }
+
     // ---- 5a. Plain prompt text FIRST --------------------------------------
     // No mention in this string - see the MENTION split at the top of the file.
     log(`Prompt body: ${PROMPT_TEXT.length} characters.`);
@@ -434,23 +902,29 @@ function pickerFn() {
             document.execCommand('selectAll', false, null);
             document.execCommand('insertText', false, t);
             return (pm.innerText || '').length;
-        }, PROMPT_TEXT);
+        }, SEND_TEXT);
         if (inserted === 'no-editor') { console.error('Prompt box vanished before paste.'); await browser.disconnect(); process.exit(1); }
         log(`Pasted. Editor now holds ~${inserted} characters.`);
     } else {
         // Real keystrokes. Slower, but ProseMirror's input rules see every
         // character, so typing "@Mia" opens the mention picker like a human.
-        await page.keyboard.type(PROMPT_TEXT, { delay: 45 });
+        // Typing is real keystrokes, and Flow's prompt box treats Enter as SEND.
+        // Flatten any newline to a space rather than submitting on the first
+        // line - the "one paragraph" rule from the playbook. (Long prompts go
+        // through the clipboard paste path above, which is already safe.)
+        const flat = SEND_TEXT.replace(/\r?\n+/g, ' ');
+        if (flat !== SEND_TEXT) log('Flattened newlines to spaces for typing (Enter would submit early).');
+        await page.keyboard.type(flat, { delay: 45 });
     }
     await wait(1800);
 
     s = await snap('prompt-text-typed');
     const got = (s.promptText || '');
     log(`Prompt text now: "${got.slice(0, 110)}${got.length > 110 ? ' ...' : ''}"`);
-    log(`Editor reports ${got.length} characters (sent ${PROMPT_TEXT.length}).`);
+    log(`Editor reports ${got.length} characters (sent ${SEND_TEXT.length}).`);
     // ProseMirror can quietly swallow parts of a multi-line paste. If the counts
     // diverge badly, stop rather than submit a story the agent never received.
-    if (Math.abs(got.length - PROMPT_TEXT.length) > Math.max(40, PROMPT_TEXT.length * 0.05)) {
+    if (Math.abs(got.length - SEND_TEXT.length) > Math.max(40, SEND_TEXT.length * 0.05)) {
         log('WARNING: the editor holds a different amount of text than was sent.');
         log('         Multi-line paste may have been mangled. Inspect the snapshot');
         log(`         ${RUN_DIR}\\*_prompt-text-typed.json before trusting this run.`);
@@ -490,34 +964,62 @@ function pickerFn() {
                 }
             }
 
-            // Pick the tightest, deepest match for the character name. A wrapper
-            // container also "contains" the name, so sorting by depth avoids
-            // clicking a giant pane that happens to hold the whole grid.
-            const re = new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-            const hit = (pk.clickable || [])
-                .filter(c => re.test(c.text || '') || re.test(c.aria || ''))
-                .filter(c => (c.text || c.aria || '').trim().length < 80)
-                .sort((a, b) => b.depth - a.depth)[0];
+            // Which tile? The old rule was "deepest node whose text matches the
+            // name", which is blind to the tile's TYPE - and type is the whole
+            // story: an Image tile keeps the cast stable, a Character tile does
+            // not. chooseMentionTile ranks by type first, depth second.
+            const choice = MT.chooseMentionTile(pk.clickable || [], name);
+            fs.writeFileSync(
+                path.join(RUN_DIR, `${String(snapN).padStart(2, '0')}_mention${mi + 1}-choice.json`),
+                JSON.stringify(choice, null, 2));
+            log('   ' + MT.describeChoice(choice, name));
 
+            const hit = choice.inner;
             if (hit) {
                 log(`   clicking: ${hit.tag} "${(hit.text || hit.aria || '').slice(0, 50)}" at ${hit.cx},${hit.cy}`);
                 await page.mouse.click(hit.cx, hit.cy);
                 await wait(2500);
                 s = await snap(`mention${mi + 1}-picked`);
-                log(`   prompt tail now: "...${(s.promptText || '').slice(-90)}"`);
+
+                // The snapshot's promptHTML is sliced to 3000 chars from the HEAD,
+                // and mention chips are appended at the END - so counting chips in
+                // it always reads 0 and proves nothing. Ask the live editor.
+                const chipsNow = await page.evaluate(() => {
+                    const pm = document.querySelector('flow-base-prompt-box .ProseMirror')
+                            || document.querySelector('.ProseMirror');
+                    return pm ? pm.querySelectorAll('.mention-chip').length : -1;
+                });
+                log(`   chips in the editor now: ${chipsNow} (expected ${mi + 1})`);
+                if (chipsNow >= 0 && chipsNow < mi + 1) {
+                    log('   the click did NOT attach a chip - the mention is missing from the prompt.');
+                }
             } else {
                 log(`   NO picker entry matched "${name}" - skipped. Tree saved for inspection.`);
             }
         }
 
         s = await snap('mentions-final');
-        const chips = ((s.promptHTML || '').match(/class="mention-chip"/g) || []).length;
+        // Ask the live editor, not the snapshot: promptHTML is head-sliced and
+        // the chips live at the tail, so a snapshot count is always 0.
+        const chips = await page.evaluate(() => {
+            const pm = document.querySelector('flow-base-prompt-box .ProseMirror')
+                    || document.querySelector('.ProseMirror');
+            return pm ? pm.querySelectorAll('.mention-chip').length : -1;
+        });
         log(`Mention chips in the prompt: ${chips} (expected ${MENTIONS.length})`);
-        if (chips < MENTIONS.length) {
+        if (chips >= 0 && chips < MENTIONS.length) {
             log('Fewer chips than characters - at least one attachment FAILED. Do not submit blind.');
         }
     } else {
         log('No mention in the prompt - skipping the picker step.');
+    }
+
+    // ---- 5c. Voice asset(s) ------------------------------------------------
+    // One voice for a narrator, two for a two-hander. Attached last so the
+    // chips sit alongside the mentions and before the final submit.
+    if (VOICES.length) {
+        banner(`VOICE (${VOICES.join(', ')})`);
+        for (const v of VOICES) await attachVoice(page, v);
     }
 
     s = await snap('prompt-final');
@@ -573,6 +1075,9 @@ function pickerFn() {
     let lastSnap = 0;
     let approvals = 0;
     let sawChat = false;
+    let lastTailAt = 0;       // when the agent's text last changed
+    let lastNudgeAt = -999;   // when we last sent a nudge
+    let nudges = 0;
 
     while ((Date.now() - t0) / 1000 < WATCH_SECS) {
         await wait(4000);
@@ -587,6 +1092,7 @@ function pickerFn() {
 
         if (cur.tail !== lastTail) {
             lastTail = cur.tail;
+            lastTailAt = elapsed;
             const fresh = cur.tail.split('\n').map(x => x.trim()).filter(Boolean).slice(-4);
             log(`[${elapsed}s] screen changed. Last lines:`);
             for (const line of fresh) log(`        | ${line.slice(0, 130)}`);
@@ -602,7 +1108,7 @@ function pickerFn() {
         // Approval buttons the agent has put on screen.
         const cands = cur.buttons.filter(b =>
             b.aria && APPROVE.test(b.aria) && !b.disabled &&
-            !/^(Settings|Agent instructions|Start generation|Home|Search|Favorite|Expand)$/i.test(b.aria)
+            !/^(Settings|Agent instructions|Start generation|Start new session|New session|Home|Search|Favorite|Expand)$/i.test(b.aria)
         );
         if (cands.length) {
             log(`[${elapsed}s] APPROVAL OPTIONS: ${cands.map(c => `"${c.aria}"`).join(', ')}`);
@@ -626,6 +1132,72 @@ function pickerFn() {
                 await snap(`approval-offered-${elapsed}s`);
             }
         }
+
+        // Playbook gotcha: the agent sometimes says it is going to generate but
+        // never renders an approval card, so nothing ever starts. Nudge it.
+        const asking = /going to generate|i will generate|i'll generate|about to generate|shall i|would you like me to|ready to generate|once you confirm|please confirm|let me know/i.test(cur.tail || '');
+        const stuckFor = elapsed - lastTailAt;
+        if (AUTO_APPROVE && !cands.length && asking && stuckFor > 12 && nudges < 4 && (elapsed - lastNudgeAt) > 30) {
+            nudges++;
+            lastNudgeAt = elapsed;
+            if (await nudgeAgent(page)) {
+                log(`[${elapsed}s] agent looked stalled - sent "Yes, generate it now" (nudge ${nudges}).`);
+                await snap(`nudge-${nudges}`);
+                await wait(4000);
+            }
+        }
+    }
+
+    // ---- 7b. Retry failed clips -------------------------------------------
+    // Failures are usually transient ("Audio generation failed" is Veo-side).
+    // Click the Retry affordances and watch again, a bounded number of rounds,
+    // instead of handing back a short film.
+    let retried = 0;
+    let policyNudges = 0;
+    if (RETRY_ROUNDS > 0) {
+        banner(`CHECKING CLIPS${EXPECTED_CLIPS > 0 ? ` (expect ${EXPECTED_CLIPS})` : ''} - up to ${RETRY_ROUNDS} retry rounds`);
+        for (let round = 1; round <= RETRY_ROUNDS; round++) {
+            const cur = await page.evaluate(snapshotFn);
+            const have = cur.mediaTiles.flow_video_tile;
+            const tally = EXPECTED_CLIPS > 0 ? `${have}/${EXPECTED_CLIPS}` : `video=${have}`;
+            // SUCCESS: every clip is on screen. Nothing to retry.
+            if (EXPECTED_CLIPS > 0 && have >= EXPECTED_CLIPS) {
+                log(`Round ${round}: clips ${tally} [OK] - all clips ready.`);
+                break;
+            }
+            const st = await page.evaluate(retryFn);
+            // A policy refusal is not a transient failure: clicking Retry sends
+            // the same refused words. Re-ask for a policy-safe version instead.
+            if (st.refusedText) {
+                policyNudges++;
+                log(`Round ${round}: clips ${tally} - POLICY REFUSAL on screen; re-asking with policy-safe wording (${policyNudges}).`);
+                if (await policyNudge(page)) {
+                    await snap(`policy-nudge-${policyNudges}`);
+                    await sweepFor(page, RETRY_WATCH, `policy-nudge-${policyNudges}-after`);
+                }
+                if (policyNudges >= 2) { log('  policy nudge limit reached - stopping.'); break; }
+                continue;
+            }
+            // Nothing failed and nothing is retryable: the gate downstream decides.
+            if (!st.retryButtons && !st.reuseInError) {
+                log(`Round ${round}: clips ${tally}, no retry affordance on screen - stopping.`);
+                break;
+            }
+            log(`Round ${round}: clips ${tally} [INCOMPLETE], ${st.retryButtons} Retry button(s), ${st.reuseInError} failed tile(s) - retrying.`);
+            const c = await clickFailures(page);
+            retried += c.retry + c.reuse;
+            if (!c.retry && !c.reuse) { log('  nothing clickable - stopping retries.'); break; }
+            log(`  clicked: ${c.retry} Retry, ${c.reuse} Reuse prompt`);
+            await wait(2500);
+            if (c.reuse) {
+                const s = await clickStart(page);
+                log(`  Start generation: ${s ? 'clicked' : 'not clickable'}`);
+                await wait(2500);
+            }
+            await snap(`retry-${round}`);
+            await sweepFor(page, RETRY_WATCH, `retry-${round}-after`);
+        }
+        log(`Retry pass done: ${retried} affordance(s) clicked.`);
     }
 
     // ---- 8. Report ---------------------------------------------------------
@@ -635,11 +1207,26 @@ function pickerFn() {
     log(`Agent Mode   : ${final.agentOn ? 'ON' : 'OFF'}`);
     log(`Clips/images : video=${final.mediaTiles.flow_video_tile} image=${final.mediaTiles.flow_image_tile} any-tile=${final.mediaTiles.any_tile}`);
     log(`Approvals    : ${approvals} auto-clicked`);
+    log(`Retries      : ${retried} failed-clip affordance(s) clicked`);
     log(`Conversation : ${sawChat ? 'yes' : 'no chat nodes matched'}`);
     log(`Snapshots    : ${snapN} files in ${RUN_DIR}`);
+
+    // The gate: do not let a partial film be downloaded and joined as if it were
+    // whole. Video tiles are the clips (the reference sheets are images).
+    let incomplete = false;
+    if (EXPECTED_CLIPS > 0) {
+        const have = final.mediaTiles.flow_video_tile;
+        incomplete = have < EXPECTED_CLIPS;
+        log(`Clips ready  : ${have}/${EXPECTED_CLIPS}  [${incomplete ? 'INCOMPLETE' : 'OK'}]`);
+        if (incomplete) {
+            log('  Not every clip was produced, so download/join is SKIPPED - a partial');
+            log('  film would look broken. Re-run to retry it, or raise --retry-rounds.');
+        }
+    }
     log('');
     log('Next: tell Claude the run is done. The snapshots show whether the agent');
     log('produced SEPARATE clips (needs ffmpeg concat) or one timeline (needs split).');
 
     await browser.disconnect();
+    if (incomplete) process.exit(2);
 })().catch(e => { console.error('AGENT RUN FAILED:', e.message); process.exit(1); });

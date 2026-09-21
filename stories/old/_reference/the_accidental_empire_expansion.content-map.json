@@ -1,0 +1,293 @@
+{
+  "title_suggestion": "The Accidental Empire Expansion",
+  "preset_suggestion": "geography-map",
+  "format": {
+    "source_duration_s": 101,
+    "clip_seconds": 8,
+    "narration": true,
+    "on_screen_text": true,
+    "medium": "2.5D relief map with stylized 2D characters"
+  },
+  "style": "Textured paper relief map aesthetic with warm, muted earth tones and soft overhead lighting. Smooth pan and zoom camera transitions follow animated flat cutout figures.",
+  "narration": "Engaging, informative tone at a steady pacing.",
+  "never_change": "Paper map visual style and paper cutout character aesthetic.",
+  "facts": [
+    {
+      "t": "0:00",
+      "places": [
+        "United States",
+        "France"
+      ],
+      "detail": "American envoys traveled to France seeking to buy a single port city."
+    },
+    {
+      "t": "0:07",
+      "places": [
+        "Louisiana Territory"
+      ],
+      "detail": "The envoys unexpectedly secured the entire surrounding territory for a similar cost."
+    },
+    {
+      "t": "0:13",
+      "places": [
+        "France",
+        "Great Britain"
+      ],
+      "detail": "A brief truce halted conflict between French and British forces in 1802."
+    },
+    {
+      "t": "0:20",
+      "places": [
+        "Louisiana Territory",
+        "North America"
+      ],
+      "detail": "French leadership held massive North American lands with plans to rebuild a western empire."
+    },
+    {
+      "t": "0:28",
+      "places": [
+        "Saint-Domingue",
+        "Haiti"
+      ],
+      "detail": "The core of French imperial strategy rested on Saint-Domingue, its wealthiest Caribbean island."
+    },
+    {
+      "t": "0:33",
+      "places": [
+        "Saint-Domingue",
+        "Haiti"
+      ],
+      "detail": "The island generated massive wealth through sugar and coffee produced by forced labor."
+    },
+    {
+      "t": "0:43",
+      "places": [
+        "Saint-Domingue",
+        "Haiti"
+      ],
+      "detail": "An uprising by the forced workers broke French control over the territory."
+    },
+    {
+      "t": "0:49",
+      "places": [
+        "Saint-Domingue",
+        "Haiti"
+      ],
+      "detail": "During the European peace, French troops were sent to suppress the island revolt."
+    },
+    {
+      "t": "0:54",
+      "places": [
+        "Saint-Domingue",
+        "Haiti"
+      ],
+      "detail": "Outbreaks of yellow fever decimated the invading force, resulting in permanent defeat."
+    },
+    {
+      "t": "0:59",
+      "places": [
+        "Louisiana Territory"
+      ],
+      "detail": "Without the Caribbean colony, holding vast mainland territory lost strategic value."
+    },
+    {
+      "t": "1:05",
+      "places": [
+        "Mississippi River",
+        "New Orleans"
+      ],
+      "detail": "American commerce depended heavily on river transport through French-controlled New Orleans."
+    },
+    {
+      "t": "1:14",
+      "places": [
+        "New Orleans",
+        "United States"
+      ],
+      "detail": "In 1803, American leadership authorized a ten million dollar offer for the port city."
+    },
+    {
+      "t": "1:20",
+      "places": [
+        "Louisiana Territory",
+        "France"
+      ],
+      "detail": "Threatened by renewed war and cash shortages, French leaders sought to shed distant lands."
+    },
+    {
+      "t": "1:25",
+      "places": [
+        "Louisiana Territory"
+      ],
+      "detail": "French leaders countered by offering the complete territory for fifteen million dollars."
+    },
+    {
+      "t": "1:30",
+      "places": [
+        "Louisiana Territory"
+      ],
+      "detail": "The delegates accepted the surprise proposal despite lacking formal authorization."
+    },
+    {
+      "t": "1:36",
+      "places": [
+        "United States",
+        "Louisiana Territory"
+      ],
+      "detail": "The deal expanded American borders dramatically at roughly four cents per acre."
+    }
+  ],
+  "clips": [
+    {
+      "index": 1,
+      "t_start": "0:00",
+      "t_end": "0:12",
+      "places": [
+        "United States",
+        "France",
+        "Louisiana Territory"
+      ],
+      "points": [
+        "American envoys traveled to France seeking to buy a single port city.",
+        "The envoys unexpectedly secured the entire surrounding territory for a similar cost."
+      ],
+      "visual": "Camera pans across the ocean map from North America to France, displaying territory highlights."
+    },
+    {
+      "index": 2,
+      "t_start": "0:12",
+      "t_end": "0:20",
+      "places": [
+        "France",
+        "Great Britain"
+      ],
+      "points": [
+        "A brief truce halted conflict between French and British forces in 1802."
+      ],
+      "visual": "Zoom into Western Europe highlighting France and Britain with animated figures shaking hands."
+    },
+    {
+      "index": 3,
+      "t_start": "0:20",
+      "t_end": "0:28",
+      "places": [
+        "Louisiana Territory",
+        "North America"
+      ],
+      "points": [
+        "French leadership held massive North American lands with plans to rebuild a western empire."
+      ],
+      "visual": "Map pulls back to show North America highlighting the vast central region."
+    },
+    {
+      "index": 4,
+      "t_start": "0:28",
+      "t_end": "0:42",
+      "places": [
+        "Saint-Domingue",
+        "Haiti"
+      ],
+      "points": [
+        "The core of French imperial strategy rested on Saint-Domingue, its wealthiest Caribbean island.",
+        "The island generated massive wealth through sugar and coffee produced by forced labor."
+      ],
+      "visual": "Map shifts down to the Caribbean, zooming into the island with crop icons appearing."
+    },
+    {
+      "index": 5,
+      "t_start": "0:42",
+      "t_end": "0:49",
+      "places": [
+        "Saint-Domingue",
+        "Haiti"
+      ],
+      "points": [
+        "An uprising by the forced workers broke French control over the territory."
+      ],
+      "visual": "Cutout figures clash on the island graphic, changing territory color overlay."
+    },
+    {
+      "index": 6,
+      "t_start": "0:49",
+      "t_end": "0:59",
+      "places": [
+        "Saint-Domingue",
+        "Haiti"
+      ],
+      "points": [
+        "During the European peace, French troops were sent to suppress the island revolt.",
+        "Outbreaks of yellow fever decimated the invading force, resulting in permanent defeat."
+      ],
+      "visual": "Ships travel to the island, followed by troop animations collapsing on the beach."
+    },
+    {
+      "index": 7,
+      "t_start": "0:59",
+      "t_end": "1:05",
+      "places": [
+        "Louisiana Territory"
+      ],
+      "points": [
+        "Without the Caribbean colony, holding vast mainland territory lost strategic value."
+      ],
+      "visual": "Wide view of North America with glowing region fading away."
+    },
+    {
+      "index": 8,
+      "t_start": "1:05",
+      "t_end": "1:14",
+      "places": [
+        "Mississippi River",
+        "New Orleans"
+      ],
+      "points": [
+        "American commerce depended heavily on river transport through French-controlled New Orleans."
+      ],
+      "visual": "Camera zooms in to highlight the river line leading to the port city."
+    },
+    {
+      "index": 9,
+      "t_start": "1:14",
+      "t_end": "1:20",
+      "places": [
+        "New Orleans",
+        "United States"
+      ],
+      "points": [
+        "In 1803, American leadership authorized a ten million dollar offer for the port city."
+      ],
+      "visual": "Diplomat cutouts hold a money briefcase graphic near the coast."
+    },
+    {
+      "index": 10,
+      "t_start": "1:20",
+      "t_end": "1:30",
+      "places": [
+        "Louisiana Territory",
+        "France"
+      ],
+      "points": [
+        "Threatened by renewed war and cash shortages, French leaders sought to shed distant lands.",
+        "French leaders countered by offering the complete territory for fifteen million dollars."
+      ],
+      "visual": "World view showing distance between Europe and North America with price tag graphic."
+    },
+    {
+      "index": 11,
+      "t_start": "1:30",
+      "t_end": "1:41",
+      "places": [
+        "United States",
+        "Louisiana Territory"
+      ],
+      "points": [
+        "The delegates accepted the surprise proposal despite lacking formal authorization.",
+        "The deal expanded American borders dramatically at roughly four cents per acre."
+      ],
+      "visual": "For-sale sign flips to sold as the country overlay expands across the map."
+    }
+  ],
+  "coverage": "Every fact listed above appears in exactly one clip in chronological sequence.",
+  "notes": "Timings and locations align cleanly with visual map transitions.",
+  "source_url": "https://www.youtube.com/shorts/BmNSUb8HxCA"
+}

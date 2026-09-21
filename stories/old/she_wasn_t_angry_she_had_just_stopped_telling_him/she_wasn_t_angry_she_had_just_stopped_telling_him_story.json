@@ -1,0 +1,258 @@
+{
+  "title": "She Wasn't Angry. She Had Just Stopped Telling Him.",
+  "description": "A tired wife explains to her distracted husband that her quietness is distance rather than peace, prompting him to put down his phone and listen.",
+  "total_scenes": 9,
+  "video_duration": "72 seconds",
+  "target_audience": "Married couples and young adults navigating long-term relationship communication.",
+  "moral": "Silence in a marriage is not always peace; sometimes it is just the quiet sound of a door closing.",
+  "niche": "Relationship Dialogue",
+  "style": "2.5D semi-realistic anime illustration, high-end digital painting, 8K resolution, ultra-detailed textures, delicate soft lighting, atmospheric ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail",
+  "place": {
+    "name": "Bedroom",
+    "description": "A dimly lit late-night bedroom featuring a low wooden bed framed against a neutral wall with a crumpled cream quilt. On the left, a warm brass bedside lamp casts soft amber light, while deep soft shadows fill the room. A half-open window reveals city lights outside, and a smartphone lies face-down on the wooden nightstand. Fixed room that never changes.",
+    "prompt": "2.5D semi-realistic anime illustration of an empty late-night bedroom. Low wooden bed with crumpled cream quilt, brass bedside lamp glowing warm amber on left nightstand, half-open window in background with soft city hum. High-end digital painting, warm lighting, deep shadows, 8K, no people, no text, no labels, no watermark."
+  },
+  "aspect_ratio": "9:16",
+  "scene_seconds": 8,
+  "narrated": false,
+  "narration_scope": "dialogue",
+  "silent_cast": false,
+  "scenes": [
+    {
+      "_scene_number": 1,
+      "_scene_title": "The Hook",
+      "_timing": "0:00-0:08",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Mira",
+          "line": "I'm not angry with you, Dev. That's the problem."
+        },
+        {
+          "speaker": "Dev",
+          "line": "Wait, isn't that a good thing?"
+        }
+      ],
+      "narrative_context": "A dimly lit late-night bedroom featuring a low wooden bed framed against a neutral wall with a crumpled cream quilt. On the left, a warm brass bedside lamp casts soft amber light, while deep soft shadows fill the room. A half-open window reveals city lights outside, and a smartphone lies face-down on the wooden nightstand. Fixed room that never changes. SPATIAL BLOCKING (LOCKED): the character laying down the rules holds the screen-LEFT position, angled facing right, and keeps it for the whole film. The character hearing them holds screen-RIGHT, angled facing left, and keeps that too. Whether the story has them seated or standing, they never swap sides, never leave the frame, and the camera never crosses the axis between them. Neither of them changes clothes, hairstyle or jewellery between clips - the face and the wardrobe in clip 1 are the face and the wardrobe in the last. Mira sits on the left side of the low bed, her hands resting calmly on her dusty-rose kurta, her gaze steady but heavy with tiredness. Dev sits on the right side, leaning slightly forward with a puzzled half-smile, trying to read her composed face under the warm bedside lamp. The deep soft shadows frame their quiet room. Over-the-shoulder medium close-up from behind Dev, framed tight on Mira.",
+      "veo3_prompt": "[SHOT] A dimly lit late-night bedroom featuring a low wooden bed framed against a neutral wall with a crumpled cream quilt. On the left, a warm brass bedside lamp casts soft amber light, while deep soft shadows fill the room. A half-open window reveals city lights outside, and a smartphone lies face-down on the wooden nightstand. Fixed room that never changes. SPATIAL BLOCKING (LOCKED): the character laying down the rules holds the screen-LEFT position, angled facing right, and keeps it for the whole film. The character hearing them holds screen-RIGHT, angled facing left, and keeps that too. Whether the story has them seated or standing, they never swap sides, never leave the frame, and the camera never crosses the axis between them. Neither of them changes clothes, hairstyle or jewellery between clips - the face and the wardrobe in clip 1 are the face and the wardrobe in the last. Mira sits on the left side of the low bed, her hands resting calmly on her dusty-rose kurta, her gaze steady but heavy with tiredness. Dev sits on the right side, leaning slightly forward with a puzzled half-smile, trying to read her composed face under the warm bedside lamp. The deep soft shadows frame their quiet room. Over-the-shoulder medium close-up from behind Dev, framed tight on Mira.\n[LOOK] 2.5D semi-realistic anime illustration, high-end digital painting, 8K resolution, ultra-detailed textures, delicate soft lighting, atmospheric ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Mira (on screen, speaking): \"I'm not angry with you, Dev. That's the problem.\"  Dev (on screen, speaking): \"Wait, isn't that a good thing?\"",
+      "characters": [
+        "mira",
+        "dev"
+      ]
+    },
+    {
+      "_scene_number": 2,
+      "_scene_title": "His Defense",
+      "_timing": "0:08-0:16",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Dev",
+          "line": "We haven't fought in months. We're finally peaceful."
+        },
+        {
+          "speaker": "Mira",
+          "line": "Peace and distance look the same from far away."
+        }
+      ],
+      "narrative_context": "A dimly lit late-night bedroom featuring a low wooden bed framed against a neutral wall with a crumpled cream quilt. On the left, a warm brass bedside lamp casts soft amber light, while deep soft shadows fill the room. A half-open window reveals city lights outside, and a smartphone lies face-down on the wooden nightstand. Fixed room that never changes. SPATIAL BLOCKING (LOCKED): the character laying down the rules holds the screen-LEFT position, angled facing right, and keeps it for the whole film. The character hearing them holds screen-RIGHT, angled facing left, and keeps that too. Whether the story has them seated or standing, they never swap sides, never leave the frame, and the camera never crosses the axis between them. Neither of them changes clothes, hairstyle or jewellery between clips - the face and the wardrobe in clip 1 are the face and the wardrobe in the last. Dev gestures lightly with his hand, searching her face with kind but bewildered eyes as he defends their quiet months. Mira remains still on her side of the wooden bed, her long dark wavy hair resting over one shoulder, her voice soft and completely unagitated. The warm amber lamp casts light across the cream quilt between them. Wide two-shot at eye level, both in frame.",
+      "veo3_prompt": "[SHOT] A dimly lit late-night bedroom featuring a low wooden bed framed against a neutral wall with a crumpled cream quilt. On the left, a warm brass bedside lamp casts soft amber light, while deep soft shadows fill the room. A half-open window reveals city lights outside, and a smartphone lies face-down on the wooden nightstand. Fixed room that never changes. SPATIAL BLOCKING (LOCKED): the character laying down the rules holds the screen-LEFT position, angled facing right, and keeps it for the whole film. The character hearing them holds screen-RIGHT, angled facing left, and keeps that too. Whether the story has them seated or standing, they never swap sides, never leave the frame, and the camera never crosses the axis between them. Neither of them changes clothes, hairstyle or jewellery between clips - the face and the wardrobe in clip 1 are the face and the wardrobe in the last. Dev gestures lightly with his hand, searching her face with kind but bewildered eyes as he defends their quiet months. Mira remains still on her side of the wooden bed, her long dark wavy hair resting over one shoulder, her voice soft and completely unagitated. The warm amber lamp casts light across the cream quilt between them. Wide two-shot at eye level, both in frame.\n[LOOK] 2.5D semi-realistic anime illustration, high-end digital painting, 8K resolution, ultra-detailed textures, delicate soft lighting, atmospheric ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Dev (on screen, speaking): \"We haven't fought in months. We're finally peaceful.\"  Mira (on screen, speaking): \"Peace and distance look the same from far away.\"",
+      "characters": [
+        "mira",
+        "dev"
+      ]
+    },
+    {
+      "_scene_number": 3,
+      "_scene_title": "The Truth",
+      "_timing": "0:16-0:24",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Mira",
+          "line": "I didn't stop because I was happy. You only ever defended yourself."
+        },
+        {
+          "speaker": "Dev",
+          "line": "I was just trying to solve things for us."
+        }
+      ],
+      "narrative_context": "A dimly lit late-night bedroom featuring a low wooden bed framed against a neutral wall with a crumpled cream quilt. On the left, a warm brass bedside lamp casts soft amber light, while deep soft shadows fill the room. A half-open window reveals city lights outside, and a smartphone lies face-down on the wooden nightstand. Fixed room that never changes. SPATIAL BLOCKING (LOCKED): the character laying down the rules holds the screen-LEFT position, angled facing right, and keeps it for the whole film. The character hearing them holds screen-RIGHT, angled facing left, and keeps that too. Whether the story has them seated or standing, they never swap sides, never leave the frame, and the camera never crosses the axis between them. Neither of them changes clothes, hairstyle or jewellery between clips - the face and the wardrobe in clip 1 are the face and the wardrobe in the last. Mira looks directly at him, her large brown eyes reflecting the soft golden light, speaking without bitterness. Dev freezes as her line lands, his reassuring smile fading into stunned stillness as he realizes what his explanations felt like to her. Shadow falls softly across his posture. Over-the-shoulder medium close-up from behind Dev, framed tight on Mira.",
+      "veo3_prompt": "[SHOT] A dimly lit late-night bedroom featuring a low wooden bed framed against a neutral wall with a crumpled cream quilt. On the left, a warm brass bedside lamp casts soft amber light, while deep soft shadows fill the room. A half-open window reveals city lights outside, and a smartphone lies face-down on the wooden nightstand. Fixed room that never changes. SPATIAL BLOCKING (LOCKED): the character laying down the rules holds the screen-LEFT position, angled facing right, and keeps it for the whole film. The character hearing them holds screen-RIGHT, angled facing left, and keeps that too. Whether the story has them seated or standing, they never swap sides, never leave the frame, and the camera never crosses the axis between them. Neither of them changes clothes, hairstyle or jewellery between clips - the face and the wardrobe in clip 1 are the face and the wardrobe in the last. Mira looks directly at him, her large brown eyes reflecting the soft golden light, speaking without bitterness. Dev freezes as her line lands, his reassuring smile fading into stunned stillness as he realizes what his explanations felt like to her. Shadow falls softly across his posture. Over-the-shoulder medium close-up from behind Dev, framed tight on Mira.\n[LOOK] 2.5D semi-realistic anime illustration, high-end digital painting, 8K resolution, ultra-detailed textures, delicate soft lighting, atmospheric ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Mira (on screen, speaking): \"I didn't stop because I was happy. You only ever defended yourself.\"  Dev (on screen, speaking): \"I was just trying to solve things for us.\"",
+      "characters": [
+        "mira",
+        "dev"
+      ]
+    },
+    {
+      "_scene_number": 4,
+      "_scene_title": "The Turn",
+      "_timing": "0:24-0:32",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Dev",
+          "line": "So all this time... you were just slipping away?"
+        },
+        {
+          "speaker": "Mira",
+          "line": "I was standing right here, waiting for you to hear me."
+        }
+      ],
+      "narrative_context": "A dimly lit late-night bedroom featuring a low wooden bed framed against a neutral wall with a crumpled cream quilt. On the left, a warm brass bedside lamp casts soft amber light, while deep soft shadows fill the room. A half-open window reveals city lights outside, and a smartphone lies face-down on the wooden nightstand. Fixed room that never changes. SPATIAL BLOCKING (LOCKED): the character laying down the rules holds the screen-LEFT position, angled facing right, and keeps it for the whole film. The character hearing them holds screen-RIGHT, angled facing left, and keeps that too. Whether the story has them seated or standing, they never swap sides, never leave the frame, and the camera never crosses the axis between them. Neither of them changes clothes, hairstyle or jewellery between clips - the face and the wardrobe in clip 1 are the face and the wardrobe in the last. Dev lowers his head slightly, looking down at his plain silver wedding ring as truth settles in. His eyes reveal a sharp pang of remorse. Mira sits unmoving on screen-left, her breathing slow and measured, watching him process the emotional gulf between them in the quiet night. Over-the-shoulder medium close-up from behind Mira, framed tight on Dev.",
+      "veo3_prompt": "[SHOT] A dimly lit late-night bedroom featuring a low wooden bed framed against a neutral wall with a crumpled cream quilt. On the left, a warm brass bedside lamp casts soft amber light, while deep soft shadows fill the room. A half-open window reveals city lights outside, and a smartphone lies face-down on the wooden nightstand. Fixed room that never changes. SPATIAL BLOCKING (LOCKED): the character laying down the rules holds the screen-LEFT position, angled facing right, and keeps it for the whole film. The character hearing them holds screen-RIGHT, angled facing left, and keeps that too. Whether the story has them seated or standing, they never swap sides, never leave the frame, and the camera never crosses the axis between them. Neither of them changes clothes, hairstyle or jewellery between clips - the face and the wardrobe in clip 1 are the face and the wardrobe in the last. Dev lowers his head slightly, looking down at his plain silver wedding ring as truth settles in. His eyes reveal a sharp pang of remorse. Mira sits unmoving on screen-left, her breathing slow and measured, watching him process the emotional gulf between them in the quiet night. Over-the-shoulder medium close-up from behind Mira, framed tight on Dev.\n[LOOK] 2.5D semi-realistic anime illustration, high-end digital painting, 8K resolution, ultra-detailed textures, delicate soft lighting, atmospheric ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Dev (on screen, speaking): \"So all this time... you were just slipping away?\"  Mira (on screen, speaking): \"I was standing right here, waiting for you to hear me.\"",
+      "characters": [
+        "mira",
+        "dev"
+      ]
+    },
+    {
+      "_scene_number": 5,
+      "_scene_title": "The Exhaustion",
+      "_timing": "0:32-0:40",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Mira",
+          "line": "Silence was less exhausting than talking to someone who wouldn't listen."
+        },
+        {
+          "speaker": "Dev",
+          "line": "I never wanted you to feel alone in this room."
+        }
+      ],
+      "narrative_context": "A dimly lit late-night bedroom featuring a low wooden bed framed against a neutral wall with a crumpled cream quilt. On the left, a warm brass bedside lamp casts soft amber light, while deep soft shadows fill the room. A half-open window reveals city lights outside, and a smartphone lies face-down on the wooden nightstand. Fixed room that never changes. SPATIAL BLOCKING (LOCKED): the character laying down the rules holds the screen-LEFT position, angled facing right, and keeps it for the whole film. The character hearing them holds screen-RIGHT, angled facing left, and keeps that too. Whether the story has them seated or standing, they never swap sides, never leave the frame, and the camera never crosses the axis between them. Neither of them changes clothes, hairstyle or jewellery between clips - the face and the wardrobe in clip 1 are the face and the wardrobe in the last. Mira turns her eyes briefly toward the nightstand, where the smartphone sits face-down, before turning back to Dev. Dev shifts his body toward her, his shoulders slumping as his posture drops its defensiveness entirely under the ambient lamp glow. The city hums faintly through the window. Wide two-shot at eye level, both in frame.",
+      "veo3_prompt": "[SHOT] A dimly lit late-night bedroom featuring a low wooden bed framed against a neutral wall with a crumpled cream quilt. On the left, a warm brass bedside lamp casts soft amber light, while deep soft shadows fill the room. A half-open window reveals city lights outside, and a smartphone lies face-down on the wooden nightstand. Fixed room that never changes. SPATIAL BLOCKING (LOCKED): the character laying down the rules holds the screen-LEFT position, angled facing right, and keeps it for the whole film. The character hearing them holds screen-RIGHT, angled facing left, and keeps that too. Whether the story has them seated or standing, they never swap sides, never leave the frame, and the camera never crosses the axis between them. Neither of them changes clothes, hairstyle or jewellery between clips - the face and the wardrobe in clip 1 are the face and the wardrobe in the last. Mira turns her eyes briefly toward the nightstand, where the smartphone sits face-down, before turning back to Dev. Dev shifts his body toward her, his shoulders slumping as his posture drops its defensiveness entirely under the ambient lamp glow. The city hums faintly through the window. Wide two-shot at eye level, both in frame.\n[LOOK] 2.5D semi-realistic anime illustration, high-end digital painting, 8K resolution, ultra-detailed textures, delicate soft lighting, atmospheric ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Mira (on screen, speaking): \"Silence was less exhausting than talking to someone who wouldn't listen.\"  Dev (on screen, speaking): \"I never wanted you to feel alone in this room.\"",
+      "characters": [
+        "mira",
+        "dev"
+      ]
+    },
+    {
+      "_scene_number": 6,
+      "_scene_title": "The Doubt",
+      "_timing": "0:40-0:48",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Mira",
+          "line": "Why should I believe this time will be any different?"
+        },
+        {
+          "speaker": "Dev",
+          "line": "Because I am actually listening now. Please, Mira."
+        }
+      ],
+      "narrative_context": "A dimly lit late-night bedroom featuring a low wooden bed framed against a neutral wall with a crumpled cream quilt. On the left, a warm brass bedside lamp casts soft amber light, while deep soft shadows fill the room. A half-open window reveals city lights outside, and a smartphone lies face-down on the wooden nightstand. Fixed room that never changes. SPATIAL BLOCKING (LOCKED): the character laying down the rules holds the screen-LEFT position, angled facing right, and keeps it for the whole film. The character hearing them holds screen-RIGHT, angled facing left, and keeps that too. Whether the story has them seated or standing, they never swap sides, never leave the frame, and the camera never crosses the axis between them. Neither of them changes clothes, hairstyle or jewellery between clips - the face and the wardrobe in clip 1 are the face and the wardrobe in the last. Mira tilts her head gently, her expression filled with profound vulnerability rather than hostility. Dev reaches his hand out slightly across the cream quilt toward screen-left, his kind eyes searching hers with sincere urgency and complete focus. The room holds a tense, tender quietness. Over-the-shoulder medium close-up from behind Dev, framed tight on Mira.",
+      "veo3_prompt": "[SHOT] A dimly lit late-night bedroom featuring a low wooden bed framed against a neutral wall with a crumpled cream quilt. On the left, a warm brass bedside lamp casts soft amber light, while deep soft shadows fill the room. A half-open window reveals city lights outside, and a smartphone lies face-down on the wooden nightstand. Fixed room that never changes. SPATIAL BLOCKING (LOCKED): the character laying down the rules holds the screen-LEFT position, angled facing right, and keeps it for the whole film. The character hearing them holds screen-RIGHT, angled facing left, and keeps that too. Whether the story has them seated or standing, they never swap sides, never leave the frame, and the camera never crosses the axis between them. Neither of them changes clothes, hairstyle or jewellery between clips - the face and the wardrobe in clip 1 are the face and the wardrobe in the last. Mira tilts her head gently, her expression filled with profound vulnerability rather than hostility. Dev reaches his hand out slightly across the cream quilt toward screen-left, his kind eyes searching hers with sincere urgency and complete focus. The room holds a tense, tender quietness. Over-the-shoulder medium close-up from behind Dev, framed tight on Mira.\n[LOOK] 2.5D semi-realistic anime illustration, high-end digital painting, 8K resolution, ultra-detailed textures, delicate soft lighting, atmospheric ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Mira (on screen, speaking): \"Why should I believe this time will be any different?\"  Dev (on screen, speaking): \"Because I am actually listening now. Please, Mira.\"",
+      "characters": [
+        "mira",
+        "dev"
+      ]
+    },
+    {
+      "_scene_number": 7,
+      "_scene_title": "The Aphorism",
+      "_timing": "0:48-0:56",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Mira",
+          "line": "A house isn't happy just because it's quiet."
+        },
+        {
+          "speaker": "Mira",
+          "line": "Silence is either love or a door closing."
+        },
+        {
+          "speaker": "Dev",
+          "line": "I never heard it shut."
+        }
+      ],
+      "narrative_context": "A dimly lit late-night bedroom featuring a low wooden bed framed against a neutral wall with a crumpled cream quilt. On the left, a warm brass bedside lamp casts soft amber light, while deep soft shadows fill the room. A half-open window reveals city lights outside, and a smartphone lies face-down on the wooden nightstand. Fixed room that never changes. SPATIAL BLOCKING (LOCKED): the character laying down the rules holds the screen-LEFT position, angled facing right, and keeps it for the whole film. The character hearing them holds screen-RIGHT, angled facing left, and keeps that too. Whether the story has them seated or standing, they never swap sides, never leave the frame, and the camera never crosses the axis between them. Neither of them changes clothes, hairstyle or jewellery between clips - the face and the wardrobe in clip 1 are the face and the wardrobe in the last. Mira sits on the left side of the bed, her face illuminated by the soft amber lamplight. Her tired brown eyes hold a heavy, quiet truth as she looks at Dev. Dev sits opposite her on the right, his shoulders tense, processing the weight of her words. She pulls her knees closer, her plain gold wedding band catching the warm light. The mood is tender and bittersweet. The camera angle is an over-the-shoulder medium close-up from behind Dev, framed tight on Mira's speaking face.",
+      "veo3_prompt": "[SHOT] A dimly lit late-night bedroom featuring a low wooden bed framed against a neutral wall with a crumpled cream quilt. On the left, a warm brass bedside lamp casts soft amber light, while deep soft shadows fill the room. A half-open window reveals city lights outside, and a smartphone lies face-down on the wooden nightstand. Fixed room that never changes. SPATIAL BLOCKING (LOCKED): the character laying down the rules holds the screen-LEFT position, angled facing right, and keeps it for the whole film. The character hearing them holds screen-RIGHT, angled facing left, and keeps that too. Whether the story has them seated or standing, they never swap sides, never leave the frame, and the camera never crosses the axis between them. Neither of them changes clothes, hairstyle or jewellery between clips - the face and the wardrobe in clip 1 are the face and the wardrobe in the last. Mira sits on the left side of the bed, her face illuminated by the soft amber lamplight. Her tired brown eyes hold a heavy, quiet truth as she looks at Dev. Dev sits opposite her on the right, his shoulders tense, processing the weight of her words. She pulls her knees closer, her plain gold wedding band catching the warm light. The mood is tender and bittersweet. The camera angle is an over-the-shoulder medium close-up from behind Dev, framed tight on Mira's speaking face.\n[LOOK] 2.5D semi-realistic anime illustration, high-end digital painting, 8K resolution, ultra-detailed textures, delicate soft lighting, atmospheric ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Mira (on screen, speaking): \"A house isn't happy just because it's quiet.\"  Mira (on screen, speaking): \"Silence is either love or a door closing.\"  Dev (on screen, speaking): \"I never heard it shut.\"",
+      "characters": [
+        "mira",
+        "dev"
+      ]
+    },
+    {
+      "_scene_number": 8,
+      "_scene_title": "His Realization",
+      "_timing": "0:56-1:04",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Dev",
+          "line": "I mistook your quiet for happiness."
+        },
+        {
+          "speaker": "Dev",
+          "line": "I thought no fighting meant we were fine."
+        },
+        {
+          "speaker": "Mira",
+          "line": "It just meant I had given up."
+        }
+      ],
+      "narrative_context": "A dimly lit late-night bedroom featuring a low wooden bed framed against a neutral wall with a crumpled cream quilt. On the left, a warm brass bedside lamp casts soft amber light, while deep soft shadows fill the room. A half-open window reveals city lights outside, and a smartphone lies face-down on the wooden nightstand. Fixed room that never changes. SPATIAL BLOCKING (LOCKED): the character laying down the rules holds the screen-LEFT position, angled facing right, and keeps it for the whole film. The character hearing them holds screen-RIGHT, angled facing left, and keeps that too. Whether the story has them seated or standing, they never swap sides, never leave the frame, and the camera never crosses the axis between them. Neither of them changes clothes, hairstyle or jewellery between clips - the face and the wardrobe in clip 1 are the face and the wardrobe in the last. Dev drops his gaze, rubbing his brow in quiet remorse as the truth finally settles in. His eyes reflect deep sorrow when he looks back up at her, realizing how distant they had become. Mira remains composed on the left, watching his realization unfold without anger, her breathing slow and steady. The atmosphere is solemn and intimate in the soft shadows. The camera angle is an over-the-shoulder medium close-up from behind Mira, framed tight on Dev's remorseful face.",
+      "veo3_prompt": "[SHOT] A dimly lit late-night bedroom featuring a low wooden bed framed against a neutral wall with a crumpled cream quilt. On the left, a warm brass bedside lamp casts soft amber light, while deep soft shadows fill the room. A half-open window reveals city lights outside, and a smartphone lies face-down on the wooden nightstand. Fixed room that never changes. SPATIAL BLOCKING (LOCKED): the character laying down the rules holds the screen-LEFT position, angled facing right, and keeps it for the whole film. The character hearing them holds screen-RIGHT, angled facing left, and keeps that too. Whether the story has them seated or standing, they never swap sides, never leave the frame, and the camera never crosses the axis between them. Neither of them changes clothes, hairstyle or jewellery between clips - the face and the wardrobe in clip 1 are the face and the wardrobe in the last. Dev drops his gaze, rubbing his brow in quiet remorse as the truth finally settles in. His eyes reflect deep sorrow when he looks back up at her, realizing how distant they had become. Mira remains composed on the left, watching his realization unfold without anger, her breathing slow and steady. The atmosphere is solemn and intimate in the soft shadows. The camera angle is an over-the-shoulder medium close-up from behind Mira, framed tight on Dev's remorseful face.\n[LOOK] 2.5D semi-realistic anime illustration, high-end digital painting, 8K resolution, ultra-detailed textures, delicate soft lighting, atmospheric ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Dev (on screen, speaking): \"I mistook your quiet for happiness.\"  Dev (on screen, speaking): \"I thought no fighting meant we were fine.\"  Mira (on screen, speaking): \"It just meant I had given up.\"",
+      "characters": [
+        "mira",
+        "dev"
+      ]
+    },
+    {
+      "_scene_number": 9,
+      "_scene_title": "Resolution",
+      "_timing": "1:04-1:12",
+      "scene_builder_action": "text_to_video",
+      "extend_from_last_frame": false,
+      "script_line": "",
+      "dialogue": [
+        {
+          "speaker": "Dev",
+          "line": "Tell me the first thing you stopped saying."
+        },
+        {
+          "speaker": "Dev",
+          "line": "I'm listening now, Mira. Every word."
+        },
+        {
+          "speaker": "Mira",
+          "line": "It started six months ago, Dev."
+        }
+      ],
+      "narrative_context": "A dimly lit late-night bedroom featuring a low wooden bed framed against a neutral wall with a crumpled cream quilt. On the left, a warm brass bedside lamp casts soft amber light, while deep soft shadows fill the room. A half-open window reveals city lights outside, and a smartphone lies face-down on the wooden nightstand. Fixed room that never changes. SPATIAL BLOCKING (LOCKED): the character laying down the rules holds the screen-LEFT position, angled facing right, and keeps it for the whole film. The character hearing them holds screen-RIGHT, angled facing left, and keeps that too. Whether the story has them seated or standing, they never swap sides, never leave the frame, and the camera never crosses the axis between them. Neither of them changes clothes, hairstyle or jewellery between clips - the face and the wardrobe in clip 1 are the face and the wardrobe in the last. Dev reaches out slowly across the crumpled quilt and turns his smartphone face-down on the nightstand before gently taking Mira's hand in his. Mira looks down at their joined hands, her posture softening slightly as a fragile ray of hope enters her tired eyes. The quiet room settles into a warm, attentive stillness. The camera angle is a wide two-shot at eye level, capturing both of them sitting together in the amber glow.",
+      "veo3_prompt": "[SHOT] A dimly lit late-night bedroom featuring a low wooden bed framed against a neutral wall with a crumpled cream quilt. On the left, a warm brass bedside lamp casts soft amber light, while deep soft shadows fill the room. A half-open window reveals city lights outside, and a smartphone lies face-down on the wooden nightstand. Fixed room that never changes. SPATIAL BLOCKING (LOCKED): the character laying down the rules holds the screen-LEFT position, angled facing right, and keeps it for the whole film. The character hearing them holds screen-RIGHT, angled facing left, and keeps that too. Whether the story has them seated or standing, they never swap sides, never leave the frame, and the camera never crosses the axis between them. Neither of them changes clothes, hairstyle or jewellery between clips - the face and the wardrobe in clip 1 are the face and the wardrobe in the last. Dev reaches out slowly across the crumpled quilt and turns his smartphone face-down on the nightstand before gently taking Mira's hand in his. Mira looks down at their joined hands, her posture softening slightly as a fragile ray of hope enters her tired eyes. The quiet room settles into a warm, attentive stillness. The camera angle is a wide two-shot at eye level, capturing both of them sitting together in the amber glow.\n[LOOK] 2.5D semi-realistic anime illustration, high-end digital painting, 8K resolution, ultra-detailed textures, delicate soft lighting, atmospheric ambient light, shallow depth of field, 35mm lens, smooth subtle facial movement, high aesthetic detail\n[AUDIO] Dev (on screen, speaking): \"Tell me the first thing you stopped saying.\"  Dev (on screen, speaking): \"I'm listening now, Mira. Every word.\"  Mira (on screen, speaking): \"It started six months ago, Dev.\"",
+      "characters": [
+        "mira",
+        "dev"
+      ]
+    }
+  ],
+  "character_descriptions": {
+    "mira": "Same Mira throughout - 2.5D semi-realistic anime illustration, high-end digital painting, 8K ultra-detailed, polished manhwa cover finish. Realistic adult human female, 27 years old, soft features, long dark wavy hair loose over one shoulder, large luminous tired brown eyes with long lashes, smooth semi-realistic skin. Wearing a dusty-rose cotton kurta set with thin gold border, small gold stud earrings, plain gold wedding band. Henna mehndi on forearms. NOT chibi, NOT 3D CGI, NOT live-action, NOT photographic realism.",
+    "dev": "Same Dev throughout - 2.5D semi-realistic anime illustration, high-end digital painting, 8K ultra-detailed, polished manhwa cover finish. Realistic adult human male, 30 years old, short dark hair, light stubble, kind but distracted brown eyes, subtle facial structure, smooth semi-realistic skin. Wearing a plain charcoal t-shirt, grey pyjama trousers, and a silver wedding ring. NOT chibi, NOT 3D CGI, NOT live-action, NOT photographic realism, NOT flat cel-shaded cartoon."
+  },
+  "character_references": {
+    "mira": "./character_refs/mira_reference_sheet.jpg",
+    "dev": "./character_refs/dev_reference_sheet.jpg"
+  }
+}

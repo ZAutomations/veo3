@@ -1,0 +1,15 @@
+Genre: 3D satellite map explainer explainer.
+Aesthetic: Photorealistic 3D globe visualization featuring textured terrain, glowing border overlays, bold callout graphics, dynamic camera pans, and soft directional daylighting.
+Format: 3 clips of 8s, narrated voice-over.
+Narration: Energetic, informative delivery at a fast pace.
+Never change: 3D satellite camera perspective and neon border highlight visual style.
+Beats:
+1. North Korea, South Korea - The Korean Peninsula is divided by a 250-kilometer buffer zone with almost no civilian crossings since 1953. (visual: Camera zooms down onto East Asia, tracing a bright highlighted line across the peninsula with distance callouts.)
+2. Armenia, Turkey, Morocco, Algeria, France, Spain - The 330-kilometer frontier between Turkey and Armenia has been blocked since 1993.; Morocco and Algeria sealed their 1,600-kilometer edge in 1994, routing travel through European intermediaries. (visual: Fast transition to the Caucasus highlighting a barricaded boundary line, followed by a pan to North Africa illustrating detour arrows through Southern Europe.)
+3. India, Pakistan, Bhutan, China - India and Pakistan maintain a heavily fenced perimeter with entry restricted to the Wagah checkpoint.; Bhutan and China share no formal diplomatic relations, preventing any authorized land passage. (visual: Swoop over South Asia highlighting fence icons along the border, then moving north along the Himalayas with prohibited entry icons.)
+EVERY FACT (each one must appear somewhere, in your own words):
+  - North Korea, South Korea [0:02]: A 250-kilometer demilitarized zone splits the peninsula, remaining virtually impassable since 1953.
+  - Armenia, Turkey [0:08]: A shared 330-kilometer frontier has been completely sealed shut since 1993.
+  - Morocco, Algeria, France, Spain [0:12]: Their 1,600-kilometer boundary was closed in 1994, requiring land travelers to detour through European nations.
+  - India, Pakistan [0:18]: The vast majority of their perimeter is fenced, leaving the Wagah post as the primary land gateway.
+  - Bhutan, China [0:22]: The absence of official diplomatic connections leaves this boundary without any legal crossing points.

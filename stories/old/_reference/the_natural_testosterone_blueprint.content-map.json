@@ -1,0 +1,276 @@
+{
+  "title_suggestion": "The Natural Testosterone Blueprint",
+  "preset_suggestion": "health-wellness",
+  "format": {
+    "source_duration_s": 455,
+    "clip_seconds": 8,
+    "narration": true,
+    "on_screen_text": true,
+    "medium": "Stylised 2D motion graphics and anime explainer"
+  },
+  "style": "Dynamic motion graphics paired with high-contrast character art. Dark background palette with glowing red and green highlight accents. High-contrast, directional lighting emphasizes muscular silhouettes. Energetic jump-cuts, rapid zooms, and bold callout text.",
+  "narration": "Authoritative, fast-paced, direct tone",
+  "never_change": "The structured sequence of low-testosterone symptoms followed by five actionable natural protocols.",
+  "facts": [
+    {
+      "t": "0:01",
+      "places": [],
+      "detail": "Modern men have significantly lower testosterone levels than previous generations."
+    },
+    {
+      "t": "0:10",
+      "places": [],
+      "detail": "Anabolic steroids and artificial boosters cause severe long-term side effects."
+    },
+    {
+      "t": "0:17",
+      "places": [],
+      "detail": "Testosterone levels can be restored naturally through specific lifestyle changes."
+    },
+    {
+      "t": "1:16",
+      "places": [],
+      "detail": "Erectile dysfunction and lack of morning erections are primary indicators of low T."
+    },
+    {
+      "t": "1:26",
+      "places": [],
+      "detail": "Penile erections require strong blood circulation through healthy blood vessels."
+    },
+    {
+      "t": "2:04",
+      "places": [],
+      "detail": "Low testosterone inhibits nitric oxide production, compromising vascular health."
+    },
+    {
+      "t": "2:23",
+      "places": [],
+      "detail": "Accelerated muscle loss and weak bone density indicate deficient T levels."
+    },
+    {
+      "t": "3:03",
+      "places": [],
+      "detail": "Excessive fat accumulation on the chest and abdomen signals low testosterone."
+    },
+    {
+      "t": "3:12",
+      "places": [],
+      "detail": "Adipose tissue produces aromatase, converting testosterone into estrogen."
+    },
+    {
+      "t": "3:49",
+      "places": [],
+      "detail": "Brain fog, chronic frustration, fear, and zero ambition are psychological signs of low T."
+    },
+    {
+      "t": "4:05",
+      "places": [],
+      "detail": "Quality sleep of 7 to 8 hours daily is essential for peak hormone production."
+    },
+    {
+      "t": "4:25",
+      "places": [],
+      "detail": "Blue light exposure before sleep suppresses melatonin and disrupts hormone synthesis."
+    },
+    {
+      "t": "4:51",
+      "places": [],
+      "detail": "Kegel exercises strengthen pelvic muscles and enhance regional blood circulation."
+    },
+    {
+      "t": "5:36",
+      "places": [],
+      "detail": "Heavy squats performed multiple times weekly trigger systemic testosterone release."
+    },
+    {
+      "t": "5:42",
+      "places": [],
+      "detail": "High-intensity training pushed to physical limits forces natural androgen spikes."
+    },
+    {
+      "t": "6:38",
+      "places": [],
+      "detail": "Sufficient intake of Zinc, Vitamin D, and Magnesium is required for hormone synthesis."
+    },
+    {
+      "t": "7:13",
+      "places": [],
+      "detail": "Traditional botanical herbs like Safed Musli and Akarkara safely support vitality."
+    }
+  ],
+  "clips": [
+    {
+      "index": 1,
+      "t_start": "0:00",
+      "t_end": "0:08",
+      "places": [],
+      "points": [
+        "Modern men have significantly lower testosterone levels than previous generations."
+      ],
+      "visual": "Zoom into stylized male silhouette showing declining hormone graphic line."
+    },
+    {
+      "index": 2,
+      "t_start": "0:08",
+      "t_end": "0:16",
+      "places": [],
+      "points": [
+        "Anabolic steroids and artificial boosters cause severe long-term side effects."
+      ],
+      "visual": "Graphics highlight pill bottle with warning symbols and side-effect text."
+    },
+    {
+      "index": 3,
+      "t_start": "0:16",
+      "t_end": "0:24",
+      "places": [],
+      "points": [
+        "Testosterone levels can be restored naturally through specific lifestyle changes."
+      ],
+      "visual": "Checklist graphic appears showing key natural health habits."
+    },
+    {
+      "index": 4,
+      "t_start": "1:15",
+      "t_end": "1:25",
+      "places": [],
+      "points": [
+        "Erectile dysfunction and lack of morning erections are primary indicators of low T."
+      ],
+      "visual": "Bold text overlay warning against vascular dysfunction with low T callout."
+    },
+    {
+      "index": 5,
+      "t_start": "1:25",
+      "t_end": "2:03",
+      "places": [],
+      "points": [
+        "Penile erections require strong blood circulation through healthy blood vessels."
+      ],
+      "visual": "3D anatomical diagram showing active circulatory blood flow."
+    },
+    {
+      "index": 6,
+      "t_start": "2:03",
+      "t_end": "2:22",
+      "places": [],
+      "points": [
+        "Low testosterone inhibits nitric oxide production, compromising vascular health."
+      ],
+      "visual": "Formula diagram linking low T to reduced nitric oxide."
+    },
+    {
+      "index": 7,
+      "t_start": "2:22",
+      "t_end": "3:02",
+      "places": [],
+      "points": [
+        "Accelerated muscle loss and weak bone density indicate deficient T levels."
+      ],
+      "visual": "Graphic overlay contrasting healthy muscular frame with thin frame."
+    },
+    {
+      "index": 8,
+      "t_start": "3:02",
+      "t_end": "3:11",
+      "places": [],
+      "points": [
+        "Excessive fat accumulation on the chest and abdomen signals low testosterone."
+      ],
+      "visual": "Highlight rings focus on torso fat areas on body graphic."
+    },
+    {
+      "index": 9,
+      "t_start": "3:11",
+      "t_end": "3:48",
+      "places": [],
+      "points": [
+        "Adipose tissue produces aromatase, converting testosterone into estrogen."
+      ],
+      "visual": "Flowchart animation showing Fat converting T into Estrogen via Aromatase."
+    },
+    {
+      "index": 10,
+      "t_start": "3:48",
+      "t_end": "4:04",
+      "places": [],
+      "points": [
+        "Brain fog, chronic frustration, fear, and zero ambition are psychological signs of low T."
+      ],
+      "visual": "List of mental symptoms popping up around a stressed character outline."
+    },
+    {
+      "index": 11,
+      "t_start": "4:05",
+      "t_end": "4:24",
+      "places": [],
+      "points": [
+        "Quality sleep of 7 to 8 hours daily is essential for peak hormone production."
+      ],
+      "visual": "Clock animation shifting to night mode with brain synthesis graphic."
+    },
+    {
+      "index": 12,
+      "t_start": "4:25",
+      "t_end": "4:50",
+      "places": [],
+      "points": [
+        "Blue light exposure before sleep suppresses melatonin and disrupts hormone synthesis."
+      ],
+      "visual": "Smartphone icon emitting blue rays cross-cut with sleep cycle drop."
+    },
+    {
+      "index": 13,
+      "t_start": "4:51",
+      "t_end": "5:35",
+      "places": [],
+      "points": [
+        "Kegel exercises strengthen pelvic muscles and enhance regional blood circulation."
+      ],
+      "visual": "Demonstration vector graphic showcasing controlled pelvic movement reps."
+    },
+    {
+      "index": 14,
+      "t_start": "5:36",
+      "t_end": "5:41",
+      "places": [],
+      "points": [
+        "Heavy squats performed multiple times weekly trigger systemic testosterone release."
+      ],
+      "visual": "Animated character performing deep squats with power aura effect."
+    },
+    {
+      "index": 15,
+      "t_start": "5:42",
+      "t_end": "6:37",
+      "places": [],
+      "points": [
+        "High-intensity training pushed to physical limits forces natural androgen spikes."
+      ],
+      "visual": "Montage of high-intensity exercises like sprints and pushups with pulse gauge."
+    },
+    {
+      "index": 16,
+      "t_start": "6:38",
+      "t_end": "7:12",
+      "places": [],
+      "points": [
+        "Sufficient intake of Zinc, Vitamin D, and Magnesium is required for hormone synthesis."
+      ],
+      "visual": "Nutrient icons appearing over balanced meal and supplement artwork."
+    },
+    {
+      "index": 17,
+      "t_start": "7:13",
+      "t_end": "7:35",
+      "places": [],
+      "points": [
+        "Traditional botanical herbs like Safed Musli and Akarkara safely support vitality."
+      ],
+      "visual": "Botanical herbal ingredients shown alongside rising strength stat graphics."
+    }
+  ],
+  "coverage": "Every fact listed in the ground truth is accounted for in exactly one clip sequence.",
+  "notes": "Spelling of botanical herbs 'Safed Musli' and 'Akarkara' confirmed from Hindi audio.",
+  "source_url": "https://www.youtube.com/watch?v=r0bm-p5XVDk"
+}

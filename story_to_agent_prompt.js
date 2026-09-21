@@ -18,7 +18,12 @@
  *   scenes[].sound_context             -> the sound brief for a clip with no narration
  *   scenes[].dialogue                  -> [{speaker, line}] for a spoken dialogue story
  *   scenes[].narrative_context         -> visual brief for the scene
- *   scenes[].characters                -> union becomes the @mention list
+ *   scenes[].characters                -> union becomes the @mention list, and
+ *                                         each scene names who is actually in it
+ *   place.name                         -> a third @mention, for the place plate
+ *   place.description                  -> the PLACE block, and repeated per scene
+ *                                         through narrative_context
+ *   character_descriptions             -> the CAST block, and repeated per scene
  *   scenes[].veo3_prompt               -> scanned for the narrator / silent rules
  *   aspect_ratio, scene_seconds        -> the FORMAT line: clip shape and length
  *
@@ -27,6 +32,8 @@
  *   node story_to_agent_prompt.js <story.json> --out custom_path.txt
  *   node story_to_agent_prompt.js <story.json> --print      (no file written)
  *   node story_to_agent_prompt.js <story.json> --aspect 9:16 --seconds 6
+ *   node story_to_agent_prompt.js <story.json> --aspect flow    (default: the
+ *       ratio is set in Flow's Settings menu, and the prompt says nothing)
  *
  * Writes <story_dir>/agent_prompt.txt by default.
  */
@@ -69,10 +76,14 @@ if (!scenes.length) {
 }
 
 // ── clip format: aspect ratio and clip length --------------------------------
-// Agent Mode has NO settings panel. There is no aspect-ratio dropdown to drive -
-// the format is asked for in words, in the prompt, or you get whatever Flow
-// defaults to. The first two stories came out 16:9 by luck, not because anything
-// requested it, and nothing in this repo mentioned a ratio at all.
+// Agent Mode's CLIP SHAPE is set in Flow's own Settings menu (the tune icon
+// beside the prompt box: model, aspect ratio, frames), NOT by the words in the
+// prompt. Asking for "16:9 landscape" in the text did nothing while that menu
+// was still set to vertical - which is why the tool asked for landscape and
+// still got portrait. The default here is therefore "Flow": the prompt says
+// nothing about the ratio and the creator sets it in Flow. A real ratio can
+// still be passed and is written into the prompt, for anyone who wants the tool
+// to request one.
 //
 // Precedence: --aspect / --seconds  >  story JSON  >  the defaults below.
 function numFlag(name, def) {
@@ -90,14 +101,18 @@ const ASPECTS = {
 };
 const aspectArg = flag('--aspect');
 const aspectRaw = String(
-    typeof aspectArg === 'string' ? aspectArg : (story.aspect_ratio || '16:9')
+    typeof aspectArg === 'string' ? aspectArg : (story.aspect_ratio || 'Flow')
 ).trim();
+// "Flow" (also auto / default / none / blank) means the ratio is NOT ours to
+// impose - it is set in Flow's Settings menu and the prompt stays quiet about
+// it. Anything else is spelled out in the prompt as before.
+const AUTO_RATIO = !aspectRaw || /^(auto|flow|default|none)$/i.test(aspectRaw);
 // An unrecognised ratio is passed through as written instead of being silently
 // swapped for 16:9 - quietly ignoring what the story asked for is the exact
 // failure this line exists to prevent. It is only warned about, because Flow
 // adds ratios from time to time and this list cannot know about them.
-const ASPECT = ASPECTS[aspectRaw] || null;
-const ASPECT_UNKNOWN = !ASPECT;
+const ASPECT = AUTO_RATIO ? null : (ASPECTS[aspectRaw] || null);
+const ASPECT_UNKNOWN = !ASPECT && !AUTO_RATIO;
 
 // 8 s is the documented ceiling for Veo 3.1 - Lite [Lower Priority]. Longer is
 // allowed - a different model may take it - but it is called out in the summary,
@@ -121,7 +136,47 @@ if (!charKeys.length && story.character_references) {
 }
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const charNames = charKeys.map(cap);
-const mentionList = charNames.map(c => '@' + c).join(' and ');
+
+// ── the place ----------------------------------------------------------------
+// One place for the whole film, and it is mentioned exactly like the cast is.
+// That is the whole point of it: every clip already carried the place text
+// verbatim and the place still drifted, because a description is a request and a
+// reference image is pixels. The plate is uploaded by stage 2 and attached by
+// `@Name`, so the name here must be the asset name - no capitalising, no
+// tidying, or the mention resolves to nothing and the plate is never attached.
+const placeName = (story.place && String(story.place.name || '').trim()) || '';
+const placeDesc = (story.place && String(story.place.description || '').trim()) || '';
+const mentions = [...(placeName ? ['@' + placeName] : []), ...charNames.map(c => '@' + c)];
+const mentionList = mentions.join(' and ');
+// Veo 3.1 accepts at most 3 reference images, and the place plate is one of
+// them, so a cast of 3 plus a place is a mention that cannot bind.
+const OVER_CEILING = mentions.length > 3;
+
+// ── character identity -------------------------------------------------------
+// `character_descriptions` is the one thing that makes a cast look like the same
+// people from clip to clip, and until now this converter never emitted it. The
+// description was written into the story JSON, copied into character_sheets.txt
+// for the reference images, and then dropped on the floor here - so the prompt
+// named the characters and asked for consistency without ever saying what they
+// look like. When the reference chip failed to bind, there was nothing else
+// holding the face, and each clip invented its own.
+//
+// It goes in twice, on purpose. Once as a CAST block, where the agent reads it
+// while planning the storyboard; and once inside every scene, because a line
+// stated only at the top of a long prompt is a line the per-clip generation
+// never sees. The same reasoning as the fixed setting in write_story.js:
+// asking once is a request, repeating it into the scene is what makes it true.
+const descriptions = (story.character_descriptions && typeof story.character_descriptions === 'object')
+    ? story.character_descriptions
+    : {};
+// The JSON keys the cast lower-case ("tara"); the prompt names them capitalised
+// ("Tara"). Accept either spelling rather than silently finding nothing.
+const descFor = (name) => {
+    const k = String(name || '').trim();
+    return descriptions[k] || descriptions[k.toLowerCase()] || null;
+};
+const described = charNames.filter(c => descFor(c));
+
 
 // ── narration / silent-character detection -----------------------------------
 // Explicit top-level fields win: `narrated`, `silent_cast`, `narrator_voice`.
@@ -165,14 +220,16 @@ const VOICE = (typeof story.narrator_voice === 'string' && story.narrator_voice.
 // ── assemble -----------------------------------------------------------------
 const L = [];
 L.push(charNames.length
-    ? `Create ${scenes.length} separate clips, one clip per scene, using ${mentionList}, up to ${SECONDS} seconds each.`
-    : `Create ${scenes.length} separate clips, one clip per scene, up to ${SECONDS} seconds each.`);
+? `Create ${scenes.length} separate clips, one clip per scene, using ${mentionList}, up to ${SECONDS} seconds each. Generate them straight away without asking for confirmation.`
+        : `Create ${scenes.length} separate clips, one clip per scene, up to ${SECONDS} seconds each. Generate them straight away without asking for confirmation.`);
 L.push('');
 // Always emitted, narrated or not: the shape of the clip is independent of
 // whether the story has a voice-over. "the same ... in every clip" also protects
 // the join - concat only copies streams when the clips match, and mixed sizes
 // force a re-encode (join_clips.js detects that, but better not to cause it).
-L.push(`FORMAT: every clip is ${ASPECT || `${aspectRaw} aspect ratio`}. Keep the same aspect ratio in every clip.`);
+L.push(AUTO_RATIO
+    ? `FORMAT: keep the aspect ratio the Flow project is already set to. Do not request, crop or change the ratio, and keep it identical in every clip.`
+    : `FORMAT: every clip is ${ASPECT || `${aspectRaw} aspect ratio`}. Keep the same aspect ratio in every clip.`);
 L.push('');
 L.push(`STORY: "${story.title || 'Untitled'}"`);
 if (story.description) L.push(story.description);
@@ -230,6 +287,31 @@ if (DIALOGUE) {
 
 if (story.style) {
     L.push(`STYLE: ${story.style}`);
+    L.push('');
+}
+
+// The cast, stated once in full. Without this the agent is told "using @Tara and
+// @Singhania" and never learns what either of them looks like, so the only thing
+// holding their face is the reference chip - and a chip that fails leaves
+// nothing at all.
+if (described.length) {
+    L.push('CAST - FIXED APPEARANCE. These are the same people in every clip:');
+    for (const c of described) L.push(`  ${c}: ${descFor(c)}`);
+    L.push('');
+}
+
+// The place, stated once at the top for the same reason the cast is: the agent
+// reads this while planning the whole storyboard, before it cuts anything. The
+// text is repeated into every scene below (write_story.js prefixes it onto each
+// narrative_context), so this block is what tells the agent that the repetition
+// is deliberate - one place, and the attached image is what holds it.
+if (placeDesc) {
+    L.push(`PLACE - FIXED. The whole film happens in ONE place${placeName ? `, attached as @${placeName}` : ''}:`);
+    L.push(`  ${placeDesc}`);
+    L.push('  That reference image is the place for every clip. Same layout, same');
+    L.push('  furniture, same light, same time of day in all of them. Do not move the');
+    L.push('  story to another location, do not redecorate, and do not invent a second');
+    L.push('  place. Only the camera angle and what the characters do may change.');
     L.push('');
 }
 
@@ -293,6 +375,19 @@ for (const sc of scenes) {
     }
 
     L.push(`Scene ${n}${title}`);
+    // Who is in THIS clip, and what they look like, spelled out again. The story
+    // JSON has always carried scenes[].characters, but it was only ever used to
+    // build the union mention list - so the agent had no idea which of the cast
+    // was even on screen in a given scene, let alone how they should look.
+    const present = (sc.characters || [])
+        .map(c => cap(String(c).trim()))
+        .filter(c => descFor(c));
+    if (present.length) {
+        L.push('CHARACTERS IN THIS CLIP - identical to the CAST block and to every other clip. '
+            + 'Same face, same age, same hair, same outfit. Do not restyle, do not recast, do not '
+            + 'make them look younger or older:');
+        for (const c of present) L.push(`  ${c}: ${descFor(c)}`);
+    }
     if (DIALOGUE) {
         // Nobody narrates in this mode, so the NARRATION line is not emitted at
         // all - leaving it in with "(none found)" would invite the agent to fill
@@ -332,9 +427,16 @@ for (const sc of scenes) {
 // helpfully adds some.
 L.push(charNames.length
     ? `Keep ${charNames.join(' and ')} looking exactly as they do in their reference images in every scene.`
-    : 'This video has NO characters and no reference images. Do not add people, faces or '
+    : 'This video has NO characters' + (placeDesc ? '' : ' and no reference images')
+      + '. Do not add people, faces or '
       + 'dialogue. Distant unnamed figures are acceptable only where a scene needs a sense '
       + 'of scale, and they are scenery - never the subject, never in the foreground.');
+// The place is a reference image too, so a story with no cast can still have
+// something attached - and the closing rule above must not claim otherwise.
+if (placeDesc) {
+    L.push(`Every clip is in the same place as the ${placeName ? `@${placeName}` : 'place'} reference image. `
+        + 'It does not change from clip to clip.');
+}
 if (DIALOGUE) {
     L.push('Nobody narrates this video. Every spoken word belongs to one of the characters '
         + 'above, on screen, and comes from the DIALOGUE lines - no added lines, no '
@@ -360,7 +462,9 @@ if (PRINT_ONLY) {
 console.log('');
 console.log(`  story      : ${story.title || '(untitled)'}`);
 console.log(`  scenes     : ${scenes.length}  ->  ${scenes.length} clips`);
-console.log(`  format     : ${ASPECT || `${aspectRaw} aspect ratio (unrecognised)`}`);
+console.log(`  format     : ${AUTO_RATIO
+    ? 'Flow project setting - set the ratio in Flow (tune icon beside the prompt box)'
+    : (ASPECT || `${aspectRaw} aspect ratio (unrecognised)`)}`);
 if (ASPECT_UNKNOWN) {
     console.log(`               WARNING: "${aspectRaw}" is not one of the known ratios (16:9, 9:16, 1:1).`);
     console.log('               It went into the prompt as written - check the first clip before the rest run.');
@@ -372,6 +476,31 @@ if (SECONDS_OVER) {
     console.log('               only for a model that takes longer clips.');
 }
 console.log(`  characters : ${charNames.join(', ') || '(none)'}  ->  ${mentionList || '(no mentions)'}`);
+// The plate is a reference image like any other, and Veo 3.1 takes three. A
+// mention past the ceiling is one Flow will not bind, so say which set is over
+// rather than letting the run discover it.
+if (OVER_CEILING) {
+    console.log(`               WARNING: ${mentions.length} mentions (${mentions.join(', ')}) is over the`);
+    console.log('               Veo 3.1 ceiling of 3 reference images. The place plate takes one');
+    console.log('               of the 3, so drop a character from the mention list to fit.');
+}
+if (placeDesc) {
+    console.log(`  place      : ${placeName || '(unnamed)'} - one place for the whole film,`
+        + `${placeName ? ` attached as @${placeName}` : ' no mention (name it to attach the plate)'}`);
+} else if (placeName) {
+    console.log(`  place      : ${placeName} (named, but the story carries no place description)`);
+}
+// A cast with no descriptions is the case that produces drifting faces, so say
+// so loudly rather than letting it pass as a normal run.
+if (charNames.length && !described.length) {
+    console.log('               WARNING: the story has no character_descriptions, so the prompt');
+    console.log('               never says what the cast looks like. Their face is then held only');
+    console.log('               by the reference image - re-run write_story.js to add descriptions.');
+} else if (described.length < charNames.length) {
+    console.log(`               WARNING: ${charNames.length - described.length} character(s) have no`);
+    console.log('               description and will drift: '
+        + charNames.filter(c => !descFor(c)).join(', '));
+}
 // The `narrated` label keeps its exact old text so the summary of a story that
 // was already converted is unchanged; the dialogue mode adds its own line.
 console.log(`  narrated   : ${INTRO ? 'HOOK ONLY - clip 1 narrates, the rest are sound-led'

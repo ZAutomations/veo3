@@ -1,0 +1,30 @@
+Character reference sheets for "She Packed Before He Confessed"
+Generate each one, then SAVE IT in this story's character_refs/
+folder under the name given below.
+Do NOT create a Flow Character for it, and do not touch the Character
+tab. A Flow Character is re-invented for every clip, which is what made
+faces and wardrobes drift from cut to cut. A plain image mentioned with
+@Name is handed to the model as reference pixels and holds. Stage 2 does
+that upload and mention for you - you only supply the file.
+Every sheet must be made with the same medium or the cast will not match.
+Each sheet is ONE image file showing the same individual from several
+angles. Keep it to one file per character: the video model accepts at
+most 3 reference images, so a cast of 2 or 3 is the ceiling.
+
+=== ELENA ===   (human)
+save as: character_refs/elena_reference_sheet.jpg
+
+-- image prompt --
+Cinematic digital manhwa character sheet of Elena. Soft 3D cel-shaded semi-realistic style. Front view, three-quarter view, side profile, and head-and-shoulders facial close-up of one identical twenty-eight-year-old woman in a cream knit sweater and dark braided hair. No text, no labels, no watermark. Plain neutral grey studio background
+
+-- identity text (must match this exactly in the story JSON) --
+Same Elena throughout - Cinematic digital manhwa character, soft 3D cel-shaded semi-realistic rendering, age twenty-eight, slim graceful build, porcelain skin, long dark brown hair in a loose low braid, calm brown eyes. Wears a soft oversized cream knit sweater over a white silk camisole and tailored dusty rose trousers. Refined, controlled poise. NOT live-action, NOT a photograph, NOT 3D CGI, NOT western cartoon, NOT chibi.
+
+=== JULIAN ===   (human)
+save as: character_refs/julian_reference_sheet.jpg
+
+-- image prompt --
+Cinematic digital manhwa character sheet of Julian. Soft 3D cel-shaded semi-realistic style. Front view, three-quarter view, side profile, and head-and-shoulders facial close-up of one identical thirty-year-old man in a charcoal linen shirt with dark wavy hair. No text, no labels, no watermark. Plain neutral grey studio background
+
+-- identity text (must match this exactly in the story JSON) --
+Same Julian throughout - Cinematic digital manhwa character, soft 3D cel-shaded semi-realistic rendering, age thirty, tall athletic build, light stubble, messy dark wavy hair, expressive dark eyes. Wears a dark charcoal linen button-down shirt with rolled sleeves over a grey undershirt and dark fitted trousers. Panicked, heavy with delayed guilt. NOT live-action, NOT a photograph, NOT 3D CGI, NOT western cartoon, NOT chibi.

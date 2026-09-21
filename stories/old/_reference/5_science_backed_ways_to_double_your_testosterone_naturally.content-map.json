@@ -1,0 +1,327 @@
+{
+  "title_suggestion": "5 Science-Backed Ways to Double Your Testosterone Naturally",
+  "preset_suggestion": "health-wellness",
+  "format": {
+    "source_duration_s": 462,
+    "clip_seconds": 8,
+    "narration": true,
+    "on_screen_text": true,
+    "medium": "stylised 2D dynamic explainer with anime cutaways"
+  },
+  "style": "High-contrast motion graphic explainer blending anime character cutaways with 3D anatomical diagrams. Dark background theme accented with glowing red and cyan callouts, energetic transitions, and dynamic text overlays.",
+  "narration": "Authoritative, urgent tone with fast-paced Hindi delivery focused on self-improvement.",
+  "never_change": "Dynamic text graphics highlighting key anatomical concepts and bold title headers.",
+  "facts": [
+    {
+      "t": "0:01",
+      "places": [],
+      "detail": "Modern men possess significantly lower baseline testosterone than previous generations."
+    },
+    {
+      "t": "0:10",
+      "places": [],
+      "detail": "Synthetic hormone supplements and steroids carry long-term health risks."
+    },
+    {
+      "t": "0:24",
+      "places": [],
+      "detail": "Hormone baseline determines training recovery speed between two active individuals."
+    },
+    {
+      "t": "0:35",
+      "places": [],
+      "detail": "Low testosterone manifests through joint discomfort, muscle cramps, and persistent fatigue."
+    },
+    {
+      "t": "0:44",
+      "places": [],
+      "detail": "Roughly 80 percent of males experience undetected hormonal deficiency symptoms."
+    },
+    {
+      "t": "0:52",
+      "places": [],
+      "detail": "Testosterone regulates more than 200 essential biological processes in men."
+    },
+    {
+      "t": "1:16",
+      "places": [],
+      "detail": "Infrequent morning erections serve as an early indicator of hormonal imbalance."
+    },
+    {
+      "t": "1:26",
+      "places": [],
+      "detail": "Pelvic vascular circulation peaks during sleep when testosterone production peaks."
+    },
+    {
+      "t": "1:42",
+      "places": [],
+      "detail": "Stress and poor lifestyle habits impair nervous signaling and vascular sensitivity."
+    },
+    {
+      "t": "2:04",
+      "places": [],
+      "detail": "Deficient testosterone reduces nitric oxide production, weakening arterial dilation."
+    },
+    {
+      "t": "2:23",
+      "places": [],
+      "detail": "Unexplained loss of skeletal muscle mass and bone density indicates hormonal decline."
+    },
+    {
+      "t": "2:34",
+      "places": [],
+      "detail": "Men under age 40 experiencing physical weakness often suffer from low testosterone."
+    },
+    {
+      "t": "2:54",
+      "places": [],
+      "detail": "Ignoring early signs of muscle weakness leads to long-term physical deterioration."
+    },
+    {
+      "t": "3:04",
+      "places": [],
+      "detail": "Excessive accumulation of chest and abdominal fat signals hormonal dysfunction."
+    },
+    {
+      "t": "3:12",
+      "places": [],
+      "detail": "Aromatase enzymes in adipose tissue convert free testosterone into estrogen."
+    },
+    {
+      "t": "3:26",
+      "places": [],
+      "detail": "High estrogen levels in males promote soft tissue fat storage and chest swelling."
+    },
+    {
+      "t": "3:49",
+      "places": [],
+      "detail": "Low testosterone triggers psychological symptoms like brain fog, anxiety, and apathy."
+    },
+    {
+      "t": "4:06",
+      "places": [],
+      "detail": "Optimizing deep sleep for 7 to 8 hours maximizes nocturnal hormone synthesis."
+    },
+    {
+      "t": "4:29",
+      "places": [],
+      "detail": "Late-night screen light suppresses melatonin secretion and disrupts sleep cycles."
+    },
+    {
+      "t": "4:52",
+      "places": [],
+      "detail": "Pelvic floor exercises enhance localized blood vessel tone and circulatory health."
+    },
+    {
+      "t": "5:18",
+      "places": [],
+      "detail": "Executing 3 to 4 sets of controlled pelvic contractions strengthens core stabilization."
+    },
+    {
+      "t": "5:35",
+      "places": [],
+      "detail": "Regular deep leg squats stimulate heavy muscle activation and endocrine release."
+    },
+    {
+      "t": "5:43",
+      "places": [],
+      "detail": "Pushing physical exertion limits triggers adaptive hormonal responses in the body."
+    },
+    {
+      "t": "6:04",
+      "places": [],
+      "detail": "High-intensity training and competitive sports increase baseline testosterone levels."
+    },
+    {
+      "t": "6:38",
+      "places": [],
+      "detail": "Key micronutrients like Vitamin D, Zinc, and Magnesium are vital for hormone creation."
+    },
+    {
+      "t": "6:56",
+      "places": [],
+      "detail": "Plant-based diets often require strategic supplementation to ensure adequate zinc intake."
+    },
+    {
+      "t": "7:16",
+      "places": [],
+      "detail": "Traditional adaptogenic herbs like Safed Musli aid natural hormone restoration."
+    }
+  ],
+  "clips": [
+    {
+      "index": 1,
+      "t_start": "0:00",
+      "t_end": "0:08",
+      "places": [],
+      "points": [
+        "Modern men possess lower baseline testosterone than previous generations.",
+        "Synthetic hormone supplements carry long-term health risks."
+      ],
+      "visual": "Fast cuts between muscular anime figures and a sedentary person on a couch."
+    },
+    {
+      "index": 2,
+      "t_start": "0:08",
+      "t_end": "0:16",
+      "places": [],
+      "points": [
+        "Hormone baseline determines workout recovery speed between active individuals."
+      ],
+      "visual": "Dynamic side-by-side comparison of two avatar figures highlighting progress differences."
+    },
+    {
+      "index": 3,
+      "t_start": "0:16",
+      "t_end": "0:24",
+      "places": [],
+      "points": [
+        "Low testosterone causes joint pain, cramps, and chronic fatigue.",
+        "Nearly 80 percent of modern males suffer undetected hormonal deficits."
+      ],
+      "visual": "Diagram of human back and knee joints glowing red to indicate soreness."
+    },
+    {
+      "index": 4,
+      "t_start": "0:24",
+      "t_end": "0:32",
+      "places": [],
+      "points": [
+        "Testosterone regulates over 200 vital bodily functions."
+      ],
+      "visual": "3D human circulatory and nervous system wireframe glowing brightly."
+    },
+    {
+      "index": 5,
+      "t_start": "0:32",
+      "t_end": "0:40",
+      "places": [],
+      "points": [
+        "Infrequent morning erections indicate early hormonal imbalance.",
+        "Circulation peaks during deep sleep when testosterone rises."
+      ],
+      "visual": "Cutaway 3D animation of pelvic blood vessel flow."
+    },
+    {
+      "index": 6,
+      "t_start": "0:40",
+      "t_end": "0:48",
+      "places": [],
+      "points": [
+        "Stress impairs vascular sensitivity and neural signaling.",
+        "Deficient testosterone lowers nitric oxide production."
+      ],
+      "visual": "Diagram illustrating red blood cells moving through a constricted vessel."
+    },
+    {
+      "index": 7,
+      "t_start": "0:48",
+      "t_end": "0:56",
+      "places": [],
+      "points": [
+        "Unexplained muscle loss and weak bones signal severe hormone drop.",
+        "Younger men under 40 experiencing fatigue often face low levels."
+      ],
+      "visual": "Stylized animation of a thin male silhouette examining his reflection."
+    },
+    {
+      "index": 8,
+      "t_start": "0:56",
+      "t_end": "1:04",
+      "places": [],
+      "points": [
+        "Ignoring early symptoms leads to progressive physical decline.",
+        "Excessive chest and belly fat accumulation indicates hormonal issues."
+      ],
+      "visual": "3D body outline displaying highlighted fat storage zones around torso."
+    },
+    {
+      "index": 9,
+      "t_start": "1:04",
+      "t_end": "1:12",
+      "places": [],
+      "points": [
+        "Aromatase enzymes convert testosterone into estrogen in fat cells.",
+        "Elevated estrogen promotes male chest swelling and fat retention."
+      ],
+      "visual": "Flowchart text animation showing fat converting to aromatase and estrogen."
+    },
+    {
+      "index": 10,
+      "t_start": "1:12",
+      "t_end": "1:20",
+      "places": [],
+      "points": [
+        "Low testosterone causes brain fog, moodiness, and lack of drive."
+      ],
+      "visual": "Depiction of a male figure sitting in darkness with floating mood text labels."
+    },
+    {
+      "index": 11,
+      "t_start": "1:20",
+      "t_end": "1:28",
+      "places": [],
+      "points": [
+        "7 to 8 hours of deep sleep optimizes nocturnal hormone production.",
+        "Late-night screen light suppresses melatonin release."
+      ],
+      "visual": "Animation of sleeping person transitioning into glowing brain brainwave graphic."
+    },
+    {
+      "index": 12,
+      "t_start": "1:28",
+      "t_end": "1:36",
+      "places": [],
+      "points": [
+        "Pelvic floor exercises improve localized circulation.",
+        "Controlled pelvic bridge sets strengthen core muscles."
+      ],
+      "visual": "Fitness instructor demonstrating pelvic floor bridge exercise on a mat."
+    },
+    {
+      "index": 13,
+      "t_start": "1:36",
+      "t_end": "1:44",
+      "places": [],
+      "points": [
+        "Deep leg squats stimulate major muscle activation.",
+        "Pushing physical limits forces adaptive hormone release."
+      ],
+      "visual": "Demonstration of bodyweight squats with rep counter overlay."
+    },
+    {
+      "index": 14,
+      "t_start": "1:44",
+      "t_end": "1:52",
+      "places": [],
+      "points": [
+        "High-intensity training and competitive sports elevate baseline testosterone."
+      ],
+      "visual": "Montage of sprinting, heavy lifting, and intense physical training."
+    },
+    {
+      "index": 15,
+      "t_start": "1:52",
+      "t_end": "2:00",
+      "places": [],
+      "points": [
+        "Vitamin D, Zinc, and Magnesium are essential for hormone creation.",
+        "Vegetarian diets require careful planning for adequate micronutrients."
+      ],
+      "visual": "Graphic overlay of food sources alongside nutrient text labels."
+    },
+    {
+      "index": 16,
+      "t_start": "2:00",
+      "t_end": "2:08",
+      "places": [],
+      "points": [
+        "Natural adaptogenic herbs support natural hormonal recovery safely."
+      ],
+      "visual": "Close-up shot of herbal powders and roots beside an anime character."
+    }
+  ],
+  "coverage": "Every individual fact listed in the ground truth is represented once across the clip breakdowns.",
+  "notes": "Video edited down into representative clips capturing all facts seamlessly.",
+  "source_url": "https://www.youtube.com/watch?v=r0bm-p5XVDk"
+}

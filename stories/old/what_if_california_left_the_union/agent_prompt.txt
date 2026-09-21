@@ -1,0 +1,54 @@
+Create 6 separate clips, one clip per scene, up to 8 seconds each.
+
+FORMAT: keep the aspect ratio the Flow project is already set to. Do not request, crop or change the ratio, and keep it identical in every clip.
+
+STORY: "What If California Left the Union?"
+When California secedes and receives foreign backing from Russia, the resulting geopolitical turmoil forces the United States to fight multiple fronts and ultimately forfeit its western territories.
+Message of the story: Internal divisions and foreign intervention can rapidly unravel the territorial integrity of even the most powerful nations.
+
+CRITICAL FORMAT - this is a NARRATED STORYTELLING VIDEO, not a dialogue drama:
+- The story is carried by an external narrator, not by character dialogue.
+- Every clip carries an off-screen narrator voice-over (energetic clear male voice, fast and precise, documentary authority, punchy but measured), reading
+  that scene's NARRATION line below word for word. Do not rewrite or shorten it.
+- Documentary storytelling style. The visuals illustrate the narration; they never
+  replace it, and no scene may drop its voice-over.
+- Use the SAME narrator voice in every clip so the 6 clips sound like one video.
+
+STYLE: Dynamic 3D satellite globe map animation, photoreal satellite terrain and cloud layers, stylised flat colour fills standing in for each country (abstract, not real national flags), glowing border highlights, animated barrier and route graphics, bold geometric callout shapes, fast smooth camera pans and zooms across regions, bright overhead key light, cinematic colour grading, premium data-visualisation quality
+
+PLACE - FIXED. The whole film happens in ONE place, attached as @Digital Globe:
+  A high-tech digital control room featuring a spherical 3D satellite map visualizer floating above a dark slate floor. Bright overhead key light illuminates photoreal terrain layers, ocean depth contours, and subtle vector grid lines across the surface. The room lighting, dark surrounding walls, and holographic spherical display remain static with no physical furniture, redecorating, or shift in perspective throughout.
+  That reference image is the place for every clip. Same layout, same
+  furniture, same light, same time of day in all of them. Do not move the
+  story to another location, do not redecorate, and do not invent a second
+  place. Only the camera angle and what the characters do may change.
+
+SCENES:
+
+Scene 1 - The Golden State Secedes
+NARRATION (voice-over, read exactly): "California officially declares independence from the United States, prompting immediate federal military deployment along its eastern border."
+VISUAL: A high-tech digital control room featuring a spherical 3D satellite map visualizer floating above a dark slate floor. Bright overhead key light illuminates photoreal terrain layers, ocean depth contours, and subtle vector grid lines across the surface. The room lighting, dark surrounding walls, and holographic spherical display remain static with no physical furniture, redecorating, or shift in perspective throughout. Over the glowing 3D globe visualization in the control room, the camera swiftly zooms in on the state of California, which ignites in a vivid red flat fill. Bright red border lines pulse along the perimeter, signifying the sudden break from the nation. Minimalist military helmet icons materialise along the eastern border lines as federal forces deploy, creating an tense atmosphere of confrontation. The camera holds a tight regional perspective, tracking the glowing barrier markers as they lock into position across the mountain ridges. Sharp white vector callouts outline the unfolding military containment strategy across the regional map display.
+
+Scene 2 - Foreign Allies Intervene
+NARRATION (voice-over, read exactly): "Outmatched Californian troops fortify defensive positions while reaching out globally, securing massive military and financial aid from Russia."
+VISUAL: A high-tech digital control room featuring a spherical 3D satellite map visualizer floating above a dark slate floor. Bright overhead key light illuminates photoreal terrain layers, ocean depth contours, and subtle vector grid lines across the surface. The room lighting, dark surrounding walls, and holographic spherical display remain static with no physical furniture, redecorating, or shift in perspective throughout. The camera shifts smoothly across the 3D terrain display from North America toward Eurasia. Shield icons flash over California to represent entrenched defensive positions. As the camera pans fast across the Pacific Ocean, Russia illuminates in a striking crimson overlay. Radiant dollar-sign graphics and supply vector arcs stream outward from Moscow toward the West Coast, visually marking the flow of foreign backing. A intense glow along the Pacific maritime routes underscores the growing international alliance. The light from the visualizer reflects dynamically off dark surrounding walls, highlighting the high-stakes geopolitical shift unfolding across the spherical screen.
+
+Scene 3 - Federal Forces Pushback
+NARRATION (voice-over, read exactly): "Strengthened by foreign backing, Californian forces repel federal troops, raising fears of widespread state rebellions across the American heartland."
+VISUAL: A high-tech digital control room featuring a spherical 3D satellite map visualizer floating above a dark slate floor. Bright overhead key light illuminates photoreal terrain layers, ocean depth contours, and subtle vector grid lines across the surface. The room lighting, dark surrounding walls, and holographic spherical display remain static with no physical furniture, redecorating, or shift in perspective throughout. The camera pulls back slightly over the digital globe to capture the expanding conflict across North America. The red territory fill of California pushes aggressively outward, sweeping over federal lines and rolling back the military deployment icons. Over the central United States heartland, a stylized shocked emoji graphic flashes, highlighting growing federal anxiety over spreading rebellion. Glowing red perimeter waves ripple eastward across the rocky terrain, emphasizing the overwhelming momentum of the breakaway forces. The overhead lighting casts crisp highlights over the dynamic satellite map as the strategic balance flips dramatically across the continent.
+
+Scene 4 - Securing The Southern Border
+NARRATION (voice-over, read exactly): "Washington rushes military forces to Texas and Florida to prevent further revolts, allowing California to capture the western United States."
+VISUAL: A high-tech digital control room featuring a spherical 3D satellite map visualizer floating above a dark slate floor. Bright overhead key light illuminates photoreal terrain layers, ocean depth contours, and subtle vector grid lines across the surface. The room lighting, dark surrounding walls, and holographic spherical display remain static with no physical furniture, redecorating, or shift in perspective throughout. The map visualization pans rapidly across the southern states, where glowing troop icons rapidly deploy across Texas and Florida to suppress potential secessions. Recognizing the strategic opening, the camera zooms westward as California launches a swift counter-offensive. The dynamic red territory overlay surges rapidly across the Great Plains and Rocky Mountains, completely consuming the western half of the United States. Glowing cyan route vectors trace the rapid expansion, showing federal lines collapsing under the pressure. The control room visualizer brightens as vast swathes of the continental map transition into the newly expanded breakaway zone.
+
+Scene 5 - Northern Border Infiltration
+NARRATION (voice-over, read exactly): "Taking advantage of American chaos, Russia launches an unchecked invasion, occupying Alaska without facing any military resistance."
+VISUAL: A high-tech digital control room featuring a spherical 3D satellite map visualizer floating above a dark slate floor. Bright overhead key light illuminates photoreal terrain layers, ocean depth contours, and subtle vector grid lines across the surface. The room lighting, dark surrounding walls, and holographic spherical display remain static with no physical furniture, redecorating, or shift in perspective throughout. The camera pans smoothly northward across the spherical display, focusing squarely on the frozen expanse of Alaska. Capitalizing on the total distraction of the federal military, a deep crimson Russian overlay extends across the Bering Strait, swiftly enveloping the undefended northern state. Glowing invasion vectors sweep across the icy terrain with zero opposing defense icons appearing to halt the advance. The clean, cold palette of slate grey and arctic white contrasts sharply with the aggressive glowing red highlight lines marking the territorial loss. The atmosphere in the control room grows intensely dark and grim.
+
+Scene 6 - The Western Surrender
+NARRATION (voice-over, read exactly): "Desperate for peace, the United States surrenders following relentless Californian advances, formally recognizing the loss of its entire West Coast."
+VISUAL: A high-tech digital control room featuring a spherical 3D satellite map visualizer floating above a dark slate floor. Bright overhead key light illuminates photoreal terrain layers, ocean depth contours, and subtle vector grid lines across the surface. The room lighting, dark surrounding walls, and holographic spherical display remain static with no physical furniture, redecorating, or shift in perspective throughout. The camera pulls back to reveal the full continental map as a distressed meme graphic overlays the weakened American heartland. A glowing handshake icon appears momentarily during brief peace talks before vanishing as Californian forces resume their unstoppable eastward advance. A crisp white flag icon materializes above Washington, followed by a bold red border line solidifying the new national divide. Glowing vector text labels mark the officially recognized sovereign territory covering the former western states. The camera slowly stabilizes over the re-drawn continent, illuminating the permanent geopolitical transformation across the high-tech visualizer screen.
+
+This video has NO characters. Do not add people, faces or dialogue. Distant unnamed figures are acceptable only where a scene needs a sense of scale, and they are scenery - never the subject, never in the foreground.
+Every clip is in the same place as the @Digital Globe reference image. It does not change from clip to clip.
+Do not add any character dialogue anywhere - narration only.

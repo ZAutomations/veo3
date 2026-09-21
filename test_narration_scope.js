@@ -34,15 +34,22 @@ const db = JSON.parse(fs.readFileSync(path.join(__dirname, 'styles.json'), 'utf8
 const intro = db.styles.filter(p => p.narration_scope);
 // Named in full rather than counted: each mode is opted into deliberately, so a
 // third one appearing should be an edit to this line, not a silent pass.
-ok('exactly the two intended presets declare narration_scope',
-   intro.map(p => p.id).sort().join(', ') === 'animal-kindness, relationship-dialogue',
+ok('exactly the three intended presets declare narration_scope',
+   intro.map(p => p.id).sort().join(', ') ===
+   'animal-kindness, relationship-dialogue, relationship-dialogue-real',
    intro.map(p => `${p.id}:${p.narration_scope}`).join(', '));
 ok('the animal preset is the intro one',
    intro.find(p => p.id === 'animal-kindness').narration_scope === 'intro');
 ok('the relationship preset is the dialogue one',
    intro.find(p => p.id === 'relationship-dialogue').narration_scope === 'dialogue');
 const withSound = db.styles.filter(p => p.sound_style);
-ok('exactly one preset declares sound_style', withSound.length === 1, withSound.map(p => p.id).join(', '));
+ok('sound beds on the intended presets',
+   withSound.length === 4 &&
+   withSound.some(p => p.id === 'animal-kindness') &&
+   withSound.some(p => p.id === 'geography-map') &&
+   withSound.some(p => p.id === '3d-zack-style') &&
+   withSound.some(p => p.id === '3d-moral-story'),
+   withSound.map(p => p.id).join(', '));
 ok('no preset declares an unknown scope',
    db.styles.every(p => !p.narration_scope || ['intro', 'dialogue'].includes(p.narration_scope)),
    db.styles.map(p => p.narration_scope).filter(Boolean).join(', '));
@@ -163,7 +170,7 @@ ok('still enforces the word budget on the hook', (() => {
         { ...introScenes[0], script_line: Array(40).fill('word').join(' ') },
         introScenes[1],
     ]), [], animal);
-    return bad.some(b => /over the 28-word limit/.test(b));
+    return bad.some(b => /over the \d+-word limit/.test(b));
 })());
 ok('a preset with no scope is judged the old way', (() => {
     const bad = W.validate(W.buildStory(ghibli, [], meta,

@@ -1,0 +1,36 @@
+Reference sheets for "The Secret Note That Changed History" - the cast and the place
+Generate each one, then SAVE IT in this story's character_refs/
+folder under the name given below.
+Do NOT create a Flow Character for it, and do not touch the Character
+tab. A Flow Character is re-invented for every clip, which is what made
+faces and wardrobes drift from cut to cut. A plain image mentioned with
+@Name is handed to the model as reference pixels and holds. Stage 2 does
+that upload and mention for you - you only supply the file.
+Every sheet must be made with the same medium or the cast will not match.
+Each sheet is ONE image file showing the same individual from several
+angles. Keep it to one file per character: the video model accepts at
+most 3 reference images, and the place plate takes one of those slots -
+so a cast of 2 or 3 is the ceiling.
+
+=== THOMAS ===
+save as: character_refs/thomas.jpg
+
+-- image prompt --
+Stylised realistic 3D character reference sheet showing one adult male character repeated from several angles: full-body front, three-quarter and side profile views, plus a head-and-shoulders close-up of the face. Identical outfit consisting of a plain white t-shirt, short messy brown hair, and relaxed expression in every view, evenly spaced in a row on a plain neutral grey studio background, with no text or labels. Stylised realistic 3D rendering with clean studio lighting, glossy clean surfaces, soft contact shadows. plain neutral grey studio background
+
+-- identity text (must match this exactly in the story JSON) --
+Same Thomas throughout - One stylised realistic 3D human adult male, realistic proportions with clean cartoon-clean skin, a plain white t-shirt, plain modern clothing in fixed colours, a natural relaxed expression. He has short messy brown hair and expressive amber eyes. Rendered in stylised realistic 3D character rendering with slightly exaggerated head proportions and soft contact shadows. NOT anime, NOT cel-shaded, NOT photorealistic.
+
+=== PLACE - STUDY ===
+save as: character_refs/Study.jpg
+
+This is the ONE place this film happens in. Every clip is shot here,
+with the same furniture and the same light. Generate it as ONE image
+of the place EMPTY - no people and no animals - seen straight on and
+wide, evenly lit, the whole space readable.
+
+-- image prompt --
+A warm home study with a polished dark wooden desk, a green leather armchair, a tall bookshelf with leather-bound books, and a framed photo on the wall. Stylised realistic 3D character rendering with clean studio lighting, bright cyan-blue flat studio backdrop, glossy clean surfaces, soft contact shadows. Empty of people and animals, straight-on wide view, evenly lit, whole space readable. No text, no labels, no watermark.
+
+-- place text (must match this exactly in the story JSON) --
+A warm, compact home study featuring a polished dark wooden desk, a comfortable green leather armchair, a tall bookshelf lined with leather-bound volumes, and a single framed photograph of a mother on the wall. Natural light streams softly through a side window illuminating dust motes. Never change the furniture, the wall decor, the lighting angle, or the desk arrangement across any scene.

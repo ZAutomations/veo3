@@ -1,0 +1,46 @@
+Create 2 separate clips, one clip per scene, using @Gym and @David and @Ethan, up to 8 seconds each.
+
+FORMAT: keep the aspect ratio the Flow project is already set to. Do not request, crop or change the ratio, and keep it identical in every clip.
+
+STORY: "Natural Habits to Boost Testosterone Fast"
+A man optimizes his hormonal health by adopting key natural daily habits to boost his testosterone levels naturally and effectively.
+Message of the story: Simple daily choices in sleep, nutrition, and exercise naturally optimize long-term hormonal health.
+
+CRITICAL FORMAT - this is a NARRATED STORYTELLING VIDEO, not a dialogue drama:
+- The characters are SILENT. Mouths closed. They never speak and have NO dialogue.
+- Every clip carries an off-screen narrator voice-over (clear warm female voice, reassuring and professional, steady pace), reading
+  that scene's NARRATION line below word for word. Do not rewrite or shorten it.
+- Documentary storytelling style. The visuals illustrate the narration; they never
+  replace it, and no scene may drop its voice-over.
+- Use the SAME narrator voice in every clip so the 2 clips sound like one video.
+
+STYLE: Professional medical documentary style, clean bright lighting, modern healthcare aesthetic, trustworthy scientific presentation, calming professional atmosphere, educational clarity
+
+CAST - FIXED APPEARANCE. These are the same people in every clip:
+  David: Same David throughout - Healthy realistic adult human, 30 years old, athletic build, wearing a clean charcoal gray athletic t-shirt and dark shorts, short dark brown hair, calm approachable expression, bright even lighting, live-action photograph style. Natural realistic proportions, well-defined features, smooth skin tone, professional look. NOT cartoon, NOT anime, NOT exaggerated anatomy.
+  Ethan: Same Ethan throughout - Healthy realistic adult human, 32 years old, lean muscular build, wearing a clean navy blue crewneck t-shirt and grey joggers, neat black hair, calm approachable expression, bright even lighting, live-action photograph style. Natural realistic proportions, friendly clear face, professional wellness presentation. NOT cartoon, NOT anime, NOT exaggerated anatomy.
+
+PLACE - FIXED. The whole film happens in ONE place, attached as @Gym:
+  A modern, high-end fitness facility featuring sleek rubber flooring, clean ambient overhead lighting, weight racks, pull-up bars, and floor-to-ceiling windows. Natural sunlight streams across the floor from the side. The layout, equipment positioning, dynamic high-contrast lighting, and bright daylight remain completely unchanged throughout, maintaining a pristine, professional atmosphere free of clutter or changing equipment.
+  That reference image is the place for every clip. Same layout, same
+  furniture, same light, same time of day in all of them. Do not move the
+  story to another location, do not redecorate, and do not invent a second
+  place. Only the camera angle and what the characters do may change.
+
+SCENES:
+
+Scene 1 - Foundation Habits
+CHARACTERS IN THIS CLIP - identical to the CAST block and to every other clip. Same face, same age, same hair, same outfit. Do not restyle, do not recast, do not make them look younger or older:
+  David: Same David throughout - Healthy realistic adult human, 30 years old, athletic build, wearing a clean charcoal gray athletic t-shirt and dark shorts, short dark brown hair, calm approachable expression, bright even lighting, live-action photograph style. Natural realistic proportions, well-defined features, smooth skin tone, professional look. NOT cartoon, NOT anime, NOT exaggerated anatomy.
+NARRATION (voice-over, read exactly): "Five simple lifestyle adjustments naturally raise testosterone, starting with getting sufficient restorative sleep and eliminating refined sugars and processed meals."
+VISUAL: A modern, high-end fitness facility featuring sleek rubber flooring, clean ambient overhead lighting, weight racks, pull-up bars, and floor-to-ceiling windows. Natural sunlight streams across the floor from the side. The layout, equipment positioning, dynamic high-contrast lighting, and bright daylight remain completely unchanged throughout, maintaining a pristine, professional atmosphere free of clutter or changing equipment. David stands beside a dumbbell rack in the sunlit training space, addressing the viewer with an authoritative, reassuring smile. The camera tracks smoothly from a wide angle to a medium close-up as he picks up a pair of weights, demonstrating disciplined form before setting them down cleanly. He gestures calmly toward the open floor, embodying vibrant vitality and restorative balance. His expression remains approachable and grounded, conveying the fundamental importance of healthy restorative habits. The steady morning sunlight filters through the floor-to-ceiling windows, highlighting his controlled movements in crisp detail.
+
+Scene 2 - Active Optimization
+CHARACTERS IN THIS CLIP - identical to the CAST block and to every other clip. Same face, same age, same hair, same outfit. Do not restyle, do not recast, do not make them look younger or older:
+  Ethan: Same Ethan throughout - Healthy realistic adult human, 32 years old, lean muscular build, wearing a clean navy blue crewneck t-shirt and grey joggers, neat black hair, calm approachable expression, bright even lighting, live-action photograph style. Natural realistic proportions, friendly clear face, professional wellness presentation. NOT cartoon, NOT anime, NOT exaggerated anatomy.
+NARRATION (voice-over, read exactly): "You can optimize your levels further by boosting vitamin D, minimizing alcohol consumption, and committing to a consistent, challenging exercise routine."
+VISUAL: A modern, high-end fitness facility featuring sleek rubber flooring, clean ambient overhead lighting, weight racks, pull-up bars, and floor-to-ceiling windows. Natural sunlight streams across the floor from the side. The layout, equipment positioning, dynamic high-contrast lighting, and bright daylight remain completely unchanged throughout, maintaining a pristine, professional atmosphere free of clutter or changing equipment. Ethan stands centered near the pull-up station, looking directly into the lens with quiet confidence and professional clarity. A medium tracking shot circles slightly around him as he secures his grip and executes a smooth, deliberate pull-up, demonstrating physical discipline. Lowering himself gently to the rubber floor, he faces forward with a calm, encouraging nod. His posture is tall and composed, radiating focused energy and health. Crisp natural daylight illuminates the clean space, framing his clear, intentional movements as he models an active, balanced lifestyle without unnecessary distraction.
+
+Keep David and Ethan looking exactly as they do in their reference images in every scene.
+Every clip is in the same place as the @Gym reference image. It does not change from clip to clip.
+Do not add any character dialogue anywhere - narration only.

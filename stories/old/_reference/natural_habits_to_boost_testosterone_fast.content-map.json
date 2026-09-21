@@ -1,0 +1,95 @@
+{
+  "title_suggestion": "Natural Habits to Boost Testosterone Fast",
+  "preset_suggestion": "health-wellness",
+  "format": {
+    "source_duration_s": 13,
+    "clip_seconds": 7,
+    "narration": true,
+    "on_screen_text": true,
+    "medium": "live-action lifestyle montage"
+  },
+  "style": "High-contrast dynamic live-action footage featuring fitness, dietary, and lifestyle moments. Clean lighting transitioning between moody indoor workout illumination and bright natural daylight. Fast-paced sequential jump cuts accompanied by prominent bold sans-serif typographic overlays.",
+  "narration": "Firm, direct, and energetic pace with authoritative clarity.",
+  "never_change": "Central bold sans-serif headline text paired with numbered point markers.",
+  "facts": [
+    {
+      "t": "0:00",
+      "places": [
+        "Gym"
+      ],
+      "detail": "Five natural lifestyle strategies can increase testosterone levels."
+    },
+    {
+      "t": "0:02",
+      "places": [
+        "Bedroom"
+      ],
+      "detail": "Prioritizing adequate and quality nightly rest."
+    },
+    {
+      "t": "0:04",
+      "places": [
+        "Dining area"
+      ],
+      "detail": "Restricting dietary intake of refined sugars and processed foods."
+    },
+    {
+      "t": "0:06",
+      "places": [
+        "Graphic background"
+      ],
+      "detail": "Increasing daily consumption or exposure to Vitamin D."
+    },
+    {
+      "t": "0:08",
+      "places": [
+        "Bar"
+      ],
+      "detail": "Minimizing regular alcohol consumption."
+    },
+    {
+      "t": "0:10",
+      "places": [
+        "Oceanfront deck"
+      ],
+      "detail": "Engaging in consistent physical exercise routines."
+    }
+  ],
+  "clips": [
+    {
+      "index": 1,
+      "t_start": "0:00",
+      "t_end": "0:06",
+      "places": [
+        "Gym",
+        "Bedroom",
+        "Dining area"
+      ],
+      "points": [
+        "Introducing five natural methods to raise testosterone.",
+        "Ensuring sufficient sleep each night.",
+        "Cutting down on heavily processed and sugary foods."
+      ],
+      "visual": "A muscular athlete curling dumbbells cuts to a man sleeping peacefully in bed, followed by someone biting into a large burger."
+    },
+    {
+      "index": 2,
+      "t_start": "0:06",
+      "t_end": "0:13",
+      "places": [
+        "Graphic background",
+        "Bar",
+        "Oceanfront deck"
+      ],
+      "points": [
+        "Elevating intake of Vitamin D.",
+        "Reducing overall alcohol intake.",
+        "Committing to regular workout habits."
+      ],
+      "visual": "Golden Vitamin D capsules floating in 3D transition to glasses of beer clinking, cutting to an athlete performing Bulgarian split squats by the sea."
+    }
+  ],
+  "coverage": "Every fact listed in the ground truth is represented once across the two sequential clips.",
+  "notes": "No geographic locations present; scenes represent lifestyle environments.",
+  "source_url": "https://www.youtube.com/shorts/FmyqKyUctok"
+}

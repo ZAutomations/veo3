@@ -1,0 +1,212 @@
+{
+  "title_suggestion": "Borders You Can Never Cross",
+  "preset_suggestion": "3d-map",
+  "format": {
+    "source_duration_s": 25,
+    "clip_seconds": 8,
+    "narration": true,
+    "on_screen_text": true,
+    "medium": "3D satellite map"
+  },
+  "style": "Photorealistic 3D satellite map with bright graphic country overlays, animated boundary lines, barrier icons, and text callouts under bright sunlight.",
+  "narration": "Energetic, fast-paced documentary voiceover",
+  "never_change": "Dynamic 3D globe camera movements with graphic country highlights and distance callouts",
+  "facts": [
+    {
+      "t": "00:02",
+      "places": [
+        "North Korea",
+        "South Korea"
+      ],
+      "detail": "The Demilitarized Zone spans 250 kilometers across the Korean Peninsula."
+    },
+    {
+      "t": "00:05",
+      "places": [
+        "North Korea",
+        "South Korea"
+      ],
+      "detail": "Virtually no travel has been permitted across the Korean buffer zone since 1953."
+    },
+    {
+      "t": "00:08",
+      "places": [
+        "Armenia",
+        "Turkey"
+      ],
+      "detail": "Armenia and Turkey share a 330-kilometer international border."
+    },
+    {
+      "t": "00:11",
+      "places": [
+        "Armenia",
+        "Turkey"
+      ],
+      "detail": "The land border between Turkey and Armenia has been fully closed since 1993."
+    },
+    {
+      "t": "00:12",
+      "places": [
+        "Morocco",
+        "Algeria"
+      ],
+      "detail": "Morocco and Algeria share a border measuring roughly 1,600 kilometers."
+    },
+    {
+      "t": "00:15",
+      "places": [
+        "Morocco",
+        "Algeria",
+        "France",
+        "Spain"
+      ],
+      "detail": "The Moroccan-Algerian frontier was locked in 1994, forcing detours through third nations."
+    },
+    {
+      "t": "00:18",
+      "places": [
+        "India",
+        "Pakistan"
+      ],
+      "detail": "India and Pakistan keep most of their shared line heavily barricaded."
+    },
+    {
+      "t": "00:21",
+      "places": [
+        "India",
+        "Pakistan",
+        "Attari",
+        "Wagah"
+      ],
+      "detail": "The Attari-Wagah post is the primary active land crossing between India and Pakistan."
+    },
+    {
+      "t": "00:22",
+      "places": [
+        "Bhutan",
+        "China"
+      ],
+      "detail": "Bhutan and China do not maintain formal diplomatic relations."
+    },
+    {
+      "t": "00:24",
+      "places": [
+        "Bhutan",
+        "China"
+      ],
+      "detail": "No official land border entry points exist between Bhutan and China."
+    }
+  ],
+  "clips": [
+    {
+      "index": 1,
+      "t_start": "00:00",
+      "t_end": "00:03",
+      "places": [
+        "North Korea",
+        "South Korea"
+      ],
+      "points": [
+        "The Korean DMZ stretches 250 km across the peninsula."
+      ],
+      "visual": "Zoom into Korean peninsula with animated line graphic indicating 250 km."
+    },
+    {
+      "index": 2,
+      "t_start": "00:03",
+      "t_end": "00:07",
+      "places": [
+        "North Korea",
+        "South Korea"
+      ],
+      "points": [
+        "Crossings between the Koreas have been barred since 1953."
+      ],
+      "visual": "Highlight national flag textures on both Koreas with a stop icon overlay."
+    },
+    {
+      "index": 3,
+      "t_start": "00:07",
+      "t_end": "00:09",
+      "places": [
+        "Armenia",
+        "Turkey"
+      ],
+      "points": [
+        "Turkey and Armenia share a 330 km border line."
+      ],
+      "visual": "Pan across Western Asia showing Turkey and Armenia highlight colors."
+    },
+    {
+      "index": 4,
+      "t_start": "00:09",
+      "t_end": "00:11",
+      "places": [
+        "Armenia",
+        "Turkey"
+      ],
+      "points": [
+        "The Turkish-Armenian border was barricaded in 1993."
+      ],
+      "visual": "Animate fence overlay along the highlighted border."
+    },
+    {
+      "index": 5,
+      "t_start": "00:11",
+      "t_end": "00:14",
+      "places": [
+        "Morocco",
+        "Algeria"
+      ],
+      "points": [
+        "Morocco and Algeria divide a 1,600 km frontier."
+      ],
+      "visual": "Rotate camera to North Africa and display length callout."
+    },
+    {
+      "index": 6,
+      "t_start": "00:14",
+      "t_end": "00:17",
+      "places": [
+        "Morocco",
+        "Algeria",
+        "France",
+        "Spain"
+      ],
+      "points": [
+        "Border closure in 1994 forces travel through intermediate countries."
+      ],
+      "visual": "Show barrier icons on border and path pointing to European transit nations."
+    },
+    {
+      "index": 7,
+      "t_start": "00:17",
+      "t_end": "00:21",
+      "places": [
+        "India",
+        "Pakistan",
+        "Attari",
+        "Wagah"
+      ],
+      "points": [
+        "India and Pakistan fence their border, relying on Wagah for land transit."
+      ],
+      "visual": "Fly to South Asia, displaying fence graphics and zooming into the Wagah gate."
+    },
+    {
+      "index": 8,
+      "t_start": "00:21",
+      "t_end": "00:25",
+      "places": [
+        "Bhutan",
+        "China"
+      ],
+      "points": [
+        "Lack of diplomatic ties between Bhutan and China leaves the border without official crossings."
+      ],
+      "visual": "Focus on the Himalayas with forbidden icons over the Bhutan-China boundary."
+    }
+  ],
+  "coverage": "Every individual fact listed in the ground truth is represented within one of the eight defined clips.",
+  "notes": "None."
+}

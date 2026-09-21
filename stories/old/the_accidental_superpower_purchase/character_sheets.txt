@@ -1,0 +1,22 @@
+Reference image for "The Accidental Superpower Purchase" - the place
+Generate it, then SAVE IT in this story's character_refs/ folder
+under the name given below.
+Do NOT create a Flow Character for it, and do not touch the Character
+tab. A Flow Character is re-invented for every clip, which is what made
+faces and wardrobes drift from cut to cut. A plain image mentioned with
+@Name is handed to the model as reference pixels and holds. Stage 2 does
+that upload and mention for you - you only supply the file.
+
+=== PLACE - GLOBE ===
+save as: character_refs/Globe.jpg
+
+This is the ONE place this film happens in. Every clip is shot here,
+with the same furniture and the same light. Generate it as ONE image
+of the place EMPTY - no people and no animals - seen straight on and
+wide, evenly lit, the whole space readable.
+
+-- image prompt --
+A straight-on wide view of an empty dark-mode 2.5D topographic shaded-relief cartographic globe floating in void space, charcoal slate terrain with exaggerated 3D elevation ridges, deep midnight blue oceans, glowing neon cyan vector lines, soft volumetric atmospheric glow. Completely empty of people and animals, no text, no labels, no watermark, ultra-sharp 4K digital cartography.
+
+-- place text (must match this exactly in the story JSON) --
+Dark-mode 2.5D topographic shaded-relief globe suspended in deep-space darkness, featuring charcoal slate continental landmasses with exaggerated mountain ridges casting dramatic low-angle shadows. Luminous cyan coastlines and neon vector lines trace geographic boundaries above midnight blue ocean basins. Volumetric rim lighting illuminates the atmospheric curve, bordered by a dark vignette. The physical relief terrain remains fixed and empty of people.

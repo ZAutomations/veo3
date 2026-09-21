@@ -1,0 +1,19 @@
+Genre: stylised 3D explainer explainer.
+Aesthetic: Clean, smooth 3D character animation with bright, direct lighting and vibrant outdoor lighting. Smooth camera pans and close-up medical cuts.
+Format: 4 clips of 8s, narrated voice-over.
+Narration: Clear, steady, and uplifting narrative tone.
+Never change: The white horse and the female trainer character model.
+Beats:
+1. Riding Pen - A trainer puts a blindfold on her horse.; The horse hesitates at first due to fear.; Consistent guided practice builds its trust and walking ability. (visual: Medium shot of trainer blindfolding horse, transitioning to a time-lapse clock overlay as they walk.)
+2. Paddock, Veterinary Clinic - Severe disease affected both eyes of the horse.; The worst eye was surgically extracted and stitched. (visual: Zoom into the horse's diseased eye, followed by a vet performing surgical closure.)
+3. Riding Pen, Veterinary Clinic - Proactive blindfold training prepared the horse for total vision loss.; The remaining eye was ultimately removed as well. (visual: Close-up of blindfold placement over the remaining eye, followed by surgical removal graphic.)
+4. Forest Trail, Indoor Arena - The horse adapted successfully to total blindness.; It completed trail rides, show jumping, and secured three world records. (visual: Tracking shot of horse trail riding, jumping stadium hurdles, and trainer holding award plaques.)
+EVERY FACT (each one must appear somewhere, in your own words):
+  - Riding Pen [0:01]: A trainer places a blindfold over her horse's eyes.
+  - Riding Pen [0:03]: The horse is initially hesitant to walk without sight.
+  - Riding Pen [0:07]: Repeated practice builds the horse's confidence walking blind.
+  - Paddock [0:11]: The horse developed painful, debilitating eye conditions.
+  - Veterinary Clinic [0:15]: One severely damaged eye required surgical removal.
+  - Riding Pen [0:18]: Blindness training began before the second eye failed.
+  - Veterinary Clinic [0:24]: The second failing eye was eventually surgically removed.
+  - Forest Trail, Indoor Arena [0:27]: The fully blind horse achieved outdoor riding, jumping competitions, and three world records.

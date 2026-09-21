@@ -7,7 +7,9 @@
  * WHAT IT PRODUCES
  *   stories/<slug>/<slug>_story.json     the story, in the schema stage 1 reads
  *   stories/<slug>/style_bible.md        the look, for you to read and keep
- *   stories/<slug>/character_sheets.txt  paste-ready Whisk prompts, one per character
+ *   stories/<slug>/character_sheets.txt  paste-ready image prompts, one per
+ *                                        character, each asking for a multi-angle
+ *                                        turnaround sheet in a single image
  *   stories/<slug>/character_refs/       empty; the sheets go here once generated
  *
  * WHY IT WRITES THE STORY JSON AND NOT THE AGENT PROMPT
@@ -45,10 +47,31 @@
 const fs = require('fs');
 const path = require('path');
 
+// ── IPv4 pin ─────────────────────────────────────────────────────────────────
+// This machine's IPv6 route to Google is a black hole: the TCP connection opens
+// but the response never arrives, so an IPv6-first fetch hangs until the abort
+// fires and the call fails at random with "fetch failed". curl and the core
+// https module are unaffected because they fall back to IPv4. Pin the whole
+// process to IPv4 so a dead address family cannot stall a run. Module-level, so
+// every script that requires this file (analyze_video, the MCP stages, ...) is
+// covered too.
+try {
+    require('dns').setDefaultResultOrder('ipv4first');
+    const net = require('net');
+    if (typeof net.setDefaultAutoSelectFamily === 'function') net.setDefaultAutoSelectFamily(false);
+} catch (e) { /* older Node: keep the defaults */ }
+
 const HERE = __dirname;
 const STORIES_DIR = path.join(HERE, 'stories');
 const STYLES_FILE = path.join(HERE, 'styles.json');
+// The second preset list. Kept apart so the classic list is untouched; searched
+// after it, so an id works no matter which file it lives in.
+const GENAI_STYLES_FILE = path.join(HERE, 'genai_styles.json');
 const SETTINGS_FILE = path.join(HERE, 'gui_settings.json');
+// The standing cast: the people who appear in every video. It sits at the root
+// rather than inside a story folder because it outlives every story.
+const HOUSE_CAST_FILE = path.join(HERE, 'house_cast.json');
+const HOUSE_REFS_DIR = path.join(HERE, 'house_refs');
 const API = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 // ── args ---------------------------------------------------------------------
@@ -74,7 +97,7 @@ function flags(name) {
     return out;
 }
 
-const TITLE = typeof flag('--title') === 'string' ? flag('--title').trim() : '';
+let TITLE = typeof flag('--title') === 'string' ? flag('--title').trim() : '';
 // The detail is free text and can run to a paragraph. Windows mangles long
 // multi-line command-line arguments - the same reason agent_mode.js takes
 // --file - so the GUI passes this through a file instead of inline.
@@ -88,7 +111,26 @@ if (DETAIL_FILE) {
         process.exit(1);
     }
 }
-const PRESET_ID = typeof flag('--preset') === 'string' ? flag('--preset').trim() : '';
+let PRESET_ID = typeof flag('--preset') === 'string' ? flag('--preset').trim() : '';
+
+// A content map from analyze_video.js: the real places named in a reference
+// video and the point made in each ~clip-length slice, in order. It is appended
+// to the detail so call 1 writes one beat per segment, keeping the real place
+// names and the reference's order, instead of inventing a structure. The title
+// and the preset are taken from it only when the creator did not choose one.
+const CONTENT_MAP_FILE = typeof flag('--content-map') === 'string' ? flag('--content-map').trim() : '';
+let CONTENT_MAP = null;
+if (CONTENT_MAP_FILE) {
+    try {
+        CONTENT_MAP = JSON.parse(fs.readFileSync(CONTENT_MAP_FILE, 'utf8'));
+    } catch (e) {
+        console.error(`Could not read --content-map ${CONTENT_MAP_FILE}: ${e.message}`);
+        process.exit(1);
+    }
+    if (!TITLE && CONTENT_MAP.title_suggestion) TITLE = String(CONTENT_MAP.title_suggestion).trim();
+    if (!PRESET_ID && CONTENT_MAP.preset_suggestion) PRESET_ID = String(CONTENT_MAP.preset_suggestion).trim();
+    DETAIL = [DETAIL, contentMapBlock(CONTENT_MAP)].filter(Boolean).join('\n\n');
+}
 // 0 means "not given". A preset may declare `default_duration` - an animal
 // kindness film is specified at 60-90s while a what-if explainer is not - and
 // the preset's own number only applies when the creator stayed silent. An
@@ -106,12 +148,23 @@ const ASPECT = typeof flag('--aspect') === 'string' ? flag('--aspect').trim() : 
 //
 // gemini-2.5-flash was the original default and was retired for new users within
 // hours of this being written. Expect to change this again.
-const MODEL = typeof flag('--model') === 'string' ? flag('--model') : 'gemini-3.6-flash';
+// A CHAIN, not one model. The newest flash is tried first; if it is overloaded
+// (503) or not on this key (404) the next is used, then the next, so one busy
+// model no longer fails a whole story. `--model a,b,c` overrides the chain, and
+// a single `--model x` still works.
+const DEFAULT_MODELS = 'gemini-3.8-flash,gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash,gemini-flash-lite-latest,gemini-3.1-flash-lite';
+const MODEL_FLAG = typeof flag('--model') === 'string' ? flag('--model') : '';
+const MODELS = (MODEL_FLAG || DEFAULT_MODELS).split(',').map(s => s.trim()).filter(Boolean);
+const MODEL = MODELS[0];
 const BATCH = num('--scenes-per-call', 6);
 const DRY = !!flag('--dry-run', false);
 const FORCE = !!flag('--force', false);
 const OUT_DIR = typeof flag('--out') === 'string' ? flag('--out') : null;
 const LIST_MODELS = !!flag('--list-models', false);
+// The standing cast. `--cast <file>` points somewhere other than house_cast.json,
+// `--no-house-cast` designs a fresh cast for this one story.
+const CAST_FILE = typeof flag('--cast') === 'string' ? flag('--cast').trim() : '';
+const NO_HOUSE_CAST = !!flag('--no-house-cast', false);
 
 // ── api keys -----------------------------------------------------------------
 // Never printed in full. A key on a command line also lands in the shell history,
@@ -197,6 +250,17 @@ function isQuotaError(e) {
     return e.status === 403 && /quota|billing|exceeded/i.test(m);
 }
 
+// A key whose project is denied (403) or whose token is refused (401) is
+// unusable for this run, but that says nothing about the other keys in the
+// ring. Rotate past it like a spent key; only when EVERY key is rejected does
+// the error surface, so one dead project cannot fail a 10-key batch on its
+// first call. The wording is kept distinct from quota so the log still tells
+// the operator that a key was refused, not merely spent.
+function isKeyRejected(e) {
+    if (!e) return false;
+    return e.status === 401 || e.status === 403;
+}
+
 class KeyRing {
     constructor(keys) {
         this.keys = keys.slice();
@@ -261,11 +325,34 @@ async function listModels(key) {
 
 // Gemini in JSON mode still occasionally wraps output in a fence or adds a word
 // before the brace. Slice to the outermost braces rather than trusting the text.
+// Walk to the end of the FIRST balanced {...} and parse only that. A model
+// sometimes emits its object and then starts a second one, or adds a closing
+// remark; slicing from the first brace to the LAST brace then swallows both and
+// JSON.parse dies with "Unexpected non-whitespace character after JSON".
+function firstJsonObject(t) {
+    const start = t.indexOf('{');
+    if (start < 0) return null;
+    let depth = 0, inStr = false, esc = false;
+    for (let i = start; i < t.length; i++) {
+        const c = t[i];
+        if (inStr) {
+            if (esc) esc = false;
+            else if (c === '\\') esc = true;
+            else if (c === '"') inStr = false;
+            continue;
+        }
+        if (c === '"') inStr = true;
+        else if (c === '{') depth++;
+        else if (c === '}') { depth--; if (depth === 0) return t.slice(start, i + 1); }
+    }
+    return null;
+}
+
 function parseJson(raw) {
     const t = String(raw).trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
-    const a = t.indexOf('{'), b = t.lastIndexOf('}');
-    if (a < 0 || b < a) throw new Error('no JSON object in the response');
-    return JSON.parse(t.slice(a, b + 1));
+    const obj = firstJsonObject(t);
+    if (!obj) throw new Error('no JSON object in the response');
+    return JSON.parse(obj);
 }
 
 function geminiText(resp) {
@@ -292,50 +379,152 @@ function isTransient(e) {
     return !e.status && /fetch failed|socket|ECONNRESET|ETIMEDOUT|network|aborted/i.test(String(e.message || ''));
 }
 
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-const RETRIES = num('--retries', 3);
+// A response that came back but is not usable JSON: a second object glued on,
+// a truncation, or a stray closing remark. Worth one more sample - the next
+// one is usually clean - so it is retried like a transient error instead of
+// killing the whole stage on a single bad generation.
+function isParseError(e) {
+    if (!e) return false;
+    return /JSON|Unexpected (token|non-whitespace)|Unterminated|end of input/i.test(String(e.message || ''));
+}
 
-// One call, with key rotation on quota errors only. A 404 (dead model) or a
-// malformed request would fail identically on every key, so those are raised
-// straight away instead of burning the whole ring proving it.
-async function ask(ring, model, prompt, maxTokens) {
-    let attempt = 0;
-    for (;;) {
-        const key = ring.current;
-        try {
-            const resp = await callApi(key, model, {
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                    responseMimeType: 'application/json',
-                    temperature: 0.9,
-                    maxOutputTokens: maxTokens,
-                },
-            });
-            return parseJson(geminiText(resp));
-        } catch (e) {
-            if (isQuotaError(e)) {
-                if (!ring.retire()) throw e;
-                console.log(`\n  ${maskKey(key)} is out of quota - switching to ${ring.label}`);
-                attempt = 0;   // a fresh key deserves a fresh set of retries
-                continue;
+// A model this key simply cannot use: a hard 404, or a 400 naming the model.
+// Distinct from quota (rotate the key) and from transient (retry the same one).
+// When it happens, the caller moves to the next model in the chain.
+function isModelError(e) {
+    if (!e) return false;
+    if (e.status === 404 || e.status === 400) {
+        if (e.status === 400 && !/model/i.test(String(e.message || ''))) return false;
+        return true;
+    }
+    return /not found|not supported|does not exist|unsupported|deprecated|no longer available/i
+        .test(String(e.message || ''));
+}
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+// Five, not three: a Gemini "503 high demand" spike can outlast a few tries, and
+// giving up early spends the whole analyse pass and writes nothing. Still bounded,
+// so a genuinely dead endpoint fails in a few minutes rather than hanging.
+const RETRIES = num('--retries', 5);
+
+// One call, walked over a CHAIN of models and a ring of keys:
+//   quota (429)        -> rotate the key, keep the model
+//   transient (5xx/drop)-> retry the same model, then fall to the next model
+//   model error (404)  -> fall to the next model straight away
+// A single model string is accepted too, which is what the key-ring tests pass.
+async function ask(ring, models, prompt, maxTokens) {
+    const chain = (Array.isArray(models) ? models : [models]).map(m => String(m || '').trim()).filter(Boolean);
+    // With a chain to fall back on, do not spend the full retry budget on one
+    // busy model - two tries, then the next model. A lone model keeps all of it.
+    const tries = chain.length > 1 ? Math.min(RETRIES, 2) : RETRIES;
+    for (let mi = 0; mi < chain.length; mi++) {
+        const model = chain[mi];
+        let attempt = 0;
+        for (;;) {
+            const key = ring.current;
+            try {
+                const resp = await callApi(key, model, {
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: {
+                        responseMimeType: 'application/json',
+                        temperature: 0.9,
+                        maxOutputTokens: maxTokens,
+                    },
+                });
+                return parseJson(geminiText(resp));
+            } catch (e) {
+                if (isQuotaError(e) || isKeyRejected(e)) {
+                    if (!ring.retire()) throw e;
+                    const why = isKeyRejected(e) ? 'was rejected' : 'is out of quota';
+                    console.log(`\n  ${maskKey(key)} ${why} - switching to ${ring.label}`);
+                    attempt = 0;   // a fresh key deserves a fresh set of retries
+                    continue;
+                }
+                if (isTransient(e) || isParseError(e)) {
+                    if (attempt < tries) {
+                        attempt++;
+                        const wait = attempt * 5000;
+                        console.log(`\n  ${e.status || 'network'} from the API - retrying in ` +
+                                    `${wait / 1000}s (${attempt}/${tries})`);
+                        await sleep(wait);
+                        continue;
+                    }
+                    if (mi < chain.length - 1) {
+                        console.log(`\n  ${model} is still failing - falling back to ${chain[mi + 1]}`);
+                        break;
+                    }
+                    throw e;
+                }
+                if (isModelError(e) && mi < chain.length - 1) {
+                    console.log(`\n  ${model} is not usable with this key - falling back to ${chain[mi + 1]}`);
+                    break;
+                }
+                throw e;
             }
-            if (isTransient(e) && attempt < RETRIES) {
-                attempt++;
-                const wait = attempt * 5000;
-                console.log(`\n  ${e.status || 'network'} from the API - retrying in ` +
-                            `${wait / 1000}s (${attempt}/${RETRIES})`);
-                await sleep(wait);
-                continue;
-            }
-            throw e;
         }
     }
+    throw new Error('every model in the chain failed');
 }
 
 // ── preset -------------------------------------------------------------------
+// The ground-truth block appended to the creator detail when --content-map is
+// used. Plain text on purpose: it reaches call 1 AND call 2 through the same
+// "DETAIL FROM THE CREATOR" line, so both see one order and the same place
+// names. Hoisted, so it is defined before the module-level read that calls it.
+function contentMapClips(cm) {
+    if (Array.isArray(cm && cm.clips) && cm.clips.length) return cm.clips;
+    if (Array.isArray(cm && cm.segments)) return cm.segments;
+    return [];
+}
+function contentMapBlock(cm) {
+    const clips = contentMapClips(cm);
+    const facts = Array.isArray(cm && cm.facts) ? cm.facts : [];
+    if (!clips.length && !facts.length) return '';
+    const lines = clips.map((s, i) => {
+        const when = (s.t_start || s.t_end) ? `[${s.t_start || '?'}-${s.t_end || '?'}] ` : '';
+        const places = Array.isArray(s.places) ? s.places.join(', ') : String(s.places || '');
+        const point = s.point || (Array.isArray(s.points) ? s.points.join('; ') : String(s.points || ''));
+        const visual = s.visual ? ` Visual: ${s.visual}` : '';
+        return `  ${i + 1}. ${when}${places ? places + ' - ' : ''}${point}${visual}`;
+    });
+    // The exhaustive fact list is repeated here on purpose. A fast reference
+    // video names many places; the clip plan groups them, and without the full
+    // list the writer quietly loses the ones that did not make a summary line.
+    const factLines = facts.length
+        ? ['', 'EVERY FACT that must appear somewhere, in your own words (do not drop any):',
+            ...facts.map((x) => `  - ${(Array.isArray(x.places) ? x.places.join(', ') : String(x.places || ''))}` +
+                `${x.t ? ` [${x.t}]` : ''}: ${x.detail || ''}`)]
+        : [];
+    return [
+        'REFERENCE CONTENT MAP (ground truth from a reference video - follow this order',
+        'and these exact place names):',
+        ...lines,
+        ...factLines,
+        'The reference clips above give the ORDER and the CONTENT, not the scene count.',
+        'Cover EVERY reference clip and EVERY fact below, in sequence, in your own words:',
+        'split a reference clip across consecutive scenes when it carries more than one',
+        'fact, never merge two reference clips into one scene, and never drop or reorder a',
+        'fact. Match the reference point for point.',
+        'Keep every place name exactly as written.',
+        'Scene 1 is the HOOK: pose the single most counter-intuitive claim or question from',
+        'the reference as an open loop (no greeting, never the first fact). The final scene',
+        'is the payoff that closes that loop.',
+    ].join('\n');
+}
+
+function presetLists() {
+    const out = [];
+    for (const f of [STYLES_FILE, GENAI_STYLES_FILE]) {
+        try {
+            const db = JSON.parse(fs.readFileSync(f, 'utf8'));
+            if (Array.isArray(db.styles)) out.push(...db.styles);
+        } catch (e) { /* a missing optional list is fine */ }
+    }
+    return out;
+}
+
 function loadPreset(id) {
-    const db = JSON.parse(fs.readFileSync(STYLES_FILE, 'utf8'));
-    const list = db.styles || [];
+    const list = presetLists();
     const s = list.find(x => x.id === id);
     if (!s) {
         console.error(`Unknown preset id: ${id || '(none given)'}`);
@@ -343,6 +532,60 @@ function loadPreset(id) {
         process.exit(1);
     }
     return s;
+}
+
+// ── the standing cast --------------------------------------------------------
+// Every story used to invent its own cast, so every video had a different young
+// woman and a different older one. Voice, format and thumbnail stayed the same
+// and the faces did not, and a channel whose lead is a different person each
+// week has no lead. house_cast.json designs them ONE time and every story reuses
+// them; house_refs/ holds their reference sheets, made once, used by every story.
+//
+// Returns [] rather than throwing when the file is simply absent - no standing
+// cast means "design one per story", which is how this worked before, not an
+// error. A file that was asked for BY NAME and cannot be read is an error,
+// because silently falling back to a fresh cast is the exact thing being fixed.
+function loadHouseCast(file) {
+    const asked = String(file || '').trim();
+    const at = asked ? path.resolve(asked) : HOUSE_CAST_FILE;
+    let raw;
+    try {
+        raw = fs.readFileSync(at, 'utf8');
+    } catch (e) {
+        if (asked) {
+            console.error(`Could not read the cast file ${at}: ${e.message}`);
+            process.exit(1);
+        }
+        return [];
+    }
+    let db;
+    try {
+        db = JSON.parse(raw);
+    } catch (e) {
+        console.error(`The cast file ${at} is not valid JSON: ${e.message}`);
+        process.exit(1);
+    }
+    const list = Array.isArray(db) ? db : (db.characters || []);
+    const out = list.filter(c => c && String(c.name || '').trim());
+    if (asked && !out.length) {
+        console.error(`The cast file ${at} names no characters.`);
+        process.exit(1);
+    }
+    return out;
+}
+
+// Which presets get the standing cast, unasked. A preset whose cast is human and
+// human only is what it was designed for - the two-hander dialogue genres. An
+// animal film, a what-if explainer, or a genre that declares no types at all is
+// left exactly as it was: dropping two Indian adults into it would be wrong, and
+// silently changing what every other preset produces is worse than not having
+// the feature. `--cast` overrides this for one run, `--no-house-cast` turns it
+// off.
+function houseCastApplies(p) {
+    if (!p || p.cast === 'optional') return false;
+    const t = Array.isArray(p.cast_types)
+        ? p.cast_types.map(x => String(x).trim().toLowerCase()).filter(Boolean) : [];
+    return t.length === 1 && t[0] === 'human';
 }
 
 // ── folder -------------------------------------------------------------------
@@ -357,6 +600,13 @@ function slugify(s) {
 // Both are `let` because a preset may carry `default_duration`, which is applied
 // once the preset is loaded and before any prompt is built. Everything that
 // reads them runs after that point.
+// A content map plans its own number of beats - one per clip - so the film is
+// as long as the reference needs, not the 56s default. An explicit --duration
+// still wins, and a preset's default_duration is applied later than this.
+if (CONTENT_MAP && !DURATION_FLAG) {
+    const n = contentMapClips(CONTENT_MAP).length;
+    if (n > 0) DURATION = n * SECONDS;
+}
 let SCENES = Math.max(1, Math.round(DURATION / SECONDS));
 function usePresetDuration(p) {
     if (DURATION_FLAG || !p.default_duration) return false;
@@ -364,11 +614,19 @@ function usePresetDuration(p) {
     SCENES = Math.max(1, Math.round(DURATION / SECONDS));
     return true;
 }
-// Narration has to finish inside the clip. The Bridge story runs 15-23 words per
-// 8s scene, which is ordinary narration pace; 26 is the hard stop so a scene
-// never has to be rushed or cut off mid-sentence.
-const WORDS_MAX = 24;
-const WORDS_HARD = 28;
+// Narration has to finish inside the clip. Pace is PER-PRESET via
+// `words_per_8s`: an Afrimax parable runs ~18 words per 8s, a relief-map
+// explainer ~21. Without that field the default below applies (2.6 words/sec).
+// Scaled by SECONDS so a shorter clip tightens the line instead of overflowing.
+const DEFAULT_WORDS_PER_8S = 2.6;
+function wordBudget(p) {
+    const per8 = Number(p && p.words_per_8s);
+    const rate = per8 > 0 ? per8 / 8 : DEFAULT_WORDS_PER_8S;
+    return {
+        max: Math.max(6, Math.round(SECONDS * rate)),
+        hard: Math.max(8, Math.round(SECONDS * rate * 1.12)),
+    };
+}
 // Spoken dialogue is a different budget: it is exchanged rather than read, so the
 // clip has to hold two or three short turns plus the pause between them, and
 // speech with interruptions carries fewer words per second than narration.
@@ -379,7 +637,7 @@ const D_WORDS_MAX = Math.max(6, Math.round(SECONDS * 3));
 const D_WORDS_HARD = Math.max(8, Math.round(SECONDS * 3.75));
 const mmss = (n) => `${Math.floor((n * SECONDS) / 60)}:${String((n * SECONDS) % 60).padStart(2, '0')}`;
 
-function lookBlock(p) {
+function lookBlock(p, place) {
     // `narration_scope: "dialogue"` is the fourth way a video can carry sound:
     // the characters speak on screen and nobody narrates. It is the inverse of
     // every other preset, whose whole rule set is "the visuals illustrate the
@@ -389,6 +647,11 @@ function lookBlock(p) {
     // opening clip. Every other preset narrates throughout, so an absent field
     // leaves the line exactly as it always was.
     const intro = p.narration_scope === 'intro';
+    // The one place this film happens in. Supplied by the preset when the genre
+    // always uses the same one, and by call 1 otherwise - so the caller passes
+    // what it knows and the preset is the fallback. Call 1 itself passes
+    // nothing, because it is the call that chooses the place.
+    const fixed = String(place === undefined ? (p.setting || '') : place).trim();
     return [
         `LOOK: ${p.style}`,
         `CAST TEMPLATE (every character description must follow this shape): ${p.cast_idiom}`,
@@ -396,12 +659,12 @@ function lookBlock(p) {
         `CAMERA: ${p.camera}`,
         // One place, named once, for the whole film. Scenes are written in
         // separate batches that share no state beyond the previous clip's
-        // spoken line, so a genre set in a single room had nothing holding the
-        // room still: each batch quietly chose its own. Stating it here is what
+        // spoken line, so a genre set in a single place had nothing holding it
+        // still: each batch quietly chose its own. Stating it here is what
         // reaches every batch, and buildStory repeats it in every [SHOT] line so
         // it survives even a clip that ignores this.
-        ...(p.setting
-            ? [`SETTING (FIXED - the entire film happens in this one place and never leaves it): ${p.setting}`]
+        ...(fixed
+            ? [`SETTING (FIXED - the entire film happens in this one place and never leaves it): ${fixed}`]
             : []),
         // Fixed stage positions, the same idea one level down: the room is
         // locked, and so is who sits where. Repeated into every [SHOT] by
@@ -422,11 +685,21 @@ function lookBlock(p) {
         // Independent of `narration_scope`: a preset can want a described sound
         // world while still narrating every clip.
         ...(p.sound_style ? [`SOUND: ${p.sound_style}`] : []),
+        // Veo refuses a prompt that names or depicts a real person, and it can
+        // refuse strong distress imagery outright. A refused clip is a wasted
+        // clip, so the rule is stated once here - it reaches call 1 and call 2.
+        'POLICY-SAFE (hard rule): never name or depict a real living or historical person, and never invoke their likeness - describe the ROLE instead ("the inventor", "the nurse", "the soldier"). Keep emotion restrained: no weeping or sobbing, no blood, gore, wounds or injuries, no weapon aimed at a person, no hate symbols, no real brand logos or trademarks. The video model refuses all of these.',
         `NEVER: ${p.avoid}`,
     ].join('\n');
 }
 
-function castPrompt(p) {
+function castPrompt(p, houseCast) {
+    // The standing cast, when this run uses one. It replaces the whole cast task:
+    // the model is not asked to design anybody, it is handed the people the
+    // channel already has and told to write a story they could be in. Everything
+    // the cast fields describe - identity profiles, sheet prompts, the shared
+    // sheet background - belongs to a cast being INVENTED, so all of it goes.
+    const fixed = Array.isArray(houseCast) && houseCast.length > 0;
     // Whether a cast is required is a property of the genre, not something to
     // leave to the model every time: a Ghibli story is about people, while a
     // "what if the earth stopped" explainer is about the earth. Presets carry
@@ -454,7 +727,25 @@ function castPrompt(p) {
     // turns rather than visual beats. Call 1 has to know that, or it plans a
     // montage that call 2 then has to fill with two people talking at nothing.
     const dialogue = p.narration_scope === 'dialogue';
-    const castRule = optional
+    // A preset with no `setting` chooses its place per story, and no preset
+    // hardcodes one any more - the two-hander dialogue presets used to lock a
+    // tearoom for every conversation, which made them all happen in the same
+    // room whatever the story was about. The `setting` field is still honoured
+    // for a genre that genuinely always uses one place.
+    const choosePlace = !p.setting;
+    const castRule = fixed
+        ? `4. PART OF THE CAST IS ALREADY DESIGNED - do not redesign it. This
+   channel has a standing cast that appears in every video, so these faces have
+   to be the same ones the audience saw last week. They are FIXED:
+${houseCast.map(c => `     ${c.name} - ${c.description}`).join('\n')}
+   Do NOT rename, redesign, replace or re-describe any of them, and do NOT write
+   a description for them - they are attached after this call.
+   Whoever ELSE the film needs IS yours to design, and you must design them if
+   the story needs them, because a conversation cannot be held with nobody.
+   Design as few as it can carry - one, or at most two - and nobody the film has
+   no use for. The returning faces are never counted twice.
+   For EACH character you design give:`
+        : optional
         ? `4. Decide whether this video needs a cast at all.
    This genre is often about a process, a place or a system rather than a person.
    If the topic follows a phenomenon, an event or a "what if", it normally needs
@@ -478,9 +769,7 @@ function castPrompt(p) {
    consistent. This genre is about people, so there is always a cast - never
    return an empty list.
    For EACH character give:`;
-    const castFields = optional
-        ? `     (only when the list is not empty)`
-        : '';
+    const castFields = optional ? `     (only when the list is not empty)` : '';
     // The identity profile, branched on type. Everything after the markers is
     // shared: the model must be told WHY the markers matter, or it treats them
     // as decoration and drops half of them.
@@ -507,33 +796,79 @@ function castPrompt(p) {
                      clothing, hair, face, and the rendering medium. End with the
                      NEVER guard restated as "NOT ..." so the model cannot drift.
                      Every character must be described in the SAME medium.`;
+    // A single front-facing image is a weak anchor: the model has one angle to
+    // work from, invents the rest, and the face drifts from clip to clip. A
+    // turnaround sheet - the same individual repeated from several angles plus a
+    // facial close-up, on one canvas - gives it far more to hold onto. It is
+    // still ONE image file, so it costs one of the three reference slots.
+    // The place. Veo takes three reference images and the cast already spends
+    // two, so exactly ONE place can be pinned per film - a story that wanders
+    // between locations is a story whose locations cannot be referenced, and it
+    // drifts. One place for the whole film is not a simplification, it is what
+    // fits. Where the preset fixes the place (a genre that is always the same
+    // room) it is supplied by the preset and the model is not asked; otherwise
+    // call 1 picks it here, once, and every clip inherits it verbatim.
+    //
+    // The place is NOT assumed to be a room: a park bench, a kitchen table, a
+    // hotel bed and a garden are all places, and the rule is only that it is the
+    // same one for the whole film.
+    const placeField = choosePlace ? `
+5. Choose ONE place for this whole film, and describe it once. Every clip
+   happens here and the place NEVER changes. It can be anywhere - a park bench,
+   a kitchen table, a hotel bed, a garden, a stairwell, a car. What it cannot be
+   is a different place from one clip to the next.
+     - Pick somewhere that suits the story, then commit to it.
+     - Give it the fixed details a camera keeps coming back to: the furniture or
+       landmarks, what is on the walls or the ground, where the light comes from,
+       and the time of day. Those details are what hold it still.
+     - Say what must NEVER change: no redecorating, no moving to another place,
+       no different time of day, nothing new appearing.
+     - "place_name"        - ONE word, no spaces: "Tearoom", "Bedroom", "Kitchen",
+       "Globe", "Courtyard". It becomes the image's asset name and the @mention
+       the agent types, and a space in it makes that mention ambiguous - so keep
+       it to a single word even if the place itself is described in detail below.
+     - "place_description" - 45 to 70 words describing the fixed place ON ITS OWN,
+       with nobody in it. This is repeated into every clip, so it must read
+       identically every time.
+     - "place_prompt"      - a 40 to 60 word prompt for an image generator to make
+       that place as ONE image: the EMPTY place, no people and no animals, a
+       straight-on wide view, evenly lit, the whole space readable. Same medium as
+       the character sheets. Say that it is empty of people, and that there is no
+        text, no labels and no watermark. Include the medium.` : '';
+
+
+    // The outline step's number shifts by one when the model also had to choose
+    // a place, so the list still reads as a list.
+    const outlineNo = choosePlace ? '6' : '5';
     const sheetField = typed
-        ? `     "sheet_prompt" - a 30 to 45 word prompt for an image generator to make that
-                     character's ONE reference sheet. It must be a SINGLE image:
-                     the video model takes at most 3 reference images, and a
-                     multi-view sheet counts as more than one.
-                       animal - full body, standing, three-quarter view, so the
-                         face AND the coat markings are both readable in that one
-                         image. Every physical marker must be visible in it.
-                       human  - full body, neutral standing pose, facing camera.
-                     Include the medium and consistent lighting.`
-        : `     "sheet_prompt" - a 30 to 45 word prompt for an image generator to make that
-                     character's reference sheet: full body, neutral standing
-                     pose, consistent lighting. Include the medium.`;
-    return `You are writing the character bible for a ${p.label} video.
-
-TITLE: ${TITLE}
-DETAIL FROM THE CREATOR: ${DETAIL || '(none given - infer a simple, specific story)'}
-TOTAL LENGTH: ${DURATION} seconds across ${SCENES} clips of ${SECONDS} seconds.
-
-${lookBlock(p)}
-
-TASK
-1. Write a one-sentence "description" of the whole video (max 30 words). It must
-   describe WHAT HAPPENS, never what it looks like - the look is already fixed above.
-2. Write a one-sentence "moral" (max 25 words).
-3. Write "target_audience" (max 12 words).
-${castRule}${castFields}
+        ? `     "sheet_prompt" - a 40 to 60 word prompt for an image generator to make that
+                     character's reference sheet as ONE image containing the SAME
+                     individual repeated from SEVERAL ANGLES: a full-body front
+                     view, a full-body three-quarter view, a full-body side profile,
+                     and a head-and-shoulders close-up of the face. Identical
+                     outfit, hair and lighting in every view, evenly spaced in a row
+                     on a plain neutral grey studio background. Say that it is one
+                     identical individual in every view, and that there is no text,
+                     no labels and no watermark. Include the medium.
+                       animal - the breed and BOTH unchanging physical markers must
+                         stay readable in every view. Every physical marker must be visible
+                         in it, and the close-up is of the head, so both the face
+                         and the coat markings are covered.
+                       human  - the close-up is what locks the face; the full-body
+                         views lock the wardrobe and the build.`
+        : `     "sheet_prompt" - a 40 to 60 word prompt for an image generator to make that
+                     character's reference sheet as ONE image containing the SAME
+                     individual repeated from SEVERAL ANGLES: full-body front,
+                     three-quarter and side profile views, plus a head-and-shoulders
+                     close-up of the face. Identical outfit, hair and lighting in
+                     every view, evenly spaced in a row on a plain neutral grey
+                     studio background, with no text or labels. Include the medium.`;
+    // Everything below the cast rule describes fields the model has to WRITE
+    // into `characters`. With a standing cast there is nothing to write, so the
+    // whole spec goes and the step numbering closes up behind it: 4 is the cast
+    // (already done), 5 is the place, 6 is the outline - the numbers the model
+    // is told to use are the numbers the list actually has.
+    const castSpec = `
      "name"        - one word, capitalised, no spaces (e.g. "Mira")
 ${typeField}${descField}
 ${sheetField}
@@ -543,7 +878,27 @@ ${sheetField}
                      Do not vary it per character - not "plain background", not
                      "plain gray background with a soft vignette". Sheets that
                      disagree on the background read as a different production.
-5. Write an "outline": exactly ${SCENES} entries, one per clip.
+`;
+    // A fixed cast means the standing faces are NOT written here - they are
+    // attached after this call, and asking for them twice invites the model to
+    // re-describe one and drift it. Whatever it designs is additive: the cast of
+    // the film is the standing cast plus these, merged in main().
+    const castSkeleton = `"characters":[{"name":"",${typed ? '"type":"",' : ''}"description":"","sheet_prompt":""}]`;
+    return `You are writing the character bible for a ${p.label} video.
+
+TITLE: ${TITLE}
+DETAIL FROM THE CREATOR: ${DETAIL || '(none given - infer a simple, specific story)'}
+TOTAL LENGTH: ${DURATION} seconds across ${SCENES} clips of ${SECONDS} seconds.
+
+${lookBlock(p, choosePlace ? '' : undefined)}
+
+TASK
+1. Write a one-sentence "description" of the whole video (max 30 words). It must
+   describe WHAT HAPPENS, never what it looks like - the look is already fixed above.
+2. Write a one-sentence "moral" (max 25 words).
+3. Write "target_audience" (max 12 words).
+${castRule}${castFields}${castSpec}${placeField}
+${outlineNo}. Write an "outline": exactly ${SCENES} entries, one per clip.
      "title" - 2 to 5 words
      "beat"  - one sentence: what happens in this clip and what changes.
    The ${SCENES} beats must form ONE story with a turn and an ending, not a list
@@ -554,16 +909,21 @@ ${(p.story_shapes || []).map(s => `     - ${s}`).join('\n')}${intro ? `
    a movement, a sound. No beat may need a line of narration to make sense, and
    no beat may be a person explaining something.` : ''}${dialogue ? `
    This film is a CONVERSATION, not a montage. Every beat is something one of the
-   two says to the other, in one calm room. Write each beat as the turn it turns
+   two says to the other. Write each beat as the turn it turns
    on - the hook that stops the viewer, a rule, the doubt that pushes back, the
    aphorism worth repeating, the resolution - not as a description of what is
    seen. A beat that is only a picture has nothing for anyone to say.` : ''}
 
 Return ONLY this JSON, no other text:
-{"description":"","moral":"","target_audience":"","characters":[{"name":"",${typed ? '"type":"",' : ''}"description":"","sheet_prompt":""}],"outline":[{"title":"","beat":""}]}`;
+{"description":"","moral":"","target_audience":"",${choosePlace ? '"place_name":"","place_description":"","place_prompt":"",' : ''}${castSkeleton},"outline":[{"title":"","beat":""}]}`;
 }
 
-function scenesPrompt(p, cast, outline, from, to, soFar) {
+function scenesPrompt(p, cast, outline, from, to, soFar, place) {
+    const { max: WORDS_MAX, hard: WORDS_HARD } = wordBudget(p);
+    // The one place for the film, from the preset or from call 1. Absent only
+    // for a preset that fixes no place and a caller that passed none, which is
+    // the old behaviour.
+    const fixed = String(place === undefined ? (p.setting || '') : place).trim();
     const intro = p.narration_scope === 'intro';
     // Dialogue-led genres invert the audio job completely: there is no narrator
     // to write for, and the lines belong to the cast. Left to itself the model
@@ -607,18 +967,27 @@ function scenesPrompt(p, cast, outline, from, to, soFar) {
 
     // When the preset names one place, the room is not the model's to write.
     // It is supplied verbatim and repeated in every clip, so a clip that
-    // re-describes the room is a clip fighting the setting - and one that
-    // moves the pair is the exact drift this field exists to stop.
-    const settingRule = p.setting
+    // re-describes the place is a clip fighting the setting - and one that moves
+    // somewhere else is the exact drift this field exists to stop.
+    //
+    // The two-hander branch below is the stricter one: the place is locked AND
+    // so are the seats, because the whole film is those two people in that one
+    // frame. A preset that simply has a chosen place still gets the place lock
+    // and is left free to frame it however the beat wants.
+    const settingRule = !fixed
+        ? `  "narrative_context" - 80 to 130 words describing what is ON SCREEN: the setting,
+                        who is present, what they do, the light, the mood, and the
+                        camera.`
+        : dialogue
         ? `  "narrative_context" - 60 to 100 words describing what is ON SCREEN BESIDES
-                        the room: who is present, what they do, the mood and the
+                        the place: who is present, what they do, the mood and the
                         camera. THE PLACE IS FIXED and already supplied - do NOT
                         describe it, do NOT redecorate it, do NOT move the two of
                         them anywhere else, and never name a different location.
-                        THE SEATING IS FIXED TOO - whoever sat on the left in
-                        clip 1 is on the left in every clip: never swap their
-                        sides, never stand them up, never walk them out of
-                        frame. Vary only the action, the expression and the
+                        THEIR POSITIONS ARE FIXED TOO (seated or standing, chosen
+                        once) - whoever was on the left in clip 1 is on the left
+                        in every clip: never swap their sides, never walk them out
+                        of frame. Vary only the action, the expression and the
                         camera angle; the place and the positions stay put.
 CAMERA ANGLE - pick it by who is speaking, and NAME it in the last sentence
   of the narrative_context:
@@ -629,9 +998,14 @@ CAMERA ANGLE - pick it by who is speaking, and NAME it in the last sentence
       wordless beat       -> the wide two-shot at eye level, both in frame.
   Cut between angles, never pan, never zoom, and keep the same axis so their
   left and right positions never flip. The speaking face is the sharp one.`
-        : `  "narrative_context" - 80 to 130 words describing what is ON SCREEN: the setting,
-                        who is present, what they do, the light, the mood, and the
-                        camera.`;
+        : `  "narrative_context" - 70 to 110 words describing what is ON SCREEN
+                        BESIDES the place: who is present, what they do, the mood
+                        and the camera. THE PLACE IS FIXED - it is supplied above
+                        and is the same one in every clip. Do NOT describe it
+                        again, do NOT redecorate it, do NOT move anyone anywhere
+                        else, and never name a different location. Nothing new
+                        appears in it and the time of day never changes. Vary
+                        only the action, the expression and the camera angle.`;
 
     // Sound-led genres get a different audio job per clip. A narrated travelogue
     // over what should be a visual film is the failure this prevents: the model
@@ -686,7 +1060,10 @@ AUDIO MODEL - this film is SOUND-LED, not narrated:
   "script_line"       - the NARRATION, spoken by the narrator. ONE sentence,
                         ${WORDS_MAX} words or fewer, hard limit ${WORDS_HARD}. It is read
                         verbatim as voice-over, so it must sound natural spoken
-                        aloud and must fit inside ${SECONDS} seconds. Present tense.`;
+                        aloud and must fit inside ${SECONDS} seconds. Present tense.
+                        Write it TTS-READY: spell every number out as words
+                        ("seven thousand", never "7,000"); no ALL CAPS, no brackets,
+                        no symbols and no emoji; contractions are fine.`;
     const skeleton = dialogue
         ? `{"scenes":[{"scene_title":"","dialogue":[{"speaker":"","line":""}],"narrative_context":"","characters":[]}]}`
         : intro
@@ -697,7 +1074,7 @@ AUDIO MODEL - this film is SOUND-LED, not narrated:
 
 TITLE: ${TITLE}
 DETAIL FROM THE CREATOR: ${DETAIL || '(none given)'}
-${lookBlock(p)}
+${lookBlock(p, fixed)}
 ${audioBlock}
 ${castBlock}
 ${prev}
@@ -744,12 +1121,36 @@ function normaliseCast(p, cast) {
     });
 }
 
+// Belt-and-braces safety pass. The writer is told the policy rule above, but a
+// model still slips now and then; this strips the classes of wording the video
+// model refuses outright, so a generated line cannot waste a clip.
+const POLICY_SWAPS = [
+    [/\b(weeping|sobbing|wailing|bawling)\b/gi, 'quietly moved'],
+    [/\b(tears? (streaming|running|rolling|falling)|bursts? into tears|crying)\b/gi, 'eyes glistening'],
+    [/\b(blood|bloody|gore|gory|wounds?|wounded|stabbed|beheaded|dismembered)\b/gi, 'dust'],
+    [/\b(corpse|dead body|dead bodies|mutilated)\b/gi, 'still form'],
+    [/\b(kill|kills|killed|murder|murdered|slaughtered)\b/gi, 'defeats'],
+    [/\b(suicide|self-harm)\b/gi, 'despair'],
+    [/\b(gun|rifle|pistol) (aimed|pointing|pointed) at\b/gi, 'held near'],
+];
+function sanitizeForPolicy(text) {
+    let t = String(text == null ? '' : text);
+    for (const [re, to] of POLICY_SWAPS) t = t.replace(re, to);
+    // Trim only. Do NOT collapse inner runs of spaces: the dialogue AUDIO line
+    // uses a two-space separator between speakers and that must survive.
+    return t.trim();
+}
+
 function buildStory(p, cast, meta, scenes) {
     const descriptions = {}, references = {};
     for (const c of cast) {
         const key = c.name.toLowerCase();
         descriptions[key] = c.description;
-        references[key] = `./character_refs/${key}_reference_sheet.jpg`;
+        // A character from the standing cast already has a reference sheet, made
+        // once and living in house_refs/ rather than in this story's folder -
+        // and it carries the path to it. Writing the character_refs/ path here
+        // instead would point stage 2 at a file nobody is ever asked to draw.
+        references[key] = c.reference || `./character_refs/${key}.jpg`;
     }
     const total = scenes.length * SECONDS;
     const intro = p.narration_scope === 'intro';
@@ -762,12 +1163,29 @@ function buildStory(p, cast, meta, scenes) {
     const speech = (s) => (s.dialogue || [])
         .map(d => ({ speaker: String(d.speaker || '').trim(), line: String(d.line || '').trim() }))
         .filter(d => d.speaker && d.line);
-    // The fixed room, in front of every shot, verbatim. Asking the model to keep
+    // The fixed place, in front of every shot, verbatim. Asking the model to keep
     // the place still is a request; repeating it into each [SHOT] is what makes
-    // it true - whatever a clip's own text says, the room handed to the video
+    // it true - whatever a clip's own text says, the place handed to the video
     // model is the same one in all of them. The clip's own description follows
     // it, so the two read as one scene brief.
-    const shot = (s) => [p.setting, p.blocking, String(s.narrative_context || '').trim()]
+    //
+    // The place comes from the preset when the genre always uses the same one,
+    // and otherwise from call 1, which chose it once for the whole film. Either
+    // way there is exactly one, and it reaches every clip.
+    // The place the film is locked to. A preset with no `setting` of its own -
+    // which is all of them now - takes the one place call 1 chose for this
+    // story. A preset that genuinely fixes its genre's place would keep that
+    // instead. Either way exactly one place reaches every clip.
+    const metaPlace = String(meta.place_description || '').trim();
+    const useMetaPlace = !!metaPlace && !p.setting;
+    const placeDesc = String(useMetaPlace ? metaPlace : (p.setting || '')).trim();
+    const placeName = String(useMetaPlace
+        ? (meta.place_name || '')
+        : (p.setting ? (p.setting_name || '') : (meta.place_name || ''))).trim();
+    const placePrompt = String(useMetaPlace
+        ? (meta.place_prompt || '')
+        : (p.setting ? (p.setting_prompt || '') : (meta.place_prompt || ''))).trim();
+    const shot = (s) => [placeDesc, p.blocking, String(s.narrative_context || '').trim()]
         .filter(Boolean).join(' ');
     return {
         title: TITLE,
@@ -778,6 +1196,13 @@ function buildStory(p, cast, meta, scenes) {
         moral: meta.moral,
         niche: p.label,
         style: p.style,
+        // The one place the whole film happens in, so the agent prompt builder
+        // can @-mention its reference image and the sheet writer can print its
+        // prompt. `name` is the asset name the image must be given in Flow -
+        // without it the plate cannot be referenced at all.
+        ...(placeDesc
+            ? { place: { name: placeName, description: placeDesc, prompt: placePrompt } }
+            : {}),
         aspect_ratio: ASPECT,
         scene_seconds: SECONDS,
         // Explicit, so the prompt builder never has to guess from prose whether
@@ -800,26 +1225,26 @@ function buildStory(p, cast, meta, scenes) {
             _timing: `${mmss(i)}-${mmss(i + 1)}`,
             scene_builder_action: 'text_to_video',
             extend_from_last_frame: false,
-            script_line: dialogue ? '' : s.script_line,
+            script_line: dialogue ? '' : sanitizeForPolicy(s.script_line),
             // What is said in this clip, by whom. The whole film is this array.
             ...(dialogue ? { dialogue: speech(s) } : {}),
             // The sound brief only exists for sound-led presets. Naming the
             // literal sounds of the place is what stops a clip with no
             // voice-over from arriving with nothing on the audio track at all.
             ...(intro ? { sound_context: s.sound_context || '' } : {}),
-            narrative_context: shot(s),
+            narrative_context: sanitizeForPolicy(shot(s)),
             // A clip with no narration carries its sound brief in the AUDIO slot
             // instead of an empty narrator line, which the video model would
             // otherwise fill with invented dialogue. A dialogue clip carries the
             // lines themselves, attributed, so the model knows who says what.
-            veo3_prompt: `[SHOT] ${shot(s)}\n[LOOK] ${p.style}\n[AUDIO] ` +
+            veo3_prompt: sanitizeForPolicy(`[SHOT] ${shot(s)}\n[LOOK] ${p.style}\n[AUDIO] ` +
                 (dialogue
                     ? (speech(s).length
                         ? speech(s).map(d => `${d.speaker} (on screen, speaking): "${d.line}"`).join('  ')
                         : 'No dialogue in this clip. Room tone and the ambient sound of the place only.')
                     : (intro && !String(s.script_line || '').trim())
                         ? `No voice-over in this clip. Natural sound only: ${s.sound_context}`
-                        : `Narrator (V.O., ${p.narration_voice}): "${s.script_line}"`),
+                        : `Narrator (V.O., ${p.narration_voice}): "${s.script_line}"`)),
             characters: (s.characters || []).map(x => String(x).toLowerCase()),
         })),
         character_descriptions: descriptions,
@@ -828,6 +1253,7 @@ function buildStory(p, cast, meta, scenes) {
 }
 
 function validate(story, cast, p = {}) {
+    const { hard: WORDS_HARD } = wordBudget(p);
     const bad = [];
     const names = cast.map(c => c.name.toLowerCase());
     const types = Array.isArray(p.cast_types)
@@ -904,13 +1330,16 @@ function validate(story, cast, p = {}) {
             if (w > WORDS_HARD) bad.push(`clip ${n}: narration is ${w} words, over the ${WORDS_HARD}-word limit for ${SECONDS}s`);
         }
         if (!String(s.narrative_context || '').trim()) bad.push(`clip ${n}: no narrative_context`);
-        // A preset that fixes the place has to have that place actually appear in
-        // every clip, or the film quietly goes back to one room per scene - which
-        // is what it did before this field existed. Checked here as well as
-        // written in, because a hand-written story never passes through the scene
-        // prompt that would otherwise have supplied it.
-        if (p.setting && !String(s.narrative_context || '').includes(p.setting)) {
-            bad.push(`clip ${n}: does not carry the preset's fixed setting - this film happens in one place, so every clip's narrative_context must contain it verbatim`);
+        // A story with one place has to have that place actually appear in every
+        // clip, or the film quietly goes back to one place per scene - which is
+        // what it did before this field existed. The place is read off the story
+        // rather than the preset, because it can now come from either: a preset
+        // that always uses the same one, or call 1 choosing it once for the film.
+        // Checked here as well as written in, because a hand-written story never
+        // passes through the scene prompt that would otherwise have supplied it.
+        const place = String((story.place && story.place.description) || '').trim();
+        if (place && !String(s.narrative_context || '').includes(place)) {
+            bad.push(`clip ${n}: does not carry the film's fixed place - this story happens in one place, so every clip's narrative_context must contain it verbatim`);
         }
         // Only demand characters when the story actually has a cast. A
         // no-character story is legitimate (see `cast` in styles.json), but a
@@ -944,46 +1373,146 @@ function writePackage(dir, p, story, cast) {
     const storyPath = path.join(dir, `${slug}_story.json`);
     fs.writeFileSync(storyPath, JSON.stringify(story, null, 2) + '\n', 'utf8');
 
-    if (cast.length) {
-        const hasAnimal = cast.some(c => c.type === 'animal');
-        const sheets = Object.entries(story.character_descriptions).map(([k, desc]) => {
-            const c = cast.find(x => x.name.toLowerCase() === k) || {};
-            return [
-                `=== ${k.toUpperCase()} ===${c.type ? `   (${c.type})` : ''}`,
-                `save as: character_refs/${k}_reference_sheet.jpg`,
-                '',
-                // An animal sheet has one job a human sheet does not: it has to
-                // make the breed and the coat markings readable in a single
-                // image, because those, not a face, are what the video model
-                // reproduces from cut to cut.
-                ...(c.type === 'animal'
-                    ? ['This is an ANIMAL - one image only. Full body, standing,',
-                       'three-quarter view, so the face AND the coat markings are',
-                       'both readable. Every physical marker listed below must be',
-                       'visible in it, or the video model will not reproduce them.',
-                       '']
-                    : []),
-                '-- image prompt --',
-                c.sheet_prompt || '(none generated - describe the character in the medium above)',
-                '-- image prompt --',
-                c.sheet_prompt || '(none generated - describe the character in the medium above)',
-                '',
-                '-- identity text (must match this exactly in the story JSON) --',
-                desc,
-            ].join('\n');
-        }).join('\n\n');
+    // The film's one place. It is written into the same file as the cast sheets
+    // because it is made the same way, in the same sitting, and lives in the same
+    // folder: one image, from a text prompt, uploaded before stage 2 runs.
+    const place = story.place || {};
+    const placeName = String(place.name || '').trim();
+    const placeDesc = String(place.description || '').trim();
+    const placePrompt = String(place.prompt || '').trim();
+
+    // A character from the standing cast already has a sheet. It was made once,
+    // when the cast was designed, and lives in house_refs/ where every story can
+    // reach it - so asking the user to draw it again per story is exactly the
+    // work this feature exists to remove. Sheet blocks are written only for a
+    // cast invented HERE, and the place plate is written either way because the
+    // place is the one thing that is still different in every film.
+    const standing = cast.filter(c => c.reference);
+    const drawn = cast.filter(c => !c.reference);
+
+    if (drawn.length || placeDesc) {
+        const hasAnimal = drawn.some(c => c.type === 'animal');
+        const sheets = Object.entries(story.character_descriptions)
+            .filter(([k]) => drawn.some(c => c.name.toLowerCase() === k))
+            .map(([k, desc]) => {
+                const c = drawn.find(x => x.name.toLowerCase() === k) || {};
+                return [
+                    `=== ${k.toUpperCase()} ===${c.type ? `   (${c.type})` : ''}`,
+                    `save as: character_refs/${k}.jpg`,
+                    '',
+                    // An animal sheet has one job a human sheet does not: it has to
+                    // make the breed and the coat markings readable, because those,
+                    // not a face, are what the video model reproduces from cut to cut.
+                    ...(c.type === 'animal'
+                        ? ['This is an ANIMAL - one image, several angles. The breed and',
+                           'the coat markings must stay readable across the views. Every',
+                           'physical marker listed below must be visible somewhere in it,',
+                           'or the video model will not reproduce them.',
+                           '']
+                        : []),
+                    '-- image prompt --',
+                    c.sheet_prompt || '(none generated - describe the character in the medium above)',
+                    '',
+                    '-- identity text (must match this exactly in the story JSON) --',
+                    desc,
+                ].join('\n');
+            }).join('\n\n');
+
+        // One place for the whole film - and the reason it needs an IMAGE rather
+        // than one more sentence of instruction. Every clip of the tearoom story
+        // already carried the place VERBATIM in its narrative_context, and the
+        // place still drifted between clips. Words alone did not hold it, which is
+        // the same finding that made the cast sheets images. So the place gets a
+        // plate: one picture of the empty room, mentioned with @Name in stage 2,
+        // handed to the model as reference pixels.
+        const placeBlock = placeDesc ? [
+            `=== PLACE - ${(placeName || p.label || 'the film').toUpperCase()} ===`,
+            `save as: character_refs/${placeName || 'place'}.jpg`,
+            '',
+            'This is the ONE place this film happens in. Every clip is shot here,',
+            'with the same furniture and the same light. Generate it as ONE image',
+            'of the place EMPTY - no people and no animals - seen straight on and',
+            'wide, evenly lit, the whole space readable.',
+            '',
+            '-- image prompt --',
+            placePrompt || '(none generated - describe the place in the medium above)',
+            '',
+            '-- place text (must match this exactly in the story JSON) --',
+            placeDesc,
+        ].join('\n') : '';
+
+        // The same prompts, machine-readable, so a Flow-side generator can make
+        // the images without a human copying them out of character_sheets.txt.
+        // ONE simple name per asset - "maya", not "maya_reference_sheet" - because
+        // that name becomes the Flow tile name and the @mention the agent types.
+        const refsOut = [];
+        for (const c of drawn) {
+            const k = c.name.toLowerCase();
+            refsOut.push({ name: c.name, file: `${k}.jpg`, kind: 'character',
+                           prompt: c.sheet_prompt || '' });
+        }
+        if (placeDesc) {
+            refsOut.push({ name: placeName || 'place', file: `${placeName || 'place'}.jpg`,
+                           kind: 'place', prompt: placePrompt || '' });
+        }
+        if (refsOut.length) {
+            fs.writeFileSync(path.join(dir, 'refs.json'),
+                JSON.stringify({ refs: refsOut }, null, 2) + '\n', 'utf8');
+        }
+
+        const body = [sheets, placeBlock].filter(Boolean).join('\n\n');
+        const head = drawn.length
+            ? `Reference sheets for "${story.title}" - the cast${placeDesc ? ' and the place' : ''}\n` +
+              `Generate each one, then SAVE IT in this story's character_refs/\n` +
+              `folder under the name given below.\n`
+            : `Reference image for "${story.title}" - the place\n` +
+              `Generate it, then SAVE IT in this story's character_refs/ folder\n` +
+              `under the name given below.\n`;
+        // A standing cast needs saying out loud here, because this file is the
+        // one place a reader expects to find a sheet to make for every character
+        // in the film, and its absence otherwise reads as a missing step. The
+        // same note is where a sheet that was never actually drawn gets caught:
+        // stage 2 skips a reference whose file is missing without failing, so a
+        // silent skip here becomes a cast that drifts with no error anywhere.
+        const missing = standing.filter(c => {
+            const rel = String(c.reference || '').replace(/^\.\//, '');
+            return rel && !fs.existsSync(path.resolve(HERE, rel));
+        });
+        const standingNote = standing.length
+            ? `\nThe cast of this film - ${standing.map(c => c.name).join(', ')} - already has\n` +
+              `its reference sheets. They were made once and live in ${path.basename(HOUSE_REFS_DIR)}/ at the\n` +
+              `top of the project, so there is nothing to redraw for this story and no\n` +
+              `sheet block for them below. Stage 2 uploads them from there and\n` +
+              `${standing.map(c => `@${c.name}`).join(' and ')} resolves to the same file in every story.\n` +
+              (missing.length
+                  ? `\nNOT MADE YET: ${missing.map(c => c.reference).join(', ')}\n` +
+                    `That file does not exist, and stage 2 skips a reference it cannot\n` +
+                    `open WITHOUT failing - so the film would generate with no reference\n` +
+                    `image for ${missing.map(c => c.name).join(' or ')} and the face would drift. Draw it before stage 2.\n`
+                  : '')
+            : '';
 
         fs.writeFileSync(path.join(dir, 'character_sheets.txt'),
-            `Character reference sheets for "${story.title}"\n` +
-            `Generate each one, then upload it into Flow as a Character named exactly\n` +
-            `${cast.map(c => c.name).join(', ')} (capital first letter).\n` +
-            `Every sheet must be made with the same medium or the cast will not match.\n` +
-            (hasAnimal
-                ? 'One image per character. Do not make a multi-angle sheet for the\n' +
-                  'animals - the video model accepts at most 3 reference images, and a\n' +
-                  'multi-view sheet counts as more than one.\n'
+            head +
+            `Do NOT create a Flow Character for it, and do not touch the Character\n` +
+            `tab. A Flow Character is re-invented for every clip, which is what made\n` +
+            `faces and wardrobes drift from cut to cut. A plain image mentioned with\n` +
+            `@Name is handed to the model as reference pixels and holds. Stage 2 does\n` +
+            `that upload and mention for you - you only supply the file.\n` +
+            (drawn.length
+                ? `Every sheet must be made with the same medium or the cast will not match.\n` +
+                  `Each sheet is ONE image file showing the same individual from several\n` +
+                  `angles. Keep it to one file per character: the video model accepts at\n` +
+                  `most 3 reference images, and the place plate takes one of those slots -\n` +
+                  `so a cast of 2 or 3 is the ceiling.\n`
                 : '') +
-            '\n' + sheets + '\n', 'utf8');
+            (hasAnimal
+                ? 'The animal sheets must make the breed and every coat marker\n' +
+                  'readable from more than one angle - those, not a face, are what\n' +
+                  'hold an animal together from cut to cut.\n'
+                : '') +
+            standingNote +
+            '\n' + body + '\n', 'utf8');
     }
 
     const bible = [
@@ -1028,26 +1557,85 @@ function writePackage(dir, p, story, cast) {
         '## Story shapes that suit this look',
         ...(p.story_shapes || []).map(s => `- ${s}`),
         '',
-        ...(cast.length
+        ...(placeDesc
+            ? ['## The place',
+               (placeName ? `**${placeName}** - the one place this film happens in.` :
+                            'The one place this film happens in.') +
+               ' Every clip is shot here and it',
+               'never changes: same furniture, same light, same time of day. The plate',
+               'is in `character_sheets.txt` - generate it, save it as',
+               `\`character_refs/${placeName || 'place'}.jpg\`, and mention it with ` +
+               `\`@${placeName || 'Place'}\` so the`,
+               'model is handed the pixels rather than one more description of them.',
+               '',
+               placeDesc,
+               '']
+            : []),
+        ...(drawn.length
             ? ['## Cast',
                ...Object.entries(story.character_descriptions).map(([k, v]) => `**${k}** - ${v}`),
                '',
                '## What happens next',
-               '1. Generate the sheets from `character_sheets.txt` (Whisk or any image tool).',
-               '2. Upload each into Flow as a Character, named exactly as above.',
-               '3. Stage 1: `npm run agent:prompt -- stories/' + slug + '/' + slug + '_story.json`',
-               '4. Then the usual stages 2-4.',
-               '']
-            : ['## Cast',
-               'None. This topic is about the world rather than a person, so no',
-               'character sheets were written and no Characters need to be uploaded',
-               'into Flow before stage 1. Distant unnamed figures are scenery.',
+               ...(placeDesc
+                   ? ['1. Generate the sheets AND the place plate from `character_sheets.txt`',
+                      '   (Whisk or any image tool), and save each one into `character_refs/`',
+                      '   under the name it gives.',
+                      '2. Do not upload them as Flow Characters. Stage 2 uploads each sheet as a',
+                      '   plain image and mentions it with `@Name`, which is what holds the cast',
+                      '   together; a Flow Character drifts between clips. The place plate is',
+                      '   mentioned the same way.',
+                      '3. Stage 1: `npm run agent:prompt -- stories/' + slug + '/' + slug + '_story.json`',
+                      '4. Then the usual stages 2-4.',
+                      '']
+                   : ['1. Generate the sheets from `character_sheets.txt` (Whisk or any image tool)',
+                      '   and save each one into `character_refs/` under the name the sheet gives.',
+                      '2. Do not upload them as Flow Characters. Stage 2 uploads each sheet as a',
+                      '   plain image and mentions it with `@Name`, which is what holds the cast',
+                      '   together; a Flow Character drifts between clips.',
+                      '3. Stage 1: `npm run agent:prompt -- stories/' + slug + '/' + slug + '_story.json`',
+                      '4. Then the usual stages 2-4.',
+                      ''])]
+            : standing.length
+            ? ['## Cast - the standing cast',
+               ...Object.entries(story.character_descriptions).map(([k, v]) => `**${k}** - ${v}`),
+               '',
+               'These are the channel\'s standing cast, from `house_cast.json`. They appear',
+               'in every video, and their reference sheets were made once - they are in',
+               '`house_refs/` at the top of the project, not in this story\'s folder, so',
+               'there is nothing to redraw here.',
                '',
                '## What happens next',
-               '1. No reference sheets and no Characters to upload - skip straight to stage 1.',
-               '2. Stage 1: `npm run agent:prompt -- stories/' + slug + '/' + slug + '_story.json`',
-               '3. Then the usual stages 2-4.',
-               '']),
+               ...(placeDesc
+                   ? ['1. Generate the place plate from `character_sheets.txt` and save it',
+                      `   into \`character_refs/\` as \`${placeName || 'place'}.jpg\`.`,
+                      '2. Nothing to draw for the cast. Stage 2 uploads their sheets from',
+                      '   `house_refs/` itself, as plain images, and mentions `@Name`. Do not',
+                      '   make Flow Characters - they drift between clips.',
+                      '3. Stage 1: `npm run agent:prompt -- stories/' + slug + '/' + slug + '_story.json`',
+                      '4. Then the usual stages 2-4.',
+                      '']
+                   : ['1. Nothing to draw. Stage 2 uploads the cast sheets from `house_refs/`',
+                      '   itself, as plain images, and mentions `@Name`. Do not make Flow',
+                      '   Characters - they drift between clips.',
+                      '2. Stage 1: `npm run agent:prompt -- stories/' + slug + '/' + slug + '_story.json`',
+                      '3. Then the usual stages 2-4.',
+                      ''])]
+            : ['## Cast',
+               'None. This topic is about the world rather than a person, so no',
+               'character sheets were written and there are no reference images to',
+               'upload before stage 1. Distant unnamed figures are scenery.',
+               '',
+               '## What happens next',
+               ...(placeDesc
+                   ? ['1. Generate the place plate from `character_sheets.txt` and save it',
+                      `   into \`character_refs/\` as \`${placeName || 'place'}.jpg\`.`,
+                      '2. Stage 1: `npm run agent:prompt -- stories/' + slug + '/' + slug + '_story.json`',
+                      '3. Then the usual stages 2-4.',
+                      '']
+                   : ['1. No reference sheets to make and nothing to upload - skip straight to stage 1.',
+                      '2. Stage 1: `npm run agent:prompt -- stories/' + slug + '/' + slug + '_story.json`',
+                      '3. Then the usual stages 2-4.',
+                      ''])]),
     ].join('\n');
     fs.writeFileSync(path.join(dir, 'style_bible.md'), bible, 'utf8');
 
@@ -1094,8 +1682,22 @@ if (require.main === module) (async () => {
     const slug = slugify(TITLE);
     const dir = OUT_DIR || path.join(STORIES_DIR, slug);
 
+    // The standing cast, decided before anything is asked of the API. Whether
+    // these characters exist is a choice the channel made once, so it is not
+    // re-rolled per story - and when it applies, the model is never asked to
+    // design a cast at all.
+    const house = loadHouseCast(CAST_FILE);
+    const houseCast = (!NO_HOUSE_CAST && house.length && (CAST_FILE || houseCastApplies(p)))
+        ? normaliseCast(p, house)
+        : [];
+
     console.log(`\n  title    : ${TITLE}`);
     console.log(`  preset   : ${p.label}  [${p.id}]`);
+    console.log(`  cast     : ${houseCast.length
+        ? `the standing cast - ${houseCast.map(c => c.name).join(', ')}` +
+          `  (${CAST_FILE ? path.basename(path.resolve(CAST_FILE)) : 'house_cast.json'})`
+        : `${p.cast === 'optional' ? 'decided per story' : 'designed per story'}` +
+          (NO_HOUSE_CAST && house.length ? '  (--no-house-cast)' : '')}`);
     console.log(`  format   : ${ASPECT}, ${SECONDS}s per clip`);
     console.log(`  duration : ${DURATION}s  ->  ${SCENES} clips` +
                 (fromPreset ? `  (the ${p.label} preset's own length)` : ''));
@@ -1103,8 +1705,10 @@ if (require.main === module) (async () => {
 
     if (DRY) {
         // Show both prompts with a stand-in cast, so the whole pipeline is
-        // inspectable without a key and without spending anything.
-        const fake = [
+        // inspectable without a key and without spending anything. When the run
+        // uses the standing cast there is nothing to stand in for - these ARE
+        // the characters the run will use, so they are shown as they are.
+        const fake = houseCast.length ? houseCast : [
             { name: 'Mira', description: 'Same Mira throughout - (the real cast is written at run time)' },
             { name: 'Tomas', description: 'Same Tomas throughout - (the real cast is written at run time)' },
         ];
@@ -1113,10 +1717,13 @@ if (require.main === module) (async () => {
         }));
         const cut = Math.min(BATCH, SCENES);
         console.log('\n--dry-run: prompts only, nothing sent and nothing written.');
-        console.log('  The cast below is a stand-in; at run time call 1 writes the real one\n' +
-                    '  and call 2 is handed it.');
+        console.log(houseCast.length
+            ? `  The cast below is the standing cast the run will actually use, read from\n` +
+              `  ${CAST_FILE ? path.resolve(CAST_FILE) : HOUSE_CAST_FILE}.\n`
+            : '  The cast below is a stand-in; at run time call 1 writes the real one\n' +
+              '  and call 2 is handed it.');
         console.log('\n' + '='.repeat(72) + '\nCALL 1 of 2 - cast and outline\n' + '='.repeat(72));
-        console.log(castPrompt(p));
+        console.log(castPrompt(p, houseCast));
         console.log('\n' + '='.repeat(72) + `\nCALL 2 of 2 - clips 1-${cut} of ${SCENES}` +
                     (SCENES > cut ? ' (then repeated for each further batch)' : '') +
                     '\n' + '='.repeat(72));
@@ -1133,6 +1740,7 @@ if (require.main === module) (async () => {
         console.log(`  keys     : ${ring.size} configured, used in order - ` +
                     `${ring.keys.map(maskKey).join(', ')}`);
     }
+    console.log(`  models   : ${MODELS.join(' -> ')}`);
 
     if (fs.existsSync(dir) && !FORCE) {
         const existing = fs.readdirSync(dir).filter(f => f.endsWith('_story.json'));
@@ -1146,8 +1754,16 @@ if (require.main === module) (async () => {
     try {
         // 1. cast + outline
         process.stdout.write('\n  [1/2] writing the cast and outline ... ');
-        const meta = await ask(ring, MODEL, castPrompt(p), 8192);
-        const cast = normaliseCast(p, meta.characters || []);
+        const meta = await ask(ring, MODELS, castPrompt(p, houseCast), 8192);
+        // The standing cast is not the model's to design: those faces are
+        // attached after this call and are never re-described. Whatever it DID
+        // design is additive - the person a standing character is talking to, in
+        // a genre that cannot be carried alone - so the film's cast is the two
+        // together. A name it echoes back is dropped rather than duplicated, or
+        // the same woman would be described twice and drift against herself.
+        const designed = normaliseCast(p, meta.characters || []).filter(c => !houseCast.some(
+            h => String(h.name).toLowerCase() === String(c.name).toLowerCase()));
+        const cast = [...houseCast, ...designed];
         const outline = meta.outline || [];
         // Only a preset that declares `cast: "required"` is allowed to fail
         // here. For an optional-cast genre an empty list is an ANSWER - the
@@ -1159,16 +1775,26 @@ if (require.main === module) (async () => {
             console.log(`\n  note: asked for ${SCENES} beats, got ${outline.length}. Using what came back.`);
         }
         console.log(`ok - ${cast.length
-            ? cast.map(c => c.name).join(', ')
+            ? cast.map(c => c.name).join(', ') + (houseCast.length ? ' (the standing cast plus who the story needed)' : '')
             : 'no cast (this topic needs none)'}, ${outline.length} beats`);
 
         // 2. scenes, in batches that each fit comfortably in one response
         const scenes = [];
         const total = outline.length;
+        // The one place, from the preset or from call 1. Every batch is told the
+        // same one, which is what a batch cannot work out for itself: the
+        // batches share no state, so left to themselves each would pick its own.
+        // A preset with no place of its own takes call 1's choice; the preset's
+        // own place, if it ever had one, would win instead. The expression matches
+        // buildStory's, or call 2 would be locked to one place while the story
+        // recorded another.
+        const metaPlace = String((meta && meta.place_description) || '').trim();
+        const useMetaPlace = !!metaPlace && !p.setting;
+        const place = String(useMetaPlace ? metaPlace : (p.setting || '')).trim();
         for (let from = 0; from < total; from += BATCH) {
             const to = Math.min(from + BATCH, total);
             process.stdout.write(`  [2/2] clips ${from + 1}-${to} of ${total} ... `);
-            const r = await ask(ring, MODEL, scenesPrompt(p, cast, outline, from, to, scenes), 16384);
+            const r = await ask(ring, MODELS, scenesPrompt(p, cast, outline, from, to, scenes, place), 16384);
             const got = r.scenes || [];
             if (!got.length) throw new Error(`clip batch ${from + 1}-${to} came back empty`);
             scenes.push(...got);
@@ -1190,10 +1816,37 @@ if (require.main === module) (async () => {
 
         console.log(`\n  wrote  ${storyPath}`);
         console.log(`  wrote  ${path.join(dir, 'style_bible.md')}`);
-        if (cast.length) {
+        const hasPlace = !!(story.place && story.place.description);
+        const placeLabel = hasPlace ? (story.place.name || 'the place') : '';
+        // A standing cast has nothing to draw, so the closing lines are about the
+        // one image this story still needs - the place plate - and then about the
+        // sheets stage 2 fetches from house_refs/ by itself.
+        const drawn = cast.filter(c => !c.reference);
+        const standing = cast.filter(c => c.reference);
+        const standingWho = standing.map(c => '@' + c.name).join(' and ');
+        if (drawn.length || hasPlace) {
             console.log(`  wrote  ${path.join(dir, 'character_sheets.txt')}`);
-            console.log(`\n  next   : generate the reference sheets from character_sheets.txt,`);
-            console.log('           upload them into Flow as Characters, then run stage 1.');
+        }
+        if (drawn.length) {
+            console.log(`\n  next   : generate the reference sheets${hasPlace ? ' and the place plate' : ''}`);
+            console.log(`           from character_sheets.txt into character_refs/. Do not make`);
+            console.log('           Flow Characters - stage 2 uploads each one as a plain image');
+            console.log(`           and @-mentions it${hasPlace ? `, including @${placeLabel}` : ''}.`);
+        } else if (standing.length) {
+            console.log(`\n  next   : nothing to draw for the cast - ${standingWho} ` +
+                        `${standing.length > 1 ? 'are' : 'is'} the`);
+            console.log('           standing cast and their sheets are already in house_refs/.');
+            if (hasPlace) {
+                console.log('           Generate the place plate from character_sheets.txt into');
+                console.log('           character_refs/. Stage 2 then uploads the cast sheets from');
+                console.log(`           house_refs/ and @-mentions ${standingWho} and @${placeLabel}.`);
+            } else {
+                console.log('           Stage 2 uploads them from there and @-mentions ' + standingWho + '.');
+            }
+        } else if (hasPlace) {
+            console.log(`\n  next   : generate the place plate from character_sheets.txt into`);
+            console.log(`           character_refs/, then continue - stage 2 @-mentions it as`);
+            console.log(`           @${placeLabel} in every clip.`);
         } else {
             console.log('\n  no character sheets - this topic needs no cast.');
             console.log('  next   : nothing to upload into Flow, so go straight to stage 1.');
@@ -1219,6 +1872,10 @@ if (require.main === module) (async () => {
 module.exports = {
     slugify, buildStory, validate, writePackage, loadPreset,
     castPrompt, scenesPrompt, parseJson, geminiText,
-    apiKeys, maskKey, isQuotaError, isTransient, KeyRing, ask, callApi,
-    normaliseCast, usePresetDuration, lookBlock,
+    apiKeys, maskKey, isQuotaError, isKeyRejected, isTransient, isParseError, isModelError, KeyRing, ask, callApi,
+    normaliseCast, usePresetDuration, lookBlock, sanitizeForPolicy,
+    loadHouseCast, houseCastApplies, HOUSE_CAST_FILE, HOUSE_REFS_DIR,
+    contentMapBlock, contentMapClips,
+    presetLists, GENAI_STYLES_FILE,
+    DEFAULT_MODELS, MODELS, MODEL,
 };

@@ -1,0 +1,75 @@
+Create 7 separate clips, one clip per scene, using @Study and @Thomas, up to 8 seconds each. Generate them straight away without asking for confirmation.
+
+FORMAT: keep the aspect ratio the Flow project is already set to. Do not request, crop or change the ratio, and keep it identical in every clip.
+
+STORY: "The Secret Note That Changed History"
+A young boy delivers a confidential letter from his teacher to his mother, who hides its true contents to inspire his lifelong genius.
+Message of the story: A mother's unwavering belief can transform a perceived limitation into a legendary legacy.
+
+CRITICAL FORMAT - this is a NARRATED STORYTELLING VIDEO, not a dialogue drama:
+- The characters are SILENT. Mouths closed. They never speak and have NO dialogue.
+- Every clip carries an off-screen narrator voice-over (calm male narrator, casual and matter-of-fact, unhurried and slightly slowed, never salesy, never dramatic), reading
+  that scene's NARRATION line below word for word. Do not rewrite or shorten it.
+- Documentary storytelling style. The visuals illustrate the narration; they never
+  replace it, and no scene may drop its voice-over.
+- Use the SAME narrator voice in every clip so the 7 clips sound like one video.
+
+STYLE: Stylised realistic 3D animation, clean even studio lighting, saturated colour, a clean bright cyan-blue flat studio backdrop, glossy clean surfaces, crisp detail, soft contact shadows, NOT photorealistic film, NOT toy-like, NOT flat 2D
+
+CAST - FIXED APPEARANCE. These are the same people in every clip:
+  Thomas: Same Thomas throughout - One stylised realistic 3D human adult male, realistic proportions with clean cartoon-clean skin, a plain white t-shirt, plain modern clothing in fixed colours, a natural relaxed expression. He has short messy brown hair and expressive amber eyes. Rendered in stylised realistic 3D character rendering with slightly exaggerated head proportions and soft contact shadows. NOT anime, NOT cel-shaded, NOT photorealistic.
+
+PLACE - FIXED. The whole film happens in ONE place, attached as @Study:
+  A warm, compact home study featuring a polished dark wooden desk, a comfortable green leather armchair, a tall bookshelf lined with leather-bound volumes, and a single framed photograph of a mother on the wall. Natural light streams softly through a side window illuminating dust motes. Never change the furniture, the wall decor, the lighting angle, or the desk arrangement across any scene.
+  That reference image is the place for every clip. Same layout, same
+  furniture, same light, same time of day in all of them. Do not move the
+  story to another location, do not redecorate, and do not invent a second
+  place. Only the camera angle and what the characters do may change.
+
+SCENES:
+
+Scene 1 - The Sealed Note
+CHARACTERS IN THIS CLIP - identical to the CAST block and to every other clip. Same face, same age, same hair, same outfit. Do not restyle, do not recast, do not make them look younger or older:
+  Thomas: Same Thomas throughout - One stylised realistic 3D human adult male, realistic proportions with clean cartoon-clean skin, a plain white t-shirt, plain modern clothing in fixed colours, a natural relaxed expression. He has short messy brown hair and expressive amber eyes. Rendered in stylised realistic 3D character rendering with slightly exaggerated head proportions and soft contact shadows. NOT anime, NOT cel-shaded, NOT photorealistic.
+NARRATION (voice-over, read exactly): "History's greatest inventor was once branded a hopeless outcast by his own school."
+VISUAL: A warm, compact home study featuring a polished dark wooden desk, a comfortable green leather armchair, a tall bookshelf lined with leather-bound volumes, and a single framed photograph of a mother on the wall. Natural light streams softly through a side window illuminating dust motes. Never change the furniture, the wall decor, the lighting angle, or the desk arrangement across any scene. A young Thomas appears instantly on screen, bursting through the frame with high energy. He wears a plain white t-shirt and modern casual trousers, holding a tightly folded paper envelope in his outstretched hand. He walks directly toward his mother with an urgent expression, handing the sealed document straight to her. The camera executes a fast, aggressive push-in with a hard framing change right onto the white envelope. A bold glowing yellow ring snaps precisely around the folded paper and pulses hard. Diegetic sound of paper rustling rings out cleanly. The lighting stays warm and bright.
+
+Scene 2 - Tears in Private
+CHARACTERS IN THIS CLIP - identical to the CAST block and to every other clip. Same face, same age, same hair, same outfit. Do not restyle, do not recast, do not make them look younger or older:
+  Thomas: Same Thomas throughout - One stylised realistic 3D human adult male, realistic proportions with clean cartoon-clean skin, a plain white t-shirt, plain modern clothing in fixed colours, a natural relaxed expression. He has short messy brown hair and expressive amber eyes. Rendered in stylised realistic 3D character rendering with slightly exaggerated head proportions and soft contact shadows. NOT anime, NOT cel-shaded, NOT photorealistic.
+NARRATION (voice-over, read exactly): "The mother quietly reads the sealed message and begins to weep."
+VISUAL: A warm, compact home study featuring a polished dark wooden desk, a comfortable green leather armchair, a tall bookshelf lined with leather-bound volumes, and a single framed photograph of a mother on the wall. Natural light streams softly through a side window illuminating dust motes. Never change the furniture, the wall decor, the lighting angle, or the desk arrangement across any scene. The mother holds the unfolded paper close, her eyes scanning the handwritten lines with immediate sorrow. Her expression shifts from calm to deep distress as tears pool in her eyes and silently fall down her cheeks. The camera performs a fast aggressive arc close in on her face, capturing the exact moment her bottom lip quivers. Diegetic sound of a soft sob is heard. The warm interior lighting softly catches the moisture on her skin while the background remains completely unchanged.
+
+Scene 3 - The Noble Lie
+CHARACTERS IN THIS CLIP - identical to the CAST block and to every other clip. Same face, same age, same hair, same outfit. Do not restyle, do not recast, do not make them look younger or older:
+  Thomas: Same Thomas throughout - One stylised realistic 3D human adult male, realistic proportions with clean cartoon-clean skin, a plain white t-shirt, plain modern clothing in fixed colours, a natural relaxed expression. He has short messy brown hair and expressive amber eyes. Rendered in stylised realistic 3D character rendering with slightly exaggerated head proportions and soft contact shadows. NOT anime, NOT cel-shaded, NOT photorealistic.
+NARRATION (voice-over, read exactly): "She claims the note calls him a genius unfit for regular school."
+VISUAL: A warm, compact home study featuring a polished dark wooden desk, a comfortable green leather armchair, a tall bookshelf lined with leather-bound volumes, and a single framed photograph of a mother on the wall. Natural light streams softly through a side window illuminating dust motes. Never change the furniture, the wall decor, the lighting angle, or the desk arrangement across any scene. The mother quickly wipes away her tears with a gentle hand, forcing a warm, reassuring smile as she cups her son's face. Thomas looks up at her with curious amber eyes, asking about the contents of the letter. She looks straight into his eyes and speaks with absolute confidence, reassuring him that he is too brilliant for standard classes. The camera tracks fast and hard around them in a tight circle. Diegetic sound of a comforting fabric shift plays clearly.
+
+Scene 4 - Years of Study
+CHARACTERS IN THIS CLIP - identical to the CAST block and to every other clip. Same face, same age, same hair, same outfit. Do not restyle, do not recast, do not make them look younger or older:
+  Thomas: Same Thomas throughout - One stylised realistic 3D human adult male, realistic proportions with clean cartoon-clean skin, a plain white t-shirt, plain modern clothing in fixed colours, a natural relaxed expression. He has short messy brown hair and expressive amber eyes. Rendered in stylised realistic 3D character rendering with slightly exaggerated head proportions and soft contact shadows. NOT anime, NOT cel-shaded, NOT photorealistic.
+NARRATION (voice-over, read exactly): "She educates the boy at home as he studies diligently over the years."
+VISUAL: A warm, compact home study featuring a polished dark wooden desk, a comfortable green leather armchair, a tall bookshelf lined with leather-bound volumes, and a single framed photograph of a mother on the wall. Natural light streams softly through a side window illuminating dust motes. Never change the furniture, the wall decor, the lighting angle, or the desk arrangement across any scene. Thomas sits intensely focused at the polished wooden desk, turning heavy textbook pages under the watchful guidance of his mother. Years visibly pass as he transitions from a young boy into a taller adolescent, continuously reading and writing by the window. The camera executes a rapid push-in toward the open books and the stacked leather volumes. Diegetic sound of flipping pages and scratching pencils fills the room. The warm sunlight shifts slightly across the fixed study space.
+
+Scene 5 - Hidden in the Drawer
+CHARACTERS IN THIS CLIP - identical to the CAST block and to every other clip. Same face, same age, same hair, same outfit. Do not restyle, do not recast, do not make them look younger or older:
+  Thomas: Same Thomas throughout - One stylised realistic 3D human adult male, realistic proportions with clean cartoon-clean skin, a plain white t-shirt, plain modern clothing in fixed colours, a natural relaxed expression. He has short messy brown hair and expressive amber eyes. Rendered in stylised realistic 3D character rendering with slightly exaggerated head proportions and soft contact shadows. NOT anime, NOT cel-shaded, NOT photorealistic.
+NARRATION (voice-over, read exactly): "Decades later, the grown boy discovers the original folded letter inside a desk drawer."
+VISUAL: A warm, compact home study featuring a polished dark wooden desk, a comfortable green leather armchair, a tall bookshelf lined with leather-bound volumes, and a single framed photograph of a mother on the wall. Natural light streams softly through a side window illuminating dust motes. Never change the furniture, the wall decor, the lighting angle, or the desk arrangement across any scene. An adult Thomas stands beside the dark wooden desk, pulling open a stubborn bottom drawer with a sharp tug. His hand reaches deep inside past old papers to unearth the original folded letter resting at the very back. The camera tracks down over the desk surface in a fast, aggressive overhead drop shot, framing his fingers lifting the aged paper. Diegetic sound of a wooden drawer sliding open and paper scraping is prominent. The lighting casts sharp shadows across the grain of the wood.
+
+Scene 6 - The Harsh Truth
+CHARACTERS IN THIS CLIP - identical to the CAST block and to every other clip. Same face, same age, same hair, same outfit. Do not restyle, do not recast, do not make them look younger or older:
+  Thomas: Same Thomas throughout - One stylised realistic 3D human adult male, realistic proportions with clean cartoon-clean skin, a plain white t-shirt, plain modern clothing in fixed colours, a natural relaxed expression. He has short messy brown hair and expressive amber eyes. Rendered in stylised realistic 3D character rendering with slightly exaggerated head proportions and soft contact shadows. NOT anime, NOT cel-shaded, NOT photorealistic.
+NARRATION (voice-over, read exactly): "He discovers the letter actually declared him mentally unfit and expelled him."
+VISUAL: A warm, compact home study featuring a polished dark wooden desk, a comfortable green leather armchair, a tall bookshelf lined with leather-bound volumes, and a single framed photograph of a mother on the wall. Natural light streams softly through a side window illuminating dust motes. Never change the furniture, the wall decor, the lighting angle, or the desk arrangement across any scene. Over Thomas's shoulder, the camera frames the archaic handwriting spread across the opened document. His amber eyes widen in absolute shock as he reads the brutal words stating he was dismissed due to low intellect. The camera pushes in fast and hard directly onto the printed lines of the letter. Diegetic sound of a sharp gasp echoes quietly. A bold glowing yellow ring snaps around the harsh sentence on the page and pulses hard.
+
+Scene 7 - Legacy of Faith
+CHARACTERS IN THIS CLIP - identical to the CAST block and to every other clip. Same face, same age, same hair, same outfit. Do not restyle, do not recast, do not make them look younger or older:
+  Thomas: Same Thomas throughout - One stylised realistic 3D human adult male, realistic proportions with clean cartoon-clean skin, a plain white t-shirt, plain modern clothing in fixed colours, a natural relaxed expression. He has short messy brown hair and expressive amber eyes. Rendered in stylised realistic 3D character rendering with slightly exaggerated head proportions and soft contact shadows. NOT anime, NOT cel-shaded, NOT photorealistic.
+NARRATION (voice-over, read exactly): "Overwhelmed with emotion, Thomas Edison writes in his diary that his mother's belief forged his entire success."
+VISUAL: A warm, compact home study featuring a polished dark wooden desk, a comfortable green leather armchair, a tall bookshelf lined with leather-bound volumes, and a single framed photograph of a mother on the wall. Natural light streams softly through a side window illuminating dust motes. Never change the furniture, the wall decor, the lighting angle, or the desk arrangement across any scene. Thomas sits slumped forward over the desk, tears glistening in his amber eyes as he grips a fountain pen. He writes with trembling precision into an open leather-bound journal, glancing affectionately at the framed photograph of his mother resting nearby. A bold bright glowing yellow ring snaps around the fresh ink across the journal page and pulses hard. The camera sweeps downward in an aggressive arc from his emotional face to a tight top-down angle on the written entry, settling on an exact composition that echoes the opening frame.
+
+Keep Thomas looking exactly as they do in their reference images in every scene.
+Every clip is in the same place as the @Study reference image. It does not change from clip to clip.
+Do not add any character dialogue anywhere - narration only.

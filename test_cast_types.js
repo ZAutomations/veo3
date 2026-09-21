@@ -17,6 +17,8 @@ function ok(name, cond, extra) {
 const animal = W.loadPreset('animal-kindness');
 const ghibli = W.loadPreset('ghibli');
 const sci = W.loadPreset('science-what-if');
+const real = W.loadPreset('relationship-dialogue-real');
+const manhwa = W.loadPreset('relationship-dialogue');
 
 console.log('\n--- the new preset is well formed ---');
 ok('exists', !!animal);
@@ -47,8 +49,9 @@ const typed = db.styles.filter(p => Array.isArray(p.cast_types));
 // Named in full rather than counted: the point is that each genre which opts in
 // gets a per-type identity profile and the rest are untouched, so a third one
 // appearing should be a deliberate edit to this line, not a silent pass.
-ok('exactly the two intended presets declare cast_types',
-   typed.map(p => p.id).sort().join(', ') === 'animal-kindness, relationship-dialogue',
+ok('exactly the three intended presets declare cast_types',
+   typed.map(p => p.id).sort().join(', ') ===
+   'animal-kindness, relationship-dialogue, relationship-dialogue-real',
    typed.map(p => p.id).join(', '));
 ok('every declared cast type is one the prompts know how to describe',
    typed.every(p => p.cast_types.every(t => ['animal', 'human'].includes(t))),
@@ -70,16 +73,17 @@ ok('gives the human identity profile', /human\s+- age, build, hair, face and ski
 ok('asks for one animal and one human', /TWO characters: one animal, one human/.test(animalCast));
 ok('explains the three-image ceiling', /at most 3 reference images/.test(animalCast));
 ok('still requires an animal', /never a cast of people alone/.test(animalCast));
-ok('animal sheet is a single three-quarter view', /three-quarter view/.test(animalCast));
-ok('animal sheet warns a multi-view sheet counts as several',
-   /multi-view sheet counts as more than one/.test(animalCast));
+ok('animal sheet asks for several angles, not one view', /SEVERAL ANGLES/.test(animalCast));
+ok('the animal close-up is specified as the head', /close-up is of the\s+head/.test(animalCast));
+ok('the animal sheet must keep the markers readable in every view',
+   /markers must\s+stay readable in every view/.test(animalCast));
 ok('animal markers must be visible in the sheet',
    /Every physical marker must be visible/.test(animalCast));
 ok('JSON skeleton carries the type field', /"characters":\[\{"name":"","type":"",/.test(animalCast));
 
 ok('a preset with no cast_types asks for no type', !/"type"/.test(ghibliCast));
 ok('ghibli keeps its own description rule', /State age, build,/.test(ghibliCast));
-ok('ghibli keeps its own sheet rule', /reference sheet: full body, neutral standing/.test(ghibliCast));
+ok('ghibli keeps its own sheet rule', /repeated from SEVERAL ANGLES/.test(ghibliCast));
 ok('ghibli is still about people', /This genre is about people/.test(ghibliCast));
 ok('the grey background rule is unchanged in both',
    /"plain neutral grey studio background"/.test(animalCast) &&
@@ -156,12 +160,36 @@ const sheets = fs.readFileSync(path.join(mixedOut.dir, 'character_sheets.txt'), 
 ok('one sheet entry per character', (sheets.match(/^=== /gm) || []).length === 2);
 ok('the animal entry is labelled', /=== RUSTY ===\s+\(animal\)/.test(sheets));
 ok('the human entry is labelled', /=== ILAN ===\s+\(human\)/.test(sheets));
-ok('the animal entry demands a single image', /This is an ANIMAL - one image only/.test(sheets));
+ok('the animal entry asks for several angles', /This is an ANIMAL - one image, several angles/.test(sheets));
 // The sheets file is hard-wrapped for reading, so allow the wrap.
 ok('the animal entry requires the markers be visible',
-   /Every physical marker listed below must be\s+visible/.test(sheets));
+   /Every\s+physical marker listed below must be visible somewhere/.test(sheets));
 ok('the human entry gets no animal note', !/=== ILAN ===\s+\(human\)\s*\nThis is an ANIMAL/.test(sheets));
-ok('the header warns against a multi-angle sheet', /Do not make a multi-angle sheet/.test(sheets));
+ok('the header says each sheet shows several angles',
+   /showing the same individual from several\s+angles/.test(sheets));
+ok('the header no longer forbids a multi-angle sheet', !/Do not make a multi-angle sheet/.test(sheets));
+// A Flow Character is re-invented for every clip, which is what made the cast
+// drift. The sheets file used to instruct the user to make one per character,
+// so following it by hand reproduced the very bug the pipeline was fixed for.
+ok('the header no longer sends you to the Flow Character tab',
+   !/upload it into Flow as a Character/i.test(sheets));
+ok('the header says where the sheets actually belong',
+   /character_refs\//.test(sheets));
+ok('the header warns that a Flow Character drifts',
+   /drift from cut to cut/.test(sheets));
+
+const mixedBible = fs.readFileSync(path.join(mixedOut.dir, 'style_bible.md'), 'utf8');
+ok('the style bible no longer sends you to the Flow Character tab',
+   !/Upload each into Flow as a Character/i.test(mixedBible));
+ok('the style bible points at character_refs/',
+   /into `character_refs\/`/.test(mixedBible));
+// The prompt used to be emitted twice under the marker, so the reader pasted
+// the same image prompt into the generator back to back.
+ok('one image-prompt marker per character', (sheets.match(/-- image prompt --/g) || []).length === 2);
+ok('the image prompt text is printed once, not twice',
+   (sheets.match(/^a dog$/gm) || []).length === 1, 'the dog sheet_prompt is duplicated');
+ok('and the second character\'s prompt is not duplicated either',
+   (sheets.match(/^a man$/gm) || []).length === 1);
 ok('character_refs is created for a cast', fs.existsSync(path.join(mixedOut.dir, 'character_refs')));
 
 const humanCast = W.normaliseCast(ghibli, [
@@ -170,7 +198,8 @@ const humanCast = W.normaliseCast(ghibli, [
 const humanOut = writeInto('human', ghibli, humanCast);
 const humanSheets = fs.readFileSync(path.join(humanOut.dir, 'character_sheets.txt'), 'utf8');
 ok('a human-only cast gets no animal note', !/This is an ANIMAL/.test(humanSheets));
-ok('a human-only cast gets no multi-angle warning', !/multi-angle/.test(humanSheets));
+ok('a human-only cast still gets the several-angles header',
+   /showing the same individual from several\s+angles/.test(humanSheets));
 ok('a human-only entry carries no type label', /=== MIRA ===\n/.test(humanSheets));
 
 const noCastOut = writeInto('nocast', sci, []);
@@ -185,7 +214,75 @@ ok('no cast_types in the written story', !/cast_types/.test(JSON.stringify(mixed
 ok('character_descriptions are plain strings',
    Object.values(mixedOut.story.character_descriptions).every(v => typeof v === 'string'));
 ok('references point at the refs folder',
-   mixedOut.story.character_references.rusty === './character_refs/rusty_reference_sheet.jpg');
+   mixedOut.story.character_references.rusty === './character_refs/rusty.jpg');
+
+console.log('\n--- the realistic twin of the dialogue preset ---');
+// Same film, same rules, a filmed look instead of a drawn one. It exists as a
+// separate preset rather than an edit so the manhwa version survives, which
+// makes "did the look actually change?" the only thing worth asserting - a twin
+// that still carries one drawn-medium field produces a photoreal cast standing
+// in an illustrated room, which reads worse than staying cartoon.
+ok('exists', !!real && real.id === 'relationship-dialogue-real');
+ok('has a label that says which one it is', /realistic/i.test(real.label), real.label);
+ok('it is the same kind of film', real.kind === manhwa.kind);
+ok('still a spoken two-hander', real.narration_scope === 'dialogue');
+ok('still requires a human cast',
+   real.cast === 'required' && JSON.stringify(real.cast_types) === '["human"]');
+ok('keeps the locked camera the dialogue mode needs',
+   real.camera === manhwa.camera);
+ok('keeps the locked blocking', real.blocking === manhwa.blocking);
+ok('neither hardcodes a place any more',
+   !real.setting && !manhwa.setting && !manhwa.setting_name && !real.setting_prompt);
+ok('has the same story shapes', JSON.stringify(real.story_shapes) === JSON.stringify(manhwa.story_shapes));
+
+// The positive wording is what the model copies. The negatives after NOT are
+// deliberate, so split them off rather than searching the whole field.
+const posOf = (s) => String(s).split(/\bNOT\b/)[0];
+ok('the look is photographic', /photorealistic/i.test(real.style), real.style);
+ok('the look names no drawn medium',
+   !/manhwa|cel-shaded|illustration|cartoon|anime/i.test(posOf(real.style)), real.style);
+ok('the cast template is photographic',
+   /photorealistic/i.test(posOf(real.cast_idiom)), real.cast_idiom);
+ok('and describes real skin rather than a style',
+   /skin texture|pores/i.test(real.cast_idiom), real.cast_idiom);
+ok('the cast template names no drawn medium in its positive half',
+   !/manhwa|cel-shaded|illustration|cartoon|anime/i.test(posOf(real.cast_idiom)), posOf(real.cast_idiom));
+ok('and rules the drawn media out explicitly',
+   /NOT illustration/i.test(real.cast_idiom) && /NOT cartoon/i.test(real.cast_idiom));
+// The plate is no longer baked into a preset: each story supplies its own place
+// prompt, rendered in the preset's medium, so what must hold is that the two
+// presets still disagree on the medium everywhere it is written.
+ok('neither preset hardcodes a place plate any more',
+   !real.setting_prompt && !manhwa.setting_prompt);
+ok('and the cast templates are cleanly opposed on the medium',
+   /illustration/i.test(posOf(manhwa.cast_idiom)) &&
+   !/illustration|anime|manhwa/i.test(posOf(real.cast_idiom)));
+// The other half of the trap: the manhwa preset bans photographic realism, so a
+// copy of that list would tell the story writer to do the opposite of the brief.
+ok('the avoid list no longer bans photography',
+   !/photographic realism|no live-action/i.test(real.avoid), real.avoid);
+ok('it bans the drawn media instead',
+   /no cartoon/i.test(real.avoid) && /no illustration/i.test(real.avoid), real.avoid);
+// The twin was made by copying this preset and changing the medium, so the risk
+// is not that the twin is wrong - it is that the copy edited the original in
+// place. What must survive is that the two presets disagree on the medium and
+// agree on nothing else: the drawn one rejects a photograph, the filmed one
+// rejects a cartoon, and neither has drifted into the other's list.
+ok('the drawn preset still rejects photography',
+   /NOT a photograph/i.test(manhwa.cast_idiom) && /no live-action or photographic realism/i.test(manhwa.avoid));
+ok('and asks for a drawn medium',
+   /2\.5D semi-realistic|illustration/i.test(manhwa.cast_idiom), manhwa.cast_idiom);
+ok('the two presets disagree on the medium',
+   /photorealistic/i.test(posOf(real.cast_idiom)) && !/photorealistic/i.test(posOf(manhwa.cast_idiom)));
+ok('and each bans what the other asks for', (() => {
+    const realBansDrawn = /no cartoon/i.test(real.avoid) && /no illustration/i.test(real.avoid);
+    const manhwaBansFilmed = /no live-action or photographic realism/i.test(manhwa.avoid);
+    return realBansDrawn && manhwaBansFilmed;
+})());
+ok('both presets are offered side by side', (() => {
+    const ids = db.styles.map(p => p.id);
+    return ids.includes('relationship-dialogue') && ids.includes('relationship-dialogue-real');
+})());
 
 console.log('\n--- the preset supplies the length (real CLI, no network) ---');
 const CLI = path.join(__dirname, 'write_story.js');

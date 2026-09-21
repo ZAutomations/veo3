@@ -1,0 +1,15 @@
+Genre: stock video montage with text overlay explainer.
+Aesthetic: Photorealistic gym and lifestyle footage with a high-contrast cinematic color grade, warm amber highlights, and sharp focus. The camera remains steady with slow pans and smooth tracking shots, creating a motivational and clean health-focused aesthetic.
+Format: 2 clips of 8s, narrated voice-over.
+Narration: Energetic, clear, and direct male voiceover delivering health tips at a fast, engaging pace.
+Never change: The core topic of natural hormone enhancement and the numbered list structure.
+Beats:
+1. Gym, Bedroom, Restaurant - Introduction outlining five methods to elevate hormone levels naturally; Prioritize obtaining sufficient sleep; Reduce intake of sugar and heavily processed items (visual: A muscular athlete lifting weights transitions to a person sleeping soundly, followed by someone eating a burger.)
+2. Abstract, Pub, Outdoor Pier - Increase intake of Vitamin D; Cut back on alcoholic drinks; Maintain a consistent physical exercise routine (visual: Golden capsule graphics shift to friends clinking beer glasses, ending with a man lunging on a wooden pier by the ocean.)
+EVERY FACT (each one must appear somewhere, in your own words):
+  - Gym [0:00]: Introduction outlining five methods to elevate hormone levels naturally.
+  - Bedroom [0:03]: Prioritize obtaining sufficient sleep.
+  - Restaurant [0:04]: Reduce intake of sugar and heavily processed items.
+  - Abstract [0:07]: Increase intake of Vitamin D.
+  - Pub [0:09]: Cut back on alcoholic drinks.
+  - Outdoor Pier [0:11]: Maintain a consistent physical exercise routine.

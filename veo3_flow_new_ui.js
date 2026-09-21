@@ -32,6 +32,8 @@ const path = require('path');
 const os = require('os');
 const { spawn, execFileSync } = require('child_process');
 const readline = require('readline');
+const remoteConfig = require('./remote_config.js');
+const health = require('./page_health.js');
 
 // Chrome installs to different folders depending on the installer's bitness
 // (and per-user installs land in LOCALAPPDATA). Resolve the real one at
@@ -205,6 +207,115 @@ class Veo3FlowNewUI {
         // pause/resume
         this.isPaused = false;
         this.setupPauseListener();
+
+        // Flow DOM + timings, from remote_config.js. Every selector the
+        // engine matches on comes from here, so a Flow redeploy is a
+        // selectors.json edit rather than a code change. The timing values
+        // are copied onto CONFIG so the existing call sites keep working.
+        this.cfg = remoteConfig.load();
+        this.sel = this.cfg.selectors;
+        this.pat = remoteConfig.compilePatterns(this.cfg);
+        Object.assign(CONFIG, this.cfg.timings);
+
+        // Stall tracking for the generation watchdog: when the last time we
+        // saw forward movement, and what that movement looked like.
+        this._lastMoveAt = Date.now();
+        this._lastPct = -1;
+        this._lastEmittedPct = -1;
+        this._heals = 0;
+    }
+
+    // -- page health -----------------------------------------------------
+    // Chrome freezes or discards background tabs to save memory, which stops
+    // the page's own timers - a run then sits at "Generating..." forever with
+    // nothing actually happening. These four calls keep the tab alive and
+    // make the page believe it is focused and on screen.
+    async hardenPage() {
+        try {
+            const client = await this.page.target().createCDPSession();
+            // Un-minimise: a minimised window throttles every tab in it.
+            try {
+                const { windowId } = await client.send('Browser.getWindowForTarget');
+                await client.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'normal' } });
+            } catch {}
+            // Tell Chrome this tab is in active use so Memory Saver leaves it alone.
+            try { await client.send('Page.setWebLifecycleState', { state: 'active' }); } catch {}
+            // document.hasFocus() === true, so Flow does not pause its own pollers.
+            try { await client.send('Emulation.setFocusEmulationEnabled', { enabled: true }); } catch {}
+            await client.detach().catch(() => {});
+        } catch (e) {
+            log(`   (page hardening skipped: ${e.message.slice(0, 60)})`);
+        }
+    }
+
+    // Close whatever is blocking the page and say what it was. Called when a
+    // generation has gone quiet for too long: the usual cause is a dialog
+    // that swallowed the click and is now covering the editor.
+    async healStalled(reason, force = false) {
+        const r = await health.sweep(this.page);
+        const did = r.dismissed.length > 0;
+        if (did || force) {
+            this._heals++;
+            log(`   HEAL (${reason}): dismissed ${did ? r.dismissed.join(', ') : 'nothing'}`
+                + `${r.errorText ? ` | page said: ${r.errorText}` : ''}`);
+        }
+        // A dialog we could not click is often one the DOM cannot reach;
+        // Escape is the second resort and is harmless when nothing is open.
+        if (!did && force && r.overlays > 0) {
+            try { pressEscapeOnDialog(); } catch {}
+        }
+        if (did || r.overlays > 0) this._lastMoveAt = Date.now();
+        return r;
+    }
+
+    // Progress for the console's bar. Flow exposes a real percentage in some
+    // views and nothing in others, so the caller passes an elapsed-time
+    // estimate and we prefer the real number when there is one.
+    //
+    // Only a REAL number counts as forward movement. An estimate rises with
+    // the clock whether or not anything is happening, so letting it reset the
+    // watchdog would make the watchdog useless - it would never fire on the
+    // exact failure it exists to catch.
+    async reportProgress(sceneNum, estimatePct, label) {
+        const r = await this.evalJs(health.READ_PROGRESS);
+        const real = (r && !r.__error && typeof r.pct === 'number') ? r.pct : null;
+        if (real !== null && real > this._lastPct) {
+            this._lastPct = real;
+            this._lastMoveAt = Date.now();
+        }
+        const pct = real !== null ? real : Math.max(0, Math.min(99, Math.round(estimatePct)));
+        if (pct !== this._lastEmittedPct) {
+            this._lastEmittedPct = pct;
+            log(`[PROGRESS] pct=${pct} scene=${sceneNum} ${label || ''}`.trim());
+        }
+        return pct;
+    }
+
+    // The generation state both poll loops need, in one round trip.
+    async readState() {
+        const st = await this.evalJs(health.READ_STATE, this.cfg.patterns);
+        return (st && !st.__error) ? st : null;
+    }
+
+    // Wait for the Flow app shell to actually mount after a navigation,
+    // instead of sleeping a fixed 8s and hoping. Returns false on timeout
+    // rather than throwing - callers treat the shell as best-effort.
+    async waitForFlowShell(maxWaitMs = CONFIG.shellReadyMs) {
+        const deadline = Date.now() + maxWaitMs;
+        while (Date.now() < deadline) {
+            const st = await this.evalJs(() => {
+                const t = (document.body && document.body.innerText) || '';
+                return {
+                    shell: !!document.querySelector('flow-app, app-root, .flow-app, [class*=project-grid]')
+                        || /new project|your projects|create/i.test(t),
+                    hasApp: !!document.querySelector('app-root, flow-root'),
+                };
+            });
+            if (st && !st.__error && (st.shell || st.hasApp)) return true;
+            await wait(1500);
+        }
+        log('   (Flow shell did not confirm inside the wait window - continuing)');
+        return false;
     }
 
     setupPauseListener() {
@@ -250,13 +361,32 @@ class Veo3FlowNewUI {
         }
     }
 
-    resolveRefPath(refPath) {
+    resolveRefPath(refPath, name) {
         const jsonDir = path.dirname(this.jsonFilePath);
         let p = path.resolve(jsonDir, refPath);
         if (fs.existsSync(p)) return p;
         for (const ext of ['.jpg', '.jpeg', '.png']) {
             const t = p.replace(/\.(jpg|jpeg|png)$/i, ext);
             if (fs.existsSync(t)) return t;
+        }
+        // The story JSON records refs as "<key>_reference_sheet.jpg", but sheets
+        // are usually saved with the character's own name ("TARA.jpg"). Without
+        // this fallback every ref resolved to null and was silently skipped.
+        const key = String(name || '').trim().toLowerCase();
+        if (!key) return null;
+        const dir = path.join(jsonDir, 'character_refs');
+        let entries = [];
+        try { entries = fs.readdirSync(dir); } catch { return null; }
+        const exts = ['.jpg', '.jpeg', '.png', '.webp'];
+        for (const pass of [0, 1]) {
+            for (const f of entries) {
+                const e = path.extname(f).toLowerCase();
+                if (!exts.includes(e)) continue;
+                const base = path.basename(f, path.extname(f)).toLowerCase();
+                if (pass === 0 && base !== key) continue;
+                if (pass === 1 && !base.startsWith(key)) continue;
+                return path.join(dir, f);
+            }
         }
         return null;
     }
@@ -338,6 +468,7 @@ class Veo3FlowNewUI {
                  || await this.browser.newPage();
         this.page.setDefaultTimeout(120000);
         this.page.setDefaultNavigationTimeout(120000);
+        await this.hardenPage();
         log(`âœ… Page: ${this.page.url().slice(0, 90)}`);
     }
 
@@ -348,7 +479,7 @@ class Veo3FlowNewUI {
         if (this.freshProject) {
             log('Fresh project: starting on the Flow project grid');
             await this.page.goto('https://flow.google.com/', { waitUntil: 'domcontentloaded', timeout: 120000 });
-            await wait(8000);
+            await this.waitForFlowShell();
             return;
         }
         if (!this.projectUrl) {
@@ -362,7 +493,7 @@ class Veo3FlowNewUI {
         }
         log(`ðŸŒ Opening project: ${this.projectUrl}`);
         await this.page.goto(this.projectUrl, { waitUntil: 'domcontentloaded', timeout: 120000 });
-        await wait(8000);
+        await this.waitForFlowShell();
     }
 
     isEditorUrl(url) {
@@ -378,11 +509,11 @@ class Veo3FlowNewUI {
     // Read timeline duration from readouts like "00:08:00" (MM:SS:FF) or
     // "00:00:08:00" (HH:MM:SS:FF). Returns the max in SECONDS.
     async getTimelineSeconds() {
-        const r = await this.evalJs(() => {
+        const r = await this.evalJs((readoutSel) => {
             // Preferred: the timeline's TOTAL duration readout (MM:SS:FF).
             // The playhead's own .timecode-value is always smaller, so this is
             // unambiguous where the old max-scan-over-all-readouts was not.
-            const dur = document.querySelector('.duration-timecode-value');
+            const dur = document.querySelector(readoutSel);
             if (dur) {
                 const g = (dur.textContent || '').trim().split(':').map(Number);
                 if (g.length === 3 && g.every(n => !isNaN(n))) return g[0] * 60 + g[1];
@@ -395,7 +526,7 @@ class Veo3FlowNewUI {
                 if (/^00:\d{2}(:\d{2}){1,2}$/.test(t)) out.push(t);
             }
             return out;
-        });
+        }, this.sel.durationReadoutSelector);
         if (typeof r === 'number') return r;
         if (!Array.isArray(r) || !r.length) return 0;
         let max = 0;
@@ -591,10 +722,7 @@ class Veo3FlowNewUI {
             if (added) break;
             log(`   ⚠️  attach attempt ${attempt}/6 failed (state: ${picked ? picked.state : '?'}) - retrying via menu`);
             // close whatever is open before the retry
-            await this.evalJs(() => {
-                const bd = document.querySelector('.cdk-overlay-backdrop');
-                if (bd) bd.click();
-            });
+            await this.closeStrayOverlay();
             await wait(1500);
         }
         if (!added) {
@@ -635,7 +763,7 @@ async uploadRefViaSendKeys(filePath) {
         const names = scene.characters && scene.characters.length ? scene.characters : Object.keys(this.characterReferences);
         for (const name of names) {
             const p = this.characterReferences[name];
-            const abs = p ? this.resolveRefPath(p) : null;
+            const abs = p ? this.resolveRefPath(p, name) : null;
             if (!abs) { log(`   âš ï¸  no ref file for "${name}"`); continue; }
             await this.uploadRef(abs);
             await wait(2000);
@@ -733,10 +861,7 @@ async uploadRefViaSendKeys(filePath) {
 
         if (!attached) {
             log('   ⚠️  none of the ingredient sheets were found in the picker');
-            await this.evalJs(() => {
-                const bd = document.querySelector('.cdk-overlay-backdrop');
-                if (bd) bd.click();
-            });
+            await this.closeStrayOverlay();
             return false;
         }
 
@@ -770,23 +895,42 @@ async uploadRefViaSendKeys(filePath) {
         log('   ðŸ‘† IN BROWSER: pick model / aspect ratio, then click "Start generation" (arrow)');
         log('   â³ Waiting for generation to start and finish... (max 12 min)');
         const deadline = Date.now() + 720000;
+        const started = Date.now();
         let sawGenerating = false;
+        this._lastMoveAt = Date.now();
+        this._lastPct = -1;
+        this._lastEmittedPct = -1;
+        this._heals = 0;
         while (Date.now() < deadline) {
             await wait(CONFIG.CHECK_INTERVAL);
-            const st = await this.evalJs(() => ({
+            const st = await this.evalJs((pat) => ({
                 url: location.href,
-                stop: [...document.querySelectorAll('button')].some(b => (b.innerText || '').trim() === 'stop'),
+                generating: [...document.querySelectorAll('button')].some(b => (b.innerText || '').trim() === 'stop'),
+                approve: [...document.querySelectorAll('button')]
+                    .some(b => /always approve/i.test(b.innerText || '') || (b.innerText || '').trim() === 'Approve'),
+                creditsOut: new RegExp(pat.creditsOut, 'i').test(document.body.innerText || ''),
+                // Stricter than the shared probe on purpose: on the project
+                // grid a failed tile from an earlier attempt is still on
+                // screen, and body-wide text would match that instead.
                 failed: [...document.querySelectorAll('*')].some(e => {
                     const t = (e.textContent || '').trim();
                     const r = e.getBoundingClientRect();
                     return e.children.length < 3 && r.width > 0 &&
-                        /sorry, this video failed|something went wrong|failed to generate/i.test(t) && t.length < 120;
+                        new RegExp(pat.errorText, 'i').test(t) && t.length < 120;
                 }),
-            }));
+            }), this.cfg.patterns);
             if (st.__error) continue;
-            if (await this.checkCreditsOut()) throw new Error('CREDITS_EXHAUSTED');
+            if (st.creditsOut || await this.checkCreditsOut()) throw new Error('CREDITS_EXHAUSTED');
+            if (st.approve) await this.autoApproveCredits();
             if (st.failed) throw new Error('Scene 1 generation FAILED in browser');
-            if (st.stop) { if (!sawGenerating) { sawGenerating = true; log('   ðŸ”„ Generating...'); } continue; }
+            if (st.generating) { if (!sawGenerating) { sawGenerating = true; log('   ðŸ”„ Generating...'); }                await this.reportProgress(1, ((Date.now() - started) / 180000) * 95, 'generating');
+                // The first render is the slowest, so scene 1 gets a longer
+                // fuse before we call it stuck.
+                if (Date.now() - this._lastMoveAt > CONFIG.stallMs * 2 && this._heals < 3) {
+                    await this.healStalled('scene 1 generation quiet', true);
+                    this._lastMoveAt = Date.now();
+                }
+                continue; }
             if (sawGenerating || this.isEditorUrl(st.url)) {
                 // generation likely done - look for the clip tile / editor
                 if (this.isEditorUrl(st.url)) {
@@ -861,12 +1005,12 @@ async uploadRefViaSendKeys(filePath) {
         log('   â³ Waiting for editor to fully load (Add clip button)...');
         const deadline = Date.now() + maxWaitMs;
         while (Date.now() < deadline) {
-            const ready = await this.evalJs(() => ({
+            const ready = await this.evalJs((sel) => ({
                 addClip: [...document.querySelectorAll('button')]
-                    .some(b => (b.getAttribute('aria-label') || '') === 'Add clip'),
+                    .some(b => (b.getAttribute('aria-label') || '') === sel.addClipLabel),
                 armed: (() => {
-                    const ph = document.querySelector('.prosemirror-placeholder');
-                    return (ph && /What happens next/i.test(ph.textContent || '')) ||
+                    const ph = document.querySelector(sel.placeholderSelector);
+                    return (ph && new RegExp(sel.extendPlaceholder, 'i').test(ph.textContent || '')) ||
                            /exit extend mode/i.test(document.body.innerText || '');
                 })(),
                 secs: (() => {
@@ -880,7 +1024,7 @@ async uploadRefViaSendKeys(filePath) {
                     }
                     return max;
                 })(),
-            }));
+            }), this.sel);
             if (!ready.__error && (ready.addClip || ready.armed)) {
                 log(`   âœ… Editor ready (timeline ~${ready.secs}s)`);
                 return true;
@@ -890,34 +1034,52 @@ async uploadRefViaSendKeys(filePath) {
         throw new Error('Editor did not become ready (no Add clip button within 2 min)');
     }
 
+    // "Is extend mode armed?" was probed in four places with slightly
+    // different selectors, which meant they could disagree - one would see
+    // the armed placeholder and another would re-click Add clip on top of it.
+    // One probe, one answer.
+    async isExtendArmed() {
+        const r = await this.evalJs((sel) => {
+            const want = new RegExp(sel.extendPlaceholder, 'i');
+            for (const el of document.querySelectorAll(`${sel.placeholderSelector}, .ProseMirror`)) {
+                if (want.test(el.textContent || '')) return true;
+            }
+            return /exit extend mode/i.test(document.body.innerText || '');
+        }, this.sel);
+        return r === true;
+    }
+
+    // Close a stray overlay without touching anything else. Called between
+    // arm attempts; harmless when nothing is open.
+    async closeStrayOverlay() {
+        await this.evalJs((sel) => {
+            const bd = document.querySelector(`${sel.overlayContainerSelector} .cdk-overlay-backdrop`)
+                    || document.querySelector('.cdk-overlay-backdrop');
+            if (bd) bd.click();
+        }, this.sel);
+    }
+
     async armExtend(sceneNum) {
         log(`   ðŸ”— Arming EXTEND mode for scene ${sceneNum}...`);
         // if already armed ("What happens next?" placeholder), reuse
-        const armed = await this.evalJs(() => {
-            const ph = document.querySelector('.prosemirror-placeholder');
-            if (ph && /What happens next/i.test(ph.textContent || '')) return true;
-            const pm = document.querySelector('.ProseMirror');
-            if (pm && /What happens next/i.test(pm.textContent || '')) return true;
-            return /exit extend mode/i.test(document.body.innerText || '');
-        });
-        if (armed) { log('   âœ… Extend mode already armed'); return; }
+        if (await this.isExtendArmed()) { log('   âœ… Extend mode already armed'); return; }
 
         for (let attempt = 1; attempt <= 12; attempt++) {
-            const ok = await this.evalJs(() => {
+            const ok = await this.evalJs((sel) => {
                 const addClip = [...document.querySelectorAll('button')]
-                    .find(b => (b.getAttribute('aria-label') || '') === 'Add clip');
+                    .find(b => (b.getAttribute('aria-label') || '') === sel.addClipLabel);
                 if (!addClip) return { step: 'no Add clip' };
                 addClip.click();
                 return { step: 'clicked' };
-            });
+            }, this.sel);
             if (ok.__error || !ok || ok.step !== 'clicked') {
                 log(`   âš ï¸  attempt ${attempt}/12: no Add clip button (${(ok && ok.step) || 'err'})`);
                 await wait(5000);
                 continue;
             }
             await wait(2500);
-            const picked = await this.evalJs((wantModel) => {
-                const ov = document.querySelector('.cdk-overlay-container');
+            const picked = await this.evalJs((wantModel, sel) => {
+                const ov = document.querySelector(sel.overlayContainerSelector);
                 if (!ov) return { state: 'no-overlay' };
                 // Every extend entry reads "Extend (Veo ...)"; the plan decides
                 // which model suffix appears. Prefer the configured model, then
@@ -941,7 +1103,7 @@ async uploadRefViaSendKeys(filePath) {
                 item.click();
                 return { state: 'clicked', model: labelOf(item).slice(0, 70), preferred: !!pref,
                          available: items.map(x => labelOf(x).slice(0, 70)) };
-            }, this.extendModel);
+            }, this.extendModel, this.sel);
             if (!picked || picked.state !== 'clicked') {
                 log(`   Extend menu problem: ${picked ? picked.state : 'eval error'}`);
                 if (picked && picked.__error) {
@@ -960,44 +1122,31 @@ async uploadRefViaSendKeys(filePath) {
                 }
                 // give the editor a moment, then verify via the placeholder span
                 await wait(3500);
-                const verify = await this.evalJs(() => {
-                    const ph = document.querySelector('.prosemirror-placeholder');
-                    if (ph && /What happens next/i.test(ph.textContent || '')) return true;
-                    const pm = document.querySelector('.ProseMirror');
-                    if (pm && /What happens next/i.test(pm.textContent || '')) return true;
-                    return /exit extend mode/i.test(document.body.innerText || '');
-                });
+                const verify = await this.isExtendArmed();
                 if (verify) { log('   âœ… Extend armed (What happens next? shown)'); return; }
                 log('   âš ï¸  Extend item clicked but placeholder not confirmed - re-checking...');
                 await wait(3000);
-                const verify2 = await this.evalJs(() => {
-                    const ph = document.querySelector('.prosemirror-placeholder');
-                    if (ph && /What happens next/i.test(ph.textContent || '')) return true;
-                    return /exit extend mode/i.test(document.body.innerText || '');
-                });
+                const verify2 = await this.isExtendArmed();
                 if (verify2) { log('   âœ… Extend armed (late confirm)'); return; }
             }
             // only close a stray overlay if NOT armed
-            await this.evalJs(() => {
-                const bd = document.querySelector('.cdk-overlay-backdrop');
-                if (bd) bd.click();
-            });
+            await this.closeStrayOverlay();
             await wait(2000);
         }
         throw new Error(`armExtend failed for scene ${sceneNum}`);
     }
 
     async clickStartGeneration() {
-        const ok = await this.evalJs(() => {
+        const ok = await this.evalJs((label, iconName) => {
             const btn = [...document.querySelectorAll('button')].find(b => {
-                if ((b.getAttribute('aria-label') || '') === 'Start generation') return true;
+                if ((b.getAttribute('aria-label') || '') === label) return true;
                 const icon = b.querySelector('mat-icon.google-symbols, .google-symbols');
-                return icon && icon.textContent.trim() === 'arrow_forward';
+                return icon && icon.textContent.trim() === iconName;
             });
             if (!btn) return false;
             btn.click();
             return true;
-        });
+        }, this.sel.startGenerationLabel, this.sel.startGenerationIcon);
         if (!ok) throw new Error('Start generation (arrow_forward) button not found');
         log('   ðŸ–±ï¸  Start generation clicked');
     }
@@ -1021,10 +1170,10 @@ async uploadRefViaSendKeys(filePath) {
     async checkCreditsOut() {
         if (this._creditsOut) return true;
         try {
-            const out = await this.evalJs(() => {
+            const out = await this.evalJs((src) => {
                 const t = (document.body && document.body.innerText) || '';
-                return /out of credits|insufficient credits|no credits left|get more credits|buy more credits|run out of credits/i.test(t);
-            });
+                return new RegExp(src, 'i').test(t);
+            }, this.cfg.patterns.creditsOut);
             if (out && !out.__error) { this._creditsOut = true; return true; }
         } catch {}
         return false;
@@ -1046,14 +1195,14 @@ async uploadRefViaSendKeys(filePath) {
         // Count EMPTY reserved extend slots on the timeline ("Prompt to extend").
     // Arming extend adds one instantly; a completed generation removes it.
     async countEmptySlots() {
-        const n = await this.evalJs(() => document.querySelectorAll('.extend-placeholder-text').length);
+        const n = await this.evalJs((sel) => document.querySelectorAll(sel).length, this.sel.emptySlotSelector);
         return (typeof n === 'number') ? n : 0;
     }
 
     // How many clips are on the timeline. This is the strongest structural
     // signal available: one completed extend must add exactly one clip.
     async countClips() {
-        const n = await this.evalJs(() => document.querySelectorAll('.timeline-contents .clip').length);
+        const n = await this.evalJs((sel) => document.querySelectorAll(sel).length, this.sel.clipsSelector);
         return (typeof n === 'number') ? n : 0;
     }
 
@@ -1062,38 +1211,62 @@ async uploadRefViaSendKeys(filePath) {
         // NO reliable DOM signal for completion (the reserved slot's marker
         // disappears at generation START). So we use
         // the old tool's proven strategy: fixed minimum wait + error sniffing.
-        const minWaitMs = 75000;   // never proceed before this
+        const minWaitMs = CONFIG.minClipWaitMs;   // never proceed before this
         const target = prevSeconds + CONFIG.SCENE_SECONDS - 1;
-        const deadline = Date.now() + CONFIG.MAX_WAIT;
+        const deadline = Date.now() + CONFIG.maxGenerationMs;
 
-        log(`   ⏳ Waiting ${Math.round(minWaitMs / 1000)}s minimum for scene ${sceneNum} clip to generate...`);
-        const minEnd = Date.now() + minWaitMs;
+        log(`   Waiting ${Math.round(minWaitMs / 1000)}s minimum for scene ${sceneNum} clip to generate...`);
+        this._lastMoveAt = Date.now();
+        this._lastPct = -1;
+        this._lastEmittedPct = -1;
+        this._heals = 0;
+        const started = Date.now();
+
         let failedEarly = false;
+        // Phase 1: the mandatory quiet period. Nothing is expected on the
+        // timeline yet, so no watchdog here - it would fire on a healthy job.
+        const minEnd = started + minWaitMs;
         while (Date.now() < minEnd) {
-            await wait(3000);
-            const st = await this.evalJs(() => ({
-                failed: /sorry, this video failed|something went wrong|failed to generate/i.test(document.body.innerText || ''),
-                approve: [...document.querySelectorAll('button')]
-                    .some(b => /always approve/i.test(b.innerText || '') || (b.innerText || '').trim() === 'Approve'),
-            }));
-            if (st.__error) continue;
-            if (await this.checkCreditsOut()) throw new Error('CREDITS_EXHAUSTED');
+            await wait(CONFIG.progressPollMs);
+            const st = await this.readState();
+            if (!st) continue;
+            if (st.creditsOut || await this.checkCreditsOut()) throw new Error('CREDITS_EXHAUSTED');
             if (st.approve) await this.autoApproveCredits();
             if (st.failed) { failedEarly = true; break; }
+            await this.reportProgress(sceneNum, ((Date.now() - started) / minWaitMs) * 40, 'generating');
         }
         if (failedEarly) throw new Error(`Scene ${sceneNum} generation FAILED (Flow error text visible)`);
 
-        // After min wait: require the timeline to include our slot, then a
-        // settling pause so the clip is fully written.
+        // Phase 2: wait for the timeline to reach the expected duration. The
+        // clock starts here, so "silence" means the timeline has not grown
+        // and Flow has not reported a new percentage - the two signs that the
+        // job is actually alive.
+        this._lastMoveAt = Date.now();
+        let lastSecs = prevSeconds;
         while (Date.now() < deadline) {
             const secs = await this.getTimelineSeconds();
+            if (secs > lastSecs) { lastSecs = secs; this._lastMoveAt = Date.now(); }
             if (secs >= target) {
                 await wait(5000);
-                log(`   ✅ Clip window complete (timeline ${secs}s)`);
+                log(`   Clip window complete (timeline ${secs}s)`);
                 return secs;
             }
-            await wait(3000);
+            const pct = await this.reportProgress(
+                sceneNum, 40 + ((Date.now() - started) / CONFIG.maxGenerationMs) * 59, 'waiting for timeline');
+
+            if (Date.now() - this._lastMoveAt > CONFIG.stallMs && this._heals < 3) {
+                const r = await this.healStalled(
+                    `scene ${sceneNum} quiet ${Math.round(CONFIG.stallMs / 1000)}s at ${pct}%`, true);
+                if (r.errorText) { failedEarly = true; break; }
+                this._lastMoveAt = Date.now();
+            }
+            const st = await this.readState();
+            if (st && st.approve) await this.autoApproveCredits();
+            // This interval is also the watchdog's reaction time, so a page
+            // that sticks is noticed within one poll rather than at timeout.
+            await wait(CONFIG.timelinePollMs);
         }
+        if (failedEarly) throw new Error(`Scene ${sceneNum} generation FAILED (page reported an error)`);
         throw new Error(`Scene ${sceneNum}: TIMEOUT waiting for generation`);
     }
     // The timeline scrolls horizontally and is usually zoomed IN, so pinning
@@ -1334,26 +1507,52 @@ async doExtendScene(scene, sceneNum) {
             // A drained account cannot make the remaining scenes either -
             // bubble up so run() can export what exists and hand over.
             if (/CREDITS_EXHAUSTED/.test(msg)) throw e;
-            log(`\n   âŒ SCENE ${sceneNum} FAILED: ${msg}`);
-            await this.logFailedPrompt(sceneNum, msg, scene.veo3_prompt);
-            log('   â­ï¸  Continuing to next scene (story order may need a re-run of this scene)');
+            log(`\n   SCENE ${sceneNum} attempt failed: ${msg}`);
+            // Rethrow and let processSceneWithRetry decide whether this was
+            // the last attempt. Recording the failure here would leave a note
+            // behind for a scene that a retry then goes on to succeed on.
+            throw e;
         }
         await wait(2000);
     }
 
+    // Runs one scene, retrying a failure before giving up on it.
+    //
+    // This retry existed before but could never fire: processScene swallowed
+    // its own errors and carried on, so the catch below was unreachable and
+    // every failure cost a scene permanently. processScene now rethrows and
+    // the decision to continue belongs here.
     async processSceneWithRetry(scene, index) {
         const sceneNum = index + 1;
-        const maxFullRetries = 2;
-        for (let r = 0; r <= maxFullRetries; r++) {
+        const maxAttempts = CONFIG.sceneRetries + 1;
+        let lastMsg = '';
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
                 await this.processScene(scene, index);
-                return;
+                if (attempt > 1) log(`   Scene ${sceneNum} succeeded on attempt ${attempt}`);
+                return true;
             } catch (e) {
-                if (r >= maxFullRetries) throw e;
-                log(`   ðŸ”„ FULL RETRY ${r + 1}/${maxFullRetries} for scene ${sceneNum} after error`);
-                await wait(5000);
+                const msg = e.message || String(e);
+                if (/CREDITS_EXHAUSTED/.test(msg)) throw e;
+                lastMsg = msg;
+                if (attempt >= maxAttempts) break;
+
+                // Jittered backoff. A tight retry loop is exactly the shape
+                // Flow throttles, and a fixed delay lines every retry up
+                // against the same queue slot - the spread breaks that up.
+                const delay = Math.round(
+                    CONFIG.retryBaseMs * Math.pow(2, attempt - 1) * (0.7 + Math.random() * 0.6));
+                log(`   RETRY ${attempt}/${maxAttempts - 1} for scene ${sceneNum} in `
+                    + `${(delay / 1000).toFixed(1)}s - ${msg}`);
+                await wait(delay);
+                // Clear whatever the failure left on screen first, or the
+                // retry walks straight back into the same wall.
+                await this.healStalled(`retry ${attempt} of scene ${sceneNum}`, true);
             }
         }
+        log(`   Scene ${sceneNum} failed after ${maxAttempts} attempts - continuing to the next scene`);
+        await this.logFailedPrompt(sceneNum, lastMsg, scene.veo3_prompt, maxAttempts);
+        return false;
     }
 
     async askResumeOption() {
@@ -1454,7 +1653,11 @@ function parseArgs(argv) {
     return opts;
 }
 
-(async () => {
+// Exported so the watchdog and retry logic can be driven against a stub page
+// in tests. A direct `node veo3_flow_new_ui.js ...` still runs the CLI below.
+module.exports = { Veo3FlowNewUI, CONFIG };
+
+if (require.main === module) (async () => {
     const opts = parseArgs(process.argv);
     if (!opts._.length) {
         console.log('Usage: node veo3_flow_new_ui.js <story.json> [--project-url URL] [--from N] [--to N] [--skip-refs] [--cdp 9222] [--account X] [--fresh-project]');

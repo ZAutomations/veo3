@@ -1,0 +1,123 @@
+{
+  "title_suggestion": "Natural Herbal Vitality Remedy",
+  "preset_suggestion": "genai-vector-health",
+  "format": {
+    "source_duration_s": 21,
+    "clip_seconds": 8,
+    "narration": true,
+    "on_screen_text": false,
+    "medium": "clean vector health graphic animation"
+  },
+  "style": "Flat 2D vector animation featuring clean lines, warm natural colors, bright studio overhead lighting, and steady close-up macro framing.",
+  "narration": "Energetic, clear, and informative instructional tone at a steady pace.",
+  "never_change": "The exact step-by-step preparation order of natural ingredients.",
+  "facts": [
+    {
+      "t": "0:01",
+      "places": [
+        "Mortar"
+      ],
+      "detail": "Add two cloves into the grinding bowl."
+    },
+    {
+      "t": "0:02",
+      "places": [
+        "Mortar"
+      ],
+      "detail": "Include two garlic cloves."
+    },
+    {
+      "t": "0:03",
+      "places": [
+        "Mortar"
+      ],
+      "detail": "Add a small piece of fresh ginger."
+    },
+    {
+      "t": "0:04",
+      "places": [
+        "Mortar"
+      ],
+      "detail": "Add two green cardamom pods."
+    },
+    {
+      "t": "0:05",
+      "places": [
+        "Mortar"
+      ],
+      "detail": "Crush all the dry spices together thoroughly."
+    },
+    {
+      "t": "0:08",
+      "places": [
+        "Prep board"
+      ],
+      "detail": "Slice open a date and remove its pit."
+    },
+    {
+      "t": "0:10",
+      "places": [
+        "Prep board"
+      ],
+      "detail": "Stuff the crushed spice mixture inside the pitted date."
+    },
+    {
+      "t": "0:15",
+      "places": [
+        "Small bowl"
+      ],
+      "detail": "Submerge the stuffed date in pure honey overnight."
+    },
+    {
+      "t": "0:17",
+      "places": [
+        "Small bowl"
+      ],
+      "detail": "Eat in the morning to eliminate fatigue and boost physical stamina naturally."
+    }
+  ],
+  "clips": [
+    {
+      "index": 1,
+      "t_start": "0:00",
+      "t_end": "0:07",
+      "places": [
+        "Mortar"
+      ],
+      "points": [
+        "Add cloves, garlic, ginger, and cardamom into a mortar.",
+        "Grind spices together into a coarse paste."
+      ],
+      "visual": "Top-down zoom onto a mortar as spice icons drop in and get crushed."
+    },
+    {
+      "index": 2,
+      "t_start": "0:07",
+      "t_end": "0:15",
+      "places": [
+        "Prep board",
+        "Small bowl"
+      ],
+      "points": [
+        "Deseed a date and pack it with the spice mixture.",
+        "Place stuffed date in a dish and drench with honey overnight."
+      ],
+      "visual": "Animated split view showing a date being stuffed then submerged in golden honey."
+    },
+    {
+      "index": 3,
+      "t_start": "0:15",
+      "t_end": "0:21",
+      "places": [
+        "Small bowl"
+      ],
+      "points": [
+        "Consume every morning for intense strength and vitality."
+      ],
+      "visual": "A spoon scoops the soaked date while glowing energy vectors radiate outward."
+    }
+  ],
+  "coverage": "Every individual fact listed above is mapped to exactly one clip.",
+  "notes": "Spices and date preparation are based on standard Ayurvedic health remedies.",
+  "source_url": "https://www.youtube.com/shorts/s2_pAWq2hg4"
+}

@@ -1,0 +1,198 @@
+{
+  "title_suggestion": "Couples Argument Gone Wrong",
+  "preset_suggestion": "genai-3d-render",
+  "format": {
+    "source_duration_s": 70,
+    "clip_seconds": 8,
+    "narration": true,
+    "on_screen_text": true,
+    "medium": "2D cartoon characters in 3D room"
+  },
+  "style": "Grayscale 2D toon characters inside a modern 3D luxury apartment at night. Cool urban window light mixed with warm indoor lamp lighting. Alternating close-up and medium conversational shot angles.",
+  "narration": "Fast-paced, sarcastic male dialogue paired with an annoyed female tone.",
+  "never_change": "The apartment lounge setting, character designs, and comedic back-and-forth tone.",
+  "facts": [
+    {
+      "t": "0:01",
+      "places": [
+        "Apartment Living Room"
+      ],
+      "detail": "She claims he ignored what she said."
+    },
+    {
+      "t": "0:03",
+      "places": [
+        "Apartment Living Room"
+      ],
+      "detail": "He claims he heard her but disagreed with the subscription plan."
+    },
+    {
+      "t": "0:06",
+      "places": [
+        "Apartment Living Room"
+      ],
+      "detail": "She insists it is serious, and he jokes about his survival odds."
+    },
+    {
+      "t": "0:10",
+      "places": [
+        "Apartment Living Room"
+      ],
+      "detail": "He says he laughs to avoid levying an emotional tax."
+    },
+    {
+      "t": "0:15",
+      "places": [
+        "Apartment Living Room"
+      ],
+      "detail": "She accuses him of never being serious; he claims he treats resting seriously."
+    },
+    {
+      "t": "0:21",
+      "places": [
+        "Apartment Living Room"
+      ],
+      "detail": "He quips that he understands her criticism in high definition."
+    },
+    {
+      "t": "0:28",
+      "places": [
+        "Apartment Living Room"
+      ],
+      "detail": "He attributes his attitude to genetic traits and poor internet."
+    },
+    {
+      "t": "0:38",
+      "places": [
+        "Apartment Living Room"
+      ],
+      "detail": "He claims her silence judges him and equates his talk to live sports commentary."
+    },
+    {
+      "t": "0:47",
+      "places": [
+        "Apartment Living Room"
+      ],
+      "detail": "He compares his humor to performing comedy inside a conflict area."
+    },
+    {
+      "t": "0:53",
+      "places": [
+        "Apartment Living Room"
+      ],
+      "detail": "He promises two seconds of gravity, then jokes about surviving."
+    },
+    {
+      "t": "0:58",
+      "places": [
+        "Apartment Living Room"
+      ],
+      "detail": "She asks for genuine respect, and he admits staying quiet is difficult."
+    },
+    {
+      "t": "1:04",
+      "places": [
+        "Apartment Living Room"
+      ],
+      "detail": "She walks out while he claims his last remark was humorous."
+    }
+  ],
+  "clips": [
+    {
+      "index": 1,
+      "t_start": "0:00",
+      "t_end": "0:08",
+      "places": [
+        "Apartment Living Room"
+      ],
+      "points": [
+        "She says he did not listen.",
+        "He claims he disagreed with her subscription plan.",
+        "He jokes about his survival rate."
+      ],
+      "visual": "Shot cuts between annoyed woman standing and relaxed man sitting on couch."
+    },
+    {
+      "index": 2,
+      "t_start": "0:08",
+      "t_end": "0:16",
+      "places": [
+        "Apartment Living Room"
+      ],
+      "points": [
+        "He explains his laughter as avoiding emotional taxes.",
+        "She claims he never takes things seriously.",
+        "He states he takes resting seriously."
+      ],
+      "visual": "Medium close-up shots switching during verbal exchanges."
+    },
+    {
+      "index": 3,
+      "t_start": "0:16",
+      "t_end": "0:27",
+      "places": [
+        "Apartment Living Room"
+      ],
+      "points": [
+        "He jokes about getting her point in high definition.",
+        "He attributes his nature to genetics and bad internet."
+      ],
+      "visual": "Camera zooms slightly on man gesturing on couch."
+    },
+    {
+      "index": 4,
+      "t_start": "0:27",
+      "t_end": "0:38",
+      "places": [
+        "Apartment Living Room"
+      ],
+      "points": [
+        "He says her quietness judges him.",
+        "He compares his remarks to sports commentary."
+      ],
+      "visual": "Cut to close-up on woman's stern facial expression."
+    },
+    {
+      "index": 5,
+      "t_start": "0:38",
+      "t_end": "0:51",
+      "places": [
+        "Apartment Living Room"
+      ],
+      "points": [
+        "He describes his jokes as comedy in a war zone.",
+        "He offers two seconds of serious behavior."
+      ],
+      "visual": "Shots alternate rapidly between characters."
+    },
+    {
+      "index": 6,
+      "t_start": "0:51",
+      "t_end": "1:03",
+      "places": [
+        "Apartment Living Room"
+      ],
+      "points": [
+        "She asks to be taken seriously.",
+        "He promises no jokes but admits it will be tough."
+      ],
+      "visual": "Woman stares intensely before man responds with hands raised."
+    },
+    {
+      "index": 7,
+      "t_start": "1:03",
+      "t_end": "1:10",
+      "places": [
+        "Apartment Living Room"
+      ],
+      "points": [
+        "She walks away fed up.",
+        "He makes one final witty defense."
+      ],
+      "visual": "Wide angle shot showing woman walking off towards the hallway."
+    }
+  ],
+  "coverage": "Every individual fact listed above is accounted for across the seven sequence clips.",
+  "notes": "All dialogue occurs in a single interior apartment room setup.",
+  "source_url": "https://www.youtube.com/shorts/IXMZ4M_hFjo"
+}

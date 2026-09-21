@@ -1,0 +1,95 @@
+{
+  "title_suggestion": "Five Natural Ways to Boost Hormone Levels",
+  "preset_suggestion": "health-wellness",
+  "format": {
+    "source_duration_s": 12,
+    "clip_seconds": 8,
+    "narration": true,
+    "on_screen_text": true,
+    "medium": "stock video montage with text overlay"
+  },
+  "style": "Photorealistic gym and lifestyle footage with a high-contrast cinematic color grade, warm amber highlights, and sharp focus. The camera remains steady with slow pans and smooth tracking shots, creating a motivational and clean health-focused aesthetic.",
+  "narration": "Energetic, clear, and direct male voiceover delivering health tips at a fast, engaging pace.",
+  "never_change": "The core topic of natural hormone enhancement and the numbered list structure.",
+  "facts": [
+    {
+      "t": "0:00",
+      "places": [
+        "Gym"
+      ],
+      "detail": "Introduction outlining five methods to elevate hormone levels naturally."
+    },
+    {
+      "t": "0:03",
+      "places": [
+        "Bedroom"
+      ],
+      "detail": "Prioritize obtaining sufficient sleep."
+    },
+    {
+      "t": "0:04",
+      "places": [
+        "Restaurant"
+      ],
+      "detail": "Reduce intake of sugar and heavily processed items."
+    },
+    {
+      "t": "0:07",
+      "places": [
+        "Abstract"
+      ],
+      "detail": "Increase intake of Vitamin D."
+    },
+    {
+      "t": "0:09",
+      "places": [
+        "Pub"
+      ],
+      "detail": "Cut back on alcoholic drinks."
+    },
+    {
+      "t": "0:11",
+      "places": [
+        "Outdoor Pier"
+      ],
+      "detail": "Maintain a consistent physical exercise routine."
+    }
+  ],
+  "clips": [
+    {
+      "index": 1,
+      "t_start": "0:00",
+      "t_end": "0:06",
+      "places": [
+        "Gym",
+        "Bedroom",
+        "Restaurant"
+      ],
+      "points": [
+        "Introduction outlining five methods to elevate hormone levels naturally",
+        "Prioritize obtaining sufficient sleep",
+        "Reduce intake of sugar and heavily processed items"
+      ],
+      "visual": "A muscular athlete lifting weights transitions to a person sleeping soundly, followed by someone eating a burger."
+    },
+    {
+      "index": 2,
+      "t_start": "0:06",
+      "t_end": "0:12",
+      "places": [
+        "Abstract",
+        "Pub",
+        "Outdoor Pier"
+      ],
+      "points": [
+        "Increase intake of Vitamin D",
+        "Cut back on alcoholic drinks",
+        "Maintain a consistent physical exercise routine"
+      ],
+      "visual": "Golden capsule graphics shift to friends clinking beer glasses, ending with a man lunging on a wooden pier by the ocean."
+    }
+  ],
+  "coverage": "Every fact above appears in exactly one clip.",
+  "notes": null,
+  "source_url": "https://www.youtube.com/shorts/FmyqKyUctok"
+}

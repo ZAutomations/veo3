@@ -1,0 +1,19 @@
+Genre: clean vector health graphic animation explainer.
+Aesthetic: Flat 2D vector animation featuring clean lines, warm natural colors, bright studio overhead lighting, and steady close-up macro framing.
+Format: 3 clips of 8s, narrated voice-over.
+Narration: Energetic, clear, and informative instructional tone at a steady pace.
+Never change: The exact step-by-step preparation order of natural ingredients.
+Beats:
+1. Mortar - Add cloves, garlic, ginger, and cardamom into a mortar.; Grind spices together into a coarse paste. (visual: Top-down zoom onto a mortar as spice icons drop in and get crushed.)
+2. Prep board, Small bowl - Deseed a date and pack it with the spice mixture.; Place stuffed date in a dish and drench with honey overnight. (visual: Animated split view showing a date being stuffed then submerged in golden honey.)
+3. Small bowl - Consume every morning for intense strength and vitality. (visual: A spoon scoops the soaked date while glowing energy vectors radiate outward.)
+EVERY FACT (each one must appear somewhere, in your own words):
+  - Mortar [0:01]: Add two cloves into the grinding bowl.
+  - Mortar [0:02]: Include two garlic cloves.
+  - Mortar [0:03]: Add a small piece of fresh ginger.
+  - Mortar [0:04]: Add two green cardamom pods.
+  - Mortar [0:05]: Crush all the dry spices together thoroughly.
+  - Prep board [0:08]: Slice open a date and remove its pit.
+  - Prep board [0:10]: Stuff the crushed spice mixture inside the pitted date.
+  - Small bowl [0:15]: Submerge the stuffed date in pure honey overnight.
+  - Small bowl [0:17]: Eat in the morning to eliminate fatigue and boost physical stamina naturally.

@@ -1,0 +1,26 @@
+Character reference sheets for "The Silent Bahu’s Final Revenge"
+Generate each one, then upload it into Flow as a Character named exactly
+Tara, Singhania (capital first letter).
+Every sheet must be made with the same medium or the cast will not match.
+
+=== TARA ===   (human)
+save as: character_refs/tara_reference_sheet.jpg
+
+-- image prompt --
+Cinematic digital manhwa character, soft 3D cel-shaded semi-realistic rendering, full body, neutral standing pose, facing camera. Tara, late 20s woman, low neat bun, muted sage green silk saree, delicate lighting, plain neutral grey studio background
+-- image prompt --
+Cinematic digital manhwa character, soft 3D cel-shaded semi-realistic rendering, full body, neutral standing pose, facing camera. Tara, late 20s woman, low neat bun, muted sage green silk saree, delicate lighting, plain neutral grey studio background
+
+-- identity text (must match this exactly in the story JSON) --
+Same Tara throughout - Cinematic digital manhwa character, soft 3D cel-shaded semi-realistic rendering, realistic adult human proportions, delicate defined facial structure, detailed dark hair styled in a low neat bun, expressive but restrained brown eyes, fair complexion. She wears a muted sage green embroidered silk saree with subtle gold accents. NOT live-action, NOT a photograph, NOT 3D CGI, NOT western cartoon, NOT chibi.
+
+=== SINGHANIA ===   (human)
+save as: character_refs/singhania_reference_sheet.jpg
+
+-- image prompt --
+Cinematic digital manhwa character, soft 3D cel-shaded semi-realistic rendering, full body, neutral standing pose, facing camera. Singhania, 50s woman, sharp features, elaborate hairpiece, dusty rose silk saree, soft lighting, plain neutral grey studio background
+-- image prompt --
+Cinematic digital manhwa character, soft 3D cel-shaded semi-realistic rendering, full body, neutral standing pose, facing camera. Singhania, 50s woman, sharp features, elaborate hairpiece, dusty rose silk saree, soft lighting, plain neutral grey studio background
+
+-- identity text (must match this exactly in the story JSON) --
+Same Singhania throughout - Cinematic digital manhwa character, soft 3D cel-shaded semi-realistic rendering, realistic adult human proportions, sharp defined facial structure, detailed graying dark hair in an elaborate hairpiece, expressive cold dark eyes, mature skin tone. She wears a rich dusty rose silk saree with heavy gold embroidery. NOT live-action, NOT a photograph, NOT 3D CGI, NOT western cartoon, NOT chibi.

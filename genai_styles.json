@@ -1,0 +1,462 @@
+{
+  "_note": [
+    "GENAI PRESETS - the second preset list.",
+    "",
+    "Kept in its own file, not in styles.json, so the original preset list is",
+    "untouched and the two can be switched between in the GUI (Classic / GENAI",
+    "Presets). write_story.js searches this file after styles.json, so a preset id",
+    "works the same wherever it lives.",
+    "",
+    "These are ported from the creator's 'master prompt' documents. Each document",
+    "has two halves: a set of reference IMAGE prompts (the look) and a SCRIPT",
+    "formula (the narrative engine). A preset is the two carried together:",
+    "  style / whisk / cast_idiom / palette / camera  <- the reference prompts",
+    "  direction / story_shapes / narration_voice      <- the script formula",
+    "",
+    "Same rules as styles.json: `style` and `whisk` must never name a real studio,",
+    "channel or anime title; the words describe the look instead."
+  ],
+  "styles": [
+    {
+      "id": "genai-stone-age",
+      "label": "Stone Age (Stick)",
+      "kind": "niche",
+      "style": "Flat 2D cartoon animation, stick-figure characters with light-brown faces and black stick arms and legs, messy long hair, primitive fur and animal-hide clothing, a Stone Age village of primitive huts, campfires and trees, bold clean outlines, flat colour fills, simple flat 2D animation style",
+      "whisk": "Flat 2D cartoon animation, stick-figure Stone Age people, light-brown faces, black stick arms, fur and hide clothing, primitive village, huts, campfires, trees, bold outlines, flat colour",
+      "palette": "Earthy ochre and clay brown, stone grey, forest green, campfire orange, pale sky blue, charcoal black outlines, light-brown skin",
+      "camera": "Simple 2D animation camera: held medium shots, gentle push-ins, side-on staging for hunting, digging and gathering, one clear action per beat. No 3D, no photoreal, no shaky motion.",
+      "audience": "Ancient-history and prehistory fans, curiosity-driven viewers, students",
+      "story_shapes": [
+        "a modern everyday action, then that same thing tens of thousands of years ago",
+        "one unbelievable archaeological find, then the people behind it",
+        "most people think it happened one way, but the evidence says the opposite",
+        "a single tribe's ordinary day, and what it says about being human"
+      ],
+      "narration_voice": "clear curious male voice, documentary but warm and conversational, short punchy sentences",
+      "avoid": "no on-screen text, subtitles, captions, watermarks or UI, no photoreal footage, no 3D CGI, no anime, no modern clothing or modern objects, no graphic gore, no fake statistics or invented sources",
+      "cast_idiom": "Flat 2D cartoon stick-figure human: a rounded head with a light-brown face, black stick arms and legs, messy long hair, and a thick beard on men ONLY (never on a woman). Primitive fur or animal-hide clothing in fixed colours, flat fills, bold outlines. NOT anime, NOT 3D CGI, NOT photoreal.",
+      "direction": "A narrated prehistory documentary in flat 2D. Clip 1 is a HOOK, never background: a direct second-person address that connects a modern everyday action to the ancient topic, or one specific archaeological find with a strange, concrete detail. Then collapse time or scale to shock the viewer, flip the common assumption at least twice, walk the real evidence in date order (site, what was physically found, why it mattered), include one human-scale story about a specific person or group, and end by returning to the opening image with a quotable line about humans today. One narrator, no on-screen text. Keep the stick-figure style and the village identical in every clip.",
+      "cast": "optional"
+    },
+    {
+      "id": "genai-anime-recap",
+      "label": "Anime Recap",
+      "kind": "niche",
+      "style": "Cel-shaded anime and manga illustration, 90s TV-anime look, clean ink line art with soft cel shading, cinematic warm key light and balanced shadows, expressive large eyes, detailed painted backgrounds, 4K detailed illustration",
+      "whisk": "Cel-shaded anime manga illustration, 90s TV-anime look, clean ink lines, soft cel shading, cinematic lighting, expressive eyes, detailed painted backgrounds, 4K",
+      "palette": "Warm amber daylight and soft blue shadow, deep navy night, cherry reds and muted greens, warm lamp ochre, clean cel-highlight whites",
+      "camera": "Anime staging: held medium shots and close-ups on expressions, gentle push-ins, wide establishing shots of the painted background, one clear beat per shot. No 3D, no photoreal.",
+      "audience": "Anime and story-recap viewers, slice-of-life and emotional drama fans",
+      "story_shapes": [
+        "a calm daily routine, then the one thing that changes it",
+        "two people grow close, a misunderstanding lands, and they find their way back",
+        "a quiet ordinary life, then a loss that re-frames everything",
+        "an outsider is taken in, and has to decide whether to stay"
+      ],
+      "narration_voice": "warm gentle male narrator voice, storytelling and unhurried, third-person recap",
+      "avoid": "no on-screen text, subtitles, captions, watermarks or UI, no naming a real anime or studio, no copying an existing character design, no 3D CGI, no photoreal footage, no chibi or super-deformed proportions, no exaggerated comedic faces, no graphic violence",
+      "cast_idiom": "Cel-shaded anime human with clean ink outlines, large expressive eyes, gently idealised faces, hair in flat cel shapes with a highlight, simple fixed contemporary clothing in stated colours. Consistent face, hair and outfit for that character in every clip. NOT chibi, NOT super-deformed, NOT 3D, NOT photoreal.",
+      "direction": "An anime slice-of-life RECAP told by a narrator, in continuous prose, never bullet points and never dialogue-only. Clip 1 is a short hook intro that names the main character, their situation and a curiosity-driving question. Then build an emotional core between two people with small heartwarming daily-life beats, land at least one tense or painful moment, and resolve it with a satisfying emotional payoff. Use 'Meanwhile', 'Suddenly', 'At that moment' to move between scenes. End on a warm wrap-up line that returns to the opening. One narrator, no on-screen text.",
+      "cast": "required"
+    },
+    {
+      "id": "genai-crime-2d",
+      "label": "Crime Story (2D)",
+      "kind": "niche",
+      "style": "2D adult animation style, digital cartoon illustration, clean flat shapes with soft gradient shading, pale characters with wide expressive eyes, moody interior and street lighting, defined shadows, a clear digital cartoon illustration",
+      "whisk": "2D adult animation style, digital cartoon illustration, clean flat shapes, soft gradient shading, pale characters, wide expressive eyes, moody lighting, defined shadows",
+      "palette": "Dim warm interior amber, cold blue-grey night, sickly fluorescent green, police red and blue, muted beige daylight, charcoal shadows",
+      "camera": "2D adult-animation staging: held medium shots, tense close-ups on faces and hands, slow push-ins on a clue, wide establishing shots of house, street and kitchen. One clear beat per shot, no 3D.",
+      "audience": "True-crime and mystery viewers, documentary fans",
+      "story_shapes": [
+        "the moment of discovery, then the one detail that does not fit",
+        "two ordinary lives, and the small decision that crossed them",
+        "the official version, then the holes in it, one by one",
+        "a warning sign nobody acted on, and where that led"
+      ],
+      "narration_voice": "calm investigative male voice, measured and precise, restrained tension",
+      "avoid": "no on-screen text, subtitles, captions, watermarks or UI, no real people's names or faces, no real brands or cities named as fact, no photoreal footage, no 3D CGI, no anime, no graphic gore or injury detail, no inventing evidence or statistics, no stating a firm guilt",
+      "cast_idiom": "2D adult-animation human: clean flat shapes, soft gradient shading, pale skin, wide expressive eyes, plain everyday clothing in fixed colours. A nervous or guarded expression. NOT anime, NOT 3D, NOT photoreal.",
+      "direction": "A true-crime style NARRATION, never a dialogue scene, and never stating a firm guilt. Clip 1 is a COLD OPEN at the moment of discovery, mid-scene, no background, and it plants one specific anomaly that contradicts the obvious explanation. Then end the opening with two or three short rhetorical questions that frame the mystery. After that: two people built as a contrast, how their paths crossed, four to six rising warning signs, a minute-by-minute reconstruction with concrete details (timestamps, messages, camera footage), then the official explanation and its holes walked through point by point. Close where it stands today and land one short ironic line that ties back to the opening image. One narrator, no on-screen text.",
+      "cast": "optional"
+    },
+    {
+      "id": "genai-horror-2d",
+      "label": "Horror Story (2D)",
+      "kind": "niche",
+      "style": "2D animated cartoon style illustration, flat vector shading, dark moody blue-grey lighting, desaturated palette with one warm accent, deep shadows in the corners, quiet unsettling atmosphere, cinematic true-horror animation style",
+      "whisk": "2D animated cartoon style illustration, flat vector shading, dark moody blue-grey lighting, desaturated palette, deep shadows, unsettling atmosphere, cinematic horror animation",
+      "palette": "Blue-grey night, charcoal shadow, sickly pale green, one warm lamp amber, muted blood red used sparingly, cold moonlight white",
+      "camera": "2D horror staging: held wide shots that let a dark corner sit in frame, slow push-ins toward a closed door or a window, close-ups on a face realising something, stillness before each turn. No 3D, no shaky motion.",
+      "audience": "Horror-story and creepypasta viewers, atmospheric-suspense fans",
+      "story_shapes": [
+        "an ordinary night, then one small detail that is wrong",
+        "the narrator notices a warning sign, and rationalises it away",
+        "everything seems fine, until it very much is not",
+        "a personal account that ends on a question instead of an answer"
+      ],
+      "narration_voice": "hushed tense male voice, intimate first-person, slow and unsettling",
+      "avoid": "no on-screen text, subtitles, captions, watermarks or UI, no photoreal footage, no 3D CGI, no anime, no gore or graphic injury, no jump-scare monster faces in close-up, no real people or real places named as fact, no comedy",
+      "cast_idiom": "2D animated cartoon human in flat vector shading, desaturated colours, plain modern clothing in fixed colours, a tense guarded expression, deep shadow across one side of the face. NOT anime, NOT 3D, NOT photoreal.",
+      "direction": "A first-person HORROR account, told by a narrator, in the past tense. Clip 1 drops the viewer into one specific moment - an exact time, place, sound or physical sensation - with one oddly specific detail, and never explains the background first. Then establish normal life briefly, introduce one small thing that is wrong and gets rationalised away, and escalate through three to five rising beats, each more intense, using short fragmented sentences at the tense moments. Reach a single turning point, then the climax through the narrator's own senses - sound, cold, smell, touch - then resolve and leave one lingering final line that does not fully conclude. One narrator, no on-screen text.",
+      "cast": "optional"
+    },
+    {
+      "id": "genai-history-graphic",
+      "label": "History (Graphic Novel)",
+      "kind": "niche",
+      "style": "Animated graphic-novel style illustration, bold ink line work, muted blue and brown tones, thick black outlines, hatched shadow, cinematic lighting, historical animated illustrated look",
+      "whisk": "Animated graphic-novel style illustration, bold ink lines, muted blue and brown tones, thick black outlines, hatched shadow, cinematic historical lighting",
+      "palette": "Muted steel blue, sepia and umber brown, slate grey, dull olive, parchment cream, bone white, black line work",
+      "camera": "Graphic-novel framing: dramatic low and high angles, tight close-ups on faces and hands, wide tableaus for battles and halls, one clear beat per panel. No 3D, no camera shake.",
+      "audience": "History-documentary viewers, epic-narrative and military-history fans",
+      "story_shapes": [
+        "the earliest origins, then the outside force that changes everything",
+        "a founding struggle, then expansion, then the crisis that nearly ends it",
+        "one empire at its height, then the decision that brings it down",
+        "a nation rises from weakness to the world stage, and the bill comes due"
+      ],
+      "narration_voice": "epic sweeping male documentary narrator, confident and unhurried, momentum-driven",
+      "avoid": "no on-screen text, subtitles, captions, watermarks or UI, no photoreal footage, no 3D CGI, no modern clothing or modern objects, no real modern brands, no gratuitous gore, no invented battles, dates or casualty figures",
+      "cast_idiom": "Animated graphic-novel historical human: period-accurate clothing and armour (coats, uniforms, togas, gowns, crowns, helmets), expressive faces, flat muted colour with painterly shading behind bold black outlines, hatched shadows. NOT photoreal, NOT 3D, NOT anime.",
+      "direction": "A sweeping history DOCUMENTARY narrated across eras, not a list of facts. Clip 1 is a HOOK that ties the topic to the present day - an anniversary, a surviving landmark, a modern consequence - and then poses ONE overarching rhetorical question the whole film answers. After that move with momentum: origins, the outside force that disrupts everything, the founding struggle, expansion and conflict, the single defining crisis, the rise to the world stage, and the modern era. Use short punchy transitions between eras ('But just as X ended, Y began'), keep 2-4 real historical figures as recurring anchors, and end a few chapters on a dramatic spike. Close by circling back to the opening line and one unifying idea. One narrator, no on-screen text.",
+      "cast": "optional"
+    },
+    {
+      "id": "genai-history-cel",
+      "label": "History (Cel Doc)",
+      "kind": "niche",
+      "style": "2D animated historical documentary illustration, thick clean black outlines, cel-shaded with soft painterly shadows, warm sandy desaturated colour palette, subtle film grain, cinematic wide shot",
+      "whisk": "2D animated historical documentary illustration, thick clean black outlines, cel shading with soft painterly shadows, warm sandy desaturated palette, subtle film grain, cinematic wide",
+      "palette": "Warm sand and ochre, faded brick red, dusty blue, olive drab, aged cream, muted gold, charcoal line work",
+      "camera": "Cinematic wide shots with painterly staging, held tableaus for battles, courts and camps, medium shots for figures, one clear beat per shot. No 3D, no shake.",
+      "audience": "History-documentary viewers, biography and era-by-era fans",
+      "story_shapes": [
+        "a world in flux, then the chain of causes that leads to the war",
+        "several fronts told as mini-arcs, tied by one recurring figure",
+        "a reversal and a comeback, then the treaty that ends it",
+        "the rise of one man, then the system he leaves behind"
+      ],
+      "narration_voice": "measured authoritative male documentary narrator, dramatic through scale and momentum",
+      "avoid": "no on-screen text, subtitles, captions, watermarks or UI, no photoreal footage, no 3D CGI, no anime, no modern clothing or objects, no real modern brands, no gratuitous gore, no vague timeframes where an exact date is documented",
+      "cast_idiom": "2D cel-shaded historical human: thick clean black outline, soft painterly shadow, warm sandy desaturated skin, period-accurate clothing and headwear, a long narrow face with a high rounded forehead, deep-set almond eyes, thin arched brows, a long thin pointed nose and a defined narrow jaw. Hair, facial hair and uniform change with the era and the scene; the face structure stays fixed. NOT 3D, NOT photoreal, NOT anime.",
+      "direction": "A history DOCUMENTARY built as a CAUSAL CHAIN, narrated with measured authority. Clip 1 is a HOOK that sets the era, the stakes and a world in flux in two or three sentences, and frames the question the film answers. Every section then ends by setting up the next ('meanwhile', 'this set the stage for'). Cover multiple regions as mini-arcs rather than isolated stories, and keep two to four real historical figures as recurring anchors the audience can track, referring back to their earlier actions. Include a defeat and a comeback, exact dates, place names and named battles, and let each section end on its own small payoff instead of saving everything for the finale. Close on lingering tension, not a clean resolution. One narrator, no on-screen text.",
+      "cast": "optional"
+    },
+    {
+      "id": "genai-history-painterly",
+      "label": "History (Painterly)",
+      "kind": "niche",
+      "style": "2D animated cartoon style, hand-painted digital illustration, storybook animation concept art, flat painterly rendering, loose expressive brushstroke texture, chiaroscuro oil-lamp lighting, traditional animation look",
+      "whisk": "2D animated cartoon style, hand-painted digital illustration, storybook concept art, flat painterly rendering, loose expressive brushstrokes, chiaroscuro lighting, traditional animation",
+      "palette": "Terracotta, ochre and deep brown, warm olive skin, cream linen, bronze, warm orange rim light against cool blue-grey shadow",
+      "camera": "Scene-based painted staging: medium shots of a single figure at work, wide market and harbour tableaus, warm oil-lamp rim light from one side and cool shadow from the other, one clear beat per shot. No 3D, no photorealism.",
+      "audience": "Ancient-history viewers, mythology and classical-world fans, storytime listeners",
+      "story_shapes": [
+        "an ordinary day in an ancient city, then the event that changes it",
+        "one person caught between duty and survival",
+        "a golden age, then the invasion, then what survives",
+        "the everyday work of a scribe, soldier or trader, and what it cost"
+      ],
+      "narration_voice": "warm measured male documentary narrator, unhurried, classical-story cadence",
+      "avoid": "no on-screen text, subtitles, captions, watermarks or UI, no background music, no 3D CGI, no photoreal render, no modern clothing or objects, no gratuitous gore, no invented inscriptions or facts",
+      "cast_idiom": "Hand-painted 2D figure in a loose brushstroke style: elongated angular face, narrow diamond structure, sharp pointed chin, long pointed nose, deep-set almond eyes, tan warm olive skin, painterly texture. Men bearded by default unless the scene says otherwise; women with long dark wavy hair. Ancient clothing in terracotta, cream and bronze with simple clasps. Chiaroscuro lighting. NOT 3D CGI, NOT photoreal.",
+      "direction": "An ancient-world history DOCUMENTARY in a hand-painted style. Clip 1 is a HOOK - a present-day landmark, a surviving artefact, or a direct question about the ancient world - never a general introduction. Then move with momentum: the earliest setting, the outside force or event that breaks it, the struggle, the expansion, the defining crisis, and how it ends. Keep short punchy transitions between periods, anchor the story on real named figures, and punctuate long stretches with one dramatic spike. Close by mirroring the opening line. The film is narrated; the characters never speak, and there is no music, only natural ambience. One narrator, no on-screen text.",
+      "cast": "optional"
+    },
+    {
+      "id": "genai-dark-conspiracy",
+      "label": "Dark Documentary",
+      "kind": "niche",
+      "style": "Grayscale animated documentary reenactment illustration, desaturated black and white style, flat cel-shaded 2D animation, muted cinematic lighting, high-contrast shadows, subtle film grain, dark mystery documentary look",
+      "whisk": "Grayscale animated documentary reenactment illustration, desaturated black and white, flat cel-shaded 2D animation, muted cinematic lighting, high-contrast shadows, subtle film grain",
+      "palette": "Grayscale and charcoal, cold white highlight, dense black shadow, smoke grey, one faint warm grey for lamplight",
+      "camera": "Reenactment framing: wide shots that isolate a lone figure, slightly low angles that make a subject look small and exposed, medium shots in bare rooms, a swinging overhead bulb or torch beam for the key light. One clear beat per shot. No 3D, no colour.",
+      "audience": "Mystery, unsolved-case and dark-documentary viewers, conspiracy-history fans",
+      "story_shapes": [
+        "an impossible claim, then the investigator, then the proof nobody could dismiss",
+        "three unrelated teasers, then the theme that ties them together",
+        "one determined person against an institution that wants them silent",
+        "the cover-up that half-worked, and the question it left open"
+      ],
+      "narration_voice": "hushed investigative male voice, suspenseful and deliberate, occasional second-person aside",
+      "avoid": "no on-screen text, subtitles, captions, watermarks or UI, no colour, no photoreal footage, no 3D CGI, no real living people's faces, no fabricated names, dates, documents or statistics, no gratuitous gore, no named real companies as fact",
+      "cast_idiom": "Grayscale anonymised figure: smooth featureless mask face with hollow dark eye sockets and a black stitched line suggesting a smile, flat cel-shaded 2D, ordinary contemporary clothing in greys (suits, coats, shirts, hoods), stiff documentary posture. No visible eyes, no readable identity. NOT photoreal, NOT 3D, NOT colour.",
+      "direction": "A dark documentary / conspiracy-style NARRATION, all facts real and verifiable, never fabricated. Clip 1 is a HOOK of three short unrelated teaser claims pulled from different chapters, with no context, then one line naming the whole film's theme. Each chapter is a self-contained story with a fixed six-beat arc: a dramatic chapter title line, the impossible claim in its most extreme form, just enough real background, an investigation by one specific named person who finds evidence step by step and faces resistance, the reveal when the proof becomes undeniable, and an unresolved sting that leaves a question open - then one teasing line into the next chapter. Every chapter is one determined individual against an institution. Close on a unifying thesis about hidden truth and institutional power. One narrator, no on-screen text.",
+      "cast": "optional"
+    },
+    {
+      "id": "genai-stick-battle",
+      "label": "Stick Battle (History)",
+      "kind": "niche",
+      "style": "Cartoon stick-figure animation, simple black stick bodies with expressive meme-style faces, ornate Viking and Norman style helmets with gold details on soldiers and guards only, round shields and spears, flat 2D animation, bold simple shapes, bright flat colour, village, ship deck, jungle and battlefield backgrounds",
+      "whisk": "Cartoon stick-figure animation, black stick bodies, expressive meme faces, Viking and Norman helmets on soldiers only, round shields and spears, flat 2D, bold shapes, bright flat colour",
+      "palette": "Bright flat forest green, sky blue, dusty earth brown, steel grey, red cape accent, black stick lines",
+      "camera": "Simple 2D staging: wide battle tableaus, side-on marches and charges, held medium shots for silent action, meme-face reaction shots on the listeners, one clear beat per shot. No 3D.",
+      "audience": "History and military-battle fans, stick-animation viewers",
+      "story_shapes": [
+        "the most lopsided last stand in history, told as one chapter",
+        "two or three battles as separate chapters, each with a named commander",
+        "outnumbered defenders hold, then everything gets worse, then the improvised solution",
+        "a famous siege, then the legacy it left behind"
+      ],
+      "narration_voice": "conversational modern male narrator, plain language, short punchy sentences, the odd informal aside",
+      "avoid": "no on-screen text, subtitles, captions, watermarks or UI, no background music, no 3D CGI, no photoreal, no helmets on civilians, no gratuitous gore, no invented battles, dates or casualty figures",
+      "cast_idiom": "Cartoon stick-figure human: black stick body and limbs, a simple expressive meme-style face, ornate Viking or Norman helmet and round shield ONLY on soldiers and guards; civilians get plain hair or a simple hat and no helmet. Flat 2D, bold outline. NOT 3D, NOT photoreal, NOT anime.",
+      "direction": "A battle-history ANTHOLOGY narrated conversationally. Clip 1 is a COLD OPEN superlative that sets the stakes in one line ('the most lopsided last stand in history'), never background. Each chapter is a self-contained battle: two to four sentences of political setup, the numeric mismatch stated plainly and repeated once, then a stack of escalating setbacks where every time it looks resolved something worse happens, one named commander with a defiant symbolic moment, one visceral specific detail of weapons or terrain, one brief dark-humour beat, the enemy commander's reaction, the final casualty tally, and the lasting consequence that still exists today. Explain it like telling a friend. One narrator, no on-screen text.",
+      "cast": "optional"
+    },
+    {
+      "id": "genai-stick-realface",
+      "label": "Stick Rise & Fall",
+      "kind": "niche",
+      "style": "Flat 2D stick-figure animation, simple black stick bodies wearing no clothing, only the face carries detail as a realistic 2D painted human face with true proportions, clean outlines, warm candle and firelight, historical interiors of stone, clay and wood",
+      "whisk": "Flat 2D stick-figure animation, black stick bodies with no clothing, one realistic 2D painted human face per figure, clean outlines, warm candlelight, historical stone and clay interiors",
+      "palette": "Earthy brown and stone grey, warm candle amber, dusty terracotta, deep orange firelight, muted linen cream",
+      "camera": "Simple 2D staging: held medium shots of one figure at work, groups arranged left, centre and right for confrontations, warm practical light from a fire or candle, one clear beat per shot. No 3D.",
+      "audience": "History-documentary viewers, rise-and-fall storytelling fans",
+      "story_shapes": [
+        "the peak of a power, then the question of how it fell",
+        "a founding figure's ambition, then the golden age, then the rot",
+        "a succession crisis and an outside threat building together",
+        "the slow decline, then the one thing that survived"
+      ],
+      "narration_voice": "warm measured male documentary narrator, conversational, dramatic but plain-spoken",
+      "avoid": "no on-screen text, subtitles, captions, watermarks or UI, no background music, no 3D CGI, no photoreal, no clothes drawn on the stick bodies, no named real modern brands, no gratuitous gore",
+      "cast_idiom": "Flat 2D stick figure: a simple black stick body and limbs with NO clothing drawn, and a realistically painted human face carrying all the detail - age, hair, expression, ethnicity. One consistent face for a recurring figure. NOT 3D, NOT photoreal, NOT anime.",
+      "direction": "A rise-and-fall history DOCUMENTARY. Clip 1 is a HOOK that says how powerful or great the subject seemed at its peak, then asks the central question - why did it fall? - and quickly dismisses two or three obvious answers to make room for the real one. Then: how it came to power, with a founding figure whose personal ambition and betrayal are part of it; the golden age and what made it strong, ending on a line that foreshadows trouble; internal rot and outside threats building in parallel, anchored on specific people, not dates; the one or two decisions that could have gone differently; the slow multi-decade decline, ending on a symbolic last figure history overlooked; and a twist showing what actually survived after the official end. Narrated, characters never speak. One narrator, no on-screen text.",
+      "cast": "optional"
+    },
+    {
+      "id": "genai-stick-whiteface",
+      "label": "Stick Whitefaces",
+      "kind": "niche",
+      "style": "Simple stick-figure animation, minimalist black stick bodies wearing no clothing, detailed pure-white realistic-style faces that carry all the detail with real human face shapes rather than round cartoon heads, flat 2D animation, bold clean shapes, historical palace, village and battlefield backgrounds",
+      "whisk": "Simple stick-figure animation, black stick bodies with no clothing, detailed pure-white realistic-style faces, real human face shapes, flat 2D, bold clean shapes, historical backgrounds",
+      "palette": "Bright flat colour: marble white and stone grey, royal red and gold, Egyptian gold and turquoise, earthy brown, blue sky, black stick lines",
+      "camera": "Simple 2D staging: throne-room confrontations staged left against right, wide village tableaus, battle lines clashing, held reaction shots with wide eyes and open mouths, one clear beat per shot. No 3D.",
+      "audience": "History and battle-story fans, stick-animation viewers",
+      "story_shapes": [
+        "the most lopsided battle, told as one chapter",
+        "a royal confrontation, then the battle it starts",
+        "outnumbered defenders, then the betrayal, then the last stand",
+        "three battles as separate chapters, each with a named commander"
+      ],
+      "narration_voice": "conversational modern male narrator, dramatic but plain language, short punchy lines",
+      "avoid": "no on-screen text, subtitles, captions, watermarks or UI, no background music, no 3D CGI, no photoreal, no clothes on the stick bodies, no round cartoon heads (faces must be real human shaped), no gratuitous gore",
+      "cast_idiom": "Simple 2D stick figure: minimalist black stick body with no clothes drawn, and a detailed PURE-WHITE realistic face carrying all expression - not a round cartoon head, a real human face shape. Keep the same face for a recurring figure. NOT 3D, NOT photoreal, NOT anime.",
+      "direction": "A history ANTHOLOGY, told conversationally, mostly battles. Clip 1 is a COLD OPEN superlative line that sets the stakes at once. Each chapter is a self-contained story: a short political setup, the numbers of the mismatch stated and repeated, then escalating setbacks - initial assault, temporary success, betrayal or failed reinforcement, a larger assault, a desperate improvisation, the climax. Give each chapter one named figure with a defiant quotable act, keep the battlefield detail concrete (improvised weapons, the terrain, the physical fight), add one beat of dark humour, show the enemy's disbelief or grudging respect, state the casualty outcome plainly, and end each chapter on what it left behind. One narrator, no on-screen text.",
+      "cast": "optional"
+    },
+    {
+      "id": "genai-stick-flat",
+      "label": "Stick Vector (Flag Colours)",
+      "kind": "niche",
+      "style": "Simple 2D stick-figure character design with a large perfectly round head, no facial features except a thin closed-eye line and a small horizontal mouth dash, a solid flat colour body and cylindrical stick limbs of the same colour, a thin clean black outline, flat 2D vector minimalist style with no shading, gritty desaturated historical environments",
+      "whisk": "Simple 2D stick-figure design, large round head, thin closed-eye line and a small mouth dash, solid flat colour body and cylindrical limbs, thin black outline, flat 2D vector minimal, no shading, desaturated historical settings",
+      "palette": "Solid flag-inspired flat colours for the figures (blue, red, green, black, orange, white as the countries in the scene demand), over gritty desaturated greys, muted browns and war-torn tones",
+      "camera": "Simple 2D vector staging: low-angle command shots, opposing figures framed left and right in a standoff, wide parade grounds and battlefields, held flat compositions, one clear beat per shot. No 3D, no shading.",
+      "audience": "History and war-story fans, minimalist-animation viewers",
+      "story_shapes": [
+        "a power at its peak, then the question of its fall",
+        "two sides face off, then the war that follows",
+        "a ruler gives an order, and the price it costs",
+        "origins, then expansion, then the crisis that breaks it"
+      ],
+      "narration_voice": "epic sweeping male documentary narrator, confident, momentum-driven",
+      "avoid": "no on-screen text, subtitles, captions, watermarks or UI, no background music, no country names written anywhere, no flag images or emblems, no 3D CGI, no shading, no photorealism, no gratuitous gore",
+      "cast_idiom": "Simple 2D stick figure: one large perfectly round head, a thin closed-eye line and a small horizontal mouth dash as the only features, a solid flat colour body with matching cylindrical limbs and a thin black outline. The body colour is that figure's side in the story - assign one flat colour per country in the scene from its flag, and never write the country name in a prompt. No muscle definition, no clothing, no shading. NOT 3D, NOT photoreal.",
+      "direction": "A history DOCUMENTARY narrated with sweeping momentum. Clip 1 is a HOOK that ties the topic to the present or states how great it seemed at its peak, then poses the question the film answers. Then move with momentum: origins, the disruption that changes the trajectory, the founding struggle, expansion and conflict, the defining crisis, the rise to power, and the modern echo. Use short punchy transitions between eras and keep a few real named figures as anchors. Where two or more countries are in a scene, give each side its own flat colour drawn from its flag, but never write a country name or draw a flag. Close by circling back to the opening line. One narrator, no on-screen text.",
+      "cast": "optional"
+    },
+    {
+      "id": "genai-3d-render",
+      "label": "3D Render Story",
+      "kind": "niche",
+      "style": "3D rendered shot, video-game engine render aesthetic, cinematic depth of field, CGI skin texture on living subjects and plain CGI texture on objects and empty scenes, physically plausible materials, warm practical lighting, blurred soft background",
+      "whisk": "3D rendered shot, video-game engine render aesthetic, cinematic depth of field, CGI skin texture on people, CGI texture on objects, warm practical lighting, blurred background",
+      "palette": "Warm chandelier amber, cool city blue, casino green felt, restaurant cream, steely industrial grey, deep night blue, gold accent",
+      "camera": "3D rendered cinematic staging: close-ups on hands and faces, over-the-shoulder shots, wide establishing interiors, shallow depth of field with the background thrown soft. One clear beat per shot. No 2D look.",
+      "audience": "Biography and business-story viewers, documentary fans who like a rendered look",
+      "story_shapes": [
+        "later fame first, then the humble origin it came from",
+        "a childhood talent, a rejection, then the breakthrough",
+        "the miracle year that changed everything, then the cost of it",
+        "the empire, the scandal, and the ambiguous verdict"
+      ],
+      "narration_voice": "documentary narrator, informative and authoritative, clear and measured",
+      "avoid": "no on-screen text, subtitles, captions, watermarks or UI, no cartoon, no anime, no flat 2D illustration, no plastic or waxy skin, no real brand logos, no invented facts, dates or figures",
+      "cast_idiom": "3D rendered human with CGI skin texture, realistic adult proportions, natural expression, period or plain modern clothing in fixed colours, soft practical light on the face. Objects and empty scenes get a plain CGI texture, not skin. NOT cartoon, NOT anime, NOT flat 2D.",
+      "direction": "A biographical DOCUMENTARY about a real figure, narrated and authoritative, never sensational. Clip 1 grounds the subject immediately - birth date and place, and the era they were born into - and can open on their later fame and then cut back. Then: family background and early hardship; early signs of talent with one specific anecdote; at least one vivid ORIGIN MOMENT told as a mini-scene rather than stated as fact; a chronological career arc through struggle, breakthrough, recognition, peak, controversy and legacy; one central 'miracle period' framed as the turning point; personal life woven through, flaws included, so the subject is not one-dimensional; the larger historical forces of their time; what their work still means for ordinary people today; any real contradiction or moral complexity honestly; later years and death factually; and a closing legacy that ends on one or two open questions to the audience. One narrator, no on-screen text.",
+      "cast": "optional"
+    },
+    {
+      "id": "genai-vox-collage-history",
+      "label": "Paper Collage (History)",
+      "kind": "niche",
+      "style": "Hand-cut documentary paper collage on aged newsprint and archival map surfaces, black and white halftone photograph cutouts with rough scissor-cut edges and offset accent strokes, torn paper edges, masking tape fragments, typewriter caption strips, rubber stamp marks, red string and brass pins, desaturated archival palette of tan, ink black and halftone grey with one hot red signal accent and a restrained mustard yellow secondary, visible print grain and paper fibre, matte flat documentary lighting with soft cutout drop shadows",
+      "whisk": "Hand-cut documentary paper collage on aged newsprint and archival maps, halftone photo cutouts, rough scissor-cut edges, torn paper, masking tape, typewriter strips, rubber stamps, red string and brass pins, desaturated tan/ink-black/halftone-grey palette with one hot red accent, print grain, matte flat lighting, soft cutout shadows",
+      "palette": "Aged tan and newsprint cream, ink black, halftone grey, one hot red signal accent, restrained mustard yellow, brass pin gold",
+      "camera": "Locked-off camera. Each shot is a paper collage that assembles itself from back to front and then holds still as a living poster. No zoom, pan, tilt, rotation or cuts within a shot. One beat per shot.",
+      "audience": "History-documentary viewers, editorial and collage-style fans",
+      "story_shapes": [
+        "a present-day anniversary, then how the story began",
+        "the founding, then the disruption, then the nation that came out of it",
+        "a defining crisis and the people who survived it",
+        "an empire at its peak, then the slow unravelling"
+      ],
+      "narration_voice": "epic sweeping male documentary narrator, confident and unhurried, momentum-driven",
+      "avoid": "no on-screen text, subtitles, captions, watermarks or UI, no readable lettering, no digital illustration, no cartoon, no 3D render, no glossy gradients, no clutter, no modern logos, no invented facts or dates",
+      "cast_idiom": "A black-and-white halftone photographic paper cutout with rough scissor-cut edges, mounted flat as a physical paper piece with a soft drop shadow. When the same person, place or object recurs, it is described with identical wording. NOT digital illustration, NOT 3D, NOT glossy.",
+      "direction": "A history DOCUMENTARY told as an editorial collage. Clip 1 is a HOOK - a present-day anniversary or surviving trace of the story - then poses one overarching question the film answers. Then move with momentum through origins, the disruption that changes the trajectory, the founding struggle, expansion and conflict, the single defining crisis, the rise to the world stage, and the modern echo, using short punchy transitions between eras and a few real named figures as anchors. Keep one dominant hero element per shot with generous negative space, and let at most one short label strip carry a date or a name. Close by circling back to the opening line. One narrator, no on-screen text.",
+      "cast": "optional"
+    },
+    {
+      "id": "genai-vox-collage-crime",
+      "label": "Paper Collage (Crime)",
+      "kind": "niche",
+      "style": "Hand-cut documentary paper collage on aged newsprint and archival surfaces, black and white halftone photograph cutouts with rough scissor-cut edges, torn paper edges, masking tape fragments, typewriter caption strips, rubber stamp marks, red string and brass pins linking exhibits, desaturated archival palette of tan, ink black and halftone grey with one hot red signal accent and a restrained mustard yellow secondary, visible print grain, matte flat documentary lighting with soft cutout drop shadows",
+      "whisk": "Hand-cut documentary paper collage, halftone cutouts, scissor-cut and torn edges, masking tape, typewriter strips, rubber stamps, red string and brass pins, tan/ink-black/halftone-grey palette with one hot red accent, print grain, matte flat lighting, soft shadows",
+      "palette": "Aged tan and newsprint cream, ink black, halftone grey, one hot red signal accent, mustard yellow, brass pin gold",
+      "camera": "Locked-off camera. Each shot is a paper collage that assembles itself from back to front and then holds as a living poster. No zoom, pan, tilt, rotation or cuts within a shot. One exhibit per shot.",
+      "audience": "True-crime and unsolved-case viewers, editorial documentary fans",
+      "story_shapes": [
+        "the discovery, then the one detail that does not fit",
+        "two lives contrasted, then the moment their paths crossed",
+        "the warning signs nobody acted on, then the night in question",
+        "the official version, then the holes walked through one by one"
+      ],
+      "narration_voice": "calm investigative male voice, measured and precise, restrained tension",
+      "avoid": "no on-screen text, subtitles, captions, watermarks or UI, no readable lettering, no digital illustration, no cartoon, no 3D render, no glossy gradients, no fake verified badges or fake documents, no real living people's faces, no fabricated names, dates or evidence, no graphic gore",
+      "cast_idiom": "A black-and-white halftone photographic paper cutout of a person or object with rough scissor-cut edges, pinned to the board with a soft drop shadow. Recurring subjects are described with identical wording every time. NOT digital illustration, NOT 3D, NOT glossy.",
+      "direction": "A true-crime NARRATION in the editorial-collage style, never stating a firm guilt. Clip 1 is a COLD OPEN at the moment of discovery, mid-scene, and it plants one concrete anomaly that contradicts the obvious explanation, ending on two or three short rhetorical questions. Then: two people built as a contrast, how their paths crossed, four to six escalating warning signs each with a telling beat, a minute-by-minute reconstruction with concrete details, the official conclusion and its holes walked through point by point, the pushback from family or journalists and how the system responded, and where it stands today. Close on one short ironic line that ties back to the opening exhibit. Use phones, cameras and records as a recurring motif. One narrator, no on-screen text.",
+      "cast": "optional"
+    },
+    {
+      "id": "genai-vox-collage-business",
+      "label": "Paper Collage (Business)",
+      "kind": "niche",
+      "style": "Hand-cut documentary paper collage on aged newsprint and archival surfaces, black and white halftone photograph cutouts with rough scissor-cut edges, torn paper edges, masking tape fragments, typewriter caption strips, rubber stamp marks, red string and brass pins connecting a company timeline, desaturated archival palette of tan, ink black and halftone grey with one hot red signal accent and a restrained mustard yellow secondary, visible print grain, matte flat documentary lighting with soft cutout drop shadows",
+      "whisk": "Hand-cut documentary paper collage, halftone cutouts, scissor-cut and torn edges, masking tape, typewriter strips, rubber stamps, red string and brass pins on a timeline, tan/ink-black/halftone-grey palette with one hot red accent, print grain, matte flat lighting, soft shadows",
+      "palette": "Aged tan and newsprint cream, ink black, halftone grey, one hot red signal accent, mustard yellow, brass pin gold",
+      "camera": "Locked-off camera. Each shot is a paper collage that assembles itself from back to front and then holds as a living poster. No zoom, pan, tilt, rotation or cuts within a shot. One idea per shot.",
+      "audience": "Business and biography viewers, documentary and entrepreneurial-story fans",
+      "story_shapes": [
+        "later wealth and power first, then the humble origin it grew from",
+        "a rival appears, then the deal that decides it",
+        "the empire at its height, then the scandal that threatens it",
+        "the numbers translated into today's money, then the reckoning"
+      ],
+      "narration_voice": "documentary narrator, dramatic and cinematic but grounded, short punchy lines at the turns",
+      "avoid": "no on-screen text, subtitles, captions, watermarks or UI, no readable lettering, no digital illustration, no cartoon, no 3D render, no glossy gradients, no fake verified badges, statements, payment proofs or platform announcements, no real modern brand logos, no fabricated figures",
+      "cast_idiom": "A black-and-white halftone photographic paper cutout of a person, document, device or building with rough scissor-cut edges, pinned to the board with a soft drop shadow. The same subject is described with identical wording every time it recurs. NOT digital illustration, NOT 3D, NOT glossy.",
+      "direction": "A biographical business DOCUMENTARY in the editorial-collage style. Clip 1 is a cold open that establishes the subject's later power, wealth or notoriety FIRST, then pivots with a contrast line into their unexpected origin, and poses the implicit question the film answers. Then: the origin with vivid personal detail and one colourful side character; the middle as escalating levels, each chapter ending on a mini-cliffhanger with a clear rival, obstacle or moral dilemma; the insider mechanics explained plainly as how the game was really played; two to four named antagonists framed as personal battles; every historical amount translated into a modern equivalent; the scandal or reckoning that threatens everything; and a resolution that names both the admirable and the troubling side and leaves an open question. Close by teasing the next figure. One narrator, no on-screen text.",
+      "cast": "optional"
+    },
+    {
+      "id": "genai-vector-health",
+      "label": "Vector Health",
+      "kind": "niche",
+      "style": "Flat vector cartoon illustration, bold black outlines, flat colour fills, simple rounded character shapes, clean solid background, before-and-after and split-screen infographic framing, a red highlight mark on the body where the point is made, colourful diagram style",
+      "whisk": "Flat vector cartoon illustration, bold black outlines, flat colour fills, simple rounded characters, clean solid background, before/after infographic, red body-highlight mark",
+      "palette": "Bright flat red, blue and green, mustard yellow, clinical white background, bold black outlines, one red health-warning accent",
+      "camera": "Flat vector staging: side-by-side before-and-after framing, single centred figure diagrams, split-screen comparisons, one clear idea per shot. No 3D, no shading, no gradients.",
+      "audience": "Health and self-improvement viewers, general curious audience",
+      "story_shapes": [
+        "a widely-believed health myth, contradicted in the first line",
+        "four to six groups the viewer can self-identify with, each with a real advantage and a real cost",
+        "one lifestyle choice, its real benefit, and its hidden bill",
+        "a thin-looking person, an active-looking person, and what the numbers actually say"
+      ],
+      "narration_voice": "confident matter-of-fact male narrator, short sentences, never sensational or clinical",
+      "avoid": "no on-screen text, subtitles, captions, watermarks or UI, no photoreal bodies, no 3D, no glossy gradients, no shaming language, no invented studies or statistics, no medical claims stated as cures",
+      "cast_idiom": "Flat vector cartoon human: simple rounded body shape, bold black outline, flat colour fills, minimal facial features, plain clothing in a single flat colour, one red highlight mark when a body part matters. NOT 3D, NOT photoreal, NOT shaded.",
+      "direction": "A health EXPLAINER that myth-busts, not a lecture. Clip 1 is a HOOK that contradicts a widely-held belief in one or two punchy sentences and immediately gives the single most surprising real statistic. Then split the audience into four to six bands they can self-identify with, ordered to the rarest last. For each band: address the viewer directly ('if this is you'), give ONE genuine science-backed advantage with a number, make the mechanism intuitive with a plain everyday metaphor, pivot on a 'but' to ONE genuine cost for that same group, close the band on a short quotable one-liner, and slide into the next band. Past halfway, drop a real scientific twist that complicates the pattern, then anchor it on one concrete human case, and close by saying no group wins outright - daily choices matter more than the trait. End on a question the viewer can answer about themselves. One narrator, no on-screen text.",
+      "cast": "optional"
+    },
+    {
+      "id": "genai-papercut-history",
+      "label": "Paper Craft (History)",
+      "kind": "niche",
+      "style": "Charming 3D paper-craft diorama, every element handcrafted from soft layered cardstock and textured paper, rounded felted-paper characters with simple button eyes and fabric-like clothing, richly layered topographic paper world map background with raised mountains, folded rivers and stitched coastlines, warm golden window light, tiny visible paper grain and folded edges, miniature diorama scale, shallow depth of field, muted earthy palette of tan, moss green, ocean blue and cream",
+      "whisk": "Charming 3D paper-craft diorama, layered cardstock and textured paper, rounded felted-paper characters with button eyes, layered topographic paper map background, warm golden window light, paper grain and folded edges, miniature scale, shallow depth of field, muted earthy palette",
+      "palette": "Tan and kraft brown, moss green, ocean blue, cream, warm golden window light, soft grey shadows",
+      "camera": "Locked-off camera. Each shot is a paper diorama that assembles itself piece by piece from the background forward, then holds still and breathes softly. Stop-motion cadence with stepped easing. No pans, zooms, rotations or cuts within a shot.",
+      "audience": "History-documentary viewers, craft and storybook-animation fans",
+      "story_shapes": [
+        "the most dramatic moment first, then how it began",
+        "a fractured landscape, the spark, then the chain of wars",
+        "an act of mercy from an enemy, and a betrayal from an ally",
+        "a doomed power, then what quietly outlived it"
+      ],
+      "narration_voice": "confident authoritative male documentary narrator, third person, declarative",
+      "avoid": "no on-screen text, subtitles, captions, watermarks or UI, no background music, no smooth CGI motion (stop-motion steps only), no flat illustration, no digital cartoon, no glossy render, no gradients, no clutter, no invented dates or battles",
+      "cast_idiom": "Paper-craft character built from soft layered cardstock: a rounded felted-paper body, simple button eyes, fabric-like clothing in fixed colours, soft rounded edges, visible folds and a gentle drop shadow. Recurring figures use identical wording every time. NOT flat illustration, NOT digital cartoon, NOT glossy CGI.",
+      "direction": "A historical DOCUMENTARY in a handcrafted paper-diorama style. Clip 1 is a COLD OPEN in medias res at the most dramatic, violent or high-stakes moment, with a specific date and one vivid sensory detail, ending on a single line naming the film's scope. Then: the root causes - who held power and what fractured; the one inciting incident that starts the chain; then the bulk, moving chronologically through phases where each phase names its key figures with a one-line characterisation, states the outcome, and seeds the cause of the NEXT phase so momentum never fully resolves. Twice or three times drop a counterintuitive fact that links the history to something modern. Include one act that subverts a simple good-versus-evil reading. End on the turning point, the decline, and a closing hook that reaches the present day. One narrator, no on-screen text.",
+      "cast": "optional"
+    },
+    {
+      "id": "genai-papercut-finance",
+      "label": "Paper Craft (Finance)",
+      "kind": "niche",
+      "style": "Charming 3D paper-craft diorama, every element handcrafted from soft layered cardstock and textured paper, rounded felted-paper characters with simple button eyes, a richly layered paper workshop and world-map background with raised mountains and folded rivers, warm golden window light, tiny visible paper grain and folded edges, miniature diorama scale, shallow depth of field, muted earthy palette of tan, moss green, ocean blue and cream",
+      "whisk": "Charming 3D paper-craft diorama, layered cardstock, rounded felted-paper characters with button eyes, layered paper map and workshop background, warm golden light, paper grain and folds, miniature scale, shallow depth of field, muted earthy palette",
+      "palette": "Tan and kraft brown, moss green, ocean blue, cream, warm golden light, soft grey shadows",
+      "camera": "Locked-off camera. Each shot is a paper diorama that assembles itself piece by piece, then holds still and breathes softly. Stop-motion cadence with stepped easing. No pans, zooms, rotations or cuts within a shot.",
+      "audience": "Personal-finance viewers, step-by-step explainer and money-basics fans",
+      "story_shapes": [
+        "a common money mistake, shown as a leaking bucket",
+        "the right order to do things, step by step",
+        "a foundation being built, one layer at a time",
+        "a small habit, then the compounding it hides"
+      ],
+      "narration_voice": "confident slightly opinionated male narrator, conversational and helpful, not condescending",
+      "avoid": "no on-screen text, subtitles, captions, watermarks or UI, no background music, no smooth CGI motion (stop-motion steps only), no flat illustration, no digital cartoon, no glossy render, no gradients, no logos, no invented figures or guarantees",
+      "cast_idiom": "Paper-craft figure built from soft layered cardstock: rounded felted-paper body, simple button eyes, fabric-like clothing in fixed colours, soft rounded edges and folds, gentle drop shadow. Recurring figures and props use identical wording every time. NOT flat illustration, NOT digital cartoon, NOT glossy CGI.",
+      "direction": "A personal-finance EXPLAINER that busts a myth, in a handcrafted paper-diorama style. Clip 1 is a HOOK that opens on a frustration about a common money mistake, made absurd and visual with a physical analogy like a leaking bucket. Then introduce the host briefly, drop one surprising sourced statistic, and promise a specific CORRECT ORDER that most people skip. Explain why order beats enthusiasm with a house-foundation metaphor, then walk the numbered sequence: each step states the step, why it comes here, one concrete number or dollar example, one memorable analogy, one counterintuitive nuance, and a mini-payoff. Reinforce with one more statistic past halfway, reward the viewer for making it this far, recap the whole order in one tight sentence, and close looking forward to their future self. Every number must be concrete and translated into something a person can picture. One narrator, no on-screen text.",
+      "cast": "optional"
+    },
+    {
+      "id": "genai-oil-finance",
+      "label": "Oil Painting (Finance)",
+      "kind": "niche",
+      "style": "Richly textured impasto oil painting on canvas, thick paint, heavy palette-knife technique, bold black outlines, visible brushstrokes and thick paint ridges catching the light, dramatic directional window light, warm amber and deep navy colour palette",
+      "whisk": "Richly textured impasto oil painting on canvas, thick paint, heavy palette-knife technique, bold black outlines, visible brushstrokes and ridges, dramatic window light, warm amber and deep navy palette",
+      "palette": "Warm amber and gold, deep navy, mahogany brown, muted green, canvas cream, bold black outlines",
+      "camera": "Painted staging: wide office and boardroom tableaus, close-ups on symbolic objects (a ticking clock, a bound stack of notes, a fountain pen on scattered papers), hard directional light from a window behind the subject, one clear idea per shot. No digital flatness, no 3D.",
+      "audience": "Finance and economics viewers, documentary and explainer fans",
+      "story_shapes": [
+        "three questions nobody ever answered about the system",
+        "the mechanism explained, then the misconception broken",
+        "who wins, who pays, and the quote that gives it away",
+        "a past crisis as a warning, then what could be done"
+      ],
+      "narration_voice": "calm explanatory male documentary narrator, varies sentence length, building to a reveal",
+      "avoid": "no on-screen text, subtitles, captions, watermarks or UI, no real company logos, no photoreal footage, no 3D render, no glossy flat digital look, no invented statistics or unsourced quotes",
+      "cast_idiom": "Painted human figure in thick impasto oil: bold black outline, visible brush and palette-knife texture, warm amber key light and deep navy shadow, plain business or period clothing in fixed colours, a thoughtful expression. NOT photoreal, NOT 3D, NOT flat digital illustration.",
+      "direction": "A finance and economics DOCUMENTARY, calm but building to a reveal. Clip 1 is a COLD OPEN of three to five rapid rhetorical questions most people have never had answered, framing the subject as a hidden mechanism with massive invisible power, plus one striking claim that sounds unbelievable but is true. Then explain the real mechanics plainly with an everyday analogy and debunk one common misconception about how the system works; trace its origin through two to four turning points with short connecting lines; name clearly who benefits and who pays, with one callous-sounding insider line; zoom out to the systemic stakes and a past crisis as a cautionary parallel; present one or two genuine reform ideas attributed to real thinkers, acknowledging the political difficulty honestly; and close on one line that reframes the whole topic. Translate every big number into something relatable. One narrator, no on-screen text.",
+      "cast": "optional"
+    },
+    {
+      "id": "genai-space-cel",
+      "label": "Space Documentary",
+      "kind": "niche",
+      "style": "2D animated documentary style, illustrated celestial bodies with flat shading, crisp line work, deep starfields, glowing nebula colour, subtle looping cosmic motion, cinematic scale",
+      "whisk": "2D animated documentary style, illustrated celestial bodies with flat shading, crisp line work, deep starfield, glowing nebula, subtle looping motion, cinematic scale",
+      "palette": "Deep space black and indigo, star white, nebula magenta and teal, planetary ochre and rust, icy blue, warm solar gold",
+      "camera": "Illustrated celestial staging: slow camera drifts, close tracking shots through debris and debris fields, slow rotating planets, wide establishing shots with smooth pull-backs. One clear beat per shot. No 3D, no live-action.",
+      "audience": "Space and science-documentary viewers, awe-driven curious audience",
+      "story_shapes": [
+        "the most mind-blowing discovery first, then the story behind it",
+        "a limit of its time, the person who broke it, and what they found",
+        "an instrument described like a magic machine, and what it revealed",
+        "a small early number, then one that dwarfs everything before it"
+      ],
+      "narration_voice": "calm measured male narrator, short punchy fragments, a sense of awe",
+      "avoid": "no on-screen text, subtitles, captions, watermarks or UI, no photoreal NASA footage, no 3D CGI, no anime, no invented physics, no fake missions or fabricated measurements, no disaster-movie panic",
+      "cast_idiom": "No characters. The subject is space itself; if a human is needed it is a distant illustrated figure in a simple suit or coat for scale only, never the subject. NOT photoreal, NOT 3D.",
+      "direction": "A space DOCUMENTARY that runs on awe. Clip 1 is a COLD OPEN on the single most mind-blowing moment or discovery in the story, described vividly and without its full context, to hook before rewinding. Then the middle runs as chronological problem-breakthrough-surprise episodes: the limitation or assumption of the time, who challenged it and how - a person, an instrument, an accident - what surprising thing came out of it, and how it reshaped what followed. Use real named people, dates and concrete physical detail. Weave in two or three moments of real personal risk, failure or controversy. Climb a ladder of escalating numbers so the scale keeps growing, describe each instrument or method as a physical, almost magic machine rather than as a spec sheet, and close on what is still unknown. One narrator, no on-screen text.",
+      "cast": "optional"
+    }
+  ]
+}
