@@ -17,13 +17,17 @@ stories/**/logs/
 stories/**/clips/
 logs/
 
-# Reference sheets are yours, not the repo's - but keep the folder + its README
-stories/**/character_refs/*
-# The example story's README is documentation, so it stays. Matched at any depth
-# because the example story has lived at stories/<name>/ and now at
-# stories/old/<name>/ - naming only the old path silently deleted the file from
-# the repo the moment the folder moved.
-!stories/**/example_story/character_refs/README.md
+# ── Story data ──────────────────────────────────────────────────────────────
+# A story folder holds your own writing, your reference sheets and your rendered
+# clips. None of it belongs in a public repo - and a reference sheet can be a
+# photo of a real person, which is not a thing to publish by accident.
+#
+# The one exception is the example story, which the README documents the file
+# format with. It stays tracked by force rather than by a negation rule here:
+# git will not re-include a file whose parent directory is excluded, and ignore
+# rules never apply to a file git already tracks anyway.
+stories/
+house_refs/
 
 # ── Old-UI tool copies kept locally for reference ───────────────────────────
 reference/
@@ -34,12 +38,6 @@ reference/
 # Never part of the repo: it would duplicate every tracked file and drag
 # hundreds of megabytes of generated media along with it.
 Veo3_Portable/
-
-# ── Local-only drafts ───────────────────────────────────────────────────────
-# An earlier version of the "what if earth stopped" story, kept on disk but not
-# in the repo. The folder name carries a space and " old", so it is matched by
-# a glob rather than spelled out.
-stories/* old/
 
 # ── OS / editor noise ───────────────────────────────────────────────────────
 # Stray placeholder left over from before these story folders had content.
