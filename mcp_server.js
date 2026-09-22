@@ -90,19 +90,23 @@ function storyExists(title) {
 }
 // A reference link -> the story already made from it, matched through the
 // source_url analyze_video records in the content map.
-function storyForReference(url) {
+// The PARSED content map for a reference URL, or null. storyForReference reads
+// the same files to find the story; the reuse check needs the map itself, to
+// work out what length this run is asking for before deciding to reuse.
+function contentMapForReference(url) {
     try {
         for (const f of fs.readdirSync(REFERENCE_DIR)) {
             if (!f.endsWith('.content-map.json')) continue;
-            let cm;
-            try { cm = JSON.parse(fs.readFileSync(path.join(REFERENCE_DIR, f), 'utf8')); } catch (e) { continue; }
-            if (cm && cm.source_url === url) {
-                const p = storyExists(cm.title_suggestion);
-                if (p) return p;
-            }
+            const cm = readJson(path.join(REFERENCE_DIR, f), null);
+            if (cm && cm.source_url === url) return cm;
         }
     } catch (e) { /* no reference folder yet */ }
     return null;
+}
+
+function storyForReference(url) {
+    const cm = contentMapForReference(url);
+    return cm ? storyExists(cm.title_suggestion) : null;
 }
 
 function readJson(p, def) {
@@ -163,6 +167,15 @@ function modelArg(a) {
 // so a 101s reference at 8s/clip asks for 13 clips instead of compressing (and
 // losing) the story into a fixed 9. Rounded UP to a whole number of clips.
 function refDuration(cm, seconds) {
+    // `cm` arrives as the content map's FILE PATH from doAnalyzeVideo, not as a
+    // parsed object - a string here is the normal case, not a caller error. The
+    // lookups below used to find no clips and no format on a string, so this
+    // returned undefined, storyDuration fell through to clips x seconds, and
+    // "Match the video link's own length" silently did nothing: a 146s reference
+    // was written as 8 scenes because the clips box happened to say 8.
+    if (typeof cm === 'string') {
+        try { cm = JSON.parse(fs.readFileSync(cm, 'utf8')); } catch (e) { return undefined; }
+    }
     const clips = (cm && (cm.clips || cm.segments)) || [];
     const facts = (cm && Array.isArray(cm.facts)) ? cm.facts : [];
     const fmt = (cm && cm.format) || {};
@@ -877,11 +890,37 @@ const TOOLS = [
                 // prompt and generating. That is what makes "write all, review,
                 // then generate" cheap instead of re-paying for every video.
                 let storyArg = null;
+                let rewrite = false;
                 if (a.reuse !== false) {
-                    storyArg = (it.kind === 'ref') ? storyForReference(it.url) : storyExists(it.title);
-                    if (storyArg) {
-                        out.push(`  reusing -> ${storyArg}`);
-                        log(`[batch ${i}] reusing existing story ${storyArg}`);
+                    const cand = (it.kind === 'ref') ? storyForReference(it.url) : storyExists(it.title);
+                    // Reuse only a story built for the length THIS run wants.
+                    // Length is the field that moves: tick "Match the video link's
+                    // own length" and the previous story is still on disk at the
+                    // old count, so reuse kept serving 8 scenes for a 146s
+                    // reference and the tick looked like it did nothing.
+                    if (cand) {
+                        const cm = (it.kind === 'ref') ? contentMapForReference(it.url) : null;
+                        const want = storyDuration(a, cm, it);
+                        const st = readJson(cand, null);
+                        // Built length, as the story records it. video_duration is
+                        // a display string ("64 seconds"), so derive it from the
+                        // two numbers instead of parsing prose.
+                        const have = st
+                            ? (Number(st.total_scenes) || 0) * (Number(st.scene_seconds) || 0)
+                            : 0;
+                        if (want > 0 && have > 0 && have !== want) {
+                            // The old story sits in the folder this run will write
+                            // to, and write_story refuses to overwrite a story
+                            // without --force. Flag it, so the rewrite below is
+                            // allowed through instead of dying on that guard.
+                            rewrite = true;
+                            log(`[batch ${i}] existing story is ${have}s, this run wants ${want}s - rewriting`);
+                            out.push(`  rewriting -> existing story is ${have}s, this run wants ${want}s`);
+                        } else {
+                            storyArg = cand;
+                            out.push(`  reusing -> ${storyArg}`);
+                            log(`[batch ${i}] reusing existing story ${storyArg}`);
+                        }
                     }
                 }
 
@@ -903,6 +942,7 @@ const TOOLS = [
                         title, preset, detail, content_map: contentMap,
                         duration: storyDuration(a, contentMap, it), scene_seconds: a.seconds,
                         aspect: a.aspect, model: a.model, models: a.models, keys: a.keys,
+                        force: rewrite,
                     });
                     if (!w.ok) { bad('write_story', w); continue; }
                     storyArg = w.storyJson;

@@ -25,9 +25,11 @@
  *   menu        button.mat-mdc-menu-item with span.item-text "Rename"
  *   rename      .rename-tile-overlay input.editable-text-input  +  button[aria-label="Done"]
  *
- * Requires: the automation browser (CDP) on a Flow PROJECT page, and the Flow
- * model set to an IMAGE model (Nano Banana / Imagen) - Agent Mode OFF uses the
- * model chosen in the prompt bar, so a video model would make clips, not sheets.
+ * Requires: the automation browser (CDP) on a Flow PROJECT page. The chip is
+ * handled here: this script checks the Agent Mode chip and turns it OFF first,
+ * because while it is ON the image models are not offered at all and a sheet
+ * prompt makes a clip instead. The chip is put back ON at the end for the film
+ * run, unless --keep-agent-on.
  *
  * Usage:
  *   node generate_refs.js --story stories/<slug>
@@ -142,6 +144,50 @@ const MEDIA_MORE = `[...document.querySelectorAll('button[aria-label="More optio
 
 async function countTiles(page) {
     return await page.evaluate((expr) => eval(expr).length, MEDIA_MORE);
+}
+
+// ---- the Agent Mode chip --------------------------------------------------
+// This one chip decides whether a plain prompt makes an IMAGE or a CLIP. With it
+// ON the image models are not even offered in the picker, so a sheet prompt
+// submitted in that state comes back as a video - the "reference images came out
+// as clips" failure. It is the whole switch, so this step reads it and turns it
+// off before generating anything.
+//
+// Live DOM (Angular): the host carries class "checked" while ON, and the inner
+// button carries "agent-mode-chip-checked" plus aria-pressed="true". Read the
+// class AND the attribute, so a change to either binding still reads correctly.
+// Returns null when the chip is not on the page at all (not a project page).
+async function agentOn(page) {
+    return await page.evaluate(() => {
+        const host = document.querySelector('flow-agent-mode-toggle-chip');
+        if (!host) return null;
+        if (/checked/.test(String(host.className))) return true;
+        const b = host.querySelector('button.agent-mode-chip') || host.querySelector('button');
+        if (!b) return null;
+        if (b.getAttribute('aria-pressed') === 'true') return true;
+        return /agent-mode-chip-checked/.test(String(b.className));
+    });
+}
+
+async function setAgent(page, want) {
+    const now = await agentOn(page);
+    if (now === null) return { ok: false, changed: false, why: 'the Agent chip is not on the page' };
+    if (now === want) return { ok: true, changed: false, why: 'already there' };
+    const clicked = await page.evaluate(() => {
+        const host = document.querySelector('flow-agent-mode-toggle-chip');
+        const b = host && (host.querySelector('button.agent-mode-chip') || host.querySelector('button'));
+        if (!b) return false;
+        b.click();
+        return true;
+    });
+    if (!clicked) return { ok: false, changed: false, why: 'the chip button could not be clicked' };
+    // Angular sets the class after the click, so poll for the new state rather
+    // than sleeping a fixed time and assuming it took.
+    for (let i = 0; i < 12; i++) {
+        await wait(500);
+        if (await agentOn(page) === want) return { ok: true, changed: true, why: 'clicked' };
+    }
+    return { ok: false, changed: true, why: `clicked, but it did not turn ${want ? 'ON' : 'OFF'}` };
 }
 // The always-visible tune button ("Settings") opens the full Settings panel,
 // which holds the Image and Video generation defaults. The compact
@@ -391,9 +437,28 @@ if (require.main === module) (async () => {
     log(`Project: ${page.url()}`);
     if (!await waitForProjectReady(page)) log('warning: prompt bar is slow to appear - still trying.');
 
-    // Make sure Flow is on an IMAGE model before drawing sheets. If no image
-    // model is offered, Agent Mode is ON; the offered list tells us, and
-    // toggling the agent chip fixes it.
+    // ---- FIRST JOB: Agent Mode must be OFF --------------------------------
+    // Do this before touching the model picker or the prompt box. With the agent
+    // ON, the image models are not offered at all, so anything submitted makes a
+    // clip - and a run that starts in that state produces a grid of videos where
+    // the reference sheets should be. Check it, and turn it off, first.
+    const wasAgentOn = await agentOn(page);
+    if (wasAgentOn === null) {
+        log('WARNING: the Agent Mode chip is not on the page - is the prompt bar loaded?');
+    } else {
+        log(`Agent Mode: ${wasAgentOn ? 'ON' : 'OFF'}`);
+    }
+    if (wasAgentOn) {
+        log('Agent Mode is ON, which hides the image models. Turning it OFF to make sheets...');
+        const off = await setAgent(page, false);
+        log(off.ok
+            ? 'Agent Mode is OFF - a plain prompt will now make an image.'
+            : `WARNING: could not turn Agent Mode OFF (${off.why}) - the sheets may come out as CLIPS.`);
+    }
+
+    // The chip is already OFF, so an image model should be on offer here. If one
+    // still is not, this is the Settings panel's own "Image generation default",
+    // not the chip - so say so rather than leaving a grid of clips to explain it.
     log('checking the image generation model...');
     let imgMode = { ok: false, model: null };
     if (await openSettingsPanel(page)) {
@@ -444,9 +509,17 @@ if (require.main === module) (async () => {
         else { failed++; log(`  generated, but rename failed: ${ren.why}`); }
     }
 
-    // Mode switching is not needed: the Settings panel exposes a separate
-    // "Image generation default" (Nano Banana) that the sheets already use.
-    if (KEEP_AGENT) log('(--keep-agent-on: leaving Agent Mode as it was.)');
+    // Hand the chip back in the state the film run needs. agent_mode.js turns
+    // Agent Mode ON itself, but leaving it OFF here means the next thing to touch
+    // this project starts from the wrong state. --keep-agent-on opts out.
+    if (KEEP_AGENT) {
+        log('(--keep-agent-on: leaving Agent Mode as it was.)');
+    } else {
+        const on = await setAgent(page, true);
+        log(on.ok
+            ? 'Agent Mode is ON again, ready for the film run.'
+            : `WARNING: could not turn Agent Mode back ON (${on.why}) - agent_mode.js will retry.`);
+    }
     log(`\nDone: ${made} made, ${failed} failed, of ${refs.length}.`);
     log('Next: run agent_mode (or the MCP run_agent) with --no-upload-refs so it');
     log('@-mentions the tiles just made instead of uploading local files.');
@@ -454,4 +527,4 @@ if (require.main === module) (async () => {
     process.exit(failed ? 1 : 0);
 })().catch((e) => { console.error('FAILED: ' + (e && e.message)); process.exit(1); });
 
-module.exports = { refsPath, loadRefs, renameNewest, tileName };
+module.exports = { refsPath, loadRefs, renameNewest, tileName, agentOn, setAgent };
