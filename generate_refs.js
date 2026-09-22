@@ -71,6 +71,9 @@ const STORY = typeof flag('--story') === 'string' ? flag('--story') : '';
 const REFS_FILE = typeof flag('--refs') === 'string' ? flag('--refs') : '';
 const ONLY = typeof flag('--only') === 'string' ? flag('--only') : '';
 const RATIO = typeof flag('--ratio') === 'string' ? flag('--ratio').trim() : '';
+// The video model this project should generate with ("Veo 3.1 - Fast",
+// "Omni 1.1 Flash", ...). Empty means leave Flow's own setting alone.
+const VIDEO_MODEL = typeof flag('--video-model') === 'string' ? flag('--video-model').trim() : '';
 const WAIT_S = num('--wait', 180);
 const KEEP_AGENT = !!flag('--keep-agent-on', false);
 const DRY = !!flag('--dry', false);
@@ -189,41 +192,175 @@ async function setAgent(page, want) {
     }
     return { ok: false, changed: true, why: `clicked, but it did not turn ${want ? 'ON' : 'OFF'}` };
 }
-// The always-visible tune button ("Settings") opens the full Settings panel,
-// which holds the Image and Video generation defaults. The compact
-// "Settings trigger" summary the first attempt used is display:none on a fresh
-// project - that is why opening it failed - and a plain click() works fine on
-// the tune button. We read the image default to confirm the sheets will be
-// images (Nano Banana) and not clips.
+// Is the Settings panel actually on screen? Presence in the DOM is not the same
+// thing - a closed panel's nodes can linger, and a hidden panel would then read
+// as open forever.
+async function settingsPanelOpen(page) {
+    return await page.evaluate(() => {
+        const el = document.querySelector('.settings-content, .settings-section');
+        if (!el) return false;
+        const r = el.getBoundingClientRect();
+        return !!(r.width || r.height);
+    });
+}
+
+// The tune button ("Settings") opens the full Settings panel, which holds the
+// Image and Video generation defaults. We read the image default to confirm the
+// sheets will be images (Nano Banana) and not clips.
+//
+// Two different buttons carry a settings label and which one exists depends on
+// the page state: the tune button ("Settings"), and a compact "Settings trigger"
+// summary that is display:none on a fresh project. A run with Agent Mode off was
+// seen with only "Settings trigger" present, so matching "Settings" exactly left
+// the panel unopenable and - because the caller is `if (await openSettingsPanel)`
+// - silently skipped the whole settings block. Try both labels and take the one
+// that is actually visible: clicking a hidden button dispatches an event Angular
+// ignores, which looks exactly like the panel refusing to open.
 async function openSettingsPanel(page) {
     for (let i = 0; i < 3; i++) {
         const clicked = await page.evaluate(() => {
-            const b = document.querySelector('button[aria-label="Settings"]')
-                || [...document.querySelectorAll('button')].find((x) => /^settings$/i.test((x.getAttribute('aria-label') || '').trim()));
+            const visible = (el) => {
+                if (!el) return false;
+                const r = el.getBoundingClientRect();
+                if (!r.width && !r.height) return false;
+                const cs = getComputedStyle(el);
+                return cs.display !== 'none' && cs.visibility !== 'hidden';
+            };
+            const byLabel = (n) => document.querySelector(`button[aria-label="${n}"]`);
+            const cands = [
+                byLabel('Settings'),
+                byLabel('Settings trigger'),
+                ...[...document.querySelectorAll('button')].filter((x) =>
+                    /^settings(\s+trigger)?$/i.test((x.getAttribute('aria-label') || '').trim())),
+            ];
+            const b = cands.find(visible);
             if (!b) return false;
             b.click();
             return true;
         });
         if (!clicked) { await wait(1500); continue; }
         await wait(2200);
-        if (await page.evaluate(() => !!document.querySelector('.settings-content, .settings-section'))) return true;
+        if (await settingsPanelOpen(page)) return true;
         await page.keyboard.press('Escape');
         await wait(700);
     }
     return false;
 }
-// Read just the model row under "Image generation default".
-async function readImageModel(page) {
-    return await page.evaluate(() => {
+// ---- the model dropdown in a "generation default" section ------------------
+// Each generation-default section holds a Material dropdown: a button showing
+// the current model with an arrow_drop_down icon at its end, and a menu of
+// <span class="label"> items. The Image and the Video section each have one, so
+// the trigger is always looked for INSIDE the named section - matching on the
+// arrow alone would pick whichever section happened to come first, and setting
+// the video model on the image row is a silent, expensive mistake.
+//
+// Icon ligatures ("arrow_drop_down", "crop_16_9") render as text, so a button's
+// innerText is not its model name. Strip the icons rather than pattern-matching
+// them away, so an icon Flow adds later does not quietly join the name.
+const SECTION_OF = { image: 'image generation default', video: 'video generation default' };
+
+// Flow also names both pickers outright, which is exact where the section scan
+// has to infer: <button class="... video-model-picker-button" aria-label="Video
+// generation default model">. Preferred when present, because it cannot pick the
+// wrong row no matter how the section is laid out; the scan below is the
+// fallback for a build without them.
+//
+// Both the class and the aria-label are matched because only the pair was
+// verified live, and either could change independently.
+const PICKER_OF = {
+    image: '.image-model-picker-button, button[aria-label="Image generation default model"]',
+    video: '.video-model-picker-button, button[aria-label="Video generation default model"]',
+};
+
+// Compare model names loosely: "Veo 3.1 - Fast" and "veo3.1-fast" are the same
+// model, and the menu is not obliged to spell it the way the GUI does.
+const modelKey = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+async function readSectionModel(page, which) {
+    return await page.evaluate(({ heading, picker }) => {
+        const strip = (el) => {
+            const src = el.querySelector('.mdc-button__label') || el;
+            const c = src.cloneNode(true);
+            c.querySelectorAll('mat-icon').forEach((i) => i.remove());
+            return (c.innerText || c.textContent || '').replace(/\s+/g, ' ').trim();
+        };
+        const direct = document.querySelector(picker);
+        if (direct) return strip(direct) || null;
         const sec = [...document.querySelectorAll('.settings-section')]
-            .find((s) => /image generation default/i.test(s.innerText || ''));
+            .find((s) => new RegExp(heading, 'i').test(s.innerText || ''));
         if (!sec) return null;
-        return [...sec.querySelectorAll('button')]
-            .map((b) => (b.innerText || '').replace(/crop_[a-z0-9_]+/gi, '').replace(/\s+/g, ' ').trim())
-            .find((t) => /nano|imagen|banana|veo|omni|flash/i.test(t)) || null;
-    });
+        const trig = [...sec.querySelectorAll('button')].find((b) =>
+            [...b.querySelectorAll('mat-icon')].some((i) => /arrow_drop_down/.test(i.textContent || '')));
+        // No arrow icon found: fall back to any button naming a model, which is
+        // how this read the row before the dropdown shape was known.
+        if (!trig) {
+            return [...sec.querySelectorAll('button')]
+                .map(strip)
+                .find((t) => /nano|imagen|banana|veo|omni|flash/i.test(t)) || null;
+        }
+        return strip(trig) || null;
+    }, { heading: SECTION_OF[which], picker: PICKER_OF[which] });
 }
+// Read just the model row under "Image generation default".
+const readImageModel = (page) => readSectionModel(page, 'image');
+const readVideoModel = (page) => readSectionModel(page, 'video');
 const looksImageModel = (m) => /nano|imagen|banana/i.test(String(m));
+
+// Pick a model in one of those dropdowns -> { ok, changed, why, model }.
+// The menu renders in a CDK overlay outside the settings panel, so the item is
+// searched for document-wide. The row is re-read afterwards rather than assumed:
+// a click that lands nowhere leaves the old model in place, and generating a
+// whole film on the wrong model is exactly what this is here to prevent.
+async function setSectionModel(page, which, want) {
+    const heading = SECTION_OF[which];
+    const now = await readSectionModel(page, which);
+    if (now && modelKey(now) === modelKey(want)) {
+        return { ok: true, changed: false, why: 'already set', model: now };
+    }
+    const opened = await page.evaluate(({ h, picker }) => {
+        // The named picker first - it cannot be the other section's dropdown.
+        const direct = document.querySelector(picker);
+        if (direct) { direct.click(); return true; }
+        const sec = [...document.querySelectorAll('.settings-section')]
+            .find((s) => new RegExp(h, 'i').test(s.innerText || ''));
+        if (!sec) return false;
+        const trig = [...sec.querySelectorAll('button')].find((b) =>
+            [...b.querySelectorAll('mat-icon')].some((i) => /arrow_drop_down/.test(i.textContent || '')));
+        if (!trig) return false;
+        trig.click();
+        return true;
+    }, { h: heading, picker: PICKER_OF[which] });
+    if (!opened) return { ok: false, changed: false, why: `no model dropdown in the ${which} section` };
+
+    await wait(1200);
+    const picked = await page.evaluate((name) => {
+        const key = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const want = key(name);
+        const items = [...document.querySelectorAll('.cdk-overlay-pane span.label, ' +
+            '.cdk-overlay-pane [role="option"], mat-option, [role="listbox"] [role="option"]')];
+        const text = (el) => (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+        // Exact on the loose key first: "Veo 3.1 - Lite" must not win over
+        // "Veo 3.1 - Lite [Lower Priority]" just by being shorter.
+        const hit = items.find((el) => key(text(el)) === want)
+            || items.find((el) => key(text(el)).startsWith(want));
+        if (!hit) return false;
+        const clickable = hit.closest('[role="option"], mat-option, button, li') || hit;
+        clickable.click();
+        return true;
+    }, want);
+    if (!picked) {
+        await page.keyboard.press('Escape');
+        await wait(500);
+        return { ok: false, changed: false, why: `"${want}" is not in the ${which} model menu` };
+    }
+
+    await wait(900);
+    const after = await readSectionModel(page, which);
+    if (modelKey(after) !== modelKey(want)) {
+        return { ok: false, changed: true, why: `clicked "${want}" but the row reads "${after}"`, model: after };
+    }
+    return { ok: true, changed: true, why: 'picked', model: after };
+}
 // Set the aspect ratio in the two "generation default" sections of the open
 // Settings panel, then Save. This is what actually makes the project generate
 // in the batch's ratio - the prompt alone cannot change Flow's own setting.
@@ -242,8 +379,20 @@ async function setPanelRatio(page, ratio) {
 }
 async function clickSave(page) {
     return await page.evaluate(() => {
+        // Read the label span rather than the button's own text: Material renders
+        // an icon's ligature ("check", "save") as text, so a button carrying one
+        // would read "checkSave" and an exact match on "Save" would miss it. The
+        // live button is <button class="settings-save-button"><span
+        // class="mdc-button__label"> Save </span></button> - the padding is why
+        // the comparison trims.
+        const text = (el) => {
+            const src = el.querySelector('.mdc-button__label') || el;
+            const c = src.cloneNode(true);
+            c.querySelectorAll('mat-icon').forEach((i) => i.remove());
+            return (c.innerText || c.textContent || '').replace(/\s+/g, ' ').trim();
+        };
         const b = document.querySelector('.settings-save-button')
-            || [...document.querySelectorAll('button')].find((x) => /^save$/i.test((x.innerText || '').trim()));
+            || [...document.querySelectorAll('button')].find((x) => /^save$/i.test(text(x)));
         if (!b) return false;
         b.click();
         return true;
@@ -257,8 +406,15 @@ async function setConfirmNever(page) {
         const sec = [...document.querySelectorAll('.settings-section')]
             .find((s) => /confirm before generating/i.test(s.innerText || ''));
         if (!sec) return 'no-section';
-        const never = [...sec.querySelectorAll('[role="radio"], button')]
-            .find((el) => /^never$/i.test((el.innerText || '').trim()));
+        // The option is a container holding the label AND a subtext ("Agent will
+        // generate media and spend credits automatically"), so the whole
+        // element's text is never just "Never". Read the label span when there is
+        // one; \b rather than $ because the subtext may still be inside it.
+        const never = [...sec.querySelectorAll('[role="radio"], button')].find((el) => {
+            const lbl = el.querySelector('.radio-label');
+            const t = ((lbl ? lbl.innerText : el.innerText) || '').trim();
+            return /^never\b/i.test(t);
+        });
         if (!never) return 'no-never';
         if (never.getAttribute('aria-checked') === 'true') return 'already';
         never.click();
@@ -267,15 +423,36 @@ async function setConfirmNever(page) {
 }
 // The panel leaves a backdrop that keeps Start generation disabled until it is
 // really gone, so wait it out rather than assuming one Escape is enough.
-async function closeSettings(page) {
-    for (let i = 0; i < 4; i++) {
-        if (!await page.evaluate(() => !!document.querySelector('.settings-content, .settings-section'))) return true;
-        await page.keyboard.press('Escape');
-        await wait(800);
+// Dismiss the Settings panel WITHOUT writing anything.
+//
+// This panel is a drawer inside the agent panel - <flow-agent-panel> >
+// .agent-panel-content > flow-settings-view > .container > .settings-content -
+// and it has exactly ONE way out: Save.
+//
+// Everything else was measured live and does nothing: Escape, clicking outside
+// it, the header backdrop, and the two Settings buttons (they are display:none
+// while it is open, so they are not a toggle). A document-level "close" icon
+// button near the header is clickable but does not close this drawer either.
+//
+// Each was retested on a FRESHLY OPENED panel, because run in sequence on one
+// panel they stop being independent - the backdrop click read as working once
+// purely because earlier Escape presses had cleared something first.
+//
+// Save COMMITS, so closing is a write. It is the project's own settings being
+// written back, so it is a no-op when nothing was changed - but it is still a
+// write, and the only way to get the drawer out of the way of the prompt bar.
+async function closeSettings(page, seconds = 6) {
+    if (!await settingsPanelOpen(page)) return true;
+    await clickSave(page);
+    // The drawer animates out, so poll for it instead of guessing a delay: a
+    // fixed 1200ms was measured as too short and made this report failure on a
+    // panel that was already on its way out.
+    const t0 = Date.now();
+    while ((Date.now() - t0) / 1000 < seconds) {
+        await wait(300);
+        if (!await settingsPanelOpen(page)) return true;
     }
-    await page.mouse.click(5, 5);
-    await wait(700);
-    return !(await page.evaluate(() => !!document.querySelector('.settings-content, .settings-section')));
+    return false;
 }
 // A freshly created project takes a moment to paint its prompt bar. Without
 // this the very first settings click lands on nothing - which stopped a whole
@@ -480,14 +657,38 @@ if (require.main === module) (async () => {
         const cn = await setConfirmNever(page);
         log(`confirm-before-generating -> ${cn === 'clicked' ? 'Never (set)' : cn === 'already' ? 'Never (already)' : cn}`);
         if (cn === 'clicked') changed = true;
+        // The model the film will be generated with. It is saved into the project
+        // here, in the same panel visit as the ratio, so it is already right by
+        // the time the agent step reaches the Generate button. Setting it is the
+        // whole point: Flow remembers the last model used per project, so left
+        // alone a project quietly keeps whatever was picked last time.
+        if (VIDEO_MODEL) {
+            const vm = await setSectionModel(page, 'video', VIDEO_MODEL);
+            if (vm.ok) {
+                if (vm.changed) changed = true;
+                log(`video generation default -> ${vm.model}${vm.changed ? '' : ' (already)'}`);
+            } else {
+                log(`WARNING: could not set the video model to "${VIDEO_MODEL}" (${vm.why}) -`);
+                log('the film will generate with whatever Flow has selected.');
+            }
+        }
         if (changed) {
             const saved = await clickSave(page);
             log(saved ? 'settings saved' : 'WARNING: no Save button found - settings not saved');
         }
-        await closeSettings(page);
+        // Save is also the only way to close this drawer, so even a visit that
+        // changed nothing writes the project's own settings back unchanged. Left
+        // open it covers part of the prompt bar and the sheet prompts miss.
+        if (!await closeSettings(page)) {
+            log('WARNING: the Settings panel would not close. It covers part of the');
+            log('prompt bar, so the sheet prompts may not land - close it by hand.');
+        }
         await wait(1500);   // let the panel's backdrop/animation finish
     } else {
-        log('WARNING: could not open the Settings panel to check the image model.');
+        log('WARNING: could not open the Settings panel. Not checked or applied:');
+        log('  the image model (sheets may come out as clips), the project ratio,');
+        log(`  confirm-before-generating,${VIDEO_MODEL ? ` and the video model ("${VIDEO_MODEL}") -` : ' -'}`);
+        log('  the film will generate with whatever Flow has selected.');
     }
 
     let made = 0, failed = 0;
@@ -527,4 +728,11 @@ if (require.main === module) (async () => {
     process.exit(failed ? 1 : 0);
 })().catch((e) => { console.error('FAILED: ' + (e && e.message)); process.exit(1); });
 
-module.exports = { refsPath, loadRefs, renameNewest, tileName, agentOn, setAgent };
+module.exports = {
+    refsPath, loadRefs, renameNewest, tileName, agentOn, setAgent,
+    readSectionModel, readImageModel, readVideoModel, setSectionModel,
+    setConfirmNever, modelKey, SECTION_OF, PICKER_OF,
+    // The Settings-panel plumbing, so agent_mode.js can set the video model in
+    // the same place and the same way this does.
+    openSettingsPanel, closeSettings, settingsPanelOpen, clickSave, setPanelRatio,
+};

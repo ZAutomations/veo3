@@ -87,6 +87,11 @@ const path = require('path');
 // cast holds across clips. See mention_target.js for the measurement.
 const MT = require('./mention_target.js');
 const W  = require('./write_story.js');
+// The Settings-panel helpers, so the video model is set by the same code that
+// sets it when the reference sheets are made, rather than a second copy that can
+// drift from it. Safe to require: generate_refs.js runs its own work only under
+// `require.main === module`.
+const GR = require('./generate_refs.js');
 
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -108,6 +113,10 @@ const CDP_URL    = `http://127.0.0.1:${CDP_PORT}`;
 // URL, so a batch can give every film its own project instead of trusting
 // whichever tab happens to be open.
 const PROJECT_URL = typeof flag('--project-url') === 'string' ? flag('--project-url').trim() : '';
+// The video model this project must generate with ("Veo 3.1 - Fast",
+// "Omni 1.1 Flash", ...). Empty leaves Flow's own setting alone, which is what
+// every run did before this existed.
+const VIDEO_MODEL = typeof flag('--video-model') === 'string' ? flag('--video-model').trim() : '';
 
 // A full story is thousands of characters with line breaks - Windows cannot pass
 // that through --prompt "..." without mangling it. --file reads the story from a
@@ -1025,6 +1034,42 @@ async function uploadRefThroughPicker(page, box, file) {
     s = await snap('prompt-final');
     log(`Final prompt: "${(s.promptText || '').slice(0, 140)}"`);
     log(`Submit button: ${s.generateBtn.exists ? (s.generateBtn.disabled ? 'STILL DISABLED' : 'READY') : 'NOT FOUND'}`);
+
+    // ---- 5b. The video model ------------------------------------------------
+    // Last thing before Generate, which is where it has to be: the model is a
+    // property of the PROJECT, and Flow remembers the last one used in it. Left
+    // alone, a project opened for a new film quietly generates on whatever was
+    // picked last time. Setting it here means the choice is made against the
+    // project as it actually stands - refs attached, prompt typed - rather than
+    // inherited from a run weeks ago.
+    if (VIDEO_MODEL) {
+        banner(`VIDEO MODEL -> ${VIDEO_MODEL}`);
+        if (await GR.openSettingsPanel(page)) {
+            const vm = await GR.setSectionModel(page, 'video', VIDEO_MODEL);
+            if (vm.ok) {
+                log(vm.changed
+                    ? `Video generation default set to ${vm.model}`
+                    : `Video generation default already ${vm.model} - nothing to change`);
+                if (vm.changed) {
+                    const saved = await GR.clickSave(page);
+                    log(saved ? 'settings saved' : 'WARNING: no Save button found - the model may not stick');
+                }
+            } else {
+                log(`WARNING: could not set the video model (${vm.why}).`);
+                log('The film will generate with whatever Flow has selected - check the');
+                log('model in the prompt bar before trusting this run.');
+            }
+            // Save is also the only way to close this drawer, so this runs even
+            // when nothing changed - it writes the project's own values back.
+            if (!await GR.closeSettings(page)) {
+                log('WARNING: the Settings panel would not close - it covers part of');
+                log('the prompt bar, so the next step may misclick. Close it by hand.');
+            }
+            await wait(1500);   // let the panel's backdrop/animation finish
+        } else {
+            log('WARNING: could not open the Settings panel to set the video model.');
+        }
+    }
 
     if (NO_SUBMIT) {
         log(`--no-submit: stopping here. Snapshots in ${RUN_DIR}`);

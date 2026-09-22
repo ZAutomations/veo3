@@ -46,6 +46,24 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ENGINE = os.path.join(BASE_DIR, "veo3_flow_new_ui.js")
 AGENT_ENGINE = os.path.join(BASE_DIR, "agent_mode.js")
+
+# The video models Flow offers under Settings > Video generation default. This
+# list only fills the dropdown - whatever is in the box is passed through as
+# typed, so a model Flow ships later can be entered by hand without waiting for
+# this list to learn about it. "Flow" means leave the project's own setting alone.
+#
+# Read off a live Flow menu by probe_models.js on 2026-09-22. Note "Veo 3.1 -
+# Lite" and "Veo 3.1 - Lite [Lower Priority]" are two separate entries that
+# differ only by the bracket, which is why the picker matches on the full loose
+# name rather than a prefix.
+VIDEO_MODELS = [
+    "Flow",
+    "Omni 1.1 Flash",
+    "Veo 3.1 - Lite",
+    "Veo 3.1 - Fast",
+    "Veo 3.1 - Quality",
+    "Veo 3.1 - Lite [Lower Priority]",
+]
 PROMPT_BUILDER = os.path.join(BASE_DIR, "story_to_agent_prompt.js")
 STYLES_TOOL = os.path.join(BASE_DIR, "styles.js")
 STYLES_FILE = os.path.join(BASE_DIR, "styles.json")
@@ -158,6 +176,10 @@ DEFAULTS = {
     # is a hard limit for every preset.
     "mcp_match_ref": True,
     "mcp_aspect": "9:16",
+    # Its own copy of the video model, not shared with the Agent tab: a batch
+    # builds its own projects and can want a different model from a one-off agent
+    # run, and sharing the two would silently rewrite the other tab's choice.
+    "mcp_video_model": "Flow",
     "mcp_generate": False,
     "mcp_download": True,
     "mcp_join": True,
@@ -176,6 +198,12 @@ DEFAULTS = {
     # the tool says nothing about the ratio and you pick it in Flow. A real ratio
     # can still be chosen here and it is written into the prompt.
     "aspect_ratio": "Flow",
+    # The video model every project in this batch generates with. Flow stores this
+    # per project and remembers the last model used, so a project opened for a new
+    # film silently keeps whatever was picked last time - which is how a run ends
+    # up on the wrong model with nothing on screen saying so. "Flow" means leave
+    # the project's own setting alone, which is what every run did before.
+    "video_model": "Flow",
     # 8s is the ceiling for Veo 3.1 - Lite [Lower Priority]. The spinbox stops
     # there on purpose; a longer clip needs the CLI or the story JSON, and the
     # builder warns when you go over.
@@ -1139,6 +1167,20 @@ class Veo3LauncherGUI:
         ttk.Spinbox(line2, from_=1024, to=65535, textvariable=self.agent_cdp_var,
                     width=8).pack(side="left", padx=(6, 0))
         r += 1
+        # The video model is a property of the Flow PROJECT, not something the
+        # prompt can ask for, so it is picked here and written into the project by
+        # the agent just before it presses Generate. Flow remembers the last model
+        # used per project, which is how a new film quietly inherits an old one's
+        # model - so this is set explicitly on every run rather than left to luck.
+        model_line = tk.Frame(f, bg=SURFACE)
+        model_line.grid(row=r, column=0, columnspan=3, sticky="ew", padx=14, pady=(0, 5))
+        ttk.Label(model_line, text="Video model:").pack(side="left")
+        self.video_model_var = tk.StringVar(value=self.settings.get("video_model", "Flow"))
+        ttk.Combobox(model_line, textvariable=self.video_model_var, width=30,
+                     values=VIDEO_MODELS).pack(side="left", padx=(6, 4))
+        ttk.Label(model_line, text='"Flow" leaves each project on its own setting',
+                  style="Hint.TLabel").pack(side="left", padx=(6, 0))
+        r += 1
         ttk.Label(f, text="clip format is stated in the prompt - a story JSON carrying its own values fills these in",
                   style="Hint.TLabel").grid(row=r, column=0, columnspan=3, sticky="w", padx=14, pady=(0, 4))
         r += 1
@@ -1310,6 +1352,7 @@ class Veo3LauncherGUI:
             "clips_dir": self.resolved_clips_dir(),
             "reverse": bool(self.reverse_var.get()),
             "aspect_ratio": self.aspect_var.get().strip() or "Flow",
+            "video_model": self.video_model_var.get().strip() or "Flow",
             "scene_seconds": self.read_seconds(),
             "style_preset": self._style_ids.get(self.style_var.get(), ""),
             "auto_rotate": bool(self.auto_rotate_var.get()) if hasattr(self, "auto_rotate_var")
@@ -1338,6 +1381,7 @@ class Veo3LauncherGUI:
             "mcp_clips": self.read_int(self.mcp_clips_var, 0) if hasattr(self, "mcp_clips_var") else self.settings.get("mcp_clips", 0),
             "mcp_match_ref": bool(self.mcp_match_ref_var.get()) if hasattr(self, "mcp_match_ref_var") else self.settings.get("mcp_match_ref", True),
             "mcp_aspect": (self.mcp_aspect_var.get().strip() or "Flow") if hasattr(self, "mcp_aspect_var") else self.settings.get("mcp_aspect", "Flow"),
+            "mcp_video_model": (self.mcp_video_model_var.get().strip() or "Flow") if hasattr(self, "mcp_video_model_var") else self.settings.get("mcp_video_model", "Flow"),
             "mcp_generate": bool(self.mcp_generate_var.get()) if hasattr(self, "mcp_generate_var") else self.settings.get("mcp_generate", False),
             "mcp_download": bool(self.mcp_download_var.get()) if hasattr(self, "mcp_download_var") else self.settings.get("mcp_download", True),
             "mcp_join": bool(self.mcp_join_var.get()) if hasattr(self, "mcp_join_var") else self.settings.get("mcp_join", True),
@@ -1963,6 +2007,11 @@ class Veo3LauncherGUI:
                "--watch", str(self.settings["watch_secs"])]
         if self.settings["model_hint"]:
             cmd += ["--model", self.settings["model_hint"]]
+        # "Flow" is the sentinel for "leave the project alone" - passing it as a
+        # model name would look for a model called Flow and fail the run.
+        video_model = self.settings.get("video_model", "Flow")
+        if video_model and video_model.lower() != "flow":
+            cmd += ["--video-model", video_model]
         if self.settings["auto_approve"]:
             cmd += ["--auto-approve"]
         if self.settings["no_submit"]:
@@ -2157,6 +2206,19 @@ class Veo3LauncherGUI:
         self.mcp_aspect_var = tk.StringVar(value=self.settings.get("mcp_aspect", "9:16"))
         ttk.Combobox(line1, textvariable=self.mcp_aspect_var, width=6,
                      values=["9:16", "16:9", "1:1", "Flow"]).pack(side="left", padx=(6, 0))
+        r += 1
+        # The model each film in the batch generates with. Flow keeps this per
+        # project and remembers the last one used, so a batch that does not set it
+        # inherits whatever each project happened to be left on. "Flow" leaves them
+        # all as they are.
+        line1c = tk.Frame(f, bg=SURFACE)
+        line1c.grid(row=r, column=0, columnspan=3, sticky="w", padx=14, pady=5)
+        ttk.Label(line1c, text="Video model:").pack(side="left")
+        self.mcp_video_model_var = tk.StringVar(value=self.settings.get("mcp_video_model", "Flow"))
+        ttk.Combobox(line1c, textvariable=self.mcp_video_model_var, width=30,
+                     values=VIDEO_MODELS).pack(side="left", padx=(6, 4))
+        ttk.Label(line1c, text='"Flow" leaves every project on its own setting',
+                  style="Hint.TLabel").pack(side="left", padx=(6, 0))
         r += 1
 
         line1b = tk.Frame(f, bg=SURFACE)
@@ -2363,6 +2425,7 @@ class Veo3LauncherGUI:
 
         args = {
             "aspect": self.mcp_aspect_var.get().strip() or "Flow",
+            "video_model": self.mcp_video_model_var.get().strip() or "Flow",
             "seconds": self.read_int(self.mcp_seconds_var, 8),
             "generate": bool(generate),
             "submit": bool(generate),
@@ -2474,6 +2537,7 @@ class Veo3LauncherGUI:
                     if match_ref else "false = the clips number above is the limit"))
         L.append(f"  seconds: {self.read_int(self.mcp_seconds_var, 8)}")
         L.append(f'  aspect: "{self.mcp_aspect_var.get().strip() or "Flow"}"')
+        L.append(f'  video_model: "{self.mcp_video_model_var.get().strip() or "Flow"}"')
         L.append("  generate: false   # write the stories first, then review before spending credits")
         text = "\n".join(L)
         try:

@@ -263,6 +263,11 @@ async function doGenerateRefs(a) {
     pushOpt(args, '--cdp', a.cdp);
     pushOpt(args, '--wait', a.wait);
     if (a.aspect && !/^(flow|auto|default|none)$/i.test(String(a.aspect))) pushOpt(args, '--ratio', a.aspect);
+    // The film's video model, saved into the project here so the agent step finds
+    // it already right. Same "Flow" sentinel as the aspect.
+    if (a.video_model && !/^(flow|auto|default|none)$/i.test(String(a.video_model))) {
+        pushOpt(args, '--video-model', a.video_model);
+    }
     if (a.dry) args.push('--dry');
     const perImage = Number(a.wait) > 0 ? Number(a.wait) : 180;
     const r = await runNode('generate_refs.js', args, { timeoutMs: perImage * 1000 * 8 + 120000 });
@@ -353,6 +358,11 @@ async function doRunAgent(a) {
     pushOpt(args, '--project-url', a.project_url);
     pushOpt(args, '--watch', a.watch);
     pushOpt(args, '--model', a.model);
+    // "Flow" is the sentinel for "leave the project alone" - passing it as a
+    // model name would look for a model called Flow and fail the run.
+    if (a.video_model && !/^(flow|auto|default|none)$/i.test(String(a.video_model))) {
+        pushOpt(args, '--video-model', a.video_model);
+    }
     for (const v of (a.voices || [])) args.push('--voice', String(v));
     // SPENDING CREDITS IS OPT-IN. Without submit:true this is a dry run that
     // types the prompt and stops, exactly like the GUI's no-submit default.
@@ -549,6 +559,7 @@ const TOOLS = [
                 duration: { type: 'integer', description: 'Total seconds (multiple of scene_seconds). Default 56.' },
                 scene_seconds: { type: 'integer', description: 'Seconds per clip. Default 8 (Veo 3.1 Lite max).' },
                 aspect: { type: 'string', description: '"Flow" (default, set the ratio in Flow), or 16:9 / 9:16 / 1:1.' },
+                video_model: { type: 'string', description: 'Video model for this project, e.g. "Veo 3.1 - Fast". "Flow" (default) leaves it alone.' },
                 model: { type: 'string', description: 'Gemini model, e.g. gemini-3.6-flash.' },
                 models: { type: 'array', items: { type: 'string' }, description: 'Fallback chain, newest first. Overrides model.' },
                 out: { type: 'string', description: 'Output folder override (default stories/<slug>).' },
@@ -596,6 +607,7 @@ const TOOLS = [
                 cdp: { type: 'integer', description: 'CDP port. Default 9222.' },
                 watch: { type: 'integer', description: 'Seconds to watch after submit. Default 240.' },
                 model: { type: 'string', description: 'Model hint, e.g. "veo3.1 low priority".' },
+                video_model: { type: 'string', description: 'Video model this project must generate with, e.g. "Veo 3.1 - Fast" or "Omni 1.1 Flash". Set in Flow just before Generate. "Flow" (default) leaves the project on its own setting.' },
                 voices: { type: 'array', items: { type: 'string' }, description: 'Flow voice names to attach, one per speaker (e.g. ["Orus"] or ["Orus","Achernar"]).' },
                 no_upload_refs: { type: 'boolean', description: 'Do not upload sheets; only use an Image tile already present.' },
                 generate_refs: { type: 'boolean', description: 'First generate the reference images in Flow (Agent off, renamed tiles), then generate the film from them.' },
@@ -607,7 +619,7 @@ const TOOLS = [
         },
         handler: async (a) => {
             if (a.generate_refs) {
-                const g = await doGenerateRefs({ story: a.story, only: a.only, cdp: a.cdp, wait: a.wait });
+                const g = await doGenerateRefs({ story: a.story, only: a.only, cdp: a.cdp, wait: a.wait, video_model: a.video_model });
                 if (!g.ok) return fail('generate_refs failed:\n' + g.text);
                 // The tiles exist now, so point the agent at them instead of
                 // uploading local files and duplicating the assets.
@@ -697,6 +709,7 @@ const TOOLS = [
                 model: { type: 'string', description: 'Gemini model for writing/analysing, e.g. gemini-3.6-flash.' },
                 models: { type: 'array', items: { type: 'string' }, description: 'Gemini fallback chain, newest first.' },
                 veo_model: { type: 'string', description: 'Veo model hint for Flow, e.g. "veo3.1 low priority".' },
+                video_model: { type: 'string', description: 'Video model this project must generate with, e.g. "Veo 3.1 - Fast" or "Omni 1.1 Flash". "Flow" (default) leaves it alone.' },
                 no_house_cast: { type: 'boolean' },
                 new_project: { type: 'boolean', description: 'Create a fresh Flow project for this film before generating.' },
                 project_url: { type: 'string', description: 'Generate into this existing project instead of the open tab.' },
@@ -775,12 +788,12 @@ const TOOLS = [
             }
             let noUpload = !!a.no_upload_refs;
             if (a.generate_refs && a.submit) {
-                const g = await doGenerateRefs({ story: storyArg, cdp: a.cdp, wait: a.wait });
+                const g = await doGenerateRefs({ story: storyArg, cdp: a.cdp, wait: a.wait, video_model: a.video_model });
                 parts.push('## generate_refs\n' + g.text);
                 if (!g.ok) return fail(parts.join('\n\n'));
                 noUpload = true;
             }
-            const r = await doRunAgent({ story: storyArg, cdp: a.cdp, watch: a.watch, model: a.veo_model, submit: a.submit, auto_approve: a.auto_approve, project_url: projectUrl, no_upload_refs: noUpload, voices: presetVoices(a.preset || (contentMap && contentMap.preset_suggestion)) });
+            const r = await doRunAgent({ story: storyArg, cdp: a.cdp, watch: a.watch, model: a.veo_model, submit: a.submit, auto_approve: a.auto_approve, project_url: projectUrl, no_upload_refs: noUpload, video_model: a.video_model, voices: presetVoices(a.preset || (contentMap && contentMap.preset_suggestion)) });
             parts.push('## run_agent\n' + r.text);
             if (!r.ok || !a.submit) return r.ok ? text(parts.join('\n\n')) : fail(parts.join('\n\n'));
 
@@ -827,6 +840,7 @@ const TOOLS = [
                 model: { type: 'string', description: 'Gemini model for analyse/write, e.g. gemini-3.6-flash.' },
                 models: { type: 'array', items: { type: 'string' }, description: 'Gemini fallback chain, newest first.' },
                 veo_model: { type: 'string', description: 'Veo model hint for Flow, e.g. "veo3.1 low priority".' },
+                video_model: { type: 'string', description: 'Video model this project must generate with, e.g. "Veo 3.1 - Fast" or "Omni 1.1 Flash". "Flow" (default) leaves it alone.' },
                 generate: { type: 'boolean', description: 'Drive Flow for each item. Off = write the stories only.' },
                 submit: { type: 'boolean', description: 'true = actually spend credits.' },
                 auto_approve: { type: 'boolean' },
@@ -968,14 +982,14 @@ const TOOLS = [
                     let noUpload = !!a.no_upload_refs;
                     if (a.generate_refs) {
                         log(`[batch ${i}] generating the reference images in Flow...`);
-                        const g = await doGenerateRefs({ story: storyArg, cdp: a.cdp, wait: a.wait });
+                        const g = await doGenerateRefs({ story: storyArg, cdp: a.cdp, wait: a.wait, video_model: a.video_model });
                         if (!g.ok) { bad('generate_refs', g); continue; }
                         out.push('  refs -> generated and renamed in Flow');
                         log(`[batch ${i}] reference images done`);
                         noUpload = true;
                     }
                     log(`[batch ${i}] driving Flow (this can take a while)...`);
-                    const r = await doRunAgent({ story: storyArg, cdp: a.cdp, watch: a.watch, model: a.veo_model, submit: true, auto_approve: a.auto_approve, project_url: projectUrl, no_upload_refs: noUpload, voices: presetVoices(preset) });
+                    const r = await doRunAgent({ story: storyArg, cdp: a.cdp, watch: a.watch, model: a.veo_model, submit: true, auto_approve: a.auto_approve, project_url: projectUrl, no_upload_refs: noUpload, video_model: a.video_model, voices: presetVoices(preset) });
                     if (!r.ok) { bad('run_agent', r); continue; }
                     out.push('  generated.');
                     log(`[batch ${i}] generated`);
