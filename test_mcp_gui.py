@@ -8,6 +8,7 @@ server and calls list_presets - local only, no network.
 """
 import json
 import os
+import shutil
 import sys
 import tempfile
 import tkinter as tk
@@ -122,6 +123,20 @@ ok("title | preset | detail", parsed[0] == {"title": "Title One", "preset": "3d-
 ok("title | detail", parsed[1] == {"title": "Title Two", "detail": "just details"}, str(parsed[1]))
 ok("title alone", parsed[2] == {"title": "Title Three"}, str(parsed[2]))
 
+print("\n--- existing stories (generate from a story already written) ---")
+ok("the tab has a stories box", hasattr(app, "mcp_stories"))
+app.mcp_stories.delete("1.0", "end")
+ok("an empty box asks for no stories", app._mcp_story_paths() == [], str(app._mcp_story_paths()))
+app.mcp_stories.insert("1.0", "# a note to self\nstories/one/two_story.json\n"
+                            '"D:\\Some Dir\\x_story.json" \n\n')
+ok("one path per line, comments and quotes dropped",
+   app._mcp_story_paths() == ["stories/one/two_story.json", "D:/Some Dir/x_story.json"],
+   str(app._mcp_story_paths()))
+ok("backslashes never reach the JSON argument",
+   all("\\" not in p for p in app._mcp_story_paths()), str(app._mcp_story_paths()))
+ok("the picker finds written stories", len(app._find_stories()) > 0, str(len(app._find_stories())))
+app.mcp_stories.delete("1.0", "end")
+
 print("\n--- the preset list toggle (Classic / GENAI Presets) ---")
 ok("there is a group variable", hasattr(app, "preset_group_var"))
 ok("it defaults to Classic", app.preset_group_var.get() == "Classic", app.preset_group_var.get())
@@ -153,6 +168,28 @@ try:
     ok("and the new map/3d presets", "3d-map" in ids and "geography-map" in ids and "3d-explainer" in ids)
     st = client.call_tool("batch_pipeline", {})
     ok("an empty batch reports isError", st["isError"] is True, st["text"][:80])
+
+    # A story that already exists is used AS IT IS: no analyse, no write. That
+    # is the point of the stories box - re-running a film (a failed tile, a
+    # fresh project) must not pay to write the same story twice, and must not
+    # quietly replace text that was already reviewed.
+    src = os.path.join(HERE, "stories", "the_price_of_obligation")
+    if os.path.isdir(src):
+        d = os.path.join(TMP, "already_written")
+        shutil.copytree(src, d)
+        os.remove(os.path.join(d, "agent_prompt.txt"))
+        r = client.call_tool("batch_pipeline", {"stories": [d], "generate": False})
+        ok("a written story is used, not rewritten",
+           not r["isError"] and "using written story" in r["text"], r["text"][:200])
+        ok("it says the story was not touched",
+           "nothing is analysed or written" in r["text"], r["text"][:200])
+        ok("the prompt was built from it",
+           os.path.exists(os.path.join(d, "agent_prompt.txt")), r["text"][:200])
+        miss = client.call_tool("batch_pipeline", {"stories": [os.path.join(TMP, "no_such_story")],
+                                                   "generate": False})
+        ok("a story that is not there fails cleanly",
+           miss["isError"] is True and "No story JSON" in miss["text"], miss["text"][:140])
+
     client.stop()
     ok("the server logged to stderr", any("ready on stdio" in l for l in logs), str(logs[:2]))
 except Exception as e:

@@ -679,9 +679,14 @@ async function hoverPass(page, log) {
         downloadedAt: new Date().toISOString(),
         route: method,
         reversed: REVERSE,
-        gridOrderNote: 'Files are numbered in on-screen order (top-to-bottom, left-to-right). '
-            + 'Flow grids are usually NEWEST FIRST, so if scene 1 looks wrong in the join, '
-            + 're-run with --reverse, or pass --order to join_clips.js.',
+        gridOrderNote: `Files are numbered in ${REVERSE ? 'REVERSE on-screen' : 'on-screen'} order `
+            + '(top-to-bottom, left-to-right). But a tile is NOT a scene: Flow renders an '
+            + 'Agent-Mode batch as its queue drains, so the grid is in COMPLETION order and these '
+            + 'numbers say nothing about which scene a clip is - measured on one real run, grid '
+            + 'position 1 held story scene 11 and the grid read 11,13,10,14,12,5,7,6,3,9,2,8,4,1. '
+            + 'Run order_clips_by_dialogue.js (npm run agent:order, or the order_clips MCP tool) to '
+            + 'establish the real order from what each clip says, which rewrites this manifest into '
+            + 'story order for join_clips.js to follow. Only --order or --reverse by hand otherwise.',
         clips,
     };
     fs.writeFileSync(path.join(OUT_DIR, 'manifest.json'), JSON.stringify(manifest, null, 2));

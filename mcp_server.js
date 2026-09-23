@@ -419,6 +419,27 @@ async function doJoin(a) {
     return { ok: r.code === 0, text: r.out + (r.err ? '\n[stderr]\n' + r.err : '') };
 }
 
+// WHICH CLIP IS WHICH SCENE. Flow queues a whole Agent-Mode batch and renders it
+// as the queue drains, so agent_download.js numbers the files by GRID POSITION
+// and a scene number in a filename means nothing - measured on
+// the_price_of_obligation the grid held scenes 11,13,10,14,12,5,7,6,3,9,2,8,4,1,
+// which is neither the story order nor its reverse. Nothing in the downloaded
+// files recovers the order: Flow's tile captions are generic and repeat (three
+// said exactly "Godwin and Tari arguing bedroom"), the CDN URLs are random UUIDs
+// and the mp4s carry no scene metadata. What does identify a clip is that it
+// speaks its own scene's dialogue, so transcribe the clips locally (whisper, no
+// API key) and match. That order is written into clips/manifest.json, which is
+// the list join_clips.js follows - so a resolved run needs no --order at all.
+async function doOrderClips(a) {
+    const storyJson = resolveStoryJson(a.story);
+    if (!storyJson) return { ok: false, text: 'Give a story (folder or JSON).' };
+    const args = [storyJson, '--write'];
+    pushOpt(args, '--model', a.model);
+    // Transcription is CPU-bound: allow well past a normal stage.
+    const r = await runNode('order_clips_by_dialogue.js', args, { timeoutMs: 45 * 60 * 1000 });
+    return { ok: r.code === 0, storyJson, text: r.out + (r.err ? '\n[stderr]\n' + r.err : '') };
+}
+
 function statusOf(storyJson) {
     const dir = storyDirOf(storyJson);
     const clipsDir = path.join(dir, 'clips');
@@ -676,6 +697,30 @@ const TOOLS = [
         },
     },
     {
+        name: 'order_clips',
+        description: 'Work out which downloaded clip is which scene, and record the true story order. Flow renders an Agent-Mode batch as its queue drains, so the clip files come back in completion order, not story order - joining them as-is shuffles the film. This transcribes each clip locally (whisper, no API key, nothing uploaded) and matches what it hears against the story\'s dialogue, then writes the resolved order into clips/manifest.json so join_clips follows it. Use this on a film whose scenes came out in the wrong order; it does not re-generate anything and spends no credits.',
+        inputSchema: {
+            type: 'object',
+            required: ['story'],
+            properties: {
+                story: { type: 'string', description: 'Story JSON path or folder (uses its clips/ folder).' },
+                model: { type: 'string', description: 'Whisper model (default base; tiny is about 4x faster and coarser).' },
+                dry_run: { type: 'boolean', description: 'Print the resolved order and write nothing.' },
+            },
+            additionalProperties: false,
+        },
+        handler: async (a) => {
+            const storyJson = resolveStoryJson(a.story);
+            if (!storyJson) return fail('Give a story (folder or JSON) whose clips/ folder exists.');
+            const args = [storyJson];
+            if (!a.dry_run) args.push('--write');
+            pushOpt(args, '--model', a.model);
+            const r = await runNode('order_clips_by_dialogue.js', args, { timeoutMs: 45 * 60 * 1000 });
+            const out = r.out + (r.err ? '\n[stderr]\n' + r.err : '');
+            return r.code === 0 ? text(out) : fail(out);
+        },
+    },
+    {
         name: 'pipeline_status',
         description: 'Report how far a story has got: scenes, place, cast, and whether the prompt, clips and final video exist.',
         inputSchema: {
@@ -803,6 +848,14 @@ const TOOLS = [
                 if (!dl.ok) return fail(parts.join('\n\n'));
             }
             if (a.join) {
+                // Same order problem as the batch pipeline: Flow's grid is
+                // completion order, so the file numbers are grid positions, not
+                // scenes. Resolve the real order from the clips' own dialogue
+                // first, and note it in the report either way.
+                if (a.order_clips !== false) {
+                    const ord = await doOrderClips({ story: storyArg });
+                    parts.push('## order_clips\n' + ord.text);
+                }
                 const j = await doJoin({ story: storyArg });
                 parts.push('## join_clips\n' + j.text);
                 if (!j.ok) return fail(parts.join('\n\n'));
@@ -812,7 +865,7 @@ const TOOLS = [
     },
     {
         name: 'batch_pipeline',
-        description: 'Make MANY videos in ONE call, strictly one at a time (Flow is a single browser, so runs must not overlap). Give references (YouTube URLs to learn from) and/or ideas (title + preset, written from scratch). Writes a full story package per item, and when generate:true and submit:true drives Flow for each. Use from/to to resume or slice a long batch. Generation SPENDS credits, so run once with generate:false to write all the stories, review them, then run again with generate:true.',
+        description: 'Make MANY videos in ONE call, strictly one at a time (Flow is a single browser, so runs must not overlap). Give references (YouTube URLs to learn from) and/or ideas (title + preset, written from scratch) and/or stories (story JSONs that are ALREADY written - these skip analysing and writing completely). Writes a full story package per item, and when generate:true and submit:true drives Flow for each. Use from/to to resume or slice a long batch. Generation SPENDS credits, so run once with generate:false to write all the stories, review them, then run again with generate:true.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -831,6 +884,7 @@ const TOOLS = [
                         additionalProperties: false,
                     },
                 },
+                stories: { type: 'array', items: { type: 'string' }, description: 'Stories that are ALREADY written: a story JSON path, or its folder. Each goes straight to prompt -> refs -> Flow -> download -> join. Nothing is analysed and nothing is written, so no Gemini credits are spent and the film is exactly the text already on disk.' },
                 preset: { type: 'string', description: 'Default preset for references (a content map can otherwise suggest one).' },
                 seconds: { type: 'integer' },
                 duration: { type: 'integer' },
@@ -864,7 +918,13 @@ const TOOLS = [
             const items = [];
             for (const url of (a.references || [])) items.push({ kind: 'ref', url: String(url).trim() });
             for (const it of (a.ideas || [])) items.push({ kind: 'idea', title: String(it.title || '').trim(), preset: it.preset, detail: it.detail, duration: it.duration });
-            if (!items.length) return fail('Give references (YouTube URLs) and/or ideas (title + preset).');
+            // Already-written stories last, so adding one never reorders the
+            // links and ideas someone is resuming with from/to.
+            for (const s of (a.stories || [])) {
+                const p = String(s || '').trim();
+                if (p) items.push({ kind: 'story', path: p });
+            }
+            if (!items.length) return fail('Give references (YouTube URLs), ideas (title + preset) and/or stories (already-written story JSONs).');
             const from = Math.max(1, a.from || 1);
             const to = Math.min(items.length, a.to || items.length);
             // CLIP COUNT vs VIDEO LENGTH. match_ref ON (the default) means a
@@ -881,7 +941,7 @@ const TOOLS = [
             let done = 0, failed = 0;
             for (let i = from; i <= to; i++) {
                 const it = items[i - 1];
-                const label = it.kind === 'ref' ? it.url : it.title;
+                const label = it.kind === 'ref' ? it.url : (it.kind === 'story' ? it.path : it.title);
                 out.push(`\n===== [${i}/${items.length}] ${label} =====`);
                 // Mirror each step to stderr so a host (the GUI, a terminal) can
                 // show live progress while this one long call is still running.
@@ -899,13 +959,32 @@ const TOOLS = [
                     log(`[batch ${i}] FAILED at ${stage}: ${why}`);
                 };
 
-                // REUSE: if this film was already written in an earlier pass, skip
-                // analysing and writing it again - go straight to building the
-                // prompt and generating. That is what makes "write all, review,
-                // then generate" cheap instead of re-paying for every video.
+                // ALREADY WRITTEN: the caller names a story that exists on disk.
+                // Nothing is analysed and nothing is written - no Gemini call, no
+                // rewrite, no length check: the film is exactly the text already
+                // in the file. This is the "the story is done, just make the
+                // videos" path, and it is the one to use when the same story is
+                // generated more than once (a second attempt at the clips, a
+                // different Flow project, a re-run after a failed tile).
                 let storyArg = null;
                 let rewrite = false;
-                if (a.reuse !== false) {
+                if (it.kind === 'story') {
+                    const p = resolveStoryJson(it.path);
+                    if (!p) {
+                        bad('story', { text: `No story JSON at "${it.path}"` });
+                        continue;
+                    }
+                    const st = readJson(p, null);
+                    if (st && st.title) title = st.title;
+                    storyArg = p;
+                    out.push(`  using written story -> ${storyArg} (nothing is analysed or written)`);
+                    log(`[batch ${i}] existing story ${storyArg} - analyse and write skipped`);
+                } else if (a.reuse !== false) {
+                    // REUSE: this film was already written in an earlier pass, so
+                    // skip analysing and writing it again and go straight to
+                    // building the prompt and generating. That is what makes
+                    // "write all, review, then generate" cheap instead of
+                    // re-paying for every video.
                     const cand = (it.kind === 'ref') ? storyForReference(it.url) : storyExists(it.title);
                     // Reuse only a story built for the length THIS run wants.
                     // Length is the field that moves: tick "Match the video link's
@@ -1008,13 +1087,63 @@ const TOOLS = [
                         }
                         out.push(`  downloaded ${got} clip(s).`);
                         log(`[batch ${i}] downloaded ${got} clip(s)`);
+                        // What the downloader saw, in the grid order Flow gave it.
+                        // Worth printing even after the order is resolved, because
+                        // it is the record of what was on screen at download time.
+                        const man = readJson(path.join(cDir, 'manifest.json'), null);
+                        if (man && Array.isArray(man.clips) && man.clips.length) {
+                            out.push(`  what came back from Flow, in grid order:`);
+                            for (const c of man.clips) {
+                                out.push(`    ${String(c.order).padStart(2, '0')}. ${c.file}`
+                                    + `${c.got ? '' : ' (FAILED)'}  ${String(c.caption || '').slice(0, 60)}`);
+                            }
+                        }
+                        // Establish the real scene order BEFORE joining. Flow's
+                        // grid is completion order, so the file numbers are grid
+                        // positions and joining them as-is shuffles the film. The
+                        // clips speak their own scenes, so let them say which is
+                        // which. Only if that cannot be established do we fall
+                        // back to the old reversal guess - and say so loudly.
+                        let orderedByEar = false;
+                        if (a.join && a.order_clips !== false) {
+                            const ord = await doOrderClips({ story: storyArg });
+                            if (ord.ok) {
+                                orderedByEar = true;
+                                out.push('  clip order: resolved by transcribing each clip');
+                                for (const l of String(ord.text).split('\n')) {
+                                    if (/^\s+scene\s+(\d+|--)|^Resolved:|^WARNING|^Story order:/.test(l)) {
+                                        out.push('  ' + l.trim());
+                                    }
+                                }
+                                log(`[batch ${i}] clip order resolved by dialogue`);
+                            } else {
+                                out.push('  clip order: NOT resolved - ' + tailOf(ord.text, 200));
+                                out.push('  clip order: falling back to the reverse-grid guess,');
+                                out.push('              which is a guess - check the film before publishing.');
+                                log(`[batch ${i}] clip order NOT resolved`);
+                            }
+                        }
                         if (a.join) {
-                            // Flow's grid is NEWEST-FIRST, so agent_download numbers
-                            // the files in reverse scene order. Join them back-to-front
-                            // or the whole film plays backwards (no hook, no payoff).
-                            const j = await doJoin({ story: storyArg, reverse: true });
-                            if (j.ok) { out.push('  joined.'); log(`[batch ${i}] joined`); }
-                            else { bad('join_clips', j); }
+                            // Only reach for --reverse when the order was NOT
+                            // resolved by ear: then the files are still in the
+                            // downloader's grid numbering, where scene-01.mp4 is
+                            // the LAST tile on screen. With the dialogue order
+                            // written into manifest.json, join_clips.js already
+                            // reads the right order and a reverse would undo it.
+                            const j = await doJoin({ story: storyArg, reverse: !orderedByEar });
+                            if (j.ok) {
+                                out.push('  joined.');
+                                // And the order it was actually joined in, which is the
+                                // one line that says whether the film is in sequence.
+                                for (const l of String(j.text).split('\n')) {
+                                    if (/^(Order from|Folder|Clips found|Total)\s*:/.test(l)
+                                        || /^\s+\d+\.\s+\S+\.mp4/.test(l)
+                                        || /WARNING|NOTE\s*:/.test(l)) {
+                                        out.push('  ' + l.trim());
+                                    }
+                                }
+                                log(`[batch ${i}] joined`);
+                            } else { bad('join_clips', j); }
                         }
                     }
                 }
@@ -1055,7 +1184,7 @@ function enqueue(fn) {
 }
 const HEAVY = new Set([
     'analyze_video', 'new_project', 'generate_refs', 'write_story', 'run_agent',
-    'download_clips', 'join_clips', 'full_pipeline', 'batch_pipeline',
+    'download_clips', 'join_clips', 'order_clips', 'full_pipeline', 'batch_pipeline',
 ]);
 
 function send(obj) { process.stdout.write(JSON.stringify(obj) + '\n'); }

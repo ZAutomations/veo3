@@ -147,6 +147,37 @@ function describeChoice(choice, name) {
     return `@${name}: ${kind} "${label}"${note}`;
 }
 
+// ---- the mention LIST, before any picker is opened --------------------------
+// ONE chip per reference, however many times the prompt names it.
+//
+// The agent prompt is prose, and it names the same reference more than once on
+// purpose - the writer marks the place "@Bedroom" in the PLACE section, again in
+// the reminder line ("every clip is in the same place as the @Bedroom reference
+// image") and again in each scene's own line. Two characters plus a place then
+// arrived as five "@" names, and every one of them became its own trip through
+// the picker: the same Bedroom tile clicked three times, three identical chips in
+// the prompt, and the "over Veo's three-reference ceiling" warning firing on a
+// cast of three.
+//
+// A chip binds a reference to the WHOLE prompt, so a second copy of the same
+// chip cannot mean anything the first one did not - the scene text is what says
+// where the reference applies. Order is the prompt's own (the place first, then
+// the cast as introduced), so the chips in the box read in the order the story
+// reads, and the first spelling of a name wins.
+function distinctMentions(names) {
+    const seen = new Set();
+    const out = [];
+    for (const raw of (names || [])) {
+        const name = normText(raw);
+        if (!name) continue;
+        const key = name.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(name);
+    }
+    return out;
+}
+
 // ---- reference-sheet lookup -------------------------------------------------
 // The story JSON records refs as `./character_refs/<key>.jpg`, but a sheet can
 // be saved under a different extension or casing (TARA.png, Singhania.webp), and
@@ -210,5 +241,5 @@ function resolveCharacterRef(refs, name, storyDir, fsMod) {
 
 module.exports = {
     chooseMentionTile, describeChoice, tileKind, isNavCategory, isAction,
-    resolveCharacterRef, KIND_RANK, normText,
+    resolveCharacterRef, distinctMentions, KIND_RANK, normText,
 };

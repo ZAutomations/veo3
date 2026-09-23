@@ -733,6 +733,14 @@ function castPrompt(p, houseCast) {
     // room whatever the story was about. The `setting` field is still honoured
     // for a genre that genuinely always uses one place.
     const choosePlace = !p.setting;
+    // Fixed stage positions, chosen ONCE for the whole film. This is the same
+    // idea as the place, one level down, and it exists for the same reason: the
+    // clip batches share no state, so "keep them where they were" is an
+    // instruction each batch can only guess at - and each guessed differently.
+    // Two people who are on the bed in one clip and standing at the window in
+    // the next are what that looks like on screen. Only a preset that declares
+    // `blocking` gets this; a genre whose whole point is movement keeps it.
+    const chooseBlocking = !!p.blocking;
     const castRule = fixed
         ? `4. PART OF THE CAST IS ALREADY DESIGNED - do not redesign it. This
    channel has a standing cast that appears in every video, so these faces have
@@ -836,10 +844,48 @@ ${houseCast.map(c => `     ${c.name} - ${c.description}`).join('\n')}
        the character sheets. Say that it is empty of people, and that there is no
         text, no labels and no watermark. Include the medium.` : '';
 
+    // Where the two of them physically ARE. Asked for here, once, because this
+    // is the only call that sees the whole film at once - every later batch is a
+    // fresh model call that has never seen clip 1, so "the same positions as
+    // before" is unanswerable for it. What it CAN do is restate a description it
+    // is given, verbatim, into the clip it is writing - so the arrangement is
+    // written here and repeated word for word into every clip.
+    const blockingNo = choosePlace ? '6' : '5';
+    const blockingField = chooseBlocking ? `
+${blockingNo}. Fix WHERE THE TWO OF THEM ARE, and write it once for the whole
+   film. This is a conversation, not a montage: two people talk, and they talk
+   from the same two spots in the same room from the first clip to the last.
+   Nothing looks worse on screen than a couple who are sitting on the bed in one
+   clip and standing at the window in the next, or who trade sides between clips
+   for no reason.
+     - Place each of them EXACTLY, and anchor them to the FURNITURE, not to the
+       frame: on what (the bed, a chair, the floor, their own feet), with which
+       part of it (the edge of the bed, the left-hand chair at the table), which
+       way they face, and what their hands and body are doing. Furniture does not
+       move when the camera cuts; a screen side does. For example: "Godwin sits
+       on the edge of the bed, forearms on his knees, facing the couch. Tari sits
+       on the couch opposite him with an open book in her lap, facing the bed."
+     - If you name a frame side, name the anchor first and the side second, and
+       say plainly that the cutaway shot may reverse the camera - so the side is
+       what the wide shot shows, and the bed is where they are whatever the shot.
+     - Choose spots the whole conversation can be held from, so that nobody has
+       to move: sitting, lying or standing, but the SAME spot in every clip.
+     - Close enough that both fit in one frame, and neither of them ever out of
+       shot.
+     - "blocking" - 25 to 45 words, present tense, describing ONLY where they
+       are and what they do with their bodies. It is repeated WORD FOR WORD into
+       every clip, so write a fixed state, never a moment and never a movement.
+       Name each person against the thing they are on, so the statement survives
+       a cut from the wide shot to an over-the-shoulder and back.
+     - Write no movement into it at all: nobody stands up, lies down, crosses
+       the room, turns away or swaps sides. The only exception is a beat the
+       story itself is about - if the script calls for one of them to get up and
+       leave, that clip says so in its own words, and every clip after it keeps
+       them wherever they ended up.` : '';
 
     // The outline step's number shifts by one when the model also had to choose
     // a place, so the list still reads as a list.
-    const outlineNo = choosePlace ? '6' : '5';
+    const outlineNo = chooseBlocking ? (choosePlace ? '7' : '6') : (choosePlace ? '6' : '5');
     const sheetField = typed
         ? `     "sheet_prompt" - a 40 to 60 word prompt for an image generator to make that
                      character's reference sheet as ONE image containing the SAME
@@ -897,7 +943,7 @@ TASK
    describe WHAT HAPPENS, never what it looks like - the look is already fixed above.
 2. Write a one-sentence "moral" (max 25 words).
 3. Write "target_audience" (max 12 words).
-${castRule}${castFields}${castSpec}${placeField}
+${castRule}${castFields}${castSpec}${placeField}${blockingField}
 ${outlineNo}. Write an "outline": exactly ${SCENES} entries, one per clip.
      "title" - 2 to 5 words
      "beat"  - one sentence: what happens in this clip and what changes.
@@ -912,18 +958,28 @@ ${(p.story_shapes || []).map(s => `     - ${s}`).join('\n')}${intro ? `
    two says to the other. Write each beat as the turn it turns
    on - the hook that stops the viewer, a rule, the doubt that pushes back, the
    aphorism worth repeating, the resolution - not as a description of what is
-   seen. A beat that is only a picture has nothing for anyone to say.` : ''}
+   seen. A beat that is only a picture has nothing for anyone to say.
+   They stay where the BLOCKING above puts them. A beat is a turn in the
+   conversation, never a reason to move them to a different part of the room -
+   if a beat does move somebody, it has to be the story's own turn (they get up
+   and leave), and there can only be one such beat in the film.` : ''}
 
 Return ONLY this JSON, no other text:
-{"description":"","moral":"","target_audience":"",${choosePlace ? '"place_name":"","place_description":"","place_prompt":"",' : ''}${castSkeleton},"outline":[{"title":"","beat":""}]}`;
+{"description":"","moral":"","target_audience":"",${choosePlace ? '"place_name":"","place_description":"","place_prompt":"",' : ''}${chooseBlocking ? '"blocking":"",' : ''}${castSkeleton},"outline":[{"title":"","beat":""}]}`;
 }
 
-function scenesPrompt(p, cast, outline, from, to, soFar, place) {
+function scenesPrompt(p, cast, outline, from, to, soFar, place, blocking) {
     const { max: WORDS_MAX, hard: WORDS_HARD } = wordBudget(p);
     // The one place for the film, from the preset or from call 1. Absent only
     // for a preset that fixes no place and a caller that passed none, which is
     // the old behaviour.
     const fixed = String(place === undefined ? (p.setting || '') : place).trim();
+    // Where the two of them ARE, from call 1, repeated verbatim into every clip
+    // of this batch. A batch that is handed the arrangement can restate it; a
+    // batch told only to "keep them where they are" invents its own, which is
+    // how the same couple ends up on the bed in clip 3 and at the window in
+    // clip 4.
+    const arrangement = String(blocking || '').trim();
     const intro = p.narration_scope === 'intro';
     // Dialogue-led genres invert the audio job completely: there is no narrator
     // to write for, and the lines belong to the cast. Left to itself the model
@@ -965,6 +1021,31 @@ function scenesPrompt(p, cast, outline, from, to, soFar, place) {
                         insert them.`
         : `  "characters"        - always [] for this video. It has no cast.`;
 
+    // The arrangement itself, handed over as a fixed fact rather than a memory.
+    const arrangementBlock = arrangement
+        ? `\nTHE STAGE POSITIONS FOR THE WHOLE FILM - do not change them:\n  ${arrangement}\n  This is where they are in clip 1 and where they are in the last clip.\n`
+        : '';
+    // The clip-level half of the same rule. Only stated when there IS an
+    // arrangement to point at - a preset that declares a locked room but no
+    // positions has nothing above for the model to look at, and a rule that
+    // points at nothing is worse than no rule.
+    const moveLock = arrangement ? `WHERE THEY ARE IS FIXED TOO: the STAGE POSITIONS above are
+                        where they are, and every clip of this batch happens in
+                        that same arrangement. Do NOT re-describe where they are,
+                        do NOT seat them somewhere else, do NOT stand them up, do
+                        NOT sit them down, never walk them across the room and
+                        never swap their sides.
+                        Their position is anchored to the FURNITURE, so it is a
+                        fact about the room and not about the shot. On an
+                        over-the-shoulder angle the camera reverses and the frame
+                        side swaps - that is the camera moving, not them. The
+                        person on the bed is on the bed in the close-up too, and
+                        the person on the couch is still on the couch.
+                        The ONE exception is a beat that is itself a move - if
+                        this clip is the one where somebody gets up, walks out or
+                        lies down, say it in plain words and say where they end
+                        up. Every clip after that one keeps them there.` : '';
+
     // When the preset names one place, the room is not the model's to write.
     // It is supplied verbatim and repeated in every clip, so a clip that
     // re-describes the place is a clip fighting the setting - and one that moves
@@ -989,6 +1070,7 @@ function scenesPrompt(p, cast, outline, from, to, soFar, place) {
                         in every clip: never swap their sides, never walk them out
                         of frame. Vary only the action, the expression and the
                         camera angle; the place and the positions stay put.
+                        ${moveLock}
 CAMERA ANGLE - pick it by who is speaking, and NAME it in the last sentence
   of the narrative_context:
     - one of them speaks  -> over-the-shoulder medium close-up from behind
@@ -1005,7 +1087,8 @@ CAMERA ANGLE - pick it by who is speaking, and NAME it in the last sentence
                         again, do NOT redecorate it, do NOT move anyone anywhere
                         else, and never name a different location. Nothing new
                         appears in it and the time of day never changes. Vary
-                        only the action, the expression and the camera angle.`;
+                        only the action, the expression and the camera angle.
+                        ${moveLock}`;
 
     // Sound-led genres get a different audio job per clip. A narrated travelogue
     // over what should be a visual film is the failure this prevents: the model
@@ -1075,7 +1158,7 @@ AUDIO MODEL - this film is SOUND-LED, not narrated:
 TITLE: ${TITLE}
 DETAIL FROM THE CREATOR: ${DETAIL || '(none given)'}
 ${lookBlock(p, fixed)}
-${audioBlock}
+${arrangementBlock}${audioBlock}
 ${castBlock}
 ${prev}
 THE BEATS FOR THESE CLIPS (one clip each, same order):
@@ -1185,7 +1268,14 @@ function buildStory(p, cast, meta, scenes) {
     const placePrompt = String(useMetaPlace
         ? (meta.place_prompt || '')
         : (p.setting ? (p.setting_prompt || '') : (meta.place_prompt || ''))).trim();
-    const shot = (s) => [placeDesc, p.blocking, String(s.narrative_context || '').trim()]
+    // Where the two of them are, for the whole film, chosen once by call 1. The
+    // preset's own `blocking` (above it in every shot) states the RULE - fixed
+    // sides, fixed wardrobe, no crossing the axis. This is the arrangement the
+    // rule is about, in concrete words, and it is what makes the rule true: a
+    // rule the model has to apply to a scene it cannot see is a rule it applies
+    // differently every clip.
+    const metaBlocking = String(meta.blocking || '').trim();
+    const shot = (s) => [placeDesc, p.blocking, metaBlocking, String(s.narrative_context || '').trim()]
         .filter(Boolean).join(' ');
     return {
         title: TITLE,
@@ -1203,6 +1293,11 @@ function buildStory(p, cast, meta, scenes) {
         ...(placeDesc
             ? { place: { name: placeName, description: placeDesc, prompt: placePrompt } }
             : {}),
+        // Kept on the story as well as inside every clip, so the arrangement a
+        // film was staged in can be read - and corrected by hand - without
+        // digging through 14 prompts. Absent for every story whose preset never
+        // asked for one, which leaves those files byte-identical.
+        ...(metaBlocking ? { blocking: metaBlocking } : {}),
         aspect_ratio: ASPECT,
         scene_seconds: SECONDS,
         // Explicit, so the prompt builder never has to guess from prose whether
@@ -1727,7 +1822,10 @@ if (require.main === module) (async () => {
         console.log('\n' + '='.repeat(72) + `\nCALL 2 of 2 - clips 1-${cut} of ${SCENES}` +
                     (SCENES > cut ? ' (then repeated for each further batch)' : '') +
                     '\n' + '='.repeat(72));
-        console.log(scenesPrompt(p, fake, fakeOutline, 0, cut, []));
+        // No arrangement exists yet - call 1 writes it - so show the slot rather
+        // than the block, and only for a genre that will actually have one.
+        console.log(scenesPrompt(p, fake, fakeOutline, 0, cut, [], undefined,
+            p.blocking ? '(chosen by call 1 - stated here, word for word, in every clip)' : ''));
         return;
     }
 
@@ -1791,10 +1889,15 @@ if (require.main === module) (async () => {
         const metaPlace = String((meta && meta.place_description) || '').trim();
         const useMetaPlace = !!metaPlace && !p.setting;
         const place = String(useMetaPlace ? metaPlace : (p.setting || '')).trim();
+        // The arrangement, from call 1, for the same reason the place is: the
+        // batches share no state, so each one would otherwise stage the room for
+        // itself and the conversation would wander around it.
+        const blocking = String((meta && meta.blocking) || '').trim();
+        if (blocking) console.log(`  staged once for the film: ${blocking}`);
         for (let from = 0; from < total; from += BATCH) {
             const to = Math.min(from + BATCH, total);
             process.stdout.write(`  [2/2] clips ${from + 1}-${to} of ${total} ... `);
-            const r = await ask(ring, MODELS, scenesPrompt(p, cast, outline, from, to, scenes, place), 16384);
+            const r = await ask(ring, MODELS, scenesPrompt(p, cast, outline, from, to, scenes, place, blocking), 16384);
             const got = r.scenes || [];
             if (!got.length) throw new Error(`clip batch ${from + 1}-${to} came back empty`);
             scenes.push(...got);

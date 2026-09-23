@@ -140,9 +140,13 @@ const PROMPT     = (typeof PROMPT_RAW === 'string')
 const MENTION_RAW = flag('--mention');
 // EVERY mention, not just the first. A scene with two or three characters needs
 // one chip per character, and each has to be picked from the picker separately.
-const MENTIONS = (typeof MENTION_RAW === 'string')
+// DISTINCT, though: the prompt names the place in its own section, in the
+// reminder line and in every scene, so a cast of three arrived as five "@" names
+// and the same image was attached three times over. See MT.distinctMentions.
+const MENTION_LIST = (typeof MENTION_RAW === 'string')
     ? MENTION_RAW.split(',').map(s => s.replace(/^@/, '').trim()).filter(Boolean)
     : (PROMPT ? [...PROMPT.matchAll(/@([A-Za-z0-9_.\-]+)/g)].map(m => m[1]) : []);
+const MENTIONS = MT.distinctMentions(MENTION_LIST);
 
 // Model choice in Agent Mode is PLAIN ENGLISH in the prompt - there is no menu.
 // Confirmed live 2026-09-11: telling the agent "use veo3.1 low pirority to
@@ -942,6 +946,9 @@ async function uploadRefThroughPicker(page, box, file) {
     // ---- 5b. The mention(s), LAST -----------------------------------------
     if (MENTIONS.length) {
         log(`${MENTIONS.length} mention(s), typed last: ${MENTIONS.map(m => '@' + m).join(' ')}`);
+        if (MENTION_LIST.length !== MENTIONS.length) {
+            log(`   the prompt names ${MENTION_LIST.length} "@" references but only ${MENTIONS.length} distinct - each is attached once.`);
+        }
         if (MENTIONS.length > 3) {
             log(`WARNING: ${MENTIONS.length} characters is over the Veo 3.1 ceiling of 3`);
             log(`         reference images. Expect the agent to refuse or silently drop one.`);
@@ -1090,19 +1097,29 @@ async function uploadRefThroughPicker(page, box, file) {
     }
 
     log('Clicking Start generation...');
-    const clicked = await page.evaluate(() => {
+    // A REAL mouse click at the button's centre - never el.click().
+    //
+    // el.click() fires a synthetic event with isTrusted:false and Flow's Angular
+    // handler ignores it, so the prompt stays in the box while this step reports
+    // "Submitted." and the run then watches a conversation that never started.
+    // Measured live: el.click() leaves the prompt untouched for the full wait;
+    // page.mouse.click() at the same coordinates clears the box within 7s. The
+    // picker rows are clicked by coordinate for this same reason.
+    const target = await page.evaluate(() => {
         const b = document.querySelector('button[aria-label="Start generation"]');
-        if (!b) return 'missing';
-        if (b.disabled || /mat-mdc-button-disabled/.test((b.className || '').toString())) return 'disabled';
-        b.click();
-        return 'clicked';
+        if (!b) return { ok: false, why: 'missing' };
+        if (b.disabled || /mat-mdc-button-disabled/.test((b.className || '').toString())) return { ok: false, why: 'disabled' };
+        const r = b.getBoundingClientRect();
+        if (!r.width || !r.height) return { ok: false, why: 'offscreen' };
+        return { ok: true, cx: Math.round(r.x + r.width / 2), cy: Math.round(r.y + r.height / 2) };
     });
-    if (clicked !== 'clicked') {
-        console.error(`Submit failed: ${clicked}`);
+    if (!target.ok) {
+        console.error(`Submit failed: ${target.why}`);
         console.error(`Snapshots in ${RUN_DIR} - check 03_prompt-typed.json (was the prompt accepted?)`);
         await browser.disconnect();
         process.exit(1);
     }
+    await page.mouse.click(target.cx, target.cy);
     log('Submitted.');
 
     // ---- 7. Watch the conversation ----------------------------------------

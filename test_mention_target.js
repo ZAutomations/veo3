@@ -221,5 +221,28 @@ ok('a declared path that exists is used as-is', (() => {
 })());
 
 fs.rmSync(dir, { recursive: true, force: true });
+
+console.log('\n--- one chip per reference, however often the prompt names it ---');
+// The real agent prompt for a two-hander names the place three times: once in
+// the PLACE section, once in the reminder line and once per scene. Every "@"
+// used to become its own trip through the picker - the same tile clicked three
+// times, five chips for three references.
+const PROSE = ['Bedroom', 'Godwin', 'Tari', 'Bedroom', 'Bedroom'];
+ok('five "@" names become three chips',
+   M.distinctMentions(PROSE).length === 3, M.distinctMentions(PROSE));
+ok('they keep the order the prompt reads in',
+   JSON.stringify(M.distinctMentions(PROSE)) === JSON.stringify(['Bedroom', 'Godwin', 'Tari']),
+   M.distinctMentions(PROSE));
+ok('a repeated name is dropped, not the first one', M.distinctMentions(['a', 'b', 'a'])[0] === 'a');
+ok('casing does not make a second chip', M.distinctMentions(['Tara', 'tara', 'TARA']).length === 1,
+   M.distinctMentions(['Tara', 'tara', 'TARA']));
+ok('the first spelling wins', M.distinctMentions(['TARA', 'tara'])[0] === 'TARA');
+ok('--mention "Mia,Mia,Jon" attaches two', M.distinctMentions(['Mia', 'Mia', 'Jon']).length === 2);
+ok('blanks and stray spaces are not chips',
+   JSON.stringify(M.distinctMentions([' Mia ', '', '  ', null, undefined, 'Jon'])) ===
+   JSON.stringify(['Mia', 'Jon']), M.distinctMentions([' Mia ', '', '  ', null, undefined, 'Jon']));
+ok('an empty prompt means no chips', M.distinctMentions([]).length === 0);
+ok('a prompt with no "@" at all is safe', M.distinctMentions(undefined).length === 0);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

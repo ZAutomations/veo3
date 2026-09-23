@@ -63,8 +63,14 @@ const talkPrompt1 = W.castPrompt(talk);
 ok('the dialogue preset is asked to choose ONE place too',
    /ONE place for this whole film/i.test(talkPrompt1));
 ok('with the place_ fields in its call-1 schema', /"place_name"/.test(talkPrompt1));
-ok('and its outline starts at 6, after the place step',
-   /6\. Write an "outline": exactly 7 entries/.test(talkPrompt1));
+// The two-hander also declares `blocking`, so call 1 is asked where the pair
+// physically ARE as well - one more step, which pushes its outline one number
+// further along. The step still comes straight after the place; a genre that
+// declares no blocking is not shifted at all (asserted just above).
+ok('the pair\'s stage positions take the slot between the place and the outline',
+   /6\. Fix WHERE THE TWO OF THEM ARE/.test(talkPrompt1), 'the blocking step is missing');
+ok('and its outline starts at 7, after two chosen things',
+   /7\. Write an "outline": exactly 7 entries/.test(talkPrompt1));
 ok('and no locked room leaks into the call-1 prompt',
    !/SETTING \(FIXED/.test(talkPrompt1) && !/tearoom corner/i.test(talkPrompt1));
 
@@ -79,7 +85,10 @@ const fixed = Object.assign({}, talk, {
 const fixedPrompt = W.castPrompt(fixed);
 ok('a preset that declares a setting is not asked to choose one',
    !/ONE place for this whole film/i.test(fixedPrompt));
-ok('and its outline starts at 5', /5\. Write an "outline": exactly 7 entries/.test(fixedPrompt));
+// With the place already supplied there is nothing to choose for it, so the
+// blocking step moves up into slot 5 and the outline follows at 6.
+ok('and its stage positions are step 5', /5\. Fix WHERE THE TWO OF THEM ARE/.test(fixedPrompt));
+ok('and its outline starts at 6', /6\. Write an "outline": exactly 7 entries/.test(fixedPrompt));
 ok('and the look block states the fixed place', /^SETTING \(FIXED/m.test(W.lookBlock(fixed)));
 ok('and a preset with no setting gets no SETTING line', !/^SETTING/m.test(W.lookBlock(talk)));
 

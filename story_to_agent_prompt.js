@@ -23,6 +23,11 @@
  *   place.name                         -> a third @mention, for the place plate
  *   place.description                  -> the PLACE block, and repeated per scene
  *                                         through narrative_context
+ *   blocking                           -> the BLOCKING block: where the two of
+ *                                         them physically are for the whole film.
+ *                                         Also already inside every scene's
+ *                                         visual line, verbatim, because
+ *                                         write_story.js puts it there
  *   character_descriptions             -> the CAST block, and repeated per scene
  *   scenes[].veo3_prompt               -> scanned for the narrator / silent rules
  *   aspect_ratio, scene_seconds        -> the FORMAT line: clip shape and length
@@ -315,6 +320,30 @@ if (placeDesc) {
     L.push('');
 }
 
+// Where the people physically ARE, for the whole film. Same reasoning as the
+// place above, one level down: this text is already repeated into every scene's
+// visual line, and this block is what tells the agent the repetition is
+// deliberate - so a clip that comes back with the two of them standing at the
+// window, or with their sides swapped, reads as a mistake rather than a
+// variation. A story written before this field existed carries none, and is
+// emitted exactly as it was.
+const blocking = String(story.blocking || '').trim();
+if (blocking) {
+    L.push('BLOCKING - FIXED. This is where the characters are, and it is the same in every clip:');
+    L.push(`  ${blocking}`);
+    L.push('  They do not move from it except where a scene below says in plain words that');
+    L.push('  they do. Nobody stands up, sits down, lies down, walks across the room or');
+    L.push('  swaps sides between clips, and the one who is on the left stays on the left');
+    L.push('  for the whole film. Change the face, the gesture and the camera angle -');
+    L.push('  never the seats.');
+    L.push('  Where they are is anchored to the FURNITURE, so it is a fact about the room');
+    L.push('  and not about the shot: on an over-the-shoulder angle the camera reverses');
+    L.push('  and the frame side swaps, and that is the camera moving, not them. Whoever');
+    L.push('  is on the bed is on the bed in the close-up too. Never render a clip that');
+    L.push('  stands them up, re-seats them somewhere else, or trades their places.');
+    L.push('');
+}
+
 L.push('SCENES:');
 L.push('');
 let withNarration = 0;
@@ -426,7 +455,11 @@ for (const sc of scenes) {
 // agent still needs telling that the absence of people is deliberate, or it
 // helpfully adds some.
 L.push(charNames.length
-    ? `Keep ${charNames.join(' and ')} looking exactly as they do in their reference images in every scene.`
+    ? `Keep ${charNames.join(' and ')} looking exactly as they do in their reference images in every scene - `
+      + 'same face, same age, same hair, same outfit. Use those images as IDENTITY references only: they '
+      + 'hold who the characters are, not what the shot looks like. Do not reproduce a reference image as '
+      + 'the frame - every clip is a moving shot with a moving camera and moving people, never a still of a '
+      + 'sheet. Do not copy a reference frame-for-frame.'
     : 'This video has NO characters' + (placeDesc ? '' : ' and no reference images')
       + '. Do not add people, faces or '
       + 'dialogue. Distant unnamed figures are acceptable only where a scene needs a sense '
@@ -436,6 +469,11 @@ L.push(charNames.length
 if (placeDesc) {
     L.push(`Every clip is in the same place as the ${placeName ? `@${placeName}` : 'place'} reference image. `
         + 'It does not change from clip to clip.');
+}
+if (blocking) {
+    L.push('Every clip has the characters in the BLOCKING positions above, unchanged. This is a '
+        + 'conversation held in one spot, not a montage: if a clip moves somebody, or seats them '
+        + 'somewhere else, or swaps who is on which side, it is wrong.');
 }
 if (DIALOGUE) {
     L.push('Nobody narrates this video. Every spoken word belongs to one of the characters '
@@ -489,6 +527,10 @@ if (placeDesc) {
         + `${placeName ? ` attached as @${placeName}` : ' no mention (name it to attach the plate)'}`);
 } else if (placeName) {
     console.log(`  place      : ${placeName} (named, but the story carries no place description)`);
+}
+if (blocking) {
+    console.log(`  blocking   : one arrangement for the whole film - the characters keep their`);
+    console.log(`               seats in all ${scenes.length} clips (${blocking.split(/\s+/).length} words, repeated per scene)`);
 }
 // A cast with no descriptions is the case that produces drifting faces, so say
 // so loudly rather than letting it pass as a normal run.
