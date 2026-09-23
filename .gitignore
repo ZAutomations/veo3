@@ -39,6 +39,14 @@ reference/
 # hundreds of megabytes of generated media along with it.
 Veo3_Portable/
 
+# ── A different project that happens to live inside this folder ─────────────
+# "veo automation autoflow" is its OWN git repository - a Chrome extension and
+# its landing page - that simply happens to sit here. It has no remote and
+# shares no code with this engine. It is not part of this repo, and `git add -A`
+# would otherwise record it as an empty gitlink (a broken submodule) rather than
+# as the files it holds.
+veo automation autoflow/
+
 # ── OS / editor noise ───────────────────────────────────────────────────────
 # Stray placeholder left over from before these story folders had content.
 stories/**/.gitkeep

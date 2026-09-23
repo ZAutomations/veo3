@@ -154,6 +154,11 @@ DEFAULTS = {
     "from_scene": 1,
     "to_scene": 5,
     "skip_refs": False,
+    # Make the character sheets + place plate INSIDE the project before
+    # generating, instead of by hand (veo3_flow_new_ui.js --gen-refs).
+    "gen_refs": False,
+    # Also attach the sheets to clip 1, the establishing clip.
+    "refs_on_clip1": False,
     "project_url": "",
     "cdp_port": 9222,
     # Credit pool: continue a story on the next Google account when the
@@ -168,6 +173,10 @@ DEFAULTS = {
     # ---- MCP tab ----
     "mcp_links": "",
     "mcp_ideas": "",
+    # Stories that already exist on disk. When this box has anything in it the
+    # batch runs exactly those - no analysing, no writing - so the videos are
+    # made from the story text the user already reviewed and approved.
+    "mcp_stories": "",
     "mcp_preset": "",
     "mcp_seconds": 8,
     "mcp_clips": 8,
@@ -1052,14 +1061,28 @@ class Veo3LauncherGUI:
         ttk.Checkbutton(f, text="Skip refs upload (refs already in project)",
                         variable=self.skip_refs_var).grid(row=6, column=1, sticky="w", **pad)
 
+        # The manual step this removes: generating each character sheet and the
+        # place plate by hand and saving it into character_refs/. Tick this and
+        # the engine makes them inside the project first, renames the tiles, and
+        # attaches them - both characters AND the place.
+        self.gen_refs_var = tk.BooleanVar(value=self.settings["gen_refs"])
+        ttk.Checkbutton(f, text="Make reference images in the project first (no manual sheets)",
+                        variable=self.gen_refs_var).grid(row=7, column=1, sticky="w", **pad)
+        ttk.Label(f, text="reads refs.json - the cast AND the place", style="Hint.TLabel").grid(
+            row=7, column=1, sticky="w", padx=(430, 14), pady=6)
+
+        self.refs_on_clip1_var = tk.BooleanVar(value=self.settings["refs_on_clip1"])
+        ttk.Checkbutton(f, text="Attach the sheets to clip 1 as well",
+                        variable=self.refs_on_clip1_var).grid(row=8, column=1, sticky="w", **pad)
+
         ttk.Button(f, text="▶  Run engine", command=self.run_engine,
-                   style="Accent.TButton").grid(row=7, column=1, sticky="w", pady=(16, 4))
+                   style="Accent.TButton").grid(row=9, column=1, sticky="w", pady=(16, 4))
         ttk.Button(f, text="Stop engine", command=self.kill_engine).grid(
-            row=7, column=1, sticky="w", padx=(170, 14), pady=(16, 4))
+            row=9, column=1, sticky="w", padx=(170, 14), pady=(16, 4))
 
         ttk.Label(f, text="This path exports ONE continuous timeline and SPLITS it with ffmpeg.\n"
                           "It is kept for a future Ultra account where the extend models are available.",
-                  style="Hint.TLabel", justify="left").grid(row=8, column=1, columnspan=2,
+                  style="Hint.TLabel", justify="left").grid(row=10, column=1, columnspan=2,
                                                             sticky="w", padx=14, pady=(10, 6))
 
     # ── tab 2: agent mode ─────────────────────────────────────
@@ -1343,6 +1366,8 @@ class Veo3LauncherGUI:
             "from_scene": self.read_int(self.from_var, 1),
             "to_scene": self.read_int(self.to_var, 5),
             "skip_refs": bool(self.skip_refs_var.get()),
+            "gen_refs": bool(self.gen_refs_var.get()),
+            "refs_on_clip1": bool(self.refs_on_clip1_var.get()),
             "project_url": self.url_var.get().strip(),
             "cdp_port": self.read_int(self.cdp_var, 9222),
             "model_hint": self.model_var.get().strip(),
@@ -1376,6 +1401,7 @@ class Veo3LauncherGUI:
             # having been built yet.
             "mcp_links": self._mcp_text(self.mcp_links) if hasattr(self, "mcp_links") else self.settings.get("mcp_links", ""),
             "mcp_ideas": self._mcp_text(self.mcp_ideas) if hasattr(self, "mcp_ideas") else self.settings.get("mcp_ideas", ""),
+            "mcp_stories": self._mcp_text(self.mcp_stories) if hasattr(self, "mcp_stories") else self.settings.get("mcp_stories", ""),
             "mcp_preset": self._mcp_preset_id() if hasattr(self, "mcp_preset_var") else self.settings.get("mcp_preset", ""),
             "mcp_seconds": self.read_int(self.mcp_seconds_var, 8) if hasattr(self, "mcp_seconds_var") else self.settings.get("mcp_seconds", 8),
             "mcp_clips": self.read_int(self.mcp_clips_var, 0) if hasattr(self, "mcp_clips_var") else self.settings.get("mcp_clips", 0),
@@ -1787,6 +1813,12 @@ class Veo3LauncherGUI:
             cmd += ["--project-url", self.settings["project_url"]]
         if self.settings["skip_refs"]:
             cmd += ["--skip-refs"]
+        # Make the sheets (cast + place) inside the project first, so nothing is
+        # generated or saved by hand.
+        if self.settings["gen_refs"]:
+            cmd += ["--gen-refs"]
+        if self.settings["refs_on_clip1"]:
+            cmd += ["--refs-on-clip1"]
         # Credit pool: run on the ACTIVE account's browser and tell the
         # engine whose monthly counter to charge.
         if not self._ensure_active_browser():
@@ -2154,6 +2186,7 @@ class Veo3LauncherGUI:
         tk.Label(intro, justify="left", anchor="w", bg=CARD, fg=TEXT, font=("Segoe UI", 9),
                  text=("Video links (one per line) are analysed and made into films. Ideas are written\n"
                        "from scratch:   Title | preset | detail   (preset and detail optional).\n"
+                       "Already-written stories skip all of that and go straight to Flow.\n"
                        "Import a .txt / .csv / .xlsx too: a row with a link is a reference; a row with a\n"
                        "title in column A and the details in column B is an idea. Films are made ONE BY ONE.")
                  ).pack(fill="x", padx=10, pady=(0, 10))
@@ -2171,6 +2204,28 @@ class Veo3LauncherGUI:
                                  font=("Consolas", 9), wrap="none")
         self.mcp_ideas.grid(row=r, column=1, columnspan=2, sticky="ew", **pad)
         self._mcp_set_text(self.mcp_ideas, self.settings.get("mcp_ideas", ""))
+        r += 1
+
+        # Stories that are ALREADY written. A story is the expensive, reviewed
+        # part of the job, and it is the part people want to keep: re-running a
+        # film because Flow failed a tile, or making the same film again in a
+        # fresh project, must not pay Gemini to write the same story twice or
+        # silently replace text that was already approved. Anything in this box
+        # goes straight to prompt -> refs -> Flow -> download -> join.
+        tk.Label(f, text="Existing stories:").grid(row=r, column=0, sticky="ne", **pad)
+        self.mcp_stories = tk.Text(f, height=4, bg=INPUT, fg=TEXT, insertbackground=TEXT,
+                                   font=("Consolas", 9), wrap="none")
+        self.mcp_stories.grid(row=r, column=1, columnspan=2, sticky="ew", **pad)
+        self._mcp_set_text(self.mcp_stories, self.settings.get("mcp_stories", ""))
+        r += 1
+
+        st = tk.Frame(f, bg=SURFACE)
+        st.grid(row=r, column=0, columnspan=3, sticky="w", padx=14, pady=5)
+        ttk.Button(st, text="Add story…", command=self.mcp_pick_story).pack(side="left")
+        ttk.Button(st, text="Clear", command=lambda: self.mcp_stories.delete("1.0", "end")).pack(side="left", padx=8)
+        ttk.Label(st, text="story JSON or its folder, one per line - "
+                           "these RUN INSTEAD of the links and ideas above: nothing is written or analysed",
+                  style="Hint.TLabel").pack(side="left", padx=8)
         r += 1
 
         imp = tk.Frame(f, bg=SURFACE)
@@ -2292,6 +2347,100 @@ class Veo3LauncherGUI:
         if text:
             widget.insert("1.0", text)
 
+    def _mcp_story_paths(self):
+        """The stories box, one path per line, ready for the MCP server.
+        Forward slashes: the value crosses into JS as JSON, and a Windows path
+        written with backslashes is one escape away from a broken argument."""
+        out = []
+        for ln in self._mcp_text(self.mcp_stories).splitlines():
+            ln = ln.strip().strip('"')
+            if ln and not ln.startswith("#"):
+                out.append(os.path.normpath(ln).replace("\\", "/"))
+        return out
+
+    def mcp_pick_story(self):
+        """Pick already-written stories out of the stories folder.
+
+        A Tk list rather than a file dialog on purpose: the story wanted is
+        almost always one the tool itself wrote a moment ago, and the title and
+        scene count are what tell two of them apart - a filename does not."""
+        found = self._find_stories()
+        win = tk.Toplevel(self.root)
+        win.title("Add existing stories")
+        win.configure(bg=SURFACE)
+        win.transient(self.root)
+        tk.Label(win, text="Stories already written - pick one or more", bg=SURFACE, fg=ACCENT,
+                 font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=12, pady=(10, 4))
+        if not found:
+            tk.Label(win, text="No *_story.json found under stories/ yet.\n"
+                               "Write one first, or paste a path into the box by hand.",
+                     bg=SURFACE, fg=TEXT, justify="left").pack(anchor="w", padx=12, pady=8)
+        box = tk.Frame(win, bg=SURFACE)
+        box.pack(fill="both", expand=True, padx=12, pady=4)
+        lb = tk.Listbox(box, selectmode="extended", width=96, height=14, bg=INPUT, fg=TEXT,
+                        font=("Consolas", 9), activestyle="none")
+        sb = ttk.Scrollbar(box, orient="vertical", command=lb.yview)
+        lb.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        lb.pack(side="left", fill="both", expand=True)
+        for rel, title, scenes in found:
+            lb.insert("end", f"{title or rel}   [{scenes} scenes]   {rel}")
+        if found:
+            lb.selection_set(0)
+
+        def add():
+            picks = [found[i][0] for i in lb.curselection()]
+            if picks:
+                old = self._mcp_text(self.mcp_stories)
+                self.mcp_stories.delete("1.0", "end")
+                self.mcp_stories.insert("1.0", (old + "\n" if old else "") + "\n".join(picks))
+                self._console(f"Added {len(picks)} existing story(ies) to the batch.")
+            win.destroy()
+
+        btns = tk.Frame(win, bg=SURFACE)
+        btns.pack(fill="x", padx=12, pady=(4, 12))
+        ttk.Button(btns, text="Add selected", command=add).pack(side="left")
+        ttk.Button(btns, text="Browse for a file…", command=self._mcp_browse_story).pack(side="left", padx=8)
+        ttk.Button(btns, text="Cancel", command=win.destroy).pack(side="left")
+        lb.bind("<Double-Button-1>", lambda e: add())
+
+    def _mcp_browse_story(self):
+        p = filedialog.askopenfilename(
+            title="Choose a story JSON",
+            initialdir=os.path.join(BASE_DIR, "stories"),
+            filetypes=[("Story JSON", "*_story.json"), ("All JSON", "*.json"), ("All files", "*.*")])
+        if not p:
+            return
+        old = self._mcp_text(self.mcp_stories)
+        self.mcp_stories.delete("1.0", "end")
+        rel = os.path.relpath(p, BASE_DIR).replace("\\", "/")
+        self.mcp_stories.insert("1.0", (old + "\n" if old else "") + rel)
+
+    def _find_stories(self):
+        """Every *_story.json under stories/, as (relative path, title, scenes).
+        Recursive: films live one folder deep per title, and the older ones sit
+        in old/ and old2/ - which is exactly where the story someone wants to
+        re-generate usually is."""
+        root = os.path.join(BASE_DIR, "stories")
+        out = []
+        for dirpath, dirnames, filenames in os.walk(root):
+            dirnames[:] = [d for d in dirnames if d != "_reference"]
+            for fn in filenames:
+                if not fn.lower().endswith("_story.json"):
+                    continue
+                full = os.path.join(dirpath, fn)
+                title, scenes = "", 0
+                try:
+                    with open(full, "r", encoding="utf-8") as fh:
+                        st = json.load(fh)
+                    title = str(st.get("title") or "")[:70]
+                    scenes = int(st.get("total_scenes") or 0)
+                except Exception:
+                    pass
+                out.append((os.path.relpath(full, BASE_DIR).replace("\\", "/"), title, scenes))
+        out.sort(key=lambda t: os.path.getmtime(os.path.join(BASE_DIR, t[0])), reverse=True)
+        return out
+
     def _mcp_preset_id(self):
         return self._mcp_ids.get(self.mcp_preset_var.get(), "")
 
@@ -2408,14 +2557,25 @@ class Veo3LauncherGUI:
         links = [l.strip() for l in self.mcp_links.get("1.0", "end").splitlines()
                  if l.strip().lower().startswith("http")]
         ideas = self._parse_idea_lines()
-        if not links and not ideas:
-            messagebox.showinfo("Nothing to do", "Add video links and/or ideas first, or import a file.")
+        # Existing stories WIN. Someone who has just picked a story off the disk
+        # does not want the leftover links in the box analysed alongside it - that
+        # would write new stories and spend credits on work they did not ask for.
+        stories = self._mcp_story_paths()
+        if not links and not ideas and not stories:
+            messagebox.showinfo("Nothing to do", "Add video links, ideas or existing stories first.")
             return
-        total = len(links) + len(ideas)
+        total = len(stories) if stories else len(links) + len(ideas)
+        if stories:
+            what = (f"Make {total} film(s) from the {len(stories)} existing stor"
+                    f"{'y' if len(stories) == 1 else 'ies'} listed?\n\n"
+                    "Nothing is written and nothing is analysed - the story text already on "
+                    "disk is used exactly as it is.\n\n")
+        else:
+            what = f"Generate {total} film(s) now?\n\n"
         if generate and not messagebox.askyesno(
                 "Generate batch",
-                f"Generate {total} film(s) now?\n\nThis drives Flow one film at a time and SPENDS "
-                f"credits. It can take a long time. You can Stop, then Resume with From/To."):
+                what + "This drives Flow one film at a time and SPENDS credits. It can take "
+                       "a long time. You can Stop, then Resume with From/To."):
             return
         if generate and not self._ensure_active_browser():
             return
@@ -2455,15 +2615,23 @@ class Veo3LauncherGUI:
             args["from"] = frm
         if to > 0:
             args["to"] = to
-        if links:
-            args["references"] = links
-        if ideas:
-            args["ideas"] = ideas
+        if stories:
+            args["stories"] = stories
+        else:
+            if links:
+                args["references"] = links
+            if ideas:
+                args["ideas"] = ideas
 
         self.stop_mcp()
         self.output.delete("1.0", "end")
-        self.output.insert("end", f"🚀 MCP batch: {len(links)} link(s), {len(ideas)} idea(s)   "
-                                 f"{'GENERATING' if generate else 'stories only'}\n\n")
+        if stories:
+            self.output.insert("end", f"🚀 MCP batch: {len(stories)} existing story(ies)   "
+                                     f"{'GENERATING' if generate else 'prompts only'}   "
+                                     f"(links/ideas ignored)\n\n")
+        else:
+            self.output.insert("end", f"🚀 MCP batch: {len(links)} link(s), {len(ideas)} idea(s)   "
+                                     f"{'GENERATING' if generate else 'stories only'}\n\n")
         self.output.see("end")
         self._reset_progress("mcp batch")
 
@@ -2520,10 +2688,17 @@ class Veo3LauncherGUI:
         links = [l.strip() for l in self.mcp_links.get("1.0", "end").splitlines()
                  if l.strip().lower().startswith("http")]
         ideas = self._parse_idea_lines()
+        # Same rule as the batch: a named story means the story, not the links.
+        stories = self._mcp_story_paths()
+        if stories:
+            links, ideas = [], []
         preset = self._mcp_preset_id()
         clips = self.read_int(self.mcp_clips_var, 0)
         match_ref = bool(self.mcp_match_ref_var.get())
         L = ["Using the veo3-flow MCP, call batch_pipeline with:"]
+        if stories:
+            L.append("  stories: " + json.dumps(stories))
+            L.append("  # these stories are already written - do NOT call write_story or analyze_video for them")
         if links:
             L.append("  references: " + json.dumps(links))
         if ideas:

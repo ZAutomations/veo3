@@ -34,6 +34,10 @@ const { spawn, execFileSync } = require('child_process');
 const readline = require('readline');
 const remoteConfig = require('./remote_config.js');
 const health = require('./page_health.js');
+// Which reference images a scene needs (its cast AND the place) and how to tell
+// whether they actually attached. See refs_for_scene.js for the measured
+// failures this replaced.
+const { loadStoryRefs, refsForScene, refAliases, missingRefs, MAX_INGREDIENTS } = require('./refs_for_scene.js');
 
 // Chrome installs to different folders depending on the installer's bitness
 // (and per-user installs land in LOCALAPPDATA). Resolve the real one at
@@ -54,11 +58,14 @@ const CONFIG = {
     CHECK_INTERVAL: 2500,     // poll interval
     MAX_WAIT: 480000,         // 8 min per generation
     SCENE_SECONDS: 8,
-    // Model used for every extend. The plan only exposes the lower-priority
-    // queue, so the entry reads "Veo 3.1 - Lite [Lower Priority]". Matching
-    // falls back to any "Extend (Veo ...)" entry, so a plan change can't stall
-    // a run - it just logs which suffix it actually picked.
-    EXTEND_MODEL: 'Veo 3.1 - Lite [Lower Priority]',
+    // Model used for every extend. The menu offers "Extend (Veo 3.1 - Lite)"
+    // on this plan - confirmed live by probe_extend.js on 2026-09-22 - and NOT
+    // the "[Lower Priority]" suffix this default used to carry, which matched
+    // nothing and logged a WARNING on every scene of every run. Matching is a
+    // SUBSTRING, so this value also matches a plan that does suffix it. It
+    // still falls back to any "Extend (Veo ...)" entry, so a plan change can't
+    // stall a run - it just logs which one it actually picked.
+    EXTEND_MODEL: 'Veo 3.1 - Lite',
     DOWNLOADS_DIR: path.join(os.homedir(), 'Downloads'),
     OUTPUT_DIR: null,         // set from story dir
 };
@@ -169,6 +176,71 @@ function buildDedicatedProfile() {
     return profileDir;
 }
 
+// ── where Flow's export actually goes ────────────────────────────────────────
+// "Download scene" is an ordinary browser download, so the destination is
+// Chrome's decision, not ours. By default that means ~/Downloads - and not a
+// file in it. Flow writes a folder named after the project, holding another
+// folder, holding ONE FILE PER CLIP:
+//
+//   ~/Downloads/Untitled Scene 09-23 10_04_54/_root___context___/
+//       context___instruction___prompt_Continue_20260923151928.mp4
+//       context___instruction___prompt_Continue_20260923151928_2.mp4
+//       ...
+//       context___instruction___prompt_[SHOT]_20260923151956.mp4
+//
+// The engine used to watch the TOP LEVEL of ~/Downloads for a single new .mp4,
+// so it never saw any of them: the run sat out its full ten minutes and then
+// reported "Export never produced an .mp4 in Downloads" while the clips were
+// one directory down. That is the "download failed" that was really a download
+// nobody could find.
+//
+// Two things fix it: point the browser at a folder of our own, and then sweep
+// RECURSIVELY wherever the files went anyway, in case pointing it did not take.
+
+// Every .mp4 under a folder, however deep. Chrome only renames its temporary
+// file to .mp4 once the download is complete, so anything found here is whole.
+function mp4sUnder(dir) {
+    const out = [];
+    const walk = (d) => {
+        let entries;
+        try { entries = fs.readdirSync(d, { withFileTypes: true }); } catch (e) { return; }
+        for (const e of entries) {
+            const p = path.join(d, e.name);
+            if (e.isDirectory()) { walk(p); continue; }
+            if (!/\.mp4$/i.test(e.name)) continue;
+            if (/\.crdownload$/i.test(e.name)) continue;
+            try { const st = fs.statSync(p); out.push({ file: p, size: st.size, mtime: st.mtimeMs }); }
+            catch (e) { /* vanished mid-scan */ }
+        }
+    };
+    walk(dir);
+    return out.sort((a, b) => a.file.localeCompare(b.file));
+}
+
+// Flow names an exported clip after the words its prompt OPENS with, stamps it
+// with the second it was written, and numbers collisions _2, _3:
+//
+//   ...prompt_Continue_20260923151928.mp4     stem "…Continue", stamp, seq 1
+//   ...prompt_Continue_20260923151928_2.mp4   same stem, same stamp, seq 2
+//
+// That order is Flow's WRITE order, and it is NOT story order. Measured on a
+// real 5-clip export the establishing clip - the only one whose prompt starts
+// "[SHOT]" - was stamped 28 seconds AFTER the four extends, because every
+// extend's prompt opens "Continue…" and they were written first. Sorting by
+// name would have put clip 1 last. So this is used only to enumerate the files
+// deterministically; story order comes from order_clips_by_dialogue.js.
+function flowClipKey(file) {
+    const name = path.basename(file).replace(/\.mp4$/i, '');
+    const m = name.match(/_(\d{14})(?:_(\d+))?$/);
+    if (!m) return { stem: name, stamp: 0, seq: 1 };
+    return { stem: name.slice(0, m.index), stamp: Number(m[1]), seq: m[2] ? Number(m[2]) : 1 };
+}
+function flowClipOrder(a, b) {
+    const ka = flowClipKey(a), kb = flowClipKey(b);
+    if (ka.stem === kb.stem) return (ka.stamp - kb.stamp) || (ka.seq - kb.seq);
+    return (ka.stamp - kb.stamp) || a.localeCompare(b);
+}
+
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ engine
 class Veo3FlowNewUI {
     constructor(jsonFilePath, opts = {}) {
@@ -178,10 +250,25 @@ class Veo3FlowNewUI {
         this.page = null;
         this.scenes = [];
         this.characterReferences = {};
+        // Every ref the story declares, cast AND place, read from its refs.json
+        // (or sheets file) rather than from character_references - which has no
+        // place in it, and is how the room went missing from every clip.
+        this.storyRefs = [];
+        this.storyRefsSource = '';
         this.projectUrl = opts.projectUrl || '';
         this.fromScene = opts.fromScene || 1;
         this.toScene = opts.toScene || 0; // 0 = all
         this.skipRefs = !!opts.skipRefs;
+        // Attach the sheets to clip 1 too. Clip 1 is where the faces are set for
+        // the whole film, so the sheets matter there most - but it is a step the
+        // user drives by hand (they pick the model and press Start generation),
+        // so it is opt-in rather than a change to a working flow.
+        this.refsOnClip1 = !!opts.refsOnClip1;
+        // Make the reference images inside the project before generating, on the
+        // page this run already has open - the step that used to be done by
+        // hand. Same routine Agent Mode uses, so both routes build the same
+        // tiles and neither needs files in character_refs/.
+        this.genRefs = !!opts.genRefs;
         this.cdpUrl = opts.cdp || CONFIG.CDP_URL;
         // Multi-account credit pool (account_manager.js): when set, the
         // engine runs on that account's own Chrome profile and counts its
@@ -201,6 +288,10 @@ class Veo3FlowNewUI {
         const jsonName = path.basename(this.jsonFilePath, '.json');
         this.storyDir = jsonDir;
         this.outputDir = path.join(jsonDir, 'output');
+        // Where the browser is told to put the export, so the destination is
+        // ours and findable rather than Chrome's default somewhere in
+        // ~/Downloads. See mp4sUnder() for why leaving it to Chrome failed.
+        this.downloadDir = path.join(jsonDir, 'downloads');
         const logsDir = path.join(jsonDir, 'logs');
         this.failedPromptsLogPath = path.join(logsDir, `${jsonName}_FAILED.txt`);
 
@@ -353,8 +444,37 @@ class Veo3FlowNewUI {
         }
         this.scenes = data.scenes;
         this.characterReferences = data.character_references || data.characterReferences || {};
+        // Scenes 2+ are made by arming Extend, which carries the previous clip's
+        // last frame forward. The prompt typed there should say what happens
+        // NEXT; a story written for standalone clips says what the scene IS
+        // instead, and is re-read as a fresh shot brief - which is how an extend
+        // chain comes back looking like cuts. extend_prompts.js derives the
+        // continuation prompts and leaves them beside the story; if they are
+        // there, the extends use them. No file, no change in behaviour.
+        this.extendPrompts = {};
+        const extendPromptsPath = path.join(path.dirname(this.jsonFilePath), 'extend_prompts.json');
+        if (fs.existsSync(extendPromptsPath)) {
+            try {
+                const ep = JSON.parse(fs.readFileSync(extendPromptsPath, 'utf8'));
+                this.extendPrompts = (ep && ep.prompts) || {};
+                log(`   ✍️  extend_prompts.json: ${Object.keys(this.extendPrompts).length} continuation prompt(s)`);
+            } catch (e) {
+                log(`   ⚠️  extend_prompts.json unreadable (${e.message}) - using the story's own prompts`);
+            }
+        }
         if (!this.projectUrl && data.project_url) this.projectUrl = data.project_url;
         if (!this.toScene || this.toScene > this.scenes.length) this.toScene = this.scenes.length;
+        // The refs, from the story's refs.json where it has one. Read here so a
+        // missing place or an unmatched name is visible in the log BEFORE a
+        // single credit is spent, not discovered in the finished clips.
+        const storyRefs = loadStoryRefs(this.jsonFilePath, data);
+        this.storyRefs = storyRefs.refs;
+        this.storyRefsSource = storyRefs.source;
+        log(`   🧩 ${this.storyRefs.length} reference image(s) from ${storyRefs.source}`);
+        for (const r of this.storyRefs) log(`      ${r.kind === 'place' ? 'place' : 'cast '}  ${r.name}`);
+        if (this.storyRefs.length > MAX_INGREDIENTS) {
+            log(`   ⚠️  ${this.storyRefs.length} refs but the video model takes at most ${MAX_INGREDIENTS}`);
+        }
         log(`âœ… ${this.scenes.length} scenes loaded | range ${this.fromScene}-${this.toScene} | skipRefs=${this.skipRefs}`);
         for (const [name, p] of Object.entries(this.characterReferences)) {
             log(`   ðŸ§‘ ${name}: ${p}`);
@@ -389,6 +509,38 @@ class Veo3FlowNewUI {
             }
         }
         return null;
+    }
+
+    // The reference images THIS scene needs: its own cast, plus the place it
+    // happens in. Delegated so the decision can be tested without a browser -
+    // see refs_for_scene.js and test_refs_for_scene.js.
+    refsFor(scene) {
+        const r = refsForScene(scene, this.storyRefs, this.characterReferences);
+        if (r.missingCast.length) {
+            log(`   (no reference image declared for: ${r.missingCast.join(', ')})`);
+        }
+        if (r.overCap) {
+            log(`   ${r.refs.length} refs for this scene, over the model's ${MAX_INGREDIENTS} - some may be ignored`);
+        }
+        return r.refs;
+    }
+
+    // What is actually in the prompt box right now: its plain text (an attached
+    // ingredient shows there as an @mention) and the text of any ingredient
+    // chips (some builds render a mention as an element with no @ in it).
+    // Read back rather than assumed - see refs_for_scene.js.
+    async readPromptBox() {
+        const r = await this.evalJs(() => {
+            const box = document.querySelector('.ProseMirror[contenteditable="true"]')
+                || [...document.querySelectorAll('[contenteditable="true"]')].pop();
+            if (!box) return { text: '', chips: [] };
+            const chips = [...box.querySelectorAll('[class*=mention], [class*=chip], [class*=ingredient], [data-mention]')]
+                .map(el => (el.innerText || el.textContent || '').trim())
+                .filter(Boolean);
+            return { text: (box.innerText || box.textContent || ''), chips };
+        });
+        if (!r || r.__error || typeof r !== 'object') return { text: '', chips: [] };
+        return { text: r.text || '', chips: r.chips || [] };
     }
 
     async initializeFailedPromptsLog() {
@@ -760,11 +912,14 @@ async uploadRefViaSendKeys(filePath) {
 
     async uploadStoryRefs(scene) {
         if (this.skipRefs) { log('   (refs skipped - already in project)'); return; }
-        const names = scene.characters && scene.characters.length ? scene.characters : Object.keys(this.characterReferences);
-        for (const name of names) {
-            const p = this.characterReferences[name];
-            const abs = p ? this.resolveRefPath(p, name) : null;
-            if (!abs) { log(`   âš ï¸  no ref file for "${name}"`); continue; }
+        // Every ref the scene needs - its cast AND the place, from the story's
+        // refs.json where it has one. Uploading local sheets is only the
+        // fallback path: normally the tiles are made inside the Flow project by
+        // the ref generator and nothing is uploaded at all.
+        for (const ref of this.refsFor(scene)) {
+            const p = ref.file || this.characterReferences[ref.name] || '';
+            const abs = p ? this.resolveRefPath(p, ref.name) : null;
+            if (!abs) { log(`   âš ï¸  no ref file for "${ref.name}"`); continue; }
             await this.uploadRef(abs);
             await wait(2000);
         }
@@ -801,18 +956,28 @@ async uploadRefViaSendKeys(filePath) {
         return false;
     }
 
-    // Find one sheet by filename inside the picker. The list is virtualised, so
-    // walk it in viewport-sized steps if the target is not rendered yet.
-    async findAssetItem(name) {
+    // Find one sheet by ANY of its spellings (see refAliases), inside the
+    // picker. The list is virtualised, so walk it in viewport-sized steps if the
+    // target is not rendered yet - not being rendered is NOT the same as not
+    // being there, and treating the two as one is how a ref went missing.
+    async findAssetItem(aliases) {
+        const list = (Array.isArray(aliases) ? aliases : [aliases]).filter(Boolean);
+        if (!list.length) return 'no-name';
         for (let pass = 0; pass < 12; pass++) {
-            const state = await this.evalJs((n) => {
+            const state = await this.evalJs((names) => {
+                const keys = names.map(s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '')).filter(Boolean);
                 const vp = document.querySelector('cdk-virtual-scroll-viewport[aria-label="Asset list"]')
                         || document.querySelector('.asset-list-viewport');
                 if (!vp) return { state: 'no-picker' };
                 const items = [...vp.querySelectorAll('button.asset-item')];
                 const hit = items.find(b => {
                     const t = b.querySelector('.asset-title');
-                    return t && new RegExp(n, 'i').test(t.textContent.trim());
+                    if (!t) return false;
+                    const k = t.textContent.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    // Exact on the key first; a containment test only for a
+                    // spelling long enough that it cannot match by accident
+                    // ("Godwin Reference Sheet" holds "godwin").
+                    return keys.some(n => k === n || (n.length >= 4 && (k.includes(n) || n.includes(k))));
                 });
                 if (hit) {
                     if (hit.getAttribute('aria-selected') === 'true') return { state: 'already' };
@@ -823,7 +988,7 @@ async uploadRefViaSendKeys(filePath) {
                 const before = vp.scrollTop;
                 vp.scrollTop = before + Math.max(40, vp.clientHeight * 0.9);
                 return { state: 'scrolled', atEnd: vp.scrollTop === before, count: items.length };
-            }, name);
+            }, list);
             if (state.state === 'clicked' || state.state === 'already') return state.state;
             if (state.state === 'no-picker') return state.state;
             if (state.atEnd) return `not-found (${state.count} items visible)`;
@@ -834,41 +999,78 @@ async uploadRefViaSendKeys(filePath) {
 
     async selectRefsForScene(scene, sceneNum) {
         if (this.skipRefs) { log('   (refs skipped - ingredients already attached)'); return false; }
-        const names = (scene.characters && scene.characters.length)
-            ? scene.characters
-            : Object.keys(this.characterReferences);
-        if (!names.length) { log('   (no characters listed for this scene)'); return false; }
-
-        const wanted = names
-            .map(n => this.characterReferences[n])
-            .filter(Boolean)
-            .map(p => path.basename(p).replace(/\.[^.]+$/, ''));
-        if (!wanted.length) { log('   (no ref files resolved for this scene)'); return false; }
+        const want = this.refsFor(scene);
+        if (!want.length) {
+            log('   (no reference images declared for this scene)');
+            return false;
+        }
+        const wanted = want.map(r => r.name);
 
         log(`   🧩 Attaching ingredients for scene ${sceneNum}: ${wanted.join(', ')}`);
-        if (!await this.openAssetPicker()) {
-            log('   ⚠️  ingredient picker never opened - refs NOT attached');
-            return false;
+
+        // Tick every ref the scene needs, then ADD TO PROMPT, then READ BACK
+        // what actually attached - and repeat for whatever did not.
+        //
+        // The old version ticked each name, pressed "Add to prompt" once, and
+        // reported the number of ticks it had DISPATCHED - a number it never
+        // checked. Measured on a real extend run, one of the two characters was
+        // attached and the other was not, and the log read
+        // "2/2 ingredient(s) attached" regardless. Which one survived varied,
+        // which is why the film lost the man sometimes and the woman other
+        // times, and why the room was never attached at all.
+        //
+        // Reading the prompt box instead of trusting the clicks converges
+        // whichever way the picker misbehaves - closing itself after a tick, or
+        // replacing the selection rather than adding to it - because it never
+        // has to assume which one it does. Ticking ALL of them each round is
+        // what makes a replacing picker come out right in a single round;
+        // re-opening each round is what makes a self-closing one converge.
+        const ROUNDS = 4;
+        for (let round = 1; round <= ROUNDS; round++) {
+            if (!await this.openAssetPicker()) {
+                log(`   ⚠️  ingredient picker never opened (round ${round}/${ROUNDS})`);
+                break;
+            }
+            let ticked = 0;
+            for (const ref of want) {
+                const r = await this.findAssetItem(refAliases(ref, this.characterReferences));
+                log(`      ${ref.name}: ${r}`);
+                if (r === 'clicked' || r === 'already') ticked++;
+                await wait(600);
+            }
+            if (!ticked) {
+                log('   ⚠️  none of the ingredient sheets were found in the picker');
+                break;
+            }
+            const added = await this.clickAddToPrompt();
+            if (!added) log('   ⚠️  "Add to prompt" never clicked');
+            await wait(2000);
+
+            const missingNow = missingRefs(want, await this.readPromptBox(), this.characterReferences);
+            if (!missingNow.length) break;
+            log(`      still missing: ${missingNow.map(r => r.name).join(', ')} - retrying`);
         }
 
-        let attached = 0;
-        for (const name of wanted) {
-            const r = await this.findAssetItem(name);
-            log(`      ${name}: ${r}`);
-            if (r === 'clicked' || r === 'already') attached++;
-            await wait(600);
+        const missing = missingRefs(want, await this.readPromptBox(), this.characterReferences);
+        const attached = want.length - missing.length;
+        if (!missing.length) {
+            log(`   ✅ ${attached}/${wanted.length} ingredient(s) attached to prompt`);
+            await wait(1000);
+            return true;
         }
+        // An honest failure. Name what is NOT on the prompt instead of counting
+        // ticks: a clip that comes back without the room should say so here, not
+        // in the finished film.
+        log(`   ⚠️  only ${attached}/${wanted.length} ingredient(s) attached - MISSING: ${missing.map(r => r.name).join(', ')}`);
+        log('      those clips may re-invent what is missing - check them before you use them');
+        await this.closeStrayOverlay();
+        return attached > 0;
+    }
 
-        if (!attached) {
-            log('   ⚠️  none of the ingredient sheets were found in the picker');
-            await this.closeStrayOverlay();
-            return false;
-        }
-
-        // one "Add to prompt" applies to every ticked asset
-        let added = false;
-        for (let i = 0; i < 10 && !added; i++) {
-            added = await this.evalJs(() => {
+    // Press the picker's "Add to prompt", which applies to every ticked asset.
+    async clickAddToPrompt() {
+        for (let i = 0; i < 10; i++) {
+            const added = await this.evalJs(() => {
                 const ov = document.querySelector('.cdk-overlay-container');
                 const scope = ov && ov.innerText ? ov : document;
                 const btn = [...scope.querySelectorAll('button')]
@@ -877,12 +1079,10 @@ async uploadRefViaSendKeys(filePath) {
                 btn.click();
                 return true;
             });
-            if (!added) await wait(1000);
+            if (added) return true;
+            await wait(1000);
         }
-        log(added ? `   ✅ ${attached}/${wanted.length} ingredient(s) attached to prompt`
-                  : '   ⚠️  "Add to prompt" never clicked - refs may not be attached');
-        await wait(2000);
-        return added;
+        return false;
     }
 
     // â”€â”€ scene 1 (project grid, text-to-video) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -891,6 +1091,9 @@ async uploadRefViaSendKeys(filePath) {
         // prompt box must be the "What do you want to create?" one
         await this.uploadStoryRefs(scene);
         await this.typePrompt(scene.veo3_prompt);
+        // The sheets attached to clip 1 as well, when asked for. See the
+        // refsOnClip1 comment in the constructor.
+        if (this.refsOnClip1) await this.selectRefsForScene(scene, 1);
         log('');
         log('   ðŸ‘† IN BROWSER: pick model / aspect ratio, then click "Start generation" (arrow)');
         log('   â³ Waiting for generation to start and finish... (max 12 min)');
@@ -1064,6 +1267,11 @@ async uploadRefViaSendKeys(filePath) {
         // if already armed ("What happens next?" placeholder), reuse
         if (await this.isExtendArmed()) { log('   âœ… Extend mode already armed'); return; }
 
+        // Seen when the menu opens and genuinely holds no Extend entry. That is
+        // a fact about the plan, not a transient miss, so it is counted: three
+        // identical reads is enough to stop, where twelve retries only burn
+        // about ninety seconds to reach the same conclusion.
+        let noExtendSeen = 0;
         for (let attempt = 1; attempt <= 12; attempt++) {
             const ok = await this.evalJs((sel) => {
                 const addClip = [...document.querySelectorAll('button')]
@@ -1105,12 +1313,31 @@ async uploadRefViaSendKeys(filePath) {
                          available: items.map(x => labelOf(x).slice(0, 70)) };
             }, this.extendModel, this.sel);
             if (!picked || picked.state !== 'clicked') {
-                log(`   Extend menu problem: ${picked ? picked.state : 'eval error'}`);
+                // Never leave a bare "undefined" here again. That single word -
+                // "Extend menu problem: undefined" - is the reason this whole
+                // path was once set aside: it named no cause, so the only
+                // conclusion available was "the plan does not offer it". Name
+                // the real reason instead.
                 if (picked && picked.__error) {
-                    log(`      page error: ${picked.__error}`);
-                }
-                if (picked && picked.offered && picked.offered.length) {
-                    log(`      menu actually contained: ${picked.offered.join(' | ')}`);
+                    log(`   Extend menu: page error - ${picked.__error}`);
+                } else if (picked && picked.state === 'no-overlay') {
+                    log('   Extend menu: no overlay appeared after clicking "Add clip"');
+                } else if (picked && picked.state === 'no-extend-item') {
+                    noExtendSeen++;
+                    log(`   Extend menu: opened, but holds no "Extend (Veo ...)" entry `
+                        + `(${noExtendSeen}/3 before giving up)`);
+                    if (picked.offered && picked.offered.length) {
+                        log(`      it contains: ${picked.offered.join(' | ')}`);
+                    }
+                    if (noExtendSeen >= 3 && picked.offered && picked.offered.length) {
+                        throw new Error(
+                            `This Flow plan does not offer Extend in the "Add clip" menu `
+                            + `(scene ${sceneNum}). The menu holds: `
+                            + `${picked.offered.join(' | ')}. Run "node probe_extend.js" to `
+                            + `confirm it, and use Agent Mode for this story instead.`);
+                    }
+                } else {
+                    log(`   Extend menu: unrecognised reply ${JSON.stringify(picked)}`);
                 }
             }
             if (picked && picked.state === 'clicked') {
@@ -1365,7 +1592,12 @@ async doExtendScene(scene, sceneNum) {
         if (slotsAfterArm === 0) {
             throw new Error('no empty slot was reserved after arming - extend did not engage');
         }
-        await this.typePrompt(scene.veo3_prompt);
+        // Continuation prompt if one was derived for this scene, else the
+        // scene's own prompt. The derived one exists precisely because the
+        // scene's own prompt re-establishes the film rather than continuing it.
+        const extendText = this.extendPrompts[sceneNum];
+        if (extendText) log(`   ✍️  scene ${sceneNum}: continuation prompt (extend_prompts.json)`);
+        await this.typePrompt(extendText || scene.veo3_prompt);
         // Attach the reference sheets for the characters THIS scene needs, from
         // the ones already uploaded to the project (no re-upload).
         await this.selectRefsForScene(scene, sceneNum);
@@ -1407,11 +1639,42 @@ async doExtendScene(scene, sceneNum) {
         this._countClip();
         return now;
     }
+    // Claim the download destination, so the export lands where we say rather
+    // than wherever this browser profile was last told to put things. Best
+    // effort on purpose: if CDP refuses, the recursive sweep still finds the
+    // files, so a failure here costs a log line and nothing else.
+    async setDownloadDir(dir) {
+        fs.mkdirSync(dir, { recursive: true });
+        try {
+            const client = await this.page.target().createCDPSession();
+            try {
+                // Browser-wide, which is the modern call and the one that
+                // covers downloads the page starts without a navigation.
+                await client.send('Browser.setDownloadBehavior', {
+                    behavior: 'allow', downloadPath: dir, eventsEnabled: true,
+                });
+            } catch (e) {
+                await client.send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: dir });
+            }
+            await client.detach().catch(() => {});
+            log(`   📥 Downloads will land in: ${dir}`);
+        } catch (e) {
+            log(`   ⚠️  Could not claim the download folder (${String(e.message).slice(0, 80)})`);
+            log('   ⚠️  Sweeping ~/Downloads as well, in case that is where they go');
+        }
+    }
+
     async exportSceneVideo() {
         banner('â¬‡ï¸  EXPORTING FULL SCENE');
         await this.ensureEditor();
-        const before = fs.existsSync(CONFIG.DOWNLOADS_DIR)
-            ? fs.readdirSync(CONFIG.DOWNLOADS_DIR).filter(f => /\.mp4$/i.test(f)) : [];
+        await this.setDownloadDir(this.downloadDir);
+        // Everything already there, under BOTH the folder we asked for and the
+        // browser's own default. "New" is then a set difference, and it holds
+        // even when the download-path call was ignored and the clips went to
+        // ~/Downloads anyway - which is exactly what used to happen.
+        // Recursive, because Flow does not leave them at the top level.
+        const sweepRoots = [this.downloadDir, CONFIG.DOWNLOADS_DIR];
+        const before = new Set(sweepRoots.flatMap(d => mp4sUnder(d).map(x => x.file)));
 
         const opened = await this.evalJs(() => {
             const btn = [...document.querySelectorAll('button')]
@@ -1438,22 +1701,167 @@ async doExtendScene(scene, sceneNum) {
         if (!clicked) log('   âš ï¸  no explicit download button in dialog - maybe export started directly');
 
         log('   â³ Waiting for the .mp4 to land in Downloads...');
+        // Wait for the export to finish writing. "Finished" is not one file
+        // arriving: Flow writes ONE FILE PER CLIP, so the set is polled until it
+        // stops growing. this.okScenes.length is how many clips were asked for,
+        // so the wait knows when to stop rather than guessing.
+        const expected = this.okScenes.length || 1;
         const deadline = Date.now() + 600000;
-        let newFile = null;
+        let files = [], dir = this.downloadDir, lastKey = null, streak = 0;
         while (Date.now() < deadline) {
             await wait(3000);
-            const now = fs.readdirSync(CONFIG.DOWNLOADS_DIR).filter(f => /\.mp4$/i.test(f));
-            const fresh = now.filter(f => !before.includes(f) && !/-\d+\.part$/i.test(f));
-            if (fresh.length) {
-                const full = path.join(CONFIG.DOWNLOADS_DIR, fresh[0]);
-                const stable = fs.statSync(full).size;
-                await wait(4000);
-                if (fs.statSync(full).size === stable && stable > 100000) { newFile = full; break; }
+            const found = sweepRoots.flatMap(d => mp4sUnder(d))
+                .filter(x => !before.has(x.file) && x.size > 100000)
+                .sort((a, b) => flowClipOrder(a.file, b.file));
+            const key = found.map(x => `${x.file}:${x.size}`).join('|');
+            if (key && key === lastKey) {
+                streak++;
+                // Done once the count that was asked for has arrived and
+                // stopped growing. A short set is accepted only after it has
+                // sat still for a minute - a slow export looks exactly like a
+                // complete small one for a single poll, and stopping there
+                // would discard clips that were still on their way.
+                if (found.length >= expected || streak >= 20) {
+                    files = found.map(x => x.file);
+                    dir = path.dirname(found[0].file);
+                    break;
+                }
+            } else {
+                streak = 0;
+            }
+            lastKey = key;
+            if (found.length) log(`   ⏳ ${found.length} of ${expected} clip(s) written so far`);
+        }
+        if (!files.length) {
+            throw new Error('Export produced no .mp4 anywhere - searched '
+                + sweepRoots.join(' and ') + ', sub-folders included');
+        }
+        log(`   âœ… Downloaded: ${files.length} file(s)`);
+        log(`   📂 Folder: ${dir}`);
+        return { files, dir };
+    }
+
+    // Flow's export comes back as one file PER CLIP, so there is nothing to cut.
+    // What there is, is an ordering problem - and a sharp one. The files are
+    // named after the opening words of each clip's prompt, which for an extend
+    // chain is the same for every clip after the first, and stamped with the
+    // second Flow wrote them. Measured on a real 5-clip export of
+    // stories/the_price_of_obligation, that write order was 2,5,3,4,1: the
+    // establishing clip came back LAST. Naming the files scene-01..05 in the
+    // order they downloaded would have silently produced a shuffled film - the
+    // same failure as the Agent-Mode grid, reached a different way.
+    //
+    // So the order is established from the clips themselves, with the same
+    // by-ear tool the Agent-Mode route uses: each file carries its own scene's
+    // dialogue, whisper transcribes it locally, and the words identify the
+    // scene. On that real export this resolved 5 of 5, exactly.
+    //
+    // If it cannot run, nothing is guessed at: the clips are left under their
+    // own names in a folder beside them and the run says the order is unknown.
+    async collectPerClipExport(files) {
+        banner('🧩 COLLECTING PER-CLIP EXPORT');
+        fs.mkdirSync(this.outputDir, { recursive: true });
+        log(`   ${files.length} clip(s) came back separately - no cutting needed.`);
+
+        const expect = this.okScenes.length;
+        if (expect && files.length !== expect) {
+            log(`   ⚠️  ${files.length} file(s) for ${expect} scene(s) in range - some may not have exported.`);
+        }
+
+        // A folder holding only THIS export, so the ordering tool cannot pick
+        // up clips left behind by an earlier run. The downloaded originals are
+        // copied, never moved or renamed, so the raw export stays as it landed.
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const scratch = path.join(this.downloadDir, `run-${stamp}`);
+        fs.mkdirSync(scratch, { recursive: true });
+        const copied = [];
+        files.slice().sort(flowClipOrder).forEach((f, i) => {
+            const dest = path.join(scratch, `clip-${String(i + 1).padStart(2, '0')}.mp4`);
+            try { fs.copyFileSync(f, dest); copied.push(dest); }
+            catch (e) { log(`   ⚠️  could not copy ${path.basename(f)}: ${String(e.message).slice(0, 80)}`); }
+        });
+        if (!copied.length) {
+            log('   ❌ nothing could be copied out of the export - leaving it where it is.');
+            return [];
+        }
+
+        const heard = this.orderClipsByEar(scratch);
+        const slots = expect ? this.okScenes.slice() : copied.map((_, i) => i + 1);
+        const results = [];
+        const claimed = new Set();
+        const unplaced = [];
+
+        const place = (srcFile, sceneNum, why) => {
+            const name = `scene-${String(sceneNum).padStart(2, '0')}.mp4`;
+            try {
+                fs.copyFileSync(path.join(scratch, path.basename(srcFile)), path.join(this.outputDir, name));
+                claimed.add(sceneNum);
+                results.push(path.join(this.outputDir, name));
+                log(`   ✅ ${name}  <-  ${path.basename(srcFile)}${why}`);
+            } catch (e) { log(`   ❌ ${name}: ${String(e.message).slice(0, 80)}`); }
+        };
+
+        // Identified clips go to the scene they were heard to be.
+        for (const file of copied.map(f => path.basename(f))) {
+            const m = heard.byFile[file];
+            if (!m || m.scene === null) { unplaced.push(file); continue; }
+            if (!slots.includes(m.scene) || claimed.has(m.scene)) { unplaced.push(file); continue; }
+            place(file, m.scene, `  (heard ${(m.cover * 100).toFixed(0)}% of scene ${m.scene}'s words)`);
+        }
+        // Whatever is left takes the remaining slots. This is placement, not
+        // identification, and it is logged as such.
+        for (const file of unplaced) {
+            const free = slots.find(n => !claimed.has(n));
+            if (free === undefined) { log(`   ⚠️  ${file} has no free scene slot - left in ${scratch}`); continue; }
+            if (heard.ok) log(`   ⚠️  ${file} could not be identified - placed in the next free slot`);
+            place(file, free, heard.ok ? '  (NOT identified - check this one)' : '');
+        }
+
+        const empty = slots.filter(n => !claimed.has(n));
+        if (empty.length) log(`   ⚠️  scene slot(s) ${empty.join(', ')} stayed empty.`);
+        if (!heard.ok) {
+            log(`   ⚠️  the clips could not be ordered by ear (${heard.note}).`);
+            log('   ⚠️  They are in output/ in the order Flow wrote them, which is NOT story order.');
+            log(`   ⚠️  Raw export kept in ${scratch} - order it by hand before using these files.`);
+        } else {
+            log(`   ℹ️  Raw export and its transcripts kept in ${scratch}`);
+        }
+        return results;
+    }
+
+    // Which clip is which scene, by listening to them. Runs the already-tested
+    // order_clips_by_dialogue.js as a subprocess: it transcribes each clip
+    // locally (whisper - no API key, nothing leaves the machine) and matches it
+    // to the scene whose words it speaks. Never throws: a failure comes back as
+    // ok:false so the caller can decline to guess instead of producing an order
+    // that merely looks plausible.
+    orderClipsByEar(clipsDir) {
+        const tool = path.join(__dirname, 'order_clips_by_dialogue.js');
+        if (!fs.existsSync(tool)) return { ok: false, byFile: {}, note: 'order_clips_by_dialogue.js not found' };
+        let out = '';
+        try {
+            out = execFileSync(process.execPath,
+                [tool, this.jsonFilePath, '--clips', clipsDir, '--write'],
+                { encoding: 'utf8', timeout: 30 * 60 * 1000 });
+        } catch (e) {
+            const text = String((e && (e.stdout || e.message)) || e);
+            return { ok: false, byFile: {}, note: text.trim().split('\n').slice(-2).join(' ').slice(0, 200) };
+        }
+        // Only the lines that carry a decision - the transcript noise and the
+        // per-clip table are useful once, not on every run.
+        for (const l of out.split('\n')) {
+            if (/^\s+scene\s+(\d+|--)/.test(l) || /^(Resolved|Story order|WARNING)/.test(l.trim())) {
+                log(`   ${l.trim()}`);
             }
         }
-        if (!newFile) throw new Error('Export never produced an .mp4 in Downloads');
-        log(`   âœ… Downloaded: ${newFile}`);
-        return newFile;
+        let man = null;
+        try { man = JSON.parse(fs.readFileSync(path.join(clipsDir, 'manifest.json'), 'utf8')); } catch (e) { man = null; }
+        const byFile = {};
+        for (const c of (man && man.clips) || []) {
+            if (c && c.file) byFile[c.file] = { scene: c.matched_scene, cover: c.match_cover };
+        }
+        if (!Object.keys(byFile).length) return { ok: false, byFile: {}, note: 'no manifest was written' };
+        return { ok: true, byFile, note: null };
     }
 
     splitIntoScenes(fullFile) {
@@ -1578,6 +1986,37 @@ ${'='.repeat(70)}
         await this.initializeFailedPromptsLog();
         await this.connect();
 
+        // THE REFERENCE IMAGES, MADE FOR YOU. This is the step that used to mean
+        // generating each character sheet and the place plate by hand, saving
+        // them into character_refs/, and letting the engine upload them. Instead
+        // the same routine Agent Mode uses builds them INSIDE this project and
+        // renames each tile to the ref's own simple name, so nothing is made or
+        // saved by hand and nothing has to be uploaded - the tiles are attached
+        // by name (refs_for_scene.js) instead.
+        if (this.genRefs) {
+            if (!this.storyRefs.length) {
+                log('⚠️  --gen-refs: the story declares no reference images to make');
+            } else {
+                banner('🧩 REFERENCE IMAGES (made in this project)');
+                // Required lazily so the engine does not pull the ref
+                // generator's CLI parsing in at load time.
+                const { generateRefs } = require('./generate_refs.js');
+                const rr = await generateRefs(this.page, this.storyRefs, {
+                    log: (m) => log(`   ${m}`),
+                    // Leave Agent Mode OFF: the Scenes route generates in the
+                    // plain project grid, and it is Agent Mode that makes a
+                    // prompt produce a clip instead of an image.
+                    keepAgentOn: true,
+                });
+                if (rr.failed) {
+                    log(`⚠️  ${rr.failed}/${rr.total} reference image(s) failed. The run continues,`);
+                    log('   but a clip without its sheet will drift. Retry just those with');
+                    log('   `node generate_refs.js --story <this story folder> --only <name>`');
+                    log('   and then start the film.');
+                }
+            }
+        }
+
         // allow CLI range override after load
         if (!this.opts.toScene) this.toScene = this.scenes.length;
         if (this.fromScene > 1) {
@@ -1619,8 +2058,14 @@ ${'='.repeat(70)}
 
         if (this.okScenes.length >= 1) {
             try {
-                const full = await this.exportSceneVideo();
-                const parts = this.splitIntoScenes(full);
+                const ex = await this.exportSceneVideo();
+                // One file means Flow handed back the whole timeline, which has
+                // to be cut into scenes. More than one means it handed back the
+                // clips already separate - and cutting those would be both
+                // pointless and wrong.
+                const parts = ex.files.length === 1
+                    ? this.splitIntoScenes(ex.files[0])
+                    : await this.collectPerClipExport(ex.files);
                 log(`\nâœ… DONE: ${parts.length}/${this.okScenes.length} scene files in ${this.outputDir}`);
             } catch (e) {
                 log(`\nâš ï¸  Export/split failed: ${e.message}`);
@@ -1644,6 +2089,8 @@ function parseArgs(argv) {
         else if (a === '--from') opts.fromScene = parseInt(argv[++i], 10);
         else if (a === '--to') opts.toScene = parseInt(argv[++i], 10);
         else if (a === '--skip-refs') opts.skipRefs = true;
+        else if (a === '--refs-on-clip1') opts.refsOnClip1 = true;
+        else if (a === '--gen-refs') opts.genRefs = true;
         else if (a === '--extend-model') opts.extendModel = argv[++i];
         else if (a === '--cdp') opts.cdp = `http://127.0.0.1:${argv[++i]}`;
         else if (a === '--account') opts.account = argv[++i];
@@ -1655,12 +2102,12 @@ function parseArgs(argv) {
 
 // Exported so the watchdog and retry logic can be driven against a stub page
 // in tests. A direct `node veo3_flow_new_ui.js ...` still runs the CLI below.
-module.exports = { Veo3FlowNewUI, CONFIG };
+module.exports = { Veo3FlowNewUI, CONFIG, mp4sUnder, flowClipKey, flowClipOrder };
 
 if (require.main === module) (async () => {
     const opts = parseArgs(process.argv);
     if (!opts._.length) {
-        console.log('Usage: node veo3_flow_new_ui.js <story.json> [--project-url URL] [--from N] [--to N] [--skip-refs] [--cdp 9222] [--account X] [--fresh-project]');
+        console.log('Usage: node veo3_flow_new_ui.js <story.json> [--project-url URL] [--from N] [--to N] [--skip-refs] [--refs-on-clip1] [--gen-refs] [--cdp 9222] [--account X] [--fresh-project]');
         process.exit(1);
     }
     const engine = new Veo3FlowNewUI(opts._[0], opts);

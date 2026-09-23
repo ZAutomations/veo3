@@ -54,6 +54,9 @@ const puppeteer = require('puppeteer');
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 function ts() { return new Date().toTimeString().slice(0, 8); }
 function log(m) { console.log(`[${ts()}] ${m}`); }
+// The console sink, kept under its own name so generateRefs() below can shadow
+// `log` with its caller's sink without losing this one.
+const moduleLog = log;
 
 const argv = process.argv.slice(2);
 function flag(name, def = null) {
@@ -86,52 +89,34 @@ function refsPath() {
     if (fs.existsSync(p) && fs.statSync(p).isFile()) return p;
     return path.join(p, 'refs.json');
 }
-// Older stories have no refs.json - parse character_sheets.txt instead. Its
-// shape is regular: "=== NAME ===", "save as: character_refs/<file>", and the
-// line after "-- image prompt --" is the prompt.
-function parseSheetsTxt(dir) {
-    const f = path.join(dir, 'character_sheets.txt');
-    if (!fs.existsSync(f)) return null;
-    const txt = fs.readFileSync(f, 'utf8');
-    const refs = [];
-    for (const part of txt.split(/^===\s*/m).slice(1)) {
-        const close = part.indexOf('===');
-        if (close < 0) continue;
-        const head = part.slice(0, close).trim();
-        const body = part.slice(close + 3);
-        const save = body.match(/save as:\s*character_refs\/([^\r\n]+)/i);
-        const prompt = body.match(/-- image prompt --\s*[\r\n]+([^\r\n]+)/i);
-        if (!save || !prompt) continue;
-        const file = save[1].trim();
-        refs.push({
-            name: file.replace(/\.[a-z0-9]+$/i, ''),
-            file,
-            kind: /^place\b/i.test(head) ? 'place' : 'character',
-            prompt: prompt[1].trim(),
-        });
-    }
-    return refs.length ? refs : null;
-}
+// Reading the refs is shared with the Scenes/Ingredients engine, so both routes
+// cannot disagree about the cast or the place. See refs_for_scene.js.
+const { readRefsFile, loadStoryRefs } = require('./refs_for_scene.js');
 
 function loadRefs() {
     const f = refsPath();
     if (!f) { console.error('Give --story <folder> or --refs <refs.json>.'); process.exit(1); }
-    let refs = [];
-    if (fs.existsSync(f)) {
-        const db = JSON.parse(fs.readFileSync(f, 'utf8'));
-        refs = Array.isArray(db) ? db : (db.refs || []);
-    } else {
-        const dir = path.dirname(f);
-        const fromTxt = parseSheetsTxt(dir);
-        if (!fromTxt) {
-            console.error(`No refs.json at ${f}, and no character_sheets.txt to fall back on.`);
-            console.error('Write the story first (`node write_story.js ...`).');
-            process.exit(1);
-        }
-        log(`No refs.json - read ${path.basename(path.dirname(f))}/character_sheets.txt instead.`);
-        refs = fromTxt;
+    if (REFS_FILE && !fs.existsSync(f)) {
+        console.error(`No such refs file: ${f}`);
+        process.exit(1);
     }
-    refs = refs.filter((r) => r && r.prompt && String(r.prompt).trim());
+    let refs = [], source = '';
+    if (fs.existsSync(f) && fs.statSync(f).isFile()) {
+        refs = readRefsFile(f);
+        source = path.basename(f);
+    } else {
+        // No refs.json: loadStoryRefs falls back to the story's
+        // character_sheets.txt, which older stories have instead.
+        const loaded = loadStoryRefs(path.dirname(f), null);
+        refs = loaded.refs;
+        source = loaded.source;
+        log(`No refs.json - read ${source} instead.`);
+    }
+    if (!refs.length) {
+        console.error(`No reference images found for ${f}.`);
+        console.error('Write the story first (`node write_story.js ...`), which writes refs.json.');
+        process.exit(1);
+    }
     if (ONLY) {
         const want = ONLY.toLowerCase();
         refs = refs.filter((r) => String(r.name || '').toLowerCase() === want);
@@ -204,6 +189,35 @@ async function settingsPanelOpen(page) {
     });
 }
 
+// Is the FULL Settings panel open - the one with the generation-default
+// sections and its Save button?
+//
+// `settingsPanelOpen` above answers the weaker question "are any of this
+// panel's nodes on screen", which is all that closing it needs. Opening it
+// needs the stronger one. The compact "Settings trigger" summary opens a quick
+// view that carries no generation-default sections and no Save button, and
+// reporting THAT as success is worse than reporting failure: the caller then
+// reads the model rows, finds none, sets nothing, and walks away leaving the
+// view sitting over the prompt bar - which is the state that keeps Start
+// generation disabled. Save is also this drawer's only way out, so a panel
+// without one must not be entered at all.
+async function settingsPanelUsable(page) {
+    return await page.evaluate(() => {
+        const hasSave = !!document.querySelector('.settings-save-button')
+            || [...document.querySelectorAll('button')].some((b) => {
+                const src = b.querySelector('.mdc-button__label') || b;
+                const c = src.cloneNode(true);
+                c.querySelectorAll('mat-icon').forEach((i) => i.remove());
+                return /^save$/i.test((c.innerText || c.textContent || '').replace(/\s+/g, ' ').trim());
+            });
+        if (!hasSave) return false;
+        const el = document.querySelector('.settings-content, .settings-section');
+        if (!el) return false;
+        const r = el.getBoundingClientRect();
+        return !!(r.width || r.height);
+    });
+}
+
 // The tune button ("Settings") opens the full Settings panel, which holds the
 // Image and Video generation defaults. We read the image default to confirm the
 // sheets will be images (Nano Banana) and not clips.
@@ -216,6 +230,9 @@ async function settingsPanelOpen(page) {
 // - silently skipped the whole settings block. Try both labels and take the one
 // that is actually visible: clicking a hidden button dispatches an event Angular
 // ignores, which looks exactly like the panel refusing to open.
+//
+// Success means the USABLE panel, not just its container - see
+// settingsPanelUsable above for why that distinction matters.
 async function openSettingsPanel(page) {
     for (let i = 0; i < 3; i++) {
         const clicked = await page.evaluate(() => {
@@ -239,8 +256,17 @@ async function openSettingsPanel(page) {
             return true;
         });
         if (!clicked) { await wait(1500); continue; }
-        await wait(2200);
-        if (await settingsPanelOpen(page)) return true;
+        // Poll for the usable panel rather than waiting a fixed 2.2s: the
+        // drawer mounts its contents a moment after its container, so a single
+        // fixed read can catch a working panel mid-mount and call it empty.
+        const t0 = Date.now();
+        while ((Date.now() - t0) / 1000 < 8) {
+            await wait(400);
+            if (await settingsPanelUsable(page)) return true;
+        }
+        // Whatever opened is not the panel we came for. Back out the way that
+        // has always worked, rather than leaving it up for the caller to trip
+        // over.
         await page.keyboard.press('Escape');
         await wait(700);
     }
@@ -427,20 +453,18 @@ async function setConfirmNever(page) {
 //
 // This panel is a drawer inside the agent panel - <flow-agent-panel> >
 // .agent-panel-content > flow-settings-view > .container > .settings-content -
-// and it has exactly ONE way out: Save.
-//
-// Everything else was measured live and does nothing: Escape, clicking outside
-// it, the header backdrop, and the two Settings buttons (they are display:none
-// while it is open, so they are not a toggle). A document-level "close" icon
-// button near the header is clickable but does not close this drawer either.
-//
-// Each was retested on a FRESHLY OPENED panel, because run in sequence on one
-// panel they stop being independent - the backdrop click read as working once
-// purely because earlier Escape presses had cleared something first.
+// and on the build it was measured on it has exactly ONE way out: Save.
 //
 // Save COMMITS, so closing is a write. It is the project's own settings being
 // written back, so it is a no-op when nothing was changed - but it is still a
-// write, and the only way to get the drawer out of the way of the prompt bar.
+// write, and the way to get the drawer out of the way of the prompt bar.
+//
+// Save is TRIED FIRST, and Escape is kept as the fallback. That order matters:
+// a build can show a settings view with no Save button in it at all, and then
+// Save-only closing reports failure every time and leaves the drawer up - which
+// is exactly the state that keeps Start generation disabled, so every ref after
+// it fails with the prompt sitting in the box. Escape and a click on empty
+// space are what closed this drawer before Save was used, and they still do.
 async function closeSettings(page, seconds = 6) {
     if (!await settingsPanelOpen(page)) return true;
     await clickSave(page);
@@ -452,7 +476,15 @@ async function closeSettings(page, seconds = 6) {
         await wait(300);
         if (!await settingsPanelOpen(page)) return true;
     }
-    return false;
+    // Save did not do it - no Save button on this build, or it did not take.
+    for (let i = 0; i < 4; i++) {
+        await page.keyboard.press('Escape');
+        await wait(800);
+        if (!await settingsPanelOpen(page)) return true;
+    }
+    await page.mouse.click(5, 5);
+    await wait(700);
+    return !(await settingsPanelOpen(page));
 }
 // A freshly created project takes a moment to paint its prompt bar. Without
 // this the very first settings click lands on nothing - which stopped a whole
@@ -498,15 +530,34 @@ async function insertPrompt(page, text) {
     if (!landed) { log('  prompt did not land in the box'); return false; }
     return true;
 }
+// Submit with a REAL mouse click at the button's centre - never el.click().
+//
+// el.click() dispatches a synthetic DOM event carrying isTrusted:false, and
+// Flow's Angular handler ignores it. The click throws nothing, so this used to
+// return ok:true - while the prompt sat in the box untouched. That is the exact
+// signature of the failure: a run reports "0 made, N failed" and there is NO
+// "could not submit" line anywhere in the log, because as far as this function
+// was concerned the submit had worked.
+//
+// Measured live on this build: el.click() on the button -> the prompt box still
+// holds its 282 characters after the full 180s wait and no tile ever appears.
+// page.mouse.click() at the same coordinates -> the box clears within 7s and the
+// tiles appear. The mention picker and the picker's own rows already click by
+// coordinate for this same reason; the submit was the one left on the synthetic
+// path.
 async function clickSubmit(page) {
-    return await page.evaluate(() => {
+    const where = await page.evaluate(() => {
         const b = [...document.querySelectorAll('button')]
             .find((x) => /start generation/i.test(x.getAttribute('aria-label') || ''));
         if (!b) return { ok: false, why: 'no Start generation button' };
         if (b.disabled || String(b.className).includes('disabled')) return { ok: false, why: 'Start generation is disabled' };
-        b.click();
-        return { ok: true };
+        const r = b.getBoundingClientRect();
+        if (!r.width || !r.height) return { ok: false, why: 'Start generation is not on screen' };
+        return { ok: true, cx: Math.round(r.x + r.width / 2), cy: Math.round(r.y + r.height / 2) };
     });
+    if (!where.ok) return where;
+    await page.mouse.click(where.cx, where.cy);
+    return { ok: true };
 }
 async function waitForNewTile(page, before, seconds) {
     const t0 = Date.now();
@@ -596,22 +647,22 @@ async function renameNewest(page, name) {
 }
 
 // ── main ---------------------------------------------------------------------
-if (require.main === module) (async () => {
-    const refs = loadRefs();
+// ── the routine ──────────────────────────────────────────────────────────────
+// Exported so the Scenes/Ingredients engine can make the sheets on a page it has
+// already opened, in the project it is about to generate in - that is the whole
+// port, only the caller differs. `page` must be a Flow PROJECT page.
+// Returns { made, failed, total }.
+async function generateRefs(page, refs, opts = {}) {
+    // Shadowing `log` with the caller's sink; the body's log() calls need no
+    // change for it.
+    const log = opts.log || moduleLog;
+    const waitS = opts.waitS || WAIT_S;
+    const ratio = opts.ratio !== undefined ? opts.ratio : RATIO;
+    const videoModel = opts.videoModel !== undefined ? opts.videoModel : VIDEO_MODEL;
+    const keepAgentOn = opts.keepAgentOn !== undefined ? opts.keepAgentOn : KEEP_AGENT;
+
     log(`${refs.length} reference image(s) to make:`);
     refs.forEach((r) => log(`  - ${r.name}  (${r.kind || 'ref'})`));
-    if (DRY) { log('--dry: nothing generated.'); return; }
-
-    let browser;
-    try {
-        browser = await puppeteer.connect({ browserURL: `http://127.0.0.1:${CDP_PORT}`, defaultViewport: null });
-    } catch (e) {
-        console.error(`Could not connect to Chrome on CDP port ${CDP_PORT}. Start the automation browser first.`);
-        process.exit(1);
-    }
-    const page = (await browser.pages()).find((p) => /flow\.google\.com\/project/i.test(p.url() || ''));
-    if (!page) { console.error('No Flow PROJECT tab open (need /project/<id>).'); await browser.disconnect(); process.exit(1); }
-    log(`Project: ${page.url()}`);
     if (!await waitForProjectReady(page)) log('warning: prompt bar is slow to appear - still trying.');
 
     // ---- FIRST JOB: Agent Mode must be OFF --------------------------------
@@ -649,10 +700,10 @@ if (require.main === module) (async () => {
         // Apply the batch's ratio to the project itself (image AND video
         // defaults), so every clip comes out in that shape.
         let changed = false;
-        if (RATIO && !/^(flow|auto|default|none)$/i.test(RATIO)) {
-            const n = await setPanelRatio(page, RATIO);
-            if (n > 0) { changed = true; log(`project ratio -> ${RATIO}`); }
-            else log(`WARNING: ${RATIO} not found in the Settings panel - ratio left as-is.`);
+        if (ratio && !/^(flow|auto|default|none)$/i.test(ratio)) {
+            const n = await setPanelRatio(page, ratio);
+            if (n > 0) { changed = true; log(`project ratio -> ${ratio}`); }
+            else log(`WARNING: ${ratio} not found in the Settings panel - ratio left as-is.`);
         }
         const cn = await setConfirmNever(page);
         log(`confirm-before-generating -> ${cn === 'clicked' ? 'Never (set)' : cn === 'already' ? 'Never (already)' : cn}`);
@@ -662,13 +713,13 @@ if (require.main === module) (async () => {
         // the time the agent step reaches the Generate button. Setting it is the
         // whole point: Flow remembers the last model used per project, so left
         // alone a project quietly keeps whatever was picked last time.
-        if (VIDEO_MODEL) {
-            const vm = await setSectionModel(page, 'video', VIDEO_MODEL);
+        if (videoModel) {
+            const vm = await setSectionModel(page, 'video', videoModel);
             if (vm.ok) {
                 if (vm.changed) changed = true;
                 log(`video generation default -> ${vm.model}${vm.changed ? '' : ' (already)'}`);
             } else {
-                log(`WARNING: could not set the video model to "${VIDEO_MODEL}" (${vm.why}) -`);
+                log(`WARNING: could not set the video model to "${videoModel}" (${vm.why}) -`);
                 log('the film will generate with whatever Flow has selected.');
             }
         }
@@ -687,7 +738,7 @@ if (require.main === module) (async () => {
     } else {
         log('WARNING: could not open the Settings panel. Not checked or applied:');
         log('  the image model (sheets may come out as clips), the project ratio,');
-        log(`  confirm-before-generating,${VIDEO_MODEL ? ` and the video model ("${VIDEO_MODEL}") -` : ' -'}`);
+        log(`  confirm-before-generating,${videoModel ? ` and the video model ("${videoModel}") -` : ' -'}`);
         log('  the film will generate with whatever Flow has selected.');
     }
 
@@ -701,9 +752,9 @@ if (require.main === module) (async () => {
         let click = await clickSubmit(page);
         for (let a = 2; a <= 6 && !click.ok; a++) { await wait(5000); click = await clickSubmit(page); }
         if (!click.ok) { log(`  could not submit: ${click.why}`); failed++; continue; }
-        log(`  generating... (up to ${WAIT_S}s)`);
-        const after = await waitForNewTile(page, before, WAIT_S);
-        if (after <= before) { log(`  TIMEOUT - no new tile after ${WAIT_S}s`); failed++; continue; }
+        log(`  generating... (up to ${waitS}s)`);
+        const after = await waitForNewTile(page, before, waitS);
+        if (after <= before) { log(`  TIMEOUT - no new tile after ${waitS}s`); failed++; continue; }
         log(`  new tile appeared (${before} -> ${after}); renaming to "${name}"`);
         const ren = await renameNewest(page, name);
         if (ren.ok) { made++; log(`  ok - tile renamed "${name}"`); }
@@ -713,7 +764,7 @@ if (require.main === module) (async () => {
     // Hand the chip back in the state the film run needs. agent_mode.js turns
     // Agent Mode ON itself, but leaving it OFF here means the next thing to touch
     // this project starts from the wrong state. --keep-agent-on opts out.
-    if (KEEP_AGENT) {
+    if (keepAgentOn) {
         log('(--keep-agent-on: leaving Agent Mode as it was.)');
     } else {
         const on = await setAgent(page, true);
@@ -722,10 +773,32 @@ if (require.main === module) (async () => {
             : `WARNING: could not turn Agent Mode back ON (${on.why}) - agent_mode.js will retry.`);
     }
     log(`\nDone: ${made} made, ${failed} failed, of ${refs.length}.`);
+    return { made, failed, total: refs.length };
+}
+
+// ── CLI ─────────────────────────────────────────────────────────────────────
+if (require.main === module) (async () => {
+    const refs = loadRefs();
+    if (DRY) { log(`${refs.length} reference image(s) would be made - --dry: nothing generated.`); return; }
+
+    let browser;
+    try {
+        browser = await puppeteer.connect({ browserURL: `http://127.0.0.1:${CDP_PORT}`, defaultViewport: null });
+    } catch (e) {
+        console.error(`Could not connect to Chrome on CDP port ${CDP_PORT}. Start the automation browser first.`);
+        process.exit(1);
+    }
+    const page = (await browser.pages()).find((p) => /flow\.google\.com\/project/i.test(p.url() || ''));
+    if (!page) { console.error('No Flow PROJECT tab open (need /project/<id>).'); await browser.disconnect(); process.exit(1); }
+    log(`Project: ${page.url()}`);
+
+    const r = await generateRefs(page, refs, {
+        waitS: WAIT_S, ratio: RATIO, videoModel: VIDEO_MODEL, keepAgentOn: KEEP_AGENT,
+    });
     log('Next: run agent_mode (or the MCP run_agent) with --no-upload-refs so it');
     log('@-mentions the tiles just made instead of uploading local files.');
     await browser.disconnect();
-    process.exit(failed ? 1 : 0);
+    process.exit(r.failed ? 1 : 0);
 })().catch((e) => { console.error('FAILED: ' + (e && e.message)); process.exit(1); });
 
 module.exports = {
