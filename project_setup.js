@@ -137,12 +137,12 @@ async function clickNewProject(page) {
     return label;
 }
 
-async function waitForProjectUrl(browser, timeoutMs) {
+async function waitForProjectUrl(browser, timeoutMs, excluded = new Set()) {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
         for (const p of await browser.pages()) {
             const id = projectIdFromUrl(p.url());
-            if (id) return { page: p, url: `https://flow.google.com/project/${id}`, id };
+            if (id && !excluded.has(id)) return { page: p, url: `https://flow.google.com/project/${id}`, id };
         }
         await wait(1200);
     }
@@ -230,6 +230,7 @@ if (require.main === module) (async () => {
     }
 
     // ---- create -------------------------------------------------------------
+    const existingProjects = new Set((await browser.pages()).map(p => projectIdFromUrl(p.url())).filter(Boolean));
     await goHome(page);
     const label = await clickNewProject(page);
     if (!label) {
@@ -240,7 +241,7 @@ if (require.main === module) (async () => {
     }
     log(`Clicked: "${label}"`);
 
-    const found = await waitForProjectUrl(browser, TIMEOUT);
+    const found = await waitForProjectUrl(browser, TIMEOUT, existingProjects);
     if (!found) {
         console.error(`Timed out after ${TIMEOUT / 1000}s waiting for a project URL.`);
         await browser.disconnect();
@@ -264,4 +265,12 @@ if (require.main === module) (async () => {
     await browser.disconnect();
 })().catch((e) => { console.error('FAILED: ' + (e && e.message)); process.exit(1); });
 
-module.exports = { projectIdFromUrl, chooseNewProject, NEW_PROJECT_RX };
+async function createProject(browser, page) {
+    const existing = new Set((await browser.pages()).map(p => projectIdFromUrl(p.url())).filter(Boolean));
+    await goHome(page);
+    if (!await clickNewProject(page)) throw Error('Could not find New project on the Flow home page.');
+    const found = await waitForProjectUrl(browser, 60000, existing);
+    if (!found) throw Error('Timed out waiting for the new Flow project.');
+    return found;
+}
+module.exports = { projectIdFromUrl, chooseNewProject, NEW_PROJECT_RX, createProject };

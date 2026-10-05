@@ -176,9 +176,15 @@ npm run check          # 9 suites, 628 checks, all passing
 npm run test:house     # test_house_cast.js alone (125 checks)
 ```
 
-`test_house_cast.js` is the suite for this feature. Its final section asserts
-that the hand-kept `MASTER_PROMPT_relationship.txt` still agrees with
+`test_house_cast.js` is the suite for this feature. Its final section used to
+assert that the hand-kept `MASTER_PROMPT_relationship.txt` still agreed with
 `house_cast.json` and `styles.json`.
+
+Neither the suite nor the file it asserted over is in the repo any more: the
+file was deleted (§4.5) and `test_house_cast.js` was never actually written —
+this section was a plan, not a record of what shipped. The manual prompt it
+described is now generated straight off the live preset instead, so there is
+nothing left to keep in step by hand.
 
 ---
 
@@ -256,19 +262,27 @@ screen-RIGHT facing left, neither ever moving, the camera never crossing the
 axis. That is the mechanism for requirement C. It is a prompt-level constraint,
 not a guarantee.
 
-### 4.5 `MASTER_PROMPT_relationship.txt` is half-updated
+### 4.5 ~~`MASTER_PROMPT_relationship.txt` is half-updated~~ — DELETED
 
-This is the **manual ChatGPT path** — a hand-kept copy of the cast and the look,
-for writing a story by hand instead of running `write_story.js`.
+Taken the second way out: the file is gone. It was the **manual ChatGPT path** —
+a hand-kept copy of the cast and the look, for writing a story by hand instead of
+running `write_story.js` — and it had gone the way every hand-kept copy goes:
 
-- Its cast section **has been rewritten** for one fixed face plus one designed
+- Its cast section **had been rewritten** for one fixed face plus one designed
   per story.
-- Its **example JSON further down still contains the old invented character**
-  (`"savitri"`) and still points `character_references` at
+- Its **example JSON further down still contained the old invented character**
+  (`"savitri"`) and still pointed `character_references` at
   `./house_refs/Savitri.png` — a file that does not exist and should not.
 
-A hand-written story copied from that example would carry a dead character.
-Either finish the example or delete the whole file if the manual path is unused.
+A hand-written story copied from that example would have carried a dead
+character, and its own header warned that a hand-kept copy of a preset falls
+behind the preset.
+
+The manual route now lives in `GEMINI-BY-HAND/`, and it is **generated** rather
+than hand-kept: `build_master_prompt.js` reads the exact text `write_story.js`
+sends (via `--dry-run`) and turns it into one paste-able prompt. If the preset
+changes, regenerate it — it cannot disagree with the preset it came from. See
+`GEMINI-BY-HAND/README.txt`.
 
 ---
 
@@ -314,7 +328,8 @@ re-rank everything in §4.
 3. Get the second reference image and fix the couple (§4.2).
 4. Implement per-story place (§4.3, option 1) or ship presets per room
    (option 2).
-5. Finish or delete `MASTER_PROMPT_relationship.txt` (§4.5).
+5. ~~Finish or delete `MASTER_PROMPT_relationship.txt` (§4.5).~~ **Done** — deleted;
+   the manual route is now `GEMINI-BY-HAND/` and is generated from the preset.
 
 ---
 
@@ -331,5 +346,6 @@ re-rank everything in §4.
 | `mention_target.js` | finds a sheet on disk (`:157`); picks the Image tile |
 | `agent_download.js`, `join_clips.js` | fetch and join the clips |
 | `veo3_gui.py` | the GUI. `gui_settings.json` holds the live settings |
-| `test_house_cast.js` | the tests for all of the above |
-| `MASTER_PROMPT_relationship.txt` | the manual ChatGPT path — **half-updated** |
+| `test_house_cast.js` | the suite this section planned; not written yet |
+| `GEMINI-BY-HAND/` | the manual route — prompt, two .bat files, README. See `GEMINI-BY-HAND/README.txt` |
+| ~~`MASTER_PROMPT_relationship.txt`~~ | deleted — the hand-kept manual prompt (§4.5) |

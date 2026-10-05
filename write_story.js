@@ -37,6 +37,24 @@
  *   node write_story.js ... --dry-run        show the prompts, call nothing
  *   node write_story.js --list-models        what this key can actually use
  *
+ * BY HAND, WITH NO KEY AT ALL
+ *   The same two calls can be made in a browser instead, which is worth doing
+ *   when the free API tier is rate-limiting: AI Studio hands a person a bigger
+ *   model than the API's cheapest tier. --print-prompts writes the prompt each
+ *   call would have sent into stories/<slug>/prompts/ instead of sending it, and
+ *   --from-file takes the answer back out of the JSON file you saved. Repeat
+ *   --from-file for call 1's answer and call 2's. The recipe, with the commands
+ *   filled in, is written to prompts/HOWTO.txt as each step is done.
+ *
+ *   node write_story.js --title "X" --preset 3d-zack-style --print-prompts
+ *        -> paste prompts/1_cast_and_outline.txt into AI Studio, save the reply
+ *           as prompts/answer_1.json
+ *   node write_story.js ... --from-file prompts/answer_1.json --print-prompts
+ *        -> paste prompts/2_clips_1-6.txt, save prompts/answer_2_clips_1-6.json
+ *   node write_story.js ... --from-file prompts/answer_1.json \
+ *                           --from-file prompts/answer_2_clips_1-6.json
+ *        -> the story folder, identical to an API run
+ *
  * Needs a Gemini API key: --key, or GEMINI_API_KEY, or gui_settings.json.
  * Several keys may be given. They are tried in order, and if one runs out of
  * quota the run continues on the next rather than dying part-way through a
@@ -72,6 +90,10 @@ const SETTINGS_FILE = path.join(HERE, 'gui_settings.json');
 // rather than inside a story folder because it outlives every story.
 const HOUSE_CAST_FILE = path.join(HERE, 'house_cast.json');
 const HOUSE_REFS_DIR = path.join(HERE, 'house_refs');
+// The Flow voice a preset asks for, so a story can record WHICH voice it is
+// narrated in rather than leaving the engine to look it up from the preset
+// later. One lookup, one place: see flow_voice.js.
+const { presetVoices } = require('./flow_voice.js');
 const API = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 // ── args ---------------------------------------------------------------------
@@ -152,19 +174,55 @@ const ASPECT = typeof flag('--aspect') === 'string' ? flag('--aspect').trim() : 
 // (503) or not on this key (404) the next is used, then the next, so one busy
 // model no longer fails a whole story. `--model a,b,c` overrides the chain, and
 // a single `--model x` still works.
+//
+// A single pinned model is tried FIRST, not exclusively. "This model is
+// currently experiencing high demand" is a PER-MODEL error, and the MCP batch
+// passes exactly one model - so pinning used to leave the whole story riding on
+// one model's capacity, however many keys were in the ring. The caller's choice
+// stays at the head of the chain and the rest become headroom behind it.
+function modelChain(pinned, defaults) {
+    const pin = String(pinned || '').split(',').map(s => s.trim()).filter(Boolean);
+    // An explicit chain is taken literally - the caller said which, in what order.
+    if (String(pinned || '').includes(',')) return pin;
+    const rest = String(defaults || '').split(',').map(s => s.trim()).filter(Boolean);
+    return [...new Set(pin.concat(rest))];
+}
 const DEFAULT_MODELS = 'gemini-3.8-flash,gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash,gemini-flash-lite-latest,gemini-3.1-flash-lite';
 const MODEL_FLAG = typeof flag('--model') === 'string' ? flag('--model') : '';
-const MODELS = (MODEL_FLAG || DEFAULT_MODELS).split(',').map(s => s.trim()).filter(Boolean);
+const MODELS = modelChain(MODEL_FLAG, DEFAULT_MODELS);
 const MODEL = MODELS[0];
 const BATCH = num('--scenes-per-call', 6);
 const DRY = !!flag('--dry-run', false);
 const FORCE = !!flag('--force', false);
 const OUT_DIR = typeof flag('--out') === 'string' ? flag('--out') : null;
 const LIST_MODELS = !!flag('--list-models', false);
+// The manual path. `--print-prompts` writes the prompt each call WOULD have sent
+// into the story folder instead of sending it, and `--from-file` takes the
+// answer back out of a JSON file the operator saved. Both are repeatable, so
+// call 1's answer and call 2's can be kept as two files.
+const PRINT_PROMPTS = !!flag('--print-prompts', false);
+const ANSWER_FILES = flags('--from-file').map(s => String(s).trim()).filter(Boolean);
 // The standing cast. `--cast <file>` points somewhere other than house_cast.json,
 // `--no-house-cast` designs a fresh cast for this one story.
 const CAST_FILE = typeof flag('--cast') === 'string' ? flag('--cast').trim() : '';
 const NO_HOUSE_CAST = !!flag('--no-house-cast', false);
+
+// WHO ANSWERS. `api` is the key ring (default, unchanged). `web` sends each
+// prompt to Google AI Studio in a real Chrome window instead, which is free, uses
+// the account's quota rather than one Cloud project's, and gives a bigger model -
+// see ask_web.js for why that matters. `auto` tries the API and hands the call to
+// the browser only when the API will not answer.
+//
+// It is one switch, read in one place (`ask`), because the two calls this file
+// makes do not care where the answer came from: both end in parseJson.
+const TRANSPORT = (() => {
+    const t = String(flag('--transport', 'api') || 'api').trim().toLowerCase();
+    if (!['api', 'web', 'auto'].includes(t)) {
+        console.error(`--transport must be api, web or auto (got "${t}")`);
+        process.exit(1);
+    }
+    return t;
+})();
 
 // ── api keys -----------------------------------------------------------------
 // Never printed in full. A key on a command line also lands in the shell history,
@@ -288,6 +346,29 @@ class KeyRing {
         }
         return false;
     }
+    // Move to the next live key WITHOUT retiring this one.
+    //
+    // A 503 ("this model is currently experiencing high demand") says nothing
+    // bad about the key, so retiring it would throw away a working key for the
+    // rest of the run. But capacity is allocated per Google Cloud PROJECT and
+    // every key here is a different project, so the same request handed to the
+    // next key frequently answers while this one is queued. With a ring of a
+    // dozen keys that is twelve times the capacity one key alone can reach -
+    // and the old policy could only ever reach one of them.
+    //
+    // Returns false when there is no other live key, which tells the caller
+    // that rotating buys nothing and it should keep waiting instead.
+    next() {
+        if (this.size < 2) return false;
+        for (let n = 1; n <= this.size; n++) {
+            const j = (this.i + n) % this.size;
+            if (this.dead.has(j)) continue;
+            if (j === this.i) return false;   // only one live key: this one
+            this.i = j;
+            return true;
+        }
+        return false;
+    }
 }
 
 // A hung connection would otherwise stall the run forever with no output, which
@@ -329,9 +410,20 @@ async function listModels(key) {
 // sometimes emits its object and then starts a second one, or adds a closing
 // remark; slicing from the first brace to the LAST brace then swallows both and
 // JSON.parse dies with "Unexpected non-whitespace character after JSON".
-function firstJsonObject(t) {
-    const start = t.indexOf('{');
-    if (start < 0) return null;
+//
+// The opener may also be `[`. The prompt asks for {"scenes":[...]} and a model
+// sometimes answers with the bare array instead - six perfectly good scenes,
+// written, paid for, and thrown away by an object-only reader that returned
+// just the first one and lost the rest. Whenever the first `[` comes before the
+// first `{`, the reply is read as an array.
+function firstJsonValue(t) {
+    const obj = t.indexOf('{');
+    const arr = t.indexOf('[');
+    const asArray = arr >= 0 && (obj < 0 || arr < obj);
+    if (!asArray && obj < 0) return null;
+    const open = asArray ? '[' : '{';
+    const close = asArray ? ']' : '}';
+    const start = asArray ? arr : obj;
     let depth = 0, inStr = false, esc = false;
     for (let i = start; i < t.length; i++) {
         const c = t[i];
@@ -342,17 +434,35 @@ function firstJsonObject(t) {
             continue;
         }
         if (c === '"') inStr = true;
-        else if (c === '{') depth++;
-        else if (c === '}') { depth--; if (depth === 0) return t.slice(start, i + 1); }
+        else if (c === open) depth++;
+        else if (c === close) { depth--; if (depth === 0) return t.slice(start, i + 1); }
     }
     return null;
 }
 
 function parseJson(raw) {
     const t = String(raw).trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
-    const obj = firstJsonObject(t);
+    const obj = firstJsonValue(t);
     if (!obj) throw new Error('no JSON object in the response');
     return JSON.parse(obj);
+}
+
+// The scenes out of whatever shape the reply arrived in. The prompt asks for
+// {"scenes":[...]}; a bare array is the same list under no key at all.
+function scenesFrom(r) {
+    if (Array.isArray(r)) return r;
+    return (r && Array.isArray(r.scenes)) ? r.scenes : [];
+}
+
+// What a reply actually looked like. "came back empty" on its own says nothing
+// about whether the model returned an empty scenes list, a single scene with no
+// wrapper, or the scenes under keys of its own invention - the keys do.
+function shapeOf(v) {
+    if (v === null || v === undefined) return String(v);
+    if (Array.isArray(v)) return `an array of ${v.length}`;
+    if (typeof v !== 'object') return `a ${typeof v}`;
+    const keys = Object.keys(v);
+    return keys.length ? `{${keys.slice(0, 6).join(', ')}}` : 'an empty object';
 }
 
 function geminiText(resp) {
@@ -405,14 +515,64 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 // Five, not three: a Gemini "503 high demand" spike can outlast a few tries, and
 // giving up early spends the whole analyse pass and writes nothing. Still bounded,
 // so a genuinely dead endpoint fails in a few minutes rather than hanging.
-const RETRIES = num('--retries', 5);
+const RETRIES = (() => {
+    // 0 is a real answer here: "do not wait on a transient error, move on at
+    // once". It is an operator's fail-fast switch, and it is what the key-ring
+    // tests use so the interesting behaviour - where a failure is sent NEXT -
+    // is not buried under a minute of backoff. num() rejects 0 for the flags
+    // where it is meaningless (--seconds, --duration, --timeout).
+    const raw = flag('--retries');
+    const n = raw === null ? NaN : parseInt(raw, 10);
+    return Number.isFinite(n) && n >= 0 ? n : 5;
+})();
+
+// The AI Studio transport, loaded only when it is asked for. `require` is lazy
+// on purpose: ask_web.js pulls in puppeteer, and a normal API run must not pay
+// for that - nor be able to fail because of it.
+let _web = null;
+function webMod() {
+    if (!_web) _web = require('./ask_web.js');
+    return _web;
+}
+
+/**
+ * One call, answered by AI Studio in a browser.
+ *
+ * The retrying that belongs to a transport happens in ask_web.js (a refusal is
+ * retried there, the way a 503 rotates keys here). What is left for this side is
+ * the same treatment the API path gives a reply: parse it, and refuse to accept
+ * the wrong SHAPE, because a JSON object that is not a content map is worse than
+ * a failure - it writes a story with every field blank.
+ */
+async function askWebFor(prompt, meta) {
+    const text = await webMod().askWeb(prompt);
+    const parsed = parseJson(text);
+    if (meta) meta.model = 'aistudio-web';
+    return parsed;
+}
 
 // One call, walked over a CHAIN of models and a ring of keys:
 //   quota (429)        -> rotate the key, keep the model
 //   transient (5xx/drop)-> retry the same model, then fall to the next model
 //   model error (404)  -> fall to the next model straight away
 // A single model string is accepted too, which is what the key-ring tests pass.
-async function ask(ring, models, prompt, maxTokens) {
+async function ask(ring, models, prompt, maxTokens, meta) {
+    // Where the call goes. `auto` with no keys at all has nothing to try, so it
+    // goes straight to the browser rather than dying on a key it never had.
+    if (TRANSPORT === 'web' || (TRANSPORT === 'auto' && !ring.size)) {
+        return askWebFor(prompt, meta);
+    }
+    try {
+        return await askApi(ring, models, prompt, maxTokens, meta);
+    } catch (e) {
+        if (TRANSPORT !== 'auto') throw e;
+        console.log(`\n  the API gave up (${e.status || e.message}) - handing this call to ` +
+                    `Google AI Studio in the browser instead`);
+        return askWebFor(prompt, meta);
+    }
+}
+
+async function askApi(ring, models, prompt, maxTokens, meta) {
     const chain = (Array.isArray(models) ? models : [models]).map(m => String(m || '').trim()).filter(Boolean);
     // With a chain to fall back on, do not spend the full retry budget on one
     // busy model - two tries, then the next model. A lone model keeps all of it.
@@ -420,6 +580,17 @@ async function ask(ring, models, prompt, maxTokens) {
     for (let mi = 0; mi < chain.length; mi++) {
         const model = chain[mi];
         let attempt = 0;
+        // A 503 can vary by Cloud project, but walking eleven projects on the
+        // SAME busy model before trying the next model turns one call into
+        // minutes of noise. Three independent projects are enough evidence to
+        // move down the fallback chain. A deliberately single-model run still
+        // gets the full key ring because it has no model fallback.
+        const liveKeys = Math.max(1, ring.size - ring.dead.size);
+        const keyLimit = chain.length > 1 ? Math.min(3, liveKeys) : liveKeys;
+        // How many OTHER keys this model has already been handed to. Bounded by
+        // the size of the ring, so a ring where every key is queued falls
+        // through to the next model instead of spinning forever.
+        let hops = 0;
         for (;;) {
             const key = ring.current;
             try {
@@ -431,7 +602,16 @@ async function ask(ring, models, prompt, maxTokens) {
                         maxOutputTokens: maxTokens,
                     },
                 });
-                return parseJson(geminiText(resp));
+                const parsed = parseJson(geminiText(resp));
+                // Which model answered, reported OUT OF BAND. A caller that gets
+                // an unusable SHAPE needs to name the model and retry without it,
+                // and without this the only thing anyone can say about the bad
+                // reply is "came back empty". It is not attached to `parsed`,
+                // because that object is the caller's data - the key-ring tests
+                // compare it whole, and a stray key would follow it into the
+                // story as well.
+                if (meta) meta.model = model;
+                return parsed;
             } catch (e) {
                 if (isQuotaError(e) || isKeyRejected(e)) {
                     if (!ring.retire()) throw e;
@@ -441,6 +621,31 @@ async function ask(ring, models, prompt, maxTokens) {
                     continue;
                 }
                 if (isTransient(e) || isParseError(e)) {
+                    // A 503 ("high demand") is capacity, and capacity is
+                    // allocated per Google Cloud PROJECT - one key per project
+                    // here - so the SAME request handed to the next key often
+                    // answers straight away while this one sits in a queue.
+                    //
+                    // This is what a real run died on: three keys loaded, one
+                    // model after another failing, and the log showing the key
+                    // never changed once. `ring.next()` was written for exactly
+                    // this and was never called from anywhere, so every 503 was
+                    // two tries on the same key and then the next model - down
+                    // the whole chain, on capacity that a second key had free.
+                    //
+                    // Only for a transient error. A parse error is about the
+                    // reply, not the key, so it stays on this one.
+                    if (isTransient(e) && hops < keyLimit - 1 && ring.next()) {
+                        hops++;
+                        console.log(`\n  ${model} is busy on ${maskKey(key)} - trying ${ring.label}`);
+                        continue;   // no sleep: the next key may be free right now
+                    }
+                    if (isTransient(e) && chain.length > 1 && mi < chain.length - 1 &&
+                            hops >= keyLimit - 1) {
+                        console.log(`\n  ${model} stayed busy across ${keyLimit} independent key(s) - ` +
+                                    `trying ${chain[mi + 1]} instead`);
+                        break;
+                    }
                     if (attempt < tries) {
                         attempt++;
                         const wait = attempt * 5000;
@@ -451,6 +656,7 @@ async function ask(ring, models, prompt, maxTokens) {
                     }
                     if (mi < chain.length - 1) {
                         console.log(`\n  ${model} is still failing - falling back to ${chain[mi + 1]}`);
+                        hops = 0;   // a new model gets the whole ring again
                         break;
                     }
                     throw e;
@@ -476,6 +682,10 @@ function contentMapClips(cm) {
     if (Array.isArray(cm && cm.segments)) return cm.segments;
     return [];
 }
+function hasSourceDialogue(cm) {
+    return contentMapClips(cm).some(c => Array.isArray(c.source_dialogue)
+        && c.source_dialogue.some(d => String(d && d.line || '').trim()));
+}
 function contentMapBlock(cm) {
     const clips = contentMapClips(cm);
     const facts = Array.isArray(cm && cm.facts) ? cm.facts : [];
@@ -485,7 +695,10 @@ function contentMapBlock(cm) {
         const places = Array.isArray(s.places) ? s.places.join(', ') : String(s.places || '');
         const point = s.point || (Array.isArray(s.points) ? s.points.join('; ') : String(s.points || ''));
         const visual = s.visual ? ` Visual: ${s.visual}` : '';
-        return `  ${i + 1}. ${when}${places ? places + ' - ' : ''}${point}${visual}`;
+        const sourceDialogue = Array.isArray(s.source_dialogue) && s.source_dialogue.length
+            ? ` SOURCE DIALOGUE: ${s.source_dialogue.map(d => `${d.speaker || 'Person'} (${d.gender || d.speaker_gender || 'unknown gender'}): "${d.line || ''}"`).join(' / ')}`
+            : '';
+        return `  ${i + 1}. ${when}${places ? places + ' - ' : ''}${point}${sourceDialogue}${visual}`;
     });
     // The exhaustive fact list is repeated here on purpose. A fast reference
     // video names many places; the clip plan groups them, and without the full
@@ -506,9 +719,25 @@ function contentMapBlock(cm) {
         'fact, never merge two reference clips into one scene, and never drop or reorder a',
         'fact. Match the reference point for point.',
         'Keep every place name exactly as written.',
-        'Scene 1 is the HOOK: pose the single most counter-intuitive claim or question from',
-        'the reference as an open loop (no greeting, never the first fact). The final scene',
-        'is the payoff that closes that loop.',
+        ...(/^relationship-dialogue(?:-(?:real|ghibli))?$/.test(PRESET_ID) ? [
+            'SOURCE DIALOGUE FIDELITY (highest priority): the SOURCE DIALOGUE under each',
+            'reference clip is the actual conversation. Keep the same turns, speakers, order,',
+            'sentence meaning, questions, answers and emotional progression. Do not invent a',
+            'different relationship conversation and do not add a new conflict or resolution.',
+            'Light simplification only: in a ten-word source line, change no more than about',
+            'three words, using easier English with the same meaning. Preserve at least seventy',
+            'percent of the source words and virtually all of its dialogue structure.',
+        ] : []),
+        ...(PRESET_ID === '3d-zack-style' ? [
+            'SOURCE FIDELITY: preserve the source subject, tense, cause and outcome.',
+            'The hook makes the FIRST source event interesting without changing or reordering it.',
+            'Finish every source event and the original ending BEFORE the separate extra CTA clip.',
+            'Use simple new wording. Do not invent numbers, capabilities or advice to the viewer.',
+        ] : [
+            'Scene 1 is the HOOK: pose the single most counter-intuitive claim or question from',
+            'the reference as an open loop (no greeting, never the first fact). The final scene',
+            'is the payoff that closes that loop.',
+        ]),
     ].join('\n');
 }
 
@@ -635,6 +864,11 @@ function wordBudget(p) {
 // does, and is the reason this one is not written the same way.
 const D_WORDS_MAX = Math.max(6, Math.round(SECONDS * 3));
 const D_WORDS_HARD = Math.max(8, Math.round(SECONDS * 3.75));
+// Below this, an 8-second dialogue clip finishes in two or three seconds and
+// leaves most of the shot as dead air. Grounded two-person conversations need
+// enough speech to occupy the clip while still leaving room for breath and
+// reactions: 18-24 words is the useful window at 8 seconds.
+const D_WORDS_MIN = Math.max(5, Math.round(SECONDS * 2.25));
 const mmss = (n) => `${Math.floor((n * SECONDS) / 60)}:${String((n * SECONDS) % 60).padStart(2, '0')}`;
 
 function lookBlock(p, place) {
@@ -655,8 +889,10 @@ function lookBlock(p, place) {
     return [
         `LOOK: ${p.style}`,
         `CAST TEMPLATE (every character description must follow this shape): ${p.cast_idiom}`,
+        ...(p.fixed_couple_appearance ? [require('./realistic_couple').prompt(p)] : []),
         `PALETTE: ${p.palette}`,
         `CAMERA: ${p.camera}`,
+        ...(p.dialogue_delivery ? [`DIALOGUE DELIVERY: ${p.dialogue_delivery}`] : []),
         // One place, named once, for the whole film. Scenes are written in
         // separate batches that share no state beyond the previous clip's
         // spoken line, so a genre set in a single place had nothing holding it
@@ -676,6 +912,7 @@ function lookBlock(p, place) {
         // told that the animal behaves like an animal; nothing in LOOK or CAMERA
         // says that, and left unsaid the model writes it as a small person.
         ...(p.direction ? [`DIRECTION: ${p.direction}`] : []),
+        ...(p.source_faithful ? ['SOURCE PRIORITY: The supplied source events and ending override generic instructions below about escalation, new shocks, present tense or addressing the viewer. Make the first event the hook; retell the events in order; finish the ending; then write the separate extra CTA. Visual treatment must not contradict the source.'] : []),
         ...(dialogue
             ? ['SPEAKING: two people talk to each other on screen, in their own voices. There is no narrator, no voice-over, and nobody describes the scene out loud.']
             : intro
@@ -706,6 +943,11 @@ function castPrompt(p, houseCast) {
     // `cast: "required" | "optional"`, and an absent field means required so
     // every preset written before this behaves as it did.
     const optional = p.cast === 'optional';
+    // Some genres depend on an exact ensemble. A relationship two-hander stops
+    // being intimate as soon as the model invents a friend, child or therapist.
+    const castCount = Number.isInteger(p.cast_count) && p.cast_count > 0
+        ? p.cast_count
+        : 0;
     // A preset may declare which kinds of character its cast is drawn from. An
     // animal-kindness film has an animal AND a person, and the two need
     // genuinely different identity profiles: a person is held across cuts by
@@ -750,8 +992,10 @@ ${houseCast.map(c => `     ${c.name} - ${c.description}`).join('\n')}
    a description for them - they are attached after this call.
    Whoever ELSE the film needs IS yours to design, and you must design them if
    the story needs them, because a conversation cannot be held with nobody.
-   Design as few as it can carry - one, or at most two - and nobody the film has
-   no use for. The returning faces are never counted twice.
+   ${castCount ? `The finished film must contain EXACTLY ${castCount} characters in total,
+   including the ${houseCast.length} standing character(s) above. Design exactly
+   ${Math.max(0, castCount - houseCast.length)} additional character(s), and never add a third party.` : `Design as few as it can carry - one, or at most two - and nobody the film has
+   no use for. The returning faces are never counted twice.`}
    For EACH character you design give:`
         : optional
         ? `4. Decide whether this video needs a cast at all.
@@ -772,6 +1016,12 @@ ${houseCast.map(c => `     ${c.name} - ${c.description}`).join('\n')}
    accepts at most 3 reference images and a cast of three is the ceiling. Never
    return an empty list, and never a cast of people alone: the animal carries
    the story.
+   For EACH character give:`
+        : castCount
+        ? `4. Design EXACTLY ${castCount} adult human characters - no more and no fewer.
+   This is a closed two-person relationship conversation. Never add a friend,
+   child, relative, therapist, waiter, passer-by or background speaker. Both
+   characters remain present throughout the film; never add a third party.
    For EACH character give:`
         : `4. Design the cast. Use 2 or 3 characters at most; a small cast stays
    consistent. This genre is about people, so there is always a cast - never
@@ -840,9 +1090,11 @@ ${houseCast.map(c => `     ${c.name} - ${c.description}`).join('\n')}
        identically every time.
      - "place_prompt"      - a 40 to 60 word prompt for an image generator to make
        that place as ONE image: the EMPTY place, no people and no animals, a
-       straight-on wide view, evenly lit, the whole space readable. Same medium as
-       the character sheets. Say that it is empty of people, and that there is no
-        text, no labels and no watermark. Include the medium.` : '';
+       straight-on wide view, evenly lit, the whole space readable.
+       LOCATION MEDIUM: ${p.location_medium || p.style}. ${require('./location_style').isRelationship(p) ? require('./location_style').BRIGHT_LOCATION : ''} The selected preset sets
+       this medium; never copy an incompatible medium from saved character sheets.
+       Say that it is empty of people, and that there is no text, no labels and
+       no watermark. Include the medium.` : '';
 
     // Where the two of them physically ARE. Asked for here, once, because this
     // is the only call that sees the whole film at once - every later batch is a
@@ -929,7 +1181,75 @@ ${sheetField}
     // attached after this call, and asking for them twice invites the model to
     // re-describe one and drift it. Whatever it designs is additive: the cast of
     // the film is the standing cast plus these, merged in main().
-    const castSkeleton = `"characters":[{"name":"",${typed ? '"type":"",' : ''}"description":"","sheet_prompt":""}]`;
+    const castSkeleton = `"characters":[{"name":"",${p.fixed_couple_names ? '"gender":"male or female","source_name":"",' : ''}${typed ? '"type":"",' : ''}"description":"","sheet_prompt":""}]`;
+    const groundedDialogue = dialogue && p.grounded_dialogue === true;
+    const pastedTranscript = groundedDialogue && require('./relationship_transcript').hasPastedTranscript(DETAIL);
+    const sourceDialogue = groundedDialogue && (hasSourceDialogue(CONTENT_MAP) || pastedTranscript);
+    const beatRules = sourceDialogue ? `
+   WHAT A BEAT HAS TO BE - SOURCE DIALOGUE OVERRIDES ORIGINAL WRITING:
+     - ${hasSourceDialogue(CONTENT_MAP) ? 'Build one beat from each matching REFERENCE CONTENT MAP clip.' : 'Group the supplied transcript turns into consecutive clips, preserving the entire conversation in order. Treat >> as turn separators, remove [music], and never invent a new plot or symbolic action.'}
+     - Preserve the same dialogue turns, speaker order, questions, answers,
+       conflict, emotional meaning and resolution. Never create a new exchange.
+     - Keep about seven or more of every ten source words. Change no more than
+       about three words in a ten-word line, only when an easier English word
+       carries exactly the same meaning. Copy an already-simple line exactly.
+     - Do not add a hook, reply, apology, boundary, lesson or happier ending that
+       the source did not contain. Do not force both people to speak in a clip
+       when its source clip has only one speaker.
+     - The outline beat describes the supplied turn; it never improves it.`
+        : groundedDialogue ? `
+   WHAT A BEAT HAS TO BE - grounded conversation rules:
+     - This film is a CONVERSATION, not a montage. Every beat is a turn in the
+       SAME discussion between the SAME two adults about ONE specific issue.
+     - Beat 1 is a concise, emotionally specific HOOK spoken in the middle of
+       the real issue. It creates curiosity without shouting, insults or bait.
+     - Every later beat changes the understanding: clarify the concern, name a
+       concrete example, reveal the vulnerable reason underneath it, challenge
+       it respectfully, recognise the impact, then reach a specific boundary,
+       apology, question or next step.
+     - Both perspectives must remain understandable. Nobody is a villain,
+       therapist, lecturer or magically transformed person. Do not manufacture
+       a bigger crisis merely to make the next clip feel more dramatic.
+     - A beat is not the previous thought restated in stronger words. Each one
+       contributes a new fact, feeling, question, realisation or decision.
+     - No advice list, numbered rules, slogans, moral speech, miracle, flashback,
+       montage, location change or third person entering the conversation.
+     - The last beat is emotionally earned. It may be warm, cautious or still
+       uncertain, but it leaves the issue clearer and gives the pair a believable
+       next step.
+     - Describe WHAT SHIFTS IN THE CONVERSATION, never the camera. A beat that
+       is only a picture has nothing for either person to say.` : `
+   WHAT A BEAT HAS TO BE - this is where these scripts go flat, so it is a rule
+   and not a preference:
+     - Every beat delivers ONE NEW surprise the viewer did not have before. Ask
+       of each beat: what does the viewer learn HERE that they did not know one
+       clip ago? If the answer is nothing, or the same thing again in bigger
+       words, rewrite the beat.
+     - It has to be CONCRETE. A number, a comparison the viewer can picture, or
+       something that looks physically impossible. Never a general claim.
+     - NO BEAT MAY BE THE PREVIOUS BEAT MADE BIGGER. "It reaches the street" ->
+       "it reaches the city" -> "it reaches the country" -> "it reaches the
+       world" is ONE beat stretched over four clips. That is the single most
+       common way a script dies, and it is banned.
+     - No tour beats (a list of places, a list of examples, a list of dates), no
+       "an expert explains" beats, and no beat that only summarises what the
+       viewer has already seen.
+     - The beats ESCALATE: each one is stranger or bigger than the last, and the
+       beat before the final one is the biggest reveal of the film.
+     - Never end on "scientists still do not know", "remains a mystery" or
+       "is still studied". The film ends on the strongest thing the viewer can
+       be told, not on the fact that nobody knows it.
+     - A viewer who half-watches has to be pulled back by every single beat.`;
+    const dialogueOutline = dialogue && !groundedDialogue ? `
+   This film is a CONVERSATION, not a montage. Every beat is something one of the
+   two says to the other. Write each beat as the turn it turns
+   on - the hook that stops the viewer, a rule, the doubt that pushes back, the
+   aphorism worth repeating, the resolution - not as a description of what is
+   seen. A beat that is only a picture has nothing for anyone to say.
+   They stay where the BLOCKING above puts them. A beat is a turn in the
+   conversation, never a reason to move them to a different part of the room -
+   if a beat does move somebody, it has to be the story's own turn (they get up
+   and leave), and there can only be one such beat in the film.` : '';
     return `You are writing the character bible for a ${p.label} video.
 
 TITLE: ${TITLE}
@@ -939,33 +1259,29 @@ TOTAL LENGTH: ${DURATION} seconds across ${SCENES} clips of ${SECONDS} seconds.
 ${lookBlock(p, choosePlace ? '' : undefined)}
 
 TASK
+Also design "thumbnail": {"headline":"maximum five simple words","visual_concept":"one specific striking composition highlighting this story's main topic"}. Use the same character designs and visual style. Make the topic and emotional hook clear at phone size with simple composition and strong contrast. Do not invent events or misleading claims. This is thumbnail metadata, not an extra scene.
 1. Write a one-sentence "description" of the whole video (max 30 words). It must
    describe WHAT HAPPENS, never what it looks like - the look is already fixed above.
 2. Write a one-sentence "moral" (max 25 words).
 3. Write "target_audience" (max 12 words).
 ${castRule}${castFields}${castSpec}${placeField}${blockingField}
+${p.fixed_couple_names ? 'FIXED NAMES: woman = Sarah, man = George. Include each character gender. If the source calls them by a different name, record that original name ONLY in source_name (otherwise leave it empty), so every spoken mention can be replaced. All story text, descriptions and sheet prompts must use Sarah and George. Preserve source speaker order in the characters array.' : ''}
 ${outlineNo}. Write an "outline": exactly ${SCENES} entries, one per clip.
      "title" - 2 to 5 words
      "beat"  - one sentence: what happens in this clip and what changes.
    The ${SCENES} beats must form ONE story with a turn and an ending, not a list
-   of nice moments. Draw on these shapes that suit this look:
-${(p.story_shapes || []).map(s => `     - ${s}`).join('\n')}${intro ? `
+   of nice moments.
+${beatRules}
+   Draw on these shapes that suit this look:
+${(p.story_shapes || []).map(s => `     - ${s}`).join('\n')}
+${intro ? `
    This film is SOUND-LED. The only spoken words in it are the opening hook, so
    every beat after beat 1 has to land through what is SEEN and HEARD - a look,
    a movement, a sound. No beat may need a line of narration to make sense, and
-   no beat may be a person explaining something.` : ''}${dialogue ? `
-   This film is a CONVERSATION, not a montage. Every beat is something one of the
-   two says to the other. Write each beat as the turn it turns
-   on - the hook that stops the viewer, a rule, the doubt that pushes back, the
-   aphorism worth repeating, the resolution - not as a description of what is
-   seen. A beat that is only a picture has nothing for anyone to say.
-   They stay where the BLOCKING above puts them. A beat is a turn in the
-   conversation, never a reason to move them to a different part of the room -
-   if a beat does move somebody, it has to be the story's own turn (they get up
-   and leave), and there can only be one such beat in the film.` : ''}
+   no beat may be a person explaining something.` : ''}${dialogueOutline}
 
 Return ONLY this JSON, no other text:
-{"description":"","moral":"","target_audience":"",${choosePlace ? '"place_name":"","place_description":"","place_prompt":"",' : ''}${chooseBlocking ? '"blocking":"",' : ''}${castSkeleton},"outline":[{"title":"","beat":""}]}`;
+{"description":"","moral":"","target_audience":"","thumbnail":{"headline":"","visual_concept":""},${choosePlace ? '"place_name":"","place_description":"","place_prompt":"",' : ''}${chooseBlocking ? '"blocking":"",' : ''}${castSkeleton},"outline":[{"title":"","beat":""}]}`;
 }
 
 function scenesPrompt(p, cast, outline, from, to, soFar, place, blocking) {
@@ -985,8 +1301,65 @@ function scenesPrompt(p, cast, outline, from, to, soFar, place, blocking) {
     // to write for, and the lines belong to the cast. Left to itself the model
     // writes narration here, because narration is what every other preset wants.
     const dialogue = p.narration_scope === 'dialogue';
+    const groundedDialogue = dialogue && p.grounded_dialogue === true;
+    const pastedTranscript = groundedDialogue && require('./relationship_transcript').hasPastedTranscript(DETAIL);
+    const sourceDialogue = groundedDialogue && (hasSourceDialogue(CONTENT_MAP) || pastedTranscript);
+    const sourceClips = contentMapClips(CONTENT_MAP);
+    const sourceDialogueBlock = pastedTranscript && !hasSourceDialogue(CONTENT_MAP) ? `
+PASTED TRANSCRIPT IS THE SOURCE OF TRUTH:
+${DETAIL}
+Use its spoken turns in their original order, grouped according to the outline.
+Never substitute a new story, visual metaphor, lesson or invented dialogue.
+Treat >> as turn separators and remove [music]. Keep the original meaning and
+lightly simplify English only. The woman is Sarah and the man is George;
+replace source names in both speaker labels and direct address. Preserve every
+turn across the film. Source dialogue length overrides original-idea density
+targets; do not add filler or drop dialogue to satisfy a target.
+` : sourceDialogue ? `
+SOURCE DIALOGUE FOR THESE CLIPS - highest priority, preserve clip by clip:
+${sourceClips.slice(from, to).map((c, i) => {
+        const turns = (c.source_dialogue || []).map(d => `${d.speaker || 'Person'} (${d.gender || d.speaker_gender || 'unknown gender'}): "${d.line || ''}"`).join(' / ');
+        return `  Clip ${from + i + 1}: ${turns}`;
+    }).join('\n')}
+Keep the same number and order of turns. Map Person A and Person B consistently
+to the two cast names. Preserve at least seven of every ten source words and the
+same meaning. Change at most about three words per ten-word line, only to easier
+English. If a line is already simple, copy it exactly. Do not add dialogue.
+` : '';
     const beatList = outline.slice(from, to).map((o, i) =>
         `  Clip ${from + i + 1} - "${o.title}": ${o.beat}`).join('\n');
+    // The clip-level half of the preset's direction: WHICH clip is the hook and
+    // which is the ask.
+    //
+    // The direction already spells the whole HOOK / BODY / ASK contract out, and
+    // it reaches this call - lookBlock prints it, and it is in this prompt. A
+    // film still came back with no hook and no ask on it, and the reason is what
+    // this prompt actually ASKS FOR: the model fills the fields listed under
+    // "For EACH clip above", and the `script_line` spec says nothing about clip 1
+    // differing from clip 5, so all six are written the same shape and the
+    // direction reads as background about the visuals. Worse, the last thing the
+    // model reads before writing is the preset's NEVER list - "no begging for
+    // likes, no subscribe-style hard sell" - and an ask IS a call to action, so
+    // the one clip that has to address the viewer is the one clip told not to.
+    //
+    // So the two structurally different clips are named at clip level, and only
+    // in the batch that actually holds them: `from === 0` is clip 1, and
+    // `to >= outline.length` is the film's last clip. A preset that declares
+    // neither line gets exactly the prompt it got before.
+    const lastClipNum = outline.length;
+    const contract = [
+        (from === 0 && p.hook_line && !dialogue)
+            ? `  CLIP 1, THE HOOK - this clip is in this batch:\n  ${p.hook_line}`
+            : '',
+        // A sound-led preset has no script_line after clip 1 and a dialogue film
+        // has no narration at all, so neither can carry an ask.
+        (to >= lastClipNum && p.ask_line && !intro && !dialogue)
+            ? `  CLIP ${lastClipNum}, THE LAST CLIP, THE ASK - this clip is in this batch:\n  ${p.ask_line}`
+            : '',
+    ].filter(Boolean);
+    const contractBlock = contract.length
+        ? `\nWHAT MAKES THESE CLIPS DIFFERENT FROM THE REST - this overrides the general\nclip spec below wherever the two disagree:\n\n${contract.join('\n\n')}\n`
+        : '';
     // A sound-led preset narrates only the opening clip, so a later batch can
     // follow a clip that has no script_line at all. Falling back to the sound
     // brief keeps "continue from this" meaningful instead of quoting an empty
@@ -1018,7 +1391,7 @@ function scenesPrompt(p, cast, outline, from, to, soFar, place, blocking) {
         ? `  "characters"        - array of the cast names actually VISIBLE in this clip.
                         Only who is on screen. Never list an absent character:
                         naming someone who is not there invites the model to
-                        insert them.`
+                        insert them.${p.cast === 'optional' && !dialogue ? '\n                        Use [] when no cast member is visible, including internal\n                        process shots and object-only cutaways.' : ''}`
         : `  "characters"        - always [] for this video. It has no cast.`;
 
     // The arrangement itself, handed over as a fixed fact rather than a memory.
@@ -1093,7 +1466,39 @@ CAMERA ANGLE - pick it by who is speaking, and NAME it in the last sentence
     // Sound-led genres get a different audio job per clip. A narrated travelogue
     // over what should be a visual film is the failure this prevents: the model
     // narrates every beat by default, because every other preset does.
-    const audioBlock = dialogue
+    const audioBlock = groundedDialogue && sourceDialogue
+        ? `
+HOW THIS SOURCE-BASED FILM SPEAKS:
+  There is no narrator. Use only the SOURCE DIALOGUE supplied below. Keep every
+  turn, its speaker and order. Do not force a two-person exchange into a source
+  clip that contains one turn, and do not pad short source speech with a new line.
+  Light simplification is allowed only within the three-words-per-ten limit.
+`
+        : groundedDialogue
+        ? `
+HOW THIS FILM SPEAKS - a calm, emotionally honest conversation on screen:
+  There is NO narrator and NO voice-over anywhere in this film. Every word is
+  spoken by one of the two adults above, in the room, to the other person.
+  Use plain, natural English: contractions, short sentences, an occasional
+  unfinished thought, and a pause when a person needs to choose their words.
+  One person speaks while the other genuinely listens and reacts. Use at most
+  one brief interruption in the whole film, and only when the outline calls for
+  it. Never write overlapping arguments, shouting, insults or theatrical
+  speeches. Emotion comes from specificity, restraint and what is difficult to
+  admit, not louder delivery.
+  Nobody says what the camera can already see. Nobody gives a numbered advice
+  list, generic therapy slogan, moral lesson or speech to the audience. Every
+  clip moves the same issue forward with a new fact, feeling, question,
+  realisation or decision.
+  EACH ${SECONDS}-SECOND CLIP IS A COMPLETE BACK-AND-FORTH: both people speak,
+  using two or three turns total. Begin speaking within the first half-second
+  and use roughly six to seven seconds for dialogue, with reactions happening
+  underneath the words rather than after a short line followed by dead air.
+  Write ${D_WORDS_MIN}-${D_WORDS_MAX} spoken words across the whole clip. Fewer
+  than ${D_WORDS_MIN} words is too sparse and boring; never pad with greetings,
+  repetition or filler. Each reply must answer or sharpen the line before it.
+`
+        : dialogue
         ? `
 HOW THIS FILM SPEAKS - the two of them talk, on screen, to each other:
   There is NO narrator and NO voice-over anywhere in this film. Every word spoken
@@ -1119,8 +1524,8 @@ AUDIO MODEL - this film is SOUND-LED, not narrated:
                         as an array of objects:
                           {"speaker": "<a cast name, spelled exactly as above>",
                            "line": "what they say, out loud"}
-                        Two to four turns per clip, and at least one - this film is
-                        a conversation, so a clip with nobody speaking has nothing
+                        ${groundedDialogue && sourceDialogue ? `Use exactly the source clip's turns in the same order. Keep at least\n                        seventy percent of its words; change no more than about three words per ten,\n                        only to easier English with identical meaning. Never invent or pad a line.` : groundedDialogue ? `Use two or three turns per clip and make BOTH people speak at least\n                        once. Across the clip, write ${D_WORDS_MIN}-${D_WORDS_MAX} spoken words: enough to\n                        fill six to seven seconds naturally, with no long silent tail.` : 'Two to four turns per clip.'} At least one line is required - this film
+                        is a conversation, so a clip with nobody speaking has nothing
                         in it. Keep each line ${Math.round(D_WORDS_MAX / 2)} words or fewer;
                         across ALL the lines in one clip the total is ${D_WORDS_MAX} words
                         or fewer, hard limit ${D_WORDS_HARD}, because it all has to be
@@ -1143,10 +1548,53 @@ AUDIO MODEL - this film is SOUND-LED, not narrated:
   "script_line"       - the NARRATION, spoken by the narrator. ONE sentence,
                         ${WORDS_MAX} words or fewer, hard limit ${WORDS_HARD}. It is read
                         verbatim as voice-over, so it must sound natural spoken
-                        aloud and must fit inside ${SECONDS} seconds. Present tense.
+                        aloud and must fit inside ${SECONDS} seconds. ${p.source_faithful ? 'Preserve the source tense and viewpoint.' : 'Present tense.'}
                         Write it TTS-READY: spell every number out as words
                         ("seven thousand", never "7,000"); no ALL CAPS, no brackets,
                         no symbols and no emoji; contractions are fine.`;
+    // What the lines have to DO, as opposed to how long they may be. The field
+    // spec above says "one sentence, twelve words" and says nothing about the
+    // sentence being worth hearing, so a model fills the budget with the safest
+    // possible sentence - "Inside your body lies a continuous thread long enough
+    // to encircle the entire Earth multiple times" - and then restates the same
+    // fact for four clips with a bigger map each time. Measured on
+    // stories/the_endless_network_inside_you, and the reason this block exists.
+    const lineCraft = dialogue ? '' : p.source_faithful ? `
+SOURCE-FAITHFUL NARRATION - overrides generic escalation and retention advice:
+- Understand the source before rewriting. Preserve who did what, chronology,
+  objects, quantities, cause, uncertainty and the complete outcome.
+- Use easy conversational English and new wording; do not copy full sentences.
+- Keep he/she/they and past tense when the source uses them. Do not turn an
+  anecdote into "you can" advice or a general guarantee.
+- Do not invent facts to make a line more surprising. Do not add a number where
+  the source gives none. Keep technical meanings: stab-proof is not bulletproof.
+- Clip 1 hooks attention using the FIRST event. All remaining source events
+  follow in order, including the original ending. Never replace the ending.
+- The final EXTRA clip is CTA only. Do not mix the last source fact into its line.
+- Source fidelity takes priority over generic escalation, surprise or visual rules.
+` : `
+WHAT EACH LINE HAS TO DO - this matters more than the word count:
+                        - Talk TO the viewer, not about the subject. "You have
+                          enough of it to wrap around the world four times" beats
+                          "Inside the body lies a continuous thread".
+                        - ONE idea per line. Use ${WORDS_MAX} words to say one
+                          surprising thing, not three dull ones.
+                        - Every line carries something CONCRETE the viewer can
+                          picture: a number, a comparison, a size, a named thing.
+                          A line that could be true of anything says nothing.
+                        - NEVER restate an earlier clip's line in new words. Every
+                          line adds something the viewer did not have one clip
+                          ago. If the clip would still make sense with the line
+                          deleted, write a different line.
+                        - Start on the fact. No warm-up phrases: "Did you know",
+                          "Inside your body lies", "Throughout history", "Imagine
+                          for a moment", "Scientists have discovered".
+                        - Never end on "scientists still do not know", "remains a
+                          mystery" or "is still studied". End on the strongest
+                          thing the viewer CAN be told.
+                        - Plain words a child follows on one hearing. If a word
+                          only sounds clever, replace it.
+`;
     const skeleton = dialogue
         ? `{"scenes":[{"scene_title":"","dialogue":[{"speaker":"","line":""}],"narrative_context":"","characters":[]}]}`
         : intro
@@ -1158,15 +1606,15 @@ AUDIO MODEL - this film is SOUND-LED, not narrated:
 TITLE: ${TITLE}
 DETAIL FROM THE CREATOR: ${DETAIL || '(none given)'}
 ${lookBlock(p, fixed)}
-${arrangementBlock}${audioBlock}
+${arrangementBlock}${audioBlock}${sourceDialogueBlock}
 ${castBlock}
 ${prev}
 THE BEATS FOR THESE CLIPS (one clip each, same order):
 ${beatList}
-
+${contractBlock}
 For EACH clip above, in order, return:
 ${fields}
-${settingRule}
+${lineCraft}${settingRule}
                         Describe the action and the emotion. Do NOT name a
                         rendering medium, a studio or an art style - the look is
                         already fixed above and naming it again is what makes
@@ -1195,13 +1643,13 @@ function normaliseCast(p, cast) {
     const types = Array.isArray(p.cast_types)
         ? p.cast_types.map(t => String(t).trim().toLowerCase()).filter(Boolean)
         : [];
-    return (cast || []).map(c => {
+    return require('./realistic_couple').apply(p, require('./couple_names').fixedCoupleCast(p, (cast || []).map(c => {
         let t = types.length ? String(c.type || '').trim().toLowerCase() : '';
         if (types.length && (!t || !types.includes(t))) {
             t = types.length === 1 ? types[0] : '';
         }
         return { ...c, type: t };
-    });
+    })));
 }
 
 // Belt-and-braces safety pass. The writer is told the policy rule above, but a
@@ -1224,7 +1672,79 @@ function sanitizeForPolicy(text) {
     return t.trim();
 }
 
+function dialogueTokens(text) {
+    return String(text || '').toLowerCase().match(/[a-z0-9']+/g) || [];
+}
+
+function lcsLength(a, b) {
+    const row = new Array(b.length + 1).fill(0);
+    for (let i = 1; i <= a.length; i++) {
+        let diag = 0;
+        for (let j = 1; j <= b.length; j++) {
+            const above = row[j];
+            row[j] = a[i - 1] === b[j - 1] ? diag + 1 : Math.max(row[j], row[j - 1]);
+            diag = above;
+        }
+    }
+    return row[b.length];
+}
+
+// A model can acknowledge "stay close" and still replace the whole exchange.
+// For source-based relationship films, keep a light rewrite only. If any clip
+// changes the turn count or more than roughly three words in ten, restore the
+// transcribed source dialogue exactly. This makes source fidelity deterministic
+// instead of a preference buried in a long prompt.
+function enforceSourceDialogueFidelity(scenes, cast, cm, p = {}) {
+    if (!hasSourceDialogue(cm)) return { scenes, restored: [] };
+    const source = contentMapClips(cm);
+    const sourceSpeakers = [];
+    for (const c of source) for (const d of (c.source_dialogue || [])) {
+        const who = String(d.speaker || '').trim() || 'Person';
+        if (!sourceSpeakers.includes(who)) sourceSpeakers.push(who);
+    }
+    const speakerMap = require('./dialogue_speakers').sourceSpeakerMap(source, cast, p);
+    const aliases = new Map();
+    if (p.fixed_couple_names) {
+        for (const c of cast) for (const old of c.source_names || []) aliases.set(old, c.name);
+        for (const [who, name] of speakerMap) if (!/^Person(?:\s+[AB12])?$/i.test(who)) aliases.set(who, name);
+    }
+    const restored = [];
+    const out = scenes.map((scene, i) => {
+        const wanted = (source[i] && Array.isArray(source[i].source_dialogue))
+            ? source[i].source_dialogue.filter(d => String(d && d.line || '').trim()).map(d => ({
+                ...d, speaker: speakerMap.get(String(d.speaker || '').trim() || 'Person') || d.speaker,
+                line: require('./couple_names').replaceNames(d.line, aliases),
+            })) : [];
+        if (!wanted.length) return scene;
+        const got = Array.isArray(scene.dialogue) ? scene.dialogue : [];
+        let faithful = got.length === wanted.length;
+        if (faithful) {
+            faithful = wanted.every((d, j) => {
+                const a = dialogueTokens(d.line), b = dialogueTokens(got[j] && got[j].line);
+                if (String(got[j]?.speaker || '').toLowerCase() !== String(d.speaker).toLowerCase()) return false;
+                if (!a.length || !b.length) return false;
+                const kept = lcsLength(a, b);
+                return kept >= Math.ceil(a.length * 0.70)
+                    && b.length >= Math.ceil(a.length * 0.70)
+                    && b.length <= Math.ceil(a.length * 1.20);
+            });
+        }
+        if (faithful) return { ...scene, characters: cast.map(c => c.name) };
+        restored.push(i + 1);
+        return { ...scene, characters: cast.map(c => c.name), dialogue: wanted.map(d => ({
+            speaker: String(d.speaker || 'Person'),
+            line: String(d.line || '').trim(),
+        })) };
+    });
+    return { scenes: out, restored };
+}
+
 function buildStory(p, cast, meta, scenes) {
+    ({ meta, scenes } = require('./couple_names').renameStoryInputs(p, cast, meta, scenes));
+    // Apply the same speaker contract to API output and imported browser answers.
+    if (p.grounded_dialogue && !hasSourceDialogue(CONTENT_MAP)) {
+        scenes = require('./dialogue_speakers').alignUnlabelledTranscript(p, scenes, DETAIL);
+    }
     const descriptions = {}, references = {};
     for (const c of cast) {
         const key = c.name.toLowerCase();
@@ -1246,6 +1766,9 @@ function buildStory(p, cast, meta, scenes) {
     const speech = (s) => (s.dialogue || [])
         .map(d => ({ speaker: String(d.speaker || '').trim(), line: String(d.line || '').trim() }))
         .filter(d => d.speaker && d.line);
+    // The Flow voice asset this preset asks for, resolved once. Blank for a
+    // preset that names none, which is what keeps those stories unchanged.
+    const presetVoice = dialogue ? '' : (presetVoices(p.id || p.label)[0] || '');
     // The fixed place, in front of every shot, verbatim. Asking the model to keep
     // the place still is a request; repeating it into each [SHOT] is what makes
     // it true - whatever a clip's own text says, the place handed to the video
@@ -1261,13 +1784,15 @@ function buildStory(p, cast, meta, scenes) {
     // instead. Either way exactly one place reaches every clip.
     const metaPlace = String(meta.place_description || '').trim();
     const useMetaPlace = !!metaPlace && !p.setting;
-    const placeDesc = String(useMetaPlace ? metaPlace : (p.setting || '')).trim();
+    const rawPlaceDesc = String(useMetaPlace ? metaPlace : (p.setting || '')).trim();
+    const placeDesc = require('./location_style').isRelationship(p) ? require('./location_style').brightVisualText(rawPlaceDesc) : rawPlaceDesc;
     const placeName = String(useMetaPlace
         ? (meta.place_name || '')
         : (p.setting ? (p.setting_name || '') : (meta.place_name || ''))).trim();
-    const placePrompt = String(useMetaPlace
+    const rawPlacePrompt = String(useMetaPlace
         ? (meta.place_prompt || '')
         : (p.setting ? (p.setting_prompt || '') : (meta.place_prompt || ''))).trim();
+    const placePrompt = require('./location_style').locationPrompt(p, { description: placeDesc, prompt: rawPlacePrompt });
     // Where the two of them are, for the whole film, chosen once by call 1. The
     // preset's own `blocking` (above it in every shot) states the RULE - fixed
     // sides, fixed wardrobe, no crossing the axis. This is the arrangement the
@@ -1275,17 +1800,21 @@ function buildStory(p, cast, meta, scenes) {
     // rule the model has to apply to a scene it cannot see is a rule it applies
     // differently every clip.
     const metaBlocking = String(meta.blocking || '').trim();
-    const shot = (s) => [placeDesc, p.blocking, metaBlocking, String(s.narrative_context || '').trim()]
-        .filter(Boolean).join(' ');
+    const shot = (s) => {
+        const text = [p.id === 'fern-documentary' ? '' : placeDesc, p.blocking, metaBlocking, String(s.narrative_context || '').trim()].filter(Boolean).join(' ');
+        return require('./location_style').isRelationship(p) ? require('./location_style').brightVisualText(text) + '\n' + require('./location_style').BRIGHT_LOCATION : text;
+    };
     return {
         title: TITLE,
         description: meta.description,
+        thumbnail: { headline: String(meta.thumbnail?.headline || TITLE).split(/\s+/).slice(0, 5).join(' '), visual_concept: String(meta.thumbnail?.visual_concept || meta.description || TITLE) },
         total_scenes: scenes.length,
         video_duration: `${total} seconds`,
         target_audience: meta.target_audience || '',
         moral: meta.moral,
         niche: p.label,
         style: p.style,
+        ...(p.id === 'fern-documentary' ? { visual_shot_format: 'documentary-internal-cuts' } : {}),
         // The one place the whole film happens in, so the agent prompt builder
         // can @-mention its reference image and the sheet writer can print its
         // prompt. `name` is the asset name the image must be given in Flow -
@@ -1299,11 +1828,16 @@ function buildStory(p, cast, meta, scenes) {
         // asked for one, which leaves those files byte-identical.
         ...(metaBlocking ? { blocking: metaBlocking } : {}),
         aspect_ratio: ASPECT,
+        ...(p.dialogue_prompt_format ? {dialogue_prompt_format:p.dialogue_prompt_format} : {}),
         scene_seconds: SECONDS,
         // Explicit, so the prompt builder never has to guess from prose whether
         // this is a narrated story. Guessing is what dropped the voice-over rules
         // on stories that carry script_line but no veo3_prompt.
         narrated: !dialogue,
+        ...(dialogue && p.grounded_dialogue === true
+            && (hasSourceDialogue(CONTENT_MAP) || require('./relationship_transcript').hasPastedTranscript(DETAIL))
+            ? { source_dialogue_fidelity: 'source turns preserved; maximum light edit about three words per ten' }
+            : {}),
         // Only written when the preset asks for it, so every story written
         // before this field existed stays byte-identical. "intro" means the
         // voice-over runs over the opening clip and stops, "dialogue" means the
@@ -1314,6 +1848,13 @@ function buildStory(p, cast, meta, scenes) {
         // A dialogue story has no narrator voice, and writing a stale one in
         // would give the agent a voice to cast even though nobody narrates.
         ...(dialogue ? {} : { narrator_voice: p.narration_voice }),
+        // The Flow VOICE ASSET the film is narrated in ("Alnilam"), recorded on
+        // the story so the engine does not have to resolve it from the preset
+        // by label - and so a voice can be changed for one film without touching
+        // the preset. Only written when the preset declares one, so a story for
+        // a preset with no voice stays byte-identical. The engine attaches it to
+        // every clip; without it Veo invents a new narrator per clip.
+        ...(presetVoice ? { flow_voice: presetVoice } : {}),
         scenes: scenes.map((s, i) => ({
             _scene_number: i + 1,
             _scene_title: s.scene_title,
@@ -1333,9 +1874,10 @@ function buildStory(p, cast, meta, scenes) {
             // otherwise fill with invented dialogue. A dialogue clip carries the
             // lines themselves, attributed, so the model knows who says what.
             veo3_prompt: sanitizeForPolicy(`[SHOT] ${shot(s)}\n[LOOK] ${p.style}\n[AUDIO] ` +
+                (dialogue ? require('./dialogue_speakers').speakerLock(p) : '') +
                 (dialogue
                     ? (speech(s).length
-                        ? speech(s).map(d => `${d.speaker} (on screen, speaking): "${d.line}"`).join('  ')
+            ? speech(s).map(d => p.fixed_couple_names ? require('./dialogue_speakers').formatDialogueTurn(d) : `${d.speaker} (on screen, speaking): "${d.line}"`).join(p.fixed_couple_names ? '\n' : '  ')
                         : 'No dialogue in this clip. Room tone and the ambient sound of the place only.')
                     : (intro && !String(s.script_line || '').trim())
                         ? `No voice-over in this clip. Natural sound only: ${s.sound_context}`
@@ -1354,6 +1896,9 @@ function validate(story, cast, p = {}) {
     const types = Array.isArray(p.cast_types)
         ? p.cast_types.map(t => String(t).trim().toLowerCase()).filter(Boolean)
         : [];
+    if (Number.isInteger(p.cast_count) && p.cast_count > 0 && cast.length !== p.cast_count) {
+        bad.push(`${p.label || 'this preset'} requires exactly ${p.cast_count} characters; generated ${cast.length}`);
+    }
     // A type the preset does not allow is a real error. A MISSING type is not -
     // the description still carries the identity, and the sheets fall back to
     // the neutral wording - so it is deliberately not a failure here.
@@ -1377,6 +1922,7 @@ function validate(story, cast, p = {}) {
     // @-mention for a Character that does not exist, which is the same failure
     // the character check below exists to prevent.
     const dialogue = p.narration_scope === 'dialogue';
+    const sourceDialogueStory = !!story.source_dialogue_fidelity;
     story.scenes.forEach((s, i) => {
         const n = i + 1;
         if (dialogue) {
@@ -1398,7 +1944,19 @@ function validate(story, cast, p = {}) {
                 if (!text) bad.push(`clip ${n}: dialogue line ${j + 1} has no words in it`);
                 words += text ? text.split(/\s+/).length : 0;
             });
-            if (words > D_WORDS_HARD) {
+            if (p.grounded_dialogue === true && !sourceDialogueStory && lines.length && lines.length < 2) {
+                bad.push(`clip ${n}: only ${lines.length} dialogue turn - grounded conversation needs 2 or 3 turns with both people speaking`);
+            }
+            if (p.grounded_dialogue === true && !sourceDialogueStory && lines.length) {
+                const speakers = new Set(lines.map(d => String(d.speaker || '').trim().toLowerCase()).filter(Boolean));
+                if (speakers.size < 2) {
+                    bad.push(`clip ${n}: only one person speaks - both people must speak in every grounded conversation clip`);
+                }
+                if (words < D_WORDS_MIN) {
+                    bad.push(`clip ${n}: only ${words} spoken words; needs at least ${D_WORDS_MIN} for ${SECONDS}s without a long silent tail`);
+                }
+            }
+            if (!sourceDialogueStory && words > D_WORDS_HARD) {
                 bad.push(`clip ${n}: ${words} spoken words across ${lines.length} line(s), over the ${D_WORDS_HARD}-word limit for ${SECONDS}s of dialogue`);
             }
             // The speaker has to be on screen for the line to be said on
@@ -1433,14 +1991,17 @@ function validate(story, cast, p = {}) {
         // Checked here as well as written in, because a hand-written story never
         // passes through the scene prompt that would otherwise have supplied it.
         const place = String((story.place && story.place.description) || '').trim();
-        if (place && !String(s.narrative_context || '').includes(place)) {
+        if (p.id !== 'fern-documentary' && place && !String(s.narrative_context || '').includes(place)) {
             bad.push(`clip ${n}: does not carry the film's fixed place - this story happens in one place, so every clip's narrative_context must contain it verbatim`);
         }
-        // Only demand characters when the story actually has a cast. A
-        // no-character story is legitimate (see `cast` in styles.json), but a
-        // scene naming somebody who was never designed would become an
-        // @-mention for a Character that does not exist.
-        if (cast.length && !s.characters.length) bad.push(`clip ${n}: no characters listed`);
+        // Optional-cast explainers can cut from a person to a process or object
+        // with nobody visible. The scene prompt explicitly lists only visible
+        // people, so an empty list is valid there even if other clips use a cast.
+        // Keep the character requirement for cast-led and dialogue presets;
+        // unknown names are rejected for every preset below.
+        if (cast.length && !s.characters.length && (p.cast !== 'optional' || dialogue)) {
+            bad.push(`clip ${n}: no characters listed`);
+        }
         s.characters.forEach(c => {
             if (!names.includes(c)) bad.push(`clip ${n}: "${c}" is not in the cast (${names.join(', ')})`);
         });
@@ -1450,6 +2011,10 @@ function validate(story, cast, p = {}) {
 
 // ── writers ------------------------------------------------------------------
 function writePackage(dir, p, story, cast) {
+    for (const scene of story.scenes || []) {
+        const directed = require('./dialogue_shot_plan').shotPlan(story, scene);
+        if (directed) { scene.veo3_prompt = directed.prompt; scene.narrative_context = directed.visual; }
+    }
     const slug = path.basename(dir);
     // The output folder first, explicitly. It used to be created as a side
     // effect of making character_refs/ inside it, so making that conditional
@@ -1466,6 +2031,8 @@ function writePackage(dir, p, story, cast) {
     // in rather than hung off `story` as a _cast key, so it cannot leak into the
     // written file - the schema has no such field and stage 1 would carry it.)
     const storyPath = path.join(dir, `${slug}_story.json`);
+    if (story.place) story.place.prompt = require('./location_style').locationPrompt(p, story.place);
+    require('./thumbnail_prompt').writeThumbnailPrompts(dir, story);
     fs.writeFileSync(storyPath, JSON.stringify(story, null, 2) + '\n', 'utf8');
 
     // The film's one place. It is written into the same file as the cast sheets
@@ -1642,6 +2209,12 @@ function writePackage(dir, p, story, cast) {
                '']
             : ['## Narrator',
                p.narration_voice,
+               // The voice ASSET, named. The description above is what the
+               // narrator sounds like; this is the Flow voice to attach to every
+               // clip, and without it the film is read by a different one each
+               // time. Read off the story, which records it at write time - the
+               // preset is not in scope here. See flow_voice.js.
+               ...(story.flow_voice ? ['', `Flow voice: **${story.flow_voice}** - attach it to every clip.`] : []),
                ...(p.narration_scope === 'intro'
                    ? ['', 'Heard over the opening clip only. Clips 2 onward carry no voice-over', 'at all - they run on their own sound and the music under it.', '']
                    : [''])]),
@@ -1737,6 +2310,189 @@ function writePackage(dir, p, story, cast) {
     return storyPath;
 }
 
+// ── the manual path: the prompts on disk, the answers in a file ---------------
+// The two writing calls do not have to be made by this process. The free API
+// tier is the smallest model Google has and it is rate-limited per Cloud
+// project; AI Studio and the Gemini app hand a PERSON a better model for
+// nothing. So the same two calls can be made by hand - --print-prompts writes
+// the exact prompt each call would have sent, the reply is saved as JSON, and
+// --from-file reads it back and finishes the job.
+//
+// Nothing downstream is aware of this. Both paths end at
+// buildStory -> validate -> writePackage, because the story has never cared
+// where its JSON came from - only that it has the shape a scene has.
+//
+// The recipe is written to prompts/HOWTO.txt as it goes, with the title and the
+// preset filled in, because a recipe you have to remember is a recipe that gets
+// run wrong at two in the morning.
+const ANSWER_SCENES_KEYS = ['scenes', 'clips', 'slides', 'shots'];
+
+// The answers out of the file(s) the operator saved. Deliberately generous: this
+// text came out of a chat window, not an API, so it may arrive fenced, merged
+// with call 1's answer, wrapped one answer per key, or as the bare array call 2
+// returns. `scenes` is kept apart from the rest because it is the one key that
+// is a LIST - everything else is call 1's answer and goes to meta as it is.
+function readAnswers(files) {
+    const answers = {};
+    let scenes = null;
+    // One answer's worth of keys, merged into the running total. A scenes list
+    // is the clip answer, so it is lifted out rather than merged - and it is
+    // APPENDED, not replaced: a film that took two batches has one answer file
+    // per batch, and the second batch is clips 7-8, not the whole film.
+    const take = (obj) => {
+        for (const [k, v] of Object.entries(obj)) {
+            if (ANSWER_SCENES_KEYS.includes(k)) {
+                if (Array.isArray(v)) scenes = (scenes || []).concat(v);
+                continue;
+            }
+            answers[k] = v;
+        }
+    };
+    // Both answers in one file, each under a key of its own. Only an object that
+    // IS an answer is looked inside - a nested `place: {name, description}`
+    // would otherwise scatter its fields over the story's meta.
+    const looksLikeAnAnswer = (v) => v && typeof v === 'object' && !Array.isArray(v) &&
+        (ANSWER_SCENES_KEYS.some(k => Array.isArray(v[k])) || Array.isArray(v.outline) || 'moral' in v);
+
+    for (const f of files) {
+        let raw;
+        try {
+            raw = fs.readFileSync(f, 'utf8');
+        } catch (e) {
+            throw new Error(`could not read the answer file ${f}: ${e.message}`);
+        }
+        let obj;
+        try {
+            obj = parseJson(raw);
+        } catch (e) {
+            throw new Error(`${f}: ${e.message}`);
+        }
+        if (Array.isArray(obj)) { scenes = (scenes || []).concat(obj); continue; }
+        if (!obj || typeof obj !== 'object') throw new Error(`${f}: expected a JSON object or an array of scenes`);
+        take(obj);
+        for (const v of Object.values(obj)) if (looksLikeAnAnswer(v)) take(v);
+    }
+    return { answers, scenes };
+}
+
+// Call 1's half of the answers, as the story builder wants to read it. Every
+// field is a string, so a missing one is "" rather than undefined - the same
+// thing the API path guarantees by parsing whatever came back.
+function metaFrom(a) {
+    const s = (k) => String(a[k] == null ? '' : a[k]).trim();
+    return {
+        description: s('description'),
+        moral: s('moral'),
+        target_audience: s('target_audience'),
+        place_name: s('place_name'),
+        place_description: s('place_description'),
+        place_prompt: s('place_prompt'),
+        blocking: s('blocking'),
+        characters: Array.isArray(a.characters) ? a.characters : [],
+        outline: Array.isArray(a.outline) ? a.outline : [],
+    };
+}
+
+// Where the prompts and the saved answers live. Inside the story folder, so the
+// recipe, the prompts it wrote and the answers that came back stay together with
+// the story they produced.
+function writePromptFiles(dir, files) {
+    const d = path.join(dir, 'prompts');
+    fs.mkdirSync(d, { recursive: true });
+    for (const f of files) fs.writeFileSync(path.join(d, f.name), f.text, 'utf8');
+    return d;
+}
+
+// The recipe, rewritten beside the prompts it describes every time another step
+// is done. `have` is the answer files this run was given, `promptFile` the one
+// just written, `next` the file its answer should be saved as.
+//
+// The clip prompts come ONE AT A TIME, not all at once, and that is the point:
+// each batch is shown the clips before it so it cannot repeat them, so batch 2's
+// prompt cannot be written before batch 1's answer exists. A film that fits in
+// one batch - the usual case - never sees the loop at all.
+function howToText(p, title, opts = {}) {
+    const have = opts.have || [];
+    const promptFile = opts.promptFile || null;
+    const next = opts.next || null;
+    // The prompts and the saved answers both live in the story folder's prompts/
+    // subfolder, and every path printed below is relative to the TOOL's folder -
+    // because that is where the printed commands are meant to be run from. A bare
+    // "prompts/answer_1.json" would only work from inside the story folder, and
+    // the recipe says to run these from here.
+    const dir = opts.dir
+        ? path.relative(HERE, path.join(opts.dir, 'prompts')).replace(/\\/g, '/')
+        : 'prompts';
+    const at = (name) => (dir ? `${dir}/${name}` : name);
+    const run = (extra) => `node write_story.js --title "${title}" --preset ${p.id} ${extra}`;
+    const withFiles = (extra) => (have.length ? have : []).concat(extra ? [extra] : [])
+        .map(f => `--from-file ${f}`).join(' ');
+    const out = [
+        'HOW THIS STORY IS BEING WRITTEN',
+        '',
+        'By hand, not through the API. The free API tier is rate-limited per Cloud',
+        'project and it is the smallest model Google has; AI Studio hands a person a',
+        'better model for nothing. The price is that these calls get pasted manually.',
+        'Everything after them is identical - the folder this produces is the one an',
+        'API run would have produced, and the rest of the tool cannot tell the',
+        'difference.',
+        '',
+        'Keep --title and --preset exactly as they are: they decide this folder.',
+        '',
+    ];
+
+    if (!have.length) {
+        return out.concat([
+            `STEP 1  [done]  ${at('1_cast_and_outline.txt')} holds call 1 - the cast`,
+            '                and the beats.',
+            '',
+            'STEP 2  Open https://aistudio.google.com/prompts/new_chat and paste the',
+            '        whole of that file as the message. Take the JSON it answers with,',
+            '        fences and all, and save it verbatim as',
+            '',
+            `            ${at('answer_1.json')}`,
+            '',
+            '        gemini.google.com/app works as well, but it wraps answers in prose',
+            '        and refuses JSON more often. AI Studio takes a prompt this long and',
+            '        lets you pick the model.',
+            '',
+            'STEP 3  Run this for the clip prompt. It cannot be written before answer 1',
+            '        exists, because it is handed the cast and the beats from it:',
+            '',
+            '            ' + run(`--from-file ${at('answer_1.json')} --print-prompts`),
+            '',
+        ]).join('\n') + '\n';
+    }
+
+    const lines = [
+        `STEP A  [done]  ${at(promptFile)} is ready - it is the clip prompt`,
+        '                for this batch.',
+        '',
+        'STEP B  Paste it into AI Studio (same chat is fine) and save the JSON it',
+        '        answers with, verbatim, as:',
+        '',
+        `            ${at(next)}`,
+        '',
+        'STEP C  Run this - it writes the next prompt if the film needs another',
+        '        batch, and writes the story folder when the clips are complete:',
+        '',
+        '            ' + run(withFiles(at(next)) + ' --print-prompts'),
+        '',
+        '        If it writes another clip prompt, repeat steps B and C for it. Each',
+        '        prompt is written only after the answers before it exist, because',
+        '        every batch is shown the clips that came before it.',
+        '',
+        '        Once every clip is in, the same command without --print-prompts',
+        '        writes the folder:',
+        '',
+        '            ' + run(withFiles(at(next))),
+        '',
+        'Nothing is ever sent to Google by this tool in this mode.',
+        '',
+    ];
+    return out.concat(lines).join('\n') + '\n';
+}
+
 // ── main ---------------------------------------------------------------------
 // Guarded so the internals can be required by a test. Everything above is pure -
 // build a story, validate it, write it - and only this block touches the network.
@@ -1767,13 +2523,32 @@ if (require.main === module) (async () => {
         process.exit(1);
     }
 
+    const resolvedPreset = require('./relationship_transcript').resolveTranscriptPreset(PRESET_ID, TITLE, DETAIL);
+    if (resolvedPreset !== PRESET_ID) {
+        console.log('  Relationship transcript detected: using Relationship Dialogue Ghibli (Sarah / George).');
+        PRESET_ID = resolvedPreset;
+    }
     const p = loadPreset(PRESET_ID);
+    if (p.require_source_speaker_gender) {
+        if (hasSourceDialogue(CONTENT_MAP)) {
+            require('./dialogue_speakers').sourceSpeakerMap(contentMapClips(CONTENT_MAP), [], p);
+        } else if (require('./relationship_transcript').hasPastedTranscript(DETAIL)) {
+            require('./dialogue_speakers').labelledTranscriptTurns(DETAIL);
+        }
+    }
     // A preset may carry its own length - an animal kindness film is specified
     // at 60-90s, where most genres are happy at 56. Applied here, before the
     // prompts are built and before the run is described on screen, so the
     // printed duration is the one that actually gets used. An explicit
     // --duration wins and this does nothing.
     const fromPreset = usePresetDuration(p);
+    // GUI duration is the story budget. This preset appends a separate CTA;
+    // imported finished answers already contain their intended clip count.
+    if (p.extra_cta_clip && !ANSWER_FILES.length) {
+        SCENES += 1;
+        DURATION = SCENES * SECONDS;
+        DETAIL += `\nSTRUCTURE: ${SCENES - 1} story clips (first is the hook), followed by ONE EXTRA CTA clip. Finish the full source ending in story clip ${SCENES - 1}. Total ${SCENES} clips.`;
+    }
     const slug = slugify(TITLE);
     const dir = OUT_DIR || path.join(STORIES_DIR, slug);
 
@@ -1781,7 +2556,9 @@ if (require.main === module) (async () => {
     // these characters exist is a choice the channel made once, so it is not
     // re-rolled per story - and when it applies, the model is never asked to
     // design a cast at all.
-    const house = loadHouseCast(CAST_FILE);
+    const savedCouple = /^relationship-dialogue(?:-(?:real|ghibli))?$/.test(p.id)
+        ? require('./saved_couple').loadSavedCouple('writer') : null;
+    const house = savedCouple || loadHouseCast(CAST_FILE);
     const houseCast = (!NO_HOUSE_CAST && house.length && (CAST_FILE || houseCastApplies(p)))
         ? normaliseCast(p, house)
         : [];
@@ -1829,16 +2606,48 @@ if (require.main === module) (async () => {
         return;
     }
 
-    if (!ring.size) {
+    // Manual mode: the answers are already in hand, so no key is needed and the
+    // key ring is not even reported - printing "0 keys configured" over a run
+    // that is not going to call anything would read like a problem.
+    const manual = ANSWER_FILES.length ? readAnswers(ANSWER_FILES) : null;
+    const manualMeta = manual ? metaFrom(manual.answers) : null;
+
+    // Nothing to send and nothing to answer with yet: write call 1's prompt out
+    // and stop. This is the first command of the manual recipe.
+    if (PRINT_PROMPTS && !manual) {
+        writePromptFiles(dir, [{ name: '1_cast_and_outline.txt', text: castPrompt(p, houseCast) }]);
+        fs.writeFileSync(path.join(dir, 'prompts', 'HOWTO.txt'), howToText(p, TITLE, { dir }), 'utf8');
+        console.log(`\n  wrote  ${path.join(dir, 'prompts', '1_cast_and_outline.txt')}`);
+        console.log(`  wrote  ${path.join(dir, 'prompts', 'HOWTO.txt')}`);
+        console.log('\n  Paste that prompt into AI Studio, save the JSON it answers with as');
+        console.log(`  prompts/answer_1.json, then follow HOWTO.txt. Nothing was sent.`);
+        return;
+    }
+
+    // A web run needs no key at all, and saying "no API key" over one would be
+    // wrong twice: it is not missing, it is not wanted.
+    if (!manual && TRANSPORT !== 'web' && !ring.size) {
         console.error('\nNo API key. Pass --key, or set GEMINI_API_KEY, or put');
         console.error('"gemini_api_keys" in gui_settings.json (which is gitignored).');
+        console.error('\nTwo ways to write the story without one:');
+        console.error('  --transport web    Google AI Studio does the writing, in the browser');
+        console.error('  --print-prompts    the prompts are written to disk to paste in yourself');
         process.exit(1);
     }
-    if (ring.size > 1) {
+    if (ring.size > 1 && !manual) {
         console.log(`  keys     : ${ring.size} configured, used in order - ` +
                     `${ring.keys.map(maskKey).join(', ')}`);
     }
-    console.log(`  models   : ${MODELS.join(' -> ')}`);
+    if (manual) {
+        console.log(`  answers  : ${ANSWER_FILES.map(f => path.basename(f)).join(', ')}` +
+                    '  (by hand - nothing will be sent)');
+    } else if (TRANSPORT === 'web') {
+        console.log(`  writing  : Google AI Studio in the browser (no API key is used)`);
+    } else if (TRANSPORT === 'auto') {
+        console.log(`  writing  : the API first, AI Studio in the browser if it will not answer`);
+    } else {
+        console.log(`  models   : ${MODELS.join(' -> ')}`);
+    }
 
     if (fs.existsSync(dir) && !FORCE) {
         const existing = fs.readdirSync(dir).filter(f => f.endsWith('_story.json'));
@@ -1851,8 +2660,8 @@ if (require.main === module) (async () => {
 
     try {
         // 1. cast + outline
-        process.stdout.write('\n  [1/2] writing the cast and outline ... ');
-        const meta = await ask(ring, MODELS, castPrompt(p, houseCast), 8192);
+        process.stdout.write(manual ? '' : '\n  [1/2] writing the cast and outline ... ');
+        const meta = manual ? manualMeta : await ask(ring, MODELS, castPrompt(p, houseCast), 8192);
         // The standing cast is not the model's to design: those faces are
         // attached after this call and are never re-described. Whatever it DID
         // design is additive - the person a standing character is talking to, in
@@ -1867,14 +2676,31 @@ if (require.main === module) (async () => {
         // here. For an optional-cast genre an empty list is an ANSWER - the
         // model judged the topic needs no character - not a generation error.
         if (!cast.length && p.cast !== 'optional') {
-            throw new Error('the model returned no characters, but this preset requires a cast');
+            throw new Error(manual
+                ? `the answer file names no character, but ${p.label} requires a cast - ` +
+                  'save call 1\'s answer, not only the clips'
+                : 'the model returned no characters, but this preset requires a cast');
+        }
+        // An answer with no outline has nothing for the clip prompts to be built
+        // on, and there is no earlier step to fall back to - so it is named here
+        // rather than becoming four clips about nothing.
+        if (!outline.length) {
+            throw new Error(manual
+                ? `the answer file has no "outline" - it holds ${Object.keys(manual.answers).join(', ') || 'nothing'}, ` +
+                  'so call 1\'s answer is missing (see prompts/HOWTO.txt)'
+                : 'call 1 returned no outline');
         }
         if (outline.length !== SCENES) {
             console.log(`\n  note: asked for ${SCENES} beats, got ${outline.length}. Using what came back.`);
         }
-        console.log(`ok - ${cast.length
-            ? cast.map(c => c.name).join(', ') + (houseCast.length ? ' (the standing cast plus who the story needed)' : '')
-            : 'no cast (this topic needs none)'}, ${outline.length} beats`);
+        if (manual) {
+            console.log(`  by hand : call 1 - ${outline.length} beat(s)` +
+                        (cast.length ? `, cast ${cast.map(c => c.name).join(', ')}` : ', no cast'));
+        } else {
+            console.log(`ok - ${cast.length
+                ? cast.map(c => c.name).join(', ') + (houseCast.length ? ' (the standing cast plus who the story needed)' : '')
+                : 'no cast (this topic needs none)'}, ${outline.length} beats`);
+        }
 
         // 2. scenes, in batches that each fit comfortably in one response
         const scenes = [];
@@ -1894,16 +2720,103 @@ if (require.main === module) (async () => {
         // itself and the conversation would wander around it.
         const blocking = String((meta && meta.blocking) || '').trim();
         if (blocking) console.log(`  staged once for the film: ${blocking}`);
-        for (let from = 0; from < total; from += BATCH) {
+
+        if (manual) {
+            // One batch at a time, for the same reason the API path does it in
+            // batches: the prompt for a batch is shown the clips before it. So a
+            // manual run stops at the first batch it has no answer for, writes
+            // that one prompt, and says which file to save the reply as.
+            const have = manual.scenes ? manual.scenes.length : 0;
+            if (have < total) {
+                if (!PRINT_PROMPTS) {
+                    throw new Error(`the answer file(s) hold ${have} of the ${total} clip(s) - ` +
+                        'add --print-prompts to write the next clip prompt, or save that ' +
+                        'batch\'s answer and pass it with another --from-file');
+                }
+                const from = have;
+                const to = Math.min(have + BATCH, total);
+                const range = `${from + 1}-${to}`;
+                const nextFile = `answer_2_clips_${range}.json`;
+                writePromptFiles(dir, [{
+                    name: `2_clips_${range}.txt`,
+                    text: scenesPrompt(p, cast, outline, from, to, manual.scenes || [], place, blocking),
+                }]);
+                fs.writeFileSync(path.join(dir, 'prompts', 'HOWTO.txt'), howToText(p, TITLE, {
+                    dir,
+                    // The files this run was GIVEN, so the command printed here is
+                    // one that can be pasted as it stands rather than one the
+                    // operator has to correct first.
+                    have: ANSWER_FILES,
+                    promptFile: `2_clips_${range}.txt`,
+                    next: nextFile,
+                }), 'utf8');
+                console.log(`  wrote  ${path.join(dir, 'prompts', `2_clips_${range}.txt`)}`);
+                console.log(`  wrote  ${path.join(dir, 'prompts', 'HOWTO.txt')}`);
+                console.log(`\n  clips ${range} of ${total} - paste that prompt into AI Studio, save the`);
+                console.log(`  reply as prompts/${nextFile}, then run it again. Nothing was sent.`);
+                return;
+            }
+            // Everything call 2 would have returned is in hand. The answers were
+            // read back as JSON, which is exactly what the API path gets handed,
+            // so the batch loop below - which exists to ASK for them - is skipped
+            // and the two runs meet again at buildStory.
+            scenes.push(...manual.scenes);
+            if (have > total) {
+                console.log(`\n  note: call 1's answer has ${total} beat(s) and call 2's has ${have} clip(s).`);
+            }
+            console.log(`  by hand : call 2 - ${scenes.length} clip(s)`);
+        }
+
+        for (let from = 0; !manual && from < total; from += BATCH) {
             const to = Math.min(from + BATCH, total);
             process.stdout.write(`  [2/2] clips ${from + 1}-${to} of ${total} ... `);
-            const r = await ask(ring, MODELS, scenesPrompt(p, cast, outline, from, to, scenes, place, blocking), 16384);
-            const got = r.scenes || [];
-            if (!got.length) throw new Error(`clip batch ${from + 1}-${to} came back empty`);
+            // A reply in the wrong SHAPE is a bad roll, not a dead end - the same
+            // class of failure as a 503, and it used to cost the whole story. The
+            // prompt asks for {"scenes":[...]}; a model that answers with the bare
+            // array (or with the scenes under keys of its own) used to leave
+            // `scenes` empty and kill the run, with nothing in the message to say
+            // which model did it. Take the array as the scenes it plainly is, and
+            // if the shape is still unusable, ask again WITHOUT the model that
+            // produced it - a model that cannot hold the shape will not hold it on
+            // a second ask either.
+            let r = null, got = [], tried = [];
+            for (let go = 0; go < 3; go++) {
+                const chain = tried.length ? MODELS.filter(m => !tried.includes(m)) : MODELS;
+                if (!chain.length) break;
+                const said = {};
+                r = await ask(ring, chain, scenesPrompt(p, cast, outline, from, to, scenes, place, blocking), 16384, said);
+                got = scenesFrom(r);
+                if (got.length) break;
+                tried.push(said.model || '(unknown model)');
+                if (go < 2) {
+                    console.log(`\n  ${tried[tried.length - 1]} answered with ${shapeOf(r)} ` +
+                                `instead of {"scenes":[...]} - asking another model`);
+                }
+            }
+            if (!got.length) {
+                throw new Error(`clip batch ${from + 1}-${to} came back empty: ` +
+                    `${tried.join(', ')} answered with ${shapeOf(r)} instead of {"scenes":[...]}`);
+            }
             scenes.push(...got);
             console.log(`ok (${got.length})`);
         }
 
+        if (p.grounded_dialogue === true && hasSourceDialogue(CONTENT_MAP)) {
+            const fidelity = enforceSourceDialogueFidelity(scenes, cast, CONTENT_MAP, p);
+            scenes.splice(0, scenes.length, ...fidelity.scenes);
+            if (fidelity.restored.length) {
+                console.log(`  source dialogue guard restored the original wording in clip(s): ${fidelity.restored.join(', ')}`);
+            } else {
+                console.log('  source dialogue guard: every clip stayed within the light-edit limit');
+            }
+        }
+        if (p.grounded_dialogue && !hasSourceDialogue(CONTENT_MAP)) {
+            const aligned = require('./dialogue_speakers').alignUnlabelledTranscript(p, scenes, DETAIL);
+            if (aligned !== scenes) {
+                scenes.splice(0, scenes.length, ...aligned);
+                console.log('  transcript speaker guard: verified source labels applied to every turn.');
+            }
+        }
         const story = buildStory(p, cast, meta, scenes);
 
         const bad = validate(story, cast, p);
@@ -1916,11 +2829,18 @@ if (require.main === module) (async () => {
         }
 
         const storyPath = writePackage(dir, p, story, cast);
+        if (savedCouple) require('./saved_couple').bindSavedStory(storyPath, savedCouple);
 
         console.log(`\n  wrote  ${storyPath}`);
         console.log(`  wrote  ${path.join(dir, 'style_bible.md')}`);
+        console.log(`  wrote  ${path.join(dir, 'thumbnail_prompt.txt')} (16:9)`);
+        console.log(`  wrote  ${path.join(dir, 'thumbnail_prompt_vertical.txt')} (9:16)`);
         const hasPlace = !!(story.place && story.place.description);
-        const placeLabel = hasPlace ? (story.place.name || 'the place') : '';
+        // A place with no name of its own happens - it is asked of call 1, and an
+        // answer written by hand may simply not carry one. The mention is then
+        // spelled out instead, because "@the place" is not a mention, it is a
+        // message that reads as if something went wrong.
+        const placeMention = story.place && story.place.name ? `@${story.place.name}` : 'the place plate';
         // A standing cast has nothing to draw, so the closing lines are about the
         // one image this story still needs - the place plate - and then about the
         // sheets stage 2 fetches from house_refs/ by itself.
@@ -1934,7 +2854,8 @@ if (require.main === module) (async () => {
             console.log(`\n  next   : generate the reference sheets${hasPlace ? ' and the place plate' : ''}`);
             console.log(`           from character_sheets.txt into character_refs/. Do not make`);
             console.log('           Flow Characters - stage 2 uploads each one as a plain image');
-            console.log(`           and @-mentions it${hasPlace ? `, including @${placeLabel}` : ''}.`);
+            console.log('           and @-mentions it' +
+                        (story.place && story.place.name ? `, including ${placeMention}` : '') + '.');
         } else if (standing.length) {
             console.log(`\n  next   : nothing to draw for the cast - ${standingWho} ` +
                         `${standing.length > 1 ? 'are' : 'is'} the`);
@@ -1942,20 +2863,22 @@ if (require.main === module) (async () => {
             if (hasPlace) {
                 console.log('           Generate the place plate from character_sheets.txt into');
                 console.log('           character_refs/. Stage 2 then uploads the cast sheets from');
-                console.log(`           house_refs/ and @-mentions ${standingWho} and @${placeLabel}.`);
+                console.log(`           house_refs/ and @-mentions ${standingWho} and ${placeMention}.`);
             } else {
                 console.log('           Stage 2 uploads them from there and @-mentions ' + standingWho + '.');
             }
         } else if (hasPlace) {
             console.log(`\n  next   : generate the place plate from character_sheets.txt into`);
             console.log(`           character_refs/, then continue - stage 2 @-mentions it as`);
-            console.log(`           @${placeLabel} in every clip.`);
+            console.log(`           ${placeMention} in every clip.`);
         } else {
             console.log('\n  no character sheets - this topic needs no cast.');
             console.log('  next   : nothing to upload into Flow, so go straight to stage 1.');
         }
         console.log(`           npm run agent:prompt -- ${path.relative(HERE, storyPath)}`);
         console.log('');
+        // Let the CLI exit after a web write; the signed-in browser stays open.
+        if (_web) _web.close();
     } catch (e) {
         console.error(`\n  FAILED: ${e.message}`);
         if (isQuotaError(e)) {
@@ -1974,11 +2897,15 @@ if (require.main === module) (async () => {
 
 module.exports = {
     slugify, buildStory, validate, writePackage, loadPreset,
-    castPrompt, scenesPrompt, parseJson, geminiText,
+    readAnswers, metaFrom, howToText, writePromptFiles,
+    castPrompt, scenesPrompt, parseJson, geminiText, scenesFrom, shapeOf, firstJsonValue,
     apiKeys, maskKey, isQuotaError, isKeyRejected, isTransient, isParseError, isModelError, KeyRing, ask, callApi,
     normaliseCast, usePresetDuration, lookBlock, sanitizeForPolicy,
     loadHouseCast, houseCastApplies, HOUSE_CAST_FILE, HOUSE_REFS_DIR,
-    contentMapBlock, contentMapClips,
+    contentMapBlock, contentMapClips, hasSourceDialogue, enforceSourceDialogueFidelity,
     presetLists, GENAI_STYLES_FILE,
-    DEFAULT_MODELS, MODELS, MODEL,
+    DEFAULT_MODELS, MODELS, MODEL, modelChain,
+    // The transport, so analyze_video.js can honour the same switch. `askWeb` is
+    // a lazy door onto ask_web.js: nothing there is loaded until it is called.
+    TRANSPORT, askWebFor, askApi, webMod,
 };

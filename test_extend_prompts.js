@@ -100,6 +100,8 @@ ok('the dialogue survives word for word', (() => {
     return E.audioPart(r.prompts[2]) === E.audioPart(story.scenes[1].veo3_prompt);
 })());
 ok('it is told to continue, not to cut', r.prompts[2].startsWith(E.CONTINUE_LINE));
+ok('the continuation locks actor identity and wardrobe',
+   /same exact actor/.test(r.prompts[2]) && /never recast/.test(r.prompts[2]) && /wardrobe/.test(r.prompts[2]));
 ok('the block it dropped is reported back', r.block.includes('plush bed') && r.block.includes('SPATIAL BLOCKING'));
 ok('the reported block is whole sentences', E.wholeSentences(r.block + ' ') !== null);
 
@@ -186,8 +188,11 @@ ok('the engine looks for extend_prompts.json beside the story',
    /extend_prompts\.json/.test(engine));
 ok('the extend uses it in place of the scene prompt',
    /extendText \|\| scene\.veo3_prompt/.test(engine));
-ok('clip 1 is left on the story\'s own prompt',
-   /await this\.typePrompt\(scene\.veo3_prompt\);/.test(engine));
+ok('the engine adds a strict identity lock before submitting an extend',
+   /buildIdentityLockedExtendPrompt/.test(engine) && /Do not recast, redesign/.test(engine));
+ok('clip 1 uses the story prompt with the runtime dialogue ownership guard',
+   /const initialPrompt[\s\S]*?scene\.veo3_prompt/.test(engine)
+   && /typePrompt\(directedInitial \? directedInitial.prompt/.test(engine));
 
 const refused = sh([path.join(TMP, 'nope')]);
 ok('a path that is not a story is refused', refused.code !== 0 && /Not a story JSON/.test(refused.out));

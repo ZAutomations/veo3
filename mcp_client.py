@@ -46,14 +46,24 @@ class MCPClient:
             "protocolVersion": "2025-06-18",
             "capabilities": {},
             "clientInfo": {"name": "veo3-gui", "version": "1.0"},
-        })
+        }, timeout=30)
         self.notify("notifications/initialized", {})
         return True
 
     def stop(self):
         try:
             if self.proc and self.proc.poll() is None:
-                self.proc.kill()
+                # A reference worker may be waiting before a retry. Killing
+                # only the MCP server leaves that worker alive on Windows.
+                if os.name == "nt":
+                    subprocess.run(
+                        ["taskkill", "/PID", str(self.proc.pid), "/T", "/F"],
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                        timeout=10, check=False,
+                    )
+                else:
+                    self.proc.kill()
         except Exception:
             pass
         self.proc = None

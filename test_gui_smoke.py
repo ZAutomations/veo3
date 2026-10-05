@@ -36,6 +36,79 @@ import veo3_gui
 
 @unittest.skipUnless(_HAVE_TK, "no display available for Tk")
 class GuiSmoke(unittest.TestCase):
+    def test_script_links_batch_uses_script_settings_without_generation(self):
+        app = self.app
+        app.script_source_var.set("Video links")
+        app.script_links.delete("1.0", "end")
+        app.script_links.insert("1.0", "https://www.youtube.com/shorts/one\nhttps://www.youtube.com/shorts/two")
+        app.gen_preset_var.set(next(display for display, pid in app._gen_ids.items() if pid == "relationship-dialogue-real"))
+        app.gen_aspect_var.set("9:16")
+        app.gen_duration_var.set(64)
+        args = app.script_batch_request()
+        self.assertEqual(len(args["references"]), 2)
+        self.assertEqual(args["preset"], "relationship-dialogue-real")
+        self.assertEqual(args["aspect"], "9:16")
+        self.assertEqual(args["duration"], 64)
+        self.assertTrue(args["match_ref"])
+        for flag in ("generate", "submit", "generate_refs", "new_project", "download", "join"):
+            self.assertFalse(args[flag])
+        self.assertTrue(app.script_links.grid_info())
+        self.assertFalse(app.gen_detail.grid_info())
+        app.collect_inputs()
+        self.assertEqual(app.settings["script_source"], "Video links")
+
+    def test_script_multiline_stories_share_agent_parser_and_dispatch(self):
+        from unittest.mock import patch
+        app = self.app
+        app.script_source_var.set("Multiple stories")
+        app.gen_preset_var.set(next(iter(app._gen_ids)))
+        text = "STORY 1\nTITLE: First\nMale: Hello.\nFemale: Hi.\n\nSTORY 2\nTITLE: Second\nA separate brief."
+        app.script_ideas.insert("1.0", text)
+        args = app.script_batch_request()
+        self.assertEqual([idea["title"] for idea in args["ideas"]], ["First", "Second"])
+        self.assertEqual(args["ideas"][0]["detail"], "Male: Hello.\nFemale: Hi.")
+        self.assertNotIn("references", args)
+        self.assertFalse(args["match_ref"])
+        with patch.object(app, "write_script_batch", return_value="batch") as run:
+            self.assertEqual(app.write_story(dry=True), "batch")
+            run.assert_called_once_with(True)
+        app.script_ideas.delete("1.0", "end")
+        app.script_ideas.insert("1.0", "TITLE: One story\nFirst detail line\nSecond detail line")
+        self.assertEqual(len(app.script_batch_request()["ideas"]), 1)
+        app.script_source_var.set("Title & details")
+        self.assertTrue(app.gen_detail.grid_info())
+        self.assertFalse(app.script_ideas.grid_info())
+
+    def test_saved_ingredients_mode_locks_and_restores_reference_options(self):
+        app = self.app
+        app.ingredients_saved_couple_var.set(False)
+        for var, value in zip((app.skip_refs_var, app.gen_refs_var, app.refs_on_clip1_var), (True, False, False)):
+            var.set(value)
+        app.ingredients_saved_couple_var.set(True)
+        self.assertEqual((app.skip_refs_var.get(), app.gen_refs_var.get(), app.refs_on_clip1_var.get()), (False, True, True))
+        for widget in (app.skip_refs_check, app.gen_refs_check, app.refs_on_clip1_check):
+            self.assertTrue(widget.instate(["disabled"]))
+        app.skip_refs_var.set(True)
+        app.gen_refs_var.set(False)
+        app.refs_on_clip1_var.set(False)
+        app.collect_inputs()
+        self.assertEqual((app.settings["skip_refs"], app.settings["gen_refs"], app.settings["refs_on_clip1"]), (False, True, True))
+        app.ingredients_saved_couple_var.set(False)
+        self.assertEqual((app.skip_refs_var.get(), app.gen_refs_var.get(), app.refs_on_clip1_var.get()), (True, False, False))
+        for widget in (app.skip_refs_check, app.gen_refs_check, app.refs_on_clip1_check):
+            self.assertFalse(widget.instate(["disabled"]))
+
+    def test_saved_couple_controls_round_trip(self):
+        self.app.agent_saved_couple_var.set(True)
+        self.app.ingredients_saved_couple_var.set(False)
+        self.app.couple_sarah_file_var.set("D:/references/sarah.png")
+        self.app.couple_george_file_var.set("D:/references/george.jpg")
+        self.app.collect_inputs()
+        self.assertTrue(self.app.settings["agent_saved_couple"])
+        self.assertFalse(self.app.settings["ing_saved_couple"])
+        self.assertEqual(self.app.settings["couple_sarah_file"], "D:/references/sarah.png")
+        self.assertEqual(self.app.settings["couple_george_file"], "D:/references/george.jpg")
+
     def setUp(self):
         self._tmpdirs = []
         self._real_settings_file = veo3_gui.SETTINGS_FILE
@@ -157,13 +230,12 @@ class GuiSmoke(unittest.TestCase):
         self.app.mcp_video_model_var.set("")
         self.assertEqual(self.saved("mcp_video_model"), "Flow")
 
-    def test_the_two_tabs_do_not_share_one_value(self):
-        # A batch and a one-off agent run can want different models; one shared
-        # variable would silently rewrite the other tab's choice.
+    def test_workflow_and_manual_tools_share_one_value(self):
+        # Manual and automatic stages now intentionally use one workflow model.
         self.app.video_model_var.set("Veo 3.1 - Fast")
         self.app.mcp_video_model_var.set("Omni 1.1 Flash")
         self.app.collect_inputs()
-        self.assertEqual(self.app.settings["video_model"], "Veo 3.1 - Fast")
+        self.assertEqual(self.app.settings["video_model"], "Omni 1.1 Flash")
         self.assertEqual(self.app.settings["mcp_video_model"], "Omni 1.1 Flash")
 
     def test_a_model_typed_by_hand_is_kept(self):
@@ -192,7 +264,7 @@ class GuiSmoke(unittest.TestCase):
             root2.withdraw()
             try:
                 app2 = veo3_gui.Veo3LauncherGUI(root2)
-                self.assertEqual(app2.video_model_var.get(), "Omni 1.1 Flash")
+                self.assertEqual(app2.video_model_var.get(), "Veo 3.1 - Lite [Lower Priority]")
                 self.assertEqual(app2.mcp_video_model_var.get(),
                                  "Veo 3.1 - Lite [Lower Priority]")
             finally:
@@ -214,7 +286,7 @@ class GuiSmoke(unittest.TestCase):
         root2.withdraw()
         try:
             app2 = veo3_gui.Veo3LauncherGUI(root2)
-            self.assertEqual(app2.video_model_var.get(), "Veo 3.1 - Lite [Lower Priority]")
+            self.assertEqual(app2.video_model_var.get(), "Omni 1.1 Flash")
             self.assertEqual(app2.mcp_video_model_var.get(), "Omni 1.1 Flash")
         finally:
             root2.destroy()

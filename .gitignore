@@ -55,3 +55,9 @@ desktop.ini
 .vscode/
 .idea/
 *.log
+
+# Local recovery snapshots, debug screenshots and manually saved AI answers
+backups/
+debug_flow_*.png
+GEMINI-BY-HAND/_answers/
+AI-STUDIO-WORKFLOW/saved-answers/*.json

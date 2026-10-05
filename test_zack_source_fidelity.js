@@ -1,0 +1,15 @@
+const assert=require('node:assert/strict');
+const {execFileSync}=require('child_process');
+const W=require('./write_story');
+const p=W.loadPreset('3d-zack-style');
+assert.equal(p.source_faithful,true);
+assert.equal(p.extra_cta_clip,true);
+const prompt=W.scenesPrompt(p,[],Array.from({length:5},(_,i)=>({title:`Scene ${i+1}`,beat:'source event'})),0,5,[]);
+assert.match(prompt,/Preserve the source tense and viewpoint/);
+assert.match(prompt,/stab-proof is not bulletproof/);
+assert.doesNotMatch(prompt,/Talk TO the viewer, not about the subject/);
+assert.match(W.castPrompt(p),/SOURCE PRIORITY/);
+const dry=execFileSync(process.execPath,['write_story.js','--title','Source Fidelity Test','--preset','3d-zack-style','--duration','32','--dry-run'],{encoding:'utf8'});
+assert.match(dry,/40s\s*->\s*5 clips/);
+assert.match(dry,/4 story clips \(first is the hook\), followed by ONE EXTRA CTA clip/);
+console.log('Passed: source viewpoint, technical meaning, source priority and 4 story clips + 1 extra CTA.');

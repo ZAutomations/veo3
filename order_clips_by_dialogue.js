@@ -362,7 +362,7 @@ function main() {
     if (manifest && Array.isArray(manifest.clips)) {
         for (const c of manifest.clips) if (c && c.file) meta.set(c.file, c);
     }
-    const out = {
+    let out = {
         ...(manifest || {}),
         projectUrl: (manifest && manifest.projectUrl) || null,
         clips: ordered.map((f, i) => Object.assign({}, meta.get(f) || { file: f }, {
@@ -380,6 +380,11 @@ function main() {
             + 'matching it to the scene whose words it speaks. join_clips.js follows this array, '
             + 'so no --order and no --reverse is needed. matched_scene is the story scene number.',
     };
+    out.expected = wanted.length;
+    out = require('./download_tile_logic').resolveSceneManifest(out);
+    if (out.clips.length !== wanted.length || unresolved.length && out.clips.some(c => c.match_cover === null)) {
+        out.complete = false;
+    }
     if (fs.existsSync(MANIFEST)) {
         const bak = MANIFEST + '.before-order-backup';
         if (!fs.existsSync(bak)) fs.copyFileSync(MANIFEST, bak);

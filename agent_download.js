@@ -63,6 +63,10 @@ const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const { isVideoRecord, isFailedRecord, selectStoryClips } = require('./download_tile_logic');
+const { createHash } = require('crypto');
+const { hasVideoContainer, playableVideo } = require('./download_media_validation');
+const { downloadFlowAsset } = require('./flow_asset_download');
 
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
 function ts() { return new Date().toTimeString().slice(0, 8); }
@@ -86,6 +90,8 @@ const REVERSE  = !!flag('--reverse', false);
 const LIMIT    = parseInt(flag('--limit', '0'), 10) || 0;
 const SETTLE   = parseInt(flag('--settle', '2500'), 10);
 const SHEET    = !flag('--no-sheet', false);
+const EXPECTED = parseInt(flag('--expected', '0'), 10) || 0;
+const STORY_FILE = typeof flag('--story') === 'string' ? flag('--story') : null;
 // --sheet-only <dir>: rebuild the contact sheet from clips already on disk, with
 // no browser and no re-download. Lets the join order be re-checked after the fact.
 const SHEET_ONLY = typeof flag('--sheet-only') === 'string' ? flag('--sheet-only') : null;
@@ -112,6 +118,10 @@ function inventoryFn() {
             .filter((el, i, a) => el && a.indexOf(el) === i);
     }
 
+    const scroller = document.querySelector('.cdk-virtual-scrollable.page-container, .page-container');
+    const sr = scroller ? scroller.getBoundingClientRect() : { x: 0, y: 0 };
+    const sy = scroller ? scroller.scrollTop : window.scrollY;
+    const sx = scroller ? scroller.scrollLeft : window.scrollX;
     const out = tiles.map((t, i) => {
         const r = t.getBoundingClientRect();
         const vids = [...t.querySelectorAll('video')];
@@ -125,9 +135,24 @@ function inventoryFn() {
         // for why. Kept in sync by hand because this half runs inside the page.
         const lines = (t.innerText || '').split('\n').map(s => s.trim()).filter(Boolean);
         const caption = lines.length ? lines.sort((a, b) => b.length - a.length)[0].slice(0, 120) : '';
+        const tag = t.tagName.toLowerCase();
+        const mediaUrl = vids.map(v => v.getAttribute('src')).find(Boolean)
+            || imgs.map(im => im.getAttribute('src')).find(Boolean) || '';
+        const assetId = (mediaUrl.match(/\/(?:video|image|asb)\/([^=?/#]+)/) || [])[1] || null;
+        const batch = t.closest('.batch-container');
+        const tileText = (t.innerText || t.textContent || '').trim();
+        const failed = /audio generation failed|failed to generate|generation failed|something went wrong|try a different prompt|you have not been charged/i.test(tileText)
+            || btns.some(b => /^retry$/i.test(String(b.aria || '').trim()));
         return {
             index: i,
-            tag: t.tagName.toLowerCase(),
+            gridY: Math.round(sy + r.y - sr.y),
+            gridX: Math.round(sx + r.x - sr.x),
+            tag,
+            assetId,
+            prompt: batch && batch.querySelectorAll('flow-video-tile').length === 1 ? batch.innerText : '',
+            // The tag identifies the asset. Off-screen video tiles often have
+            // only an image preview because Flow unmounts their <video> child.
+            isVideoTile: tag === 'flow-video-tile' || vids.length > 0,
             cls: cls(t).slice(0, 140),
             rect: { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) },
             // Every plausible identity signal, so the order question can be
@@ -135,11 +160,12 @@ function inventoryFn() {
             aria: t.getAttribute('aria-label'),
             title: t.getAttribute('title'),
             dataAttrs: [...t.attributes].filter(a => /^data-/.test(a.name)).map(a => `${a.name}=${a.value}`).slice(0, 12),
-            text: (t.innerText || t.textContent || '').trim().slice(0, 200),
+            text: tileText.slice(0, 200),
+            failed,
             caption,
             videoCount: vids.length,
             videoSrcs: vids.map(v => ({ src: v.getAttribute('src'), currentSrc: v.currentSrc || null, poster: v.getAttribute('poster'), dur: Number.isFinite(v.duration) ? v.duration : null })).slice(0, 3),
-            imgSrcs: imgs.map(im => (im.getAttribute('src') || '').slice(0, 120)).slice(0, 3),
+            imgSrcs: imgs.map(im => im.getAttribute('src') || '').slice(0, 3),
             buttons: btns,
             hasMoreOptions: !!t.querySelector('button[aria-label="More options"]'),
         };
@@ -183,8 +209,11 @@ async function fetchB64Fn(url) {
     // kills the whole run. A cross-origin fetch rejects with "Failed to fetch",
     // so without this the very first clip aborts everything.
     try {
-        const r = await fetch(url, { credentials: 'include' });
+        const r = await fetch(url, { credentials: 'include', signal: AbortSignal.timeout(30000) });
         if (!r.ok) return { ok: false, why: `HTTP ${r.status}` };
+        if (/text\/html|application\/json|image\//i.test(r.headers.get('content-type') || '')) {
+            return { ok: false, why: 'Server returned a sign-in page, error or image instead of video.' };
+        }
         const buf = await r.arrayBuffer();
         const bytes = new Uint8Array(buf);
         let binary = '';
@@ -215,10 +244,15 @@ async function fetchFromNode(url, cookieHeader, userAgent) {
         'Accept': '*/*',
     };
     if (cookieHeader) headers['Cookie'] = cookieHeader;
-    const r = await fetch(url, { headers, redirect: 'follow' });
-    if (!r.ok) return { ok: false, why: `HTTP ${r.status} ${r.statusText || ''}`.trim() };
-    const buf = Buffer.from(await r.arrayBuffer());
-    return { ok: true, buf };
+    try {
+        const r = await fetch(url, { headers, redirect: 'follow', signal: AbortSignal.timeout(90000) });
+        if (!r.ok) return { ok: false, why: `HTTP ${r.status} ${r.statusText || ''}`.trim() };
+        const buf = Buffer.from(await r.arrayBuffer());
+        if (!hasVideoContainer(buf)) return { ok: false, why: 'Server returned non-video bytes (possibly Google sign-in HTML).' };
+        return { ok: true, buf };
+    } catch (e) {
+        return { ok: false, why: e.message };
+    }
 }
 
 // ── in-page: open one tile's menu --------------------------------------------
@@ -415,24 +449,186 @@ async function hoverPass(page, log) {
     log(`Hovered ${hovered}/${count} tiles to force the captions to render.`);
 }
 
+async function fetchAsset(page, url, cookieHeader, userAgent) {
+    // /asb assets use the signed-in Flow session, not flow-content cookies.
+    // Fetch these inside Chrome so Google receives the correct credentials.
+    if (!url.startsWith('blob:') && new URL(url).origin === 'https://flow.google.com') {
+        return downloadFlowAsset(page, url);
+    }
+    if (url.startsWith('blob:')) {
+        const result = await page.evaluate(fetchB64Fn, url);
+        if (!result.ok) return result;
+        const buf = Buffer.from(result.b64, 'base64');
+        return hasVideoContainer(buf) ? { ok: true, buf }
+            : { ok: false, why: 'Authenticated fetch did not return video bytes.' };
+    }
+    return fetchFromNode(url, cookieHeader, userAgent);
+}
+
+// Walk the real Flow scroll container and merge every virtualized tile. Flow
+// keeps only the current viewport's custom elements mounted, so one DOM
+// inventory can never represent a long project reliably.
+async function scanVirtualGrid(page, log) {
+    const metrics = await page.evaluate(() => {
+        const s = document.querySelector('.cdk-virtual-scrollable.page-container, .page-container');
+        return s ? { client: s.clientHeight, scroll: s.scrollHeight } : null;
+    });
+    if (!metrics || !metrics.client) {
+        await hoverPass(page, log);
+        return await page.evaluate(inventoryFn);
+    }
+    const records = new Map();
+    const merge = (snap) => {
+        for (const tile of snap.tiles) {
+            const key = tile.assetId ? `${tile.tag}:${tile.assetId}`
+                : `${Math.round(tile.gridY / 20)}:${Math.round(tile.gridX / 20)}:${tile.tag}`;
+            const old = records.get(key);
+            // Prefer the observation where Flow had mounted the real video.
+            if (!old || tile.videoCount >= old.videoCount || !old.assetId) records.set(key, tile);
+        }
+    };
+
+    // Flow appends another batch only after the last loaded tile approaches the
+    // viewport. Its page-container has a large prompt/editor tail, so scrolling
+    // to scrollHeight skips the loading sentinel. Move to the end of the actual
+    // tile list and wait for its DOM count to grow instead.
+    await page.evaluate(() => {
+        const s = document.querySelector('.cdk-virtual-scrollable.page-container, .page-container');
+        if (s) s.scrollTop = 0;
+    });
+    await wait(700);
+    let rounds = 0;
+    let stalled = 0;
+    while (rounds++ < 20) {
+        let snap = await page.evaluate(inventoryFn);
+        merge(snap);
+        const lastBottom = snap.tiles.reduce((m, t) => Math.max(m, t.gridY + t.rect.h), 0);
+        const target = Math.max(0, lastBottom - Math.floor(metrics.client * 0.72));
+        await page.evaluate(y => {
+            const s = document.querySelector('.cdk-virtual-scrollable.page-container, .page-container');
+            if (s) { s.scrollTop = y; s.dispatchEvent(new Event('scroll', { bubbles: true })); }
+        }, target);
+        const before = records.size;
+        // First load of an older batch can take several seconds. Poll from
+        // Node so Chrome background-tab timer throttling cannot shorten waits.
+        for (let poll = 0; poll < 12; poll++) {
+            await wait(750);
+            snap = await page.evaluate(inventoryFn);
+            merge(snap);
+            if (records.size > before) break;
+        }
+        if (records.size > before) stalled = 0;
+        else if (++stalled >= 2) break;
+    }
+    const tiles = [...records.values()].sort((a, b) =>
+        Math.abs(a.gridY - b.gridY) > 20 ? a.gridY - b.gridY : a.gridX - b.gridX);
+    tiles.forEach((tile, index) => { tile.index = index; });
+    // Collect sources while traversing the grid, before network transfers. Flow
+    // can unmount a batch while a slow download is running.
+    for (const tile of tiles.filter(t => METHOD !== 'menu' && isVideoRecord(t) && !isFailedRecord(t))) {
+        const video = (tile.videoSrcs || []).find(v => v.currentSrc || v.src);
+        // Flow's observed /asb playback source uses the same asset token as its
+        // preview with =mm,22,15 appended. Off-screen tiles need not be mounted
+        // to request this candidate. It is always checked as actual video bytes
+        // and decoded before it can count as a successful download.
+        const preview = (tile.imgSrcs || []).find(u => /^https:\/\/flow\.google\.com\/asb\//.test(u));
+        const candidate = video ? (video.currentSrc || video.src)
+            : preview ? preview.split('=')[0] + '=mm,22,15' : null;
+        if (candidate) {
+            tile.downloadSrc = candidate;
+            continue;
+        }
+        const mounted = await activateVideoTile(page, tile);
+        if (mounted.ok) tile.downloadSrc = mounted.src;
+        const snap = await page.evaluate(inventoryFn);
+        const current = snap.tiles.find(t => tile.assetId && t.assetId === tile.assetId)
+            || snap.tiles.find(t => Math.abs(t.gridY - tile.gridY) < 30 && Math.abs(t.gridX - tile.gridX) < 30);
+        if (current) {
+            tile.prompt = current.prompt || tile.prompt;
+            tile.assetId = current.assetId || tile.assetId;
+            tile.caption = current.caption || tile.caption;
+            tile.hasMoreOptions = current.hasMoreOptions;
+        }
+    }
+    await page.evaluate(() => {
+        const s = document.querySelector('.cdk-virtual-scrollable.page-container, .page-container');
+        if (s) s.scrollTop = 0;
+    });
+    await wait(500);
+    log(`Scanned ${rounds} loaded grid batch(es); ${tiles.length} unique tile(s) discovered.`);
+    return { url: page.url(), tileCount: tiles.length, tiles, visualOrder: tiles.map(t => t.index) };
+}
+
+// Bring one virtualized tile into view and wait for Flow to mount its <video>
+// source. The old downloader inventoried once at the end, when only the last
+// viewport's videos were mounted, so a 13-clip project looked like six videos
+// plus seven images. This check happens immediately while each tile is active.
+async function activateVideoTile(page, tile, needSource = true) {
+    const TILE_SEL = 'flow-video-tile, flow-image-tile, [class*="video-tile"], [class*="media-tile"]';
+    await page.evaluate(gridY => {
+        const s = document.querySelector('.cdk-virtual-scrollable.page-container, .page-container');
+        if (s) s.scrollTop = Math.max(0, gridY - s.clientHeight / 2);
+    }, tile.gridY);
+    let located = null;
+    for (let mountTry = 0; mountTry < 12 && !located; mountTry++) {
+    await wait(750);
+    located = await page.evaluate(({ sel, wanted }) => {
+        const tiles = [...document.querySelectorAll(sel)].filter(el => {
+            const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0;
+        });
+        const s = document.querySelector('.cdk-virtual-scrollable.page-container, .page-container');
+        const sr = s ? s.getBoundingClientRect() : { x: 0, y: 0 };
+        const sy = s ? s.scrollTop : window.scrollY, sx = s ? s.scrollLeft : window.scrollX;
+        const ranked = tiles.map((el, idx) => {
+            const r = el.getBoundingClientRect();
+            const gy = Math.round(sy + r.y - sr.y), gx = Math.round(sx + r.x - sr.x);
+            const media = el.querySelector('video[src], img[src]');
+            const id = ((media?.getAttribute('src') || '').match(/\/(?:video|image|asb)\/([^=?/#]+)/) || [])[1];
+            const distance = wanted.assetId && id === wanted.assetId ? 0
+                : wanted.assetId && id ? Infinity : Math.abs(gy - wanted.gridY) + Math.abs(gx - wanted.gridX);
+            return { el, idx, r, distance };
+        }).sort((a, b) => a.distance - b.distance);
+        const hit = ranked[0];
+        if (!hit || hit.distance > 100) return null;
+        hit.el.scrollIntoView({ block: 'center' });
+        const r = hit.el.getBoundingClientRect();
+        return { idx: hit.idx, x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+    }, { sel: TILE_SEL, wanted: tile });
+    }
+    if (!located) return { ok: false, why: 'tile missing while activating', domIndex: null };
+    await wait(500);
+    try { await page.mouse.move(located.x, located.y); } catch { /* menu fallback remains */ }
+    if (!needSource) return { ok: true, domIndex: located.idx };
+    let info = { ok: false, why: 'video source did not mount' };
+    for (let attempt = 0; attempt < 12; attempt++) {
+        await wait(attempt ? 500 : 900);
+        info = await page.evaluate(srcFn, located.idx);
+        if (info.ok) return { ...info, domIndex: located.idx };
+    }
+    return { ...info, domIndex: located.idx };
+}
+
 (async () => {
     fs.mkdirSync(RUN_DIR, { recursive: true });
 
     const browser = await puppeteer.connect({ browserURL: CDP_URL, defaultViewport: null });
-    const pages = await browser.pages();
-    // Same as agent_mode.js: prefer the project tab over a Flow home tab
-    // when the browser is carrying both.
-    const flowTabs = pages.filter(p => /flow\.google\.com/i.test(p.url() || ''));
-    const page = flowTabs.find(p => /\/project\//i.test(p.url() || '')) || flowTabs[0];
+    const { normalizeProjectUrl, selectAgentPage } = require('./flow_project');
+    const requestedUrl = flag('--project-url') ? normalizeProjectUrl(flag('--project-url')) : '';
+    const { page, pages } = await selectAgentPage(browser, requestedUrl);
     if (!page) {
         console.error('No Flow tab found. Open the Flow project first.');
         console.error('Open tabs:\n  ' + pages.map(p => p.url()).join('\n  '));
         process.exit(1);
     }
+    if (requestedUrl && page.url() !== requestedUrl) {
+        await page.goto(requestedUrl, { waitUntil: 'domcontentloaded', timeout: 120000 });
+        await wait(5000);
+    }
     log(`Flow tab: ${page.url()}`);
+    await page.bringToFront();
 
     // Agent Mode clips live on the project home, not in the scene editor.
-    const m = page.url().match(/\/project\/([0-9a-f-]+)/i);
+    const m = page.url().match(/\/project\/([a-zA-Z0-9_-]+)/i);
     if (!m) { console.error(`No project id in ${page.url()}`); await browser.disconnect(); process.exit(1); }
     const homeUrl = `https://flow.google.com/project/${m[1]}`;
     if (/\/edit\/|\/scene\//i.test(page.url())) {
@@ -445,8 +641,7 @@ async function hoverPass(page, log) {
     // ---- inventory ---------------------------------------------------------
     // Hover first: without it the captions are blank and the scene mapping is
     // unrecoverable from the grid alone.
-    await hoverPass(page, log);
-    const inv = await page.evaluate(inventoryFn);
+    const inv = await scanVirtualGrid(page, log);
     fs.writeFileSync(path.join(RUN_DIR, 'tiles.json'), JSON.stringify(inv, null, 2));
     banner('PROJECT GRID');
     log(`Tiles found: ${inv.tileCount}   (dump: ${path.join(RUN_DIR, 'tiles.json')})`);
@@ -475,13 +670,17 @@ async function hoverPass(page, log) {
     // match (12 videos out of 14 tiles), so it silently dropped to the slow menu
     // route, and the two sheets would have been saved as scene-13/scene-14.
     // Everything downstream counts VIDEO tiles only.
-    const videoTiles = inv.tiles.filter(t => t.videoCount > 0);
-    const imageTiles = inv.tiles.filter(t => t.videoCount === 0);
+    const failedVideoTiles = inv.tiles.filter(t => isVideoRecord(t) && isFailedRecord(t));
+    const videoTiles = inv.tiles.filter(t => isVideoRecord(t) && !isFailedRecord(t));
+    const imageTiles = inv.tiles.filter(t => !isVideoRecord(t));
     const withSrc  = videoTiles.filter(t => (t.videoSrcs[0] || {}).src).length;
     const withMenu = videoTiles.filter(t => t.hasMoreOptions).length;
 
     log('');
-    log(`Video tiles: ${videoTiles.length}    image tiles (skipped): ${imageTiles.length}`);
+    log(`Ready video tiles: ${videoTiles.length}    failed video tiles (skipped): ${failedVideoTiles.length}    image tiles (skipped): ${imageTiles.length}`);
+    if (failedVideoTiles.length) {
+        log('  Failed generations are excluded. Use Agent Mode > Retry failed clips.');
+    }
     if (imageTiles.length) {
         // Strip the Material icon ligature names to leave the asset's own name.
         const names = imageTiles.map(t => (t.text || '')
@@ -508,27 +707,34 @@ async function hoverPass(page, log) {
     }
 
     // ---- decide the method -------------------------------------------------
-    let method = METHOD;
-    if (method === 'auto') {
-        // Prefer the direct route: no menus, no dialog, and it cannot get the
-        // per-tile mapping wrong because the bytes come from the tile itself.
-        method = withSrc === videoTiles.length ? 'src' : (withMenu ? 'menu' : null);
-    }
-    if (method === 'src' && withSrc < videoTiles.length) {
-        log(`--method src requested but only ${withSrc}/${videoTiles.length} video tiles expose a src.`);
-        if (!withMenu) { console.error('No workable route. Stopping.'); await browser.disconnect(); process.exit(1); }
-        log('Falling back to the menu route.');
-        method = 'menu';
+    const method = METHOD;
+    if (!['auto', 'src', 'menu'].includes(method)) {
+        console.error(`Unknown --method "${method}". Use auto, src or menu.`);
+        await browser.disconnect(); process.exit(1);
     }
     if (method === 'menu' && !withMenu) {
         console.error('--method menu requested but no tile has a More options button.');
         await browser.disconnect();
         process.exit(1);
     }
-    if (!method) { console.error('No download route available on this page.'); await browser.disconnect(); process.exit(1); }
-    log(`Route: ${method === 'src' ? 'direct <video src> fetch' : 'More options -> Download menu'}`);
+    if (method === 'src' && withSrc < videoTiles.length) {
+        log(`Only ${withSrc}/${videoTiles.length} sources are mounted now; each tile will be activated before download.`);
+    }
+    log(`Route: ${method === 'auto' ? 'per-tile direct source, then Download-menu fallback'
+        : method === 'src' ? 'per-tile direct source (menu fallback if available)'
+        : 'More options -> Download menu'}`);
 
     fs.mkdirSync(OUT_DIR, { recursive: true });
+    // Older versions saved login HTML as MP4 and cached it indefinitely. Keep
+    // these bad files for diagnosis, outside the playable clip folder.
+    for (const name of fs.readdirSync(OUT_DIR).filter(n => /\.mp4$/i.test(n))) {
+        const file = path.join(OUT_DIR, name);
+        if (hasVideoContainer(fs.readFileSync(file))) continue;
+        const rejected = path.join(OUT_DIR, 'rejected-downloads', RUN_ID);
+        fs.mkdirSync(rejected, { recursive: true });
+        fs.renameSync(file, path.join(rejected, name));
+        log(`Quarantined non-video file: ${name}`);
+    }
     log(`Output folder: ${OUT_DIR}`);
 
     // Native browser downloads land wherever Chrome was told to put them. Pin it
@@ -562,12 +768,63 @@ async function hoverPass(page, log) {
     // ---- download ----------------------------------------------------------
     // On-screen order among VIDEO tiles only - dropping the image tiles must not
     // leave gaps in the numbering, or scene-03 would be missing for no reason.
-    const videoVisual = inv.visualOrder.filter(idx => (byIndex.get(idx) || {}).videoCount > 0);
+    // A repeated Agent request can put the exact same generated asset in the
+    // grid more than once. Download each stable asset id once; otherwise one
+    // clip can occupy two scene filenames and falsely satisfy the count gate.
+    const seenAssets = new Set();
+    const videoVisual = inv.visualOrder.filter(idx => {
+        const tile = byIndex.get(idx);
+        if (!isVideoRecord(tile) || isFailedRecord(tile)) return false;
+        if (tile.assetId) {
+            if (seenAssets.has(tile.assetId)) return false;
+            seenAssets.add(tile.assetId);
+        }
+        return true;
+    });
+    const duplicateAssets = videoTiles.length - videoVisual.length;
+    if (duplicateAssets > 0) log(`Duplicate generated assets skipped: ${duplicateAssets}`);
     const order = REVERSE ? [...videoVisual].reverse() : videoVisual;
     if (REVERSE) log('--reverse: numbering newest-first.');
     const targets = LIMIT ? order.slice(0, LIMIT) : order;
+    // Older interrupted passes could overwrite scene filenames without updating
+    // their manifest. Never use those unverified bytes to declare success.
+    const cacheDir = path.join(OUT_DIR, '.download-cache', m[1]);
+    fs.mkdirSync(cacheDir, { recursive: true });
+    // Transfer a few independent signed assets concurrently. Browser navigation
+    // has finished, and failures stay local to each clip.
+    let nextTransfer = 0;
+    const transfers = targets.map(idx => byIndex.get(idx)).filter(t => t.downloadSrc && !t.downloadSrc.startsWith('blob:'));
+    await Promise.all(Array.from({length:Math.min(3, transfers.length)}, async () => {
+        while (nextTransfer < transfers.length) {
+            const t = transfers[nextTransfer++];
+            const u = new URL(t.downloadSrc);
+            const key = createHash('sha256').update(u.origin + u.pathname).digest('hex');
+            const file = path.join(cacheDir, key + '.mp4');
+            if (fs.existsSync(file) && hasVideoContainer(fs.readFileSync(file))) continue;
+            for (let attempt=0; attempt<2; attempt++) {
+                const result = await fetchAsset(page, t.downloadSrc, cookieHeader, userAgent);
+                if (result.ok && result.buf.length > 10000) {
+                    fs.writeFileSync(file + '.part', result.buf);
+                    fs.renameSync(file + '.part', file);
+                    log(`Cached clip ${t.index + 1}: ${(result.buf.length/1048576).toFixed(2)} MB`);
+                    break;
+                }
+                log(`Retrying clip ${t.index + 1}: ${result.why || 'empty response'}`);
+            }
+        }
+    }));
     const clips = [];
     let ok = 0, failed = 0;
+    function checkpoint() {
+        const temp = path.join(OUT_DIR, 'manifest.json.tmp');
+        fs.writeFileSync(temp, JSON.stringify({
+            projectUrl: homeUrl, downloadedAt: new Date().toISOString(),
+            expected: EXPECTED || targets.length, complete: false,
+            route: method, reversed: REVERSE, clips,
+        }, null, 2));
+        fs.renameSync(temp, path.join(OUT_DIR, 'manifest.json'));
+    }
+    checkpoint();
 
     for (let n = 0; n < targets.length; n++) {
         const tileIdx = targets[n];
@@ -579,22 +836,41 @@ async function hoverPass(page, log) {
 
         let wrote = false;
 
-        if (method === 'src') {
-            const info = await page.evaluate(srcFn, tileIdx);
+        if (method !== 'menu') {
+            const info = t.downloadSrc ? {ok:true,src:t.downloadSrc,kind:t.downloadSrc.startsWith('blob:')?'blob':'url'}
+                : await activateVideoTile(page, t);
             if (!info.ok) {
                 log(`   no src: ${info.why}`);
             } else {
                 log(`   src (${info.kind}): ${String(info.src).slice(0, 90)}`);
-                // In-page first (handles blob:), then Node (handles the CDN's
-                // missing CORS headers). See fetchFromNode for why both exist.
+                // Signed CDN URLs work from Node. Browser fetch is reserved for
+                // blob URLs; cross-origin browser fetch can fail or hang.
                 let saved = null;
-                const inPage = await page.evaluate(fetchB64Fn, info.src);
-                if (inPage.ok && inPage.bytes > 10000) {
+                const asset = info.kind === 'url' ? new URL(info.src) : null;
+                const cacheKey = asset ? createHash('sha256').update(asset.origin + asset.pathname).digest('hex') : null;
+                const cacheFile = cacheKey ? path.join(cacheDir, cacheKey + '.mp4') : null;
+                if (cacheFile && fs.existsSync(cacheFile) && hasVideoContainer(fs.readFileSync(cacheFile))) {
+                    saved = { buf: fs.readFileSync(cacheFile), how: 'verified asset cache' };
+                }
+                const inPage = !saved && info.kind === 'blob'
+                    ? await page.evaluate(fetchB64Fn, info.src)
+                    : { ok: false, why: 'signed URL: using Node' };
+                if (saved) {
+                    // Already downloaded this exact asset during an earlier pass.
+                } else if (inPage.ok && hasVideoContainer(Buffer.from(inPage.b64, 'base64'))) {
                     saved = { buf: Buffer.from(inPage.b64, 'base64'), how: 'in-page fetch' };
                 } else {
                     const why = inPage.ok ? `only ${inPage.bytes} bytes` : inPage.why;
                     log(`   in-page fetch gave nothing (${why}) - retrying from Node`);
-                    const viaNode = await fetchFromNode(info.src, cookieHeader, userAgent);
+                    let viaNode = { ok: false, why: 'blob source requires browser download' };
+                    if (info.kind !== 'blob') {
+                        for (let attempt = 0; attempt < 3; attempt++) {
+                            viaNode = await fetchAsset(page, info.src, cookieHeader, userAgent);
+                            if (viaNode.ok && viaNode.buf.length > 10000) break;
+                            log(`   transfer attempt ${attempt + 1}/3 failed: ${viaNode.why || 'empty response'}`);
+                            await wait(1000);
+                        }
+                    }
                     if (viaNode.ok && viaNode.buf.length > 10000) {
                         saved = { buf: viaNode.buf, how: 'node fetch' };
                     } else {
@@ -602,16 +878,31 @@ async function hoverPass(page, log) {
                     }
                 }
                 if (saved) {
-                    fs.writeFileSync(dest, saved.buf);
-                    log(`   saved ${(saved.buf.length / 1048576).toFixed(2)} MB  (${saved.how})`);
-                    wrote = true;
+                    fs.writeFileSync(dest + '.part', saved.buf);
+                    const validation = playableVideo(dest + '.part');
+                    if (validation.ok) {
+                        if (cacheFile) fs.writeFileSync(cacheFile, saved.buf);
+                        fs.renameSync(dest + '.part', dest);
+                        log(`   saved ${(saved.buf.length / 1048576).toFixed(2)} MB (${saved.how}; decoded ${validation.duration.toFixed(2)}s video)`);
+                        wrote = true;
+                    } else {
+                        log(`   rejected: ${validation.why}; trying browser Download menu`);
+                    }
                 }
             }
         }
 
-        if (!wrote && method === 'menu') {
+        // Auto uses the menu for a tile whose source never mounted. Explicit
+        // src keeps the historical safety fallback when a menu is available.
+        if (!wrote && method !== 'menu' && !t.hasMoreOptions) {
+            log('   no Download menu is available for this tile.');
+        }
+        if (!wrote && (method === 'menu' || t.hasMoreOptions)) {
             const before = fs.existsSync(dlDir) ? fs.readdirSync(dlDir) : [];
-            const opened = await page.evaluate(openMenuFn, tileIdx);
+            const active = await activateVideoTile(page, t, false);
+            const opened = active.domIndex === null
+                ? { ok: false, why: 'tile could not be mounted for its menu' }
+                : await page.evaluate(openMenuFn, active.domIndex);
             if (!opened.ok) {
                 log(`   cannot open menu: ${opened.why}`);
             } else {
@@ -643,9 +934,12 @@ async function hoverPass(page, log) {
                             }
                         }
                         if (fresh) {
-                            fs.copyFileSync(fresh, dest);
-                            log(`   saved ${(fs.statSync(dest).size / 1048576).toFixed(2)} MB`);
-                            wrote = true;
+                            const validation = playableVideo(fresh);
+                            if (validation.ok) {
+                                fs.copyFileSync(fresh, dest);
+                                log(`   saved ${(fs.statSync(dest).size / 1048576).toFixed(2)} MB (browser download; decoded ${validation.duration.toFixed(2)}s video)`);
+                                wrote = true;
+                            } else log(`   rejected browser download: ${validation.why}`);
                         } else {
                             log('   no file appeared within 90s.');
                         }
@@ -666,18 +960,30 @@ async function hoverPass(page, log) {
             // The caption is the closest thing this grid has to a scene label -
             // it is what makes the numbering checkable after the fact.
             caption: t.caption || '',
+            prompt: t.prompt || '',
+            assetId: t.assetId || null,
             got: wrote,
         });
+        checkpoint();
     }
 
     // ---- manifest ----------------------------------------------------------
     // join_clips.js reads this. It records the order files were written in, so
     // the join follows what this script actually did rather than re-deriving an
     // order from filenames and hoping.
+    const selection = STORY_FILE ? selectStoryClips(clips, JSON.parse(fs.readFileSync(STORY_FILE, 'utf8'))) : null;
+    const resolved = selection && !selection.missing.length;
+    const storyReady = resolved || (!selection && (!EXPECTED || ok === EXPECTED));
+    const downloadState = require('./download_tile_logic').downloadCompletion(clips, EXPECTED, storyReady, failed);
     const manifest = {
         projectUrl: homeUrl,
         downloadedAt: new Date().toISOString(),
         route: method,
+        expected: EXPECTED || null,
+        complete: failed === 0 && storyReady,
+        downloadComplete: downloadState.downloadComplete,
+        needsSceneOrdering: downloadState.needsSceneOrdering,
+        ...(resolved ? {orderResolvedBy:'project_prompt', alternateClips:selection.extras} : {}),
         reversed: REVERSE,
         gridOrderNote: `Files are numbered in ${REVERSE ? 'REVERSE on-screen' : 'on-screen'} order `
             + '(top-to-bottom, left-to-right). But a tile is NOT a scene: Flow renders an '
@@ -687,7 +993,7 @@ async function hoverPass(page, log) {
             + 'Run order_clips_by_dialogue.js (npm run agent:order, or the order_clips MCP tool) to '
             + 'establish the real order from what each clip says, which rewrites this manifest into '
             + 'story order for join_clips.js to follow. Only --order or --reverse by hand otherwise.',
-        clips,
+        clips: resolved ? selection.selected : clips,
     };
     fs.writeFileSync(path.join(OUT_DIR, 'manifest.json'), JSON.stringify(manifest, null, 2));
 
@@ -695,6 +1001,9 @@ async function hoverPass(page, log) {
     log(`Route     : ${method}`);
     log(`Saved     : ${ok} clip(s) to ${OUT_DIR}`);
     if (failed) log(`Failed    : ${failed} clip(s) - see the log above for why`);
+    if (resolved) log(`Story      : ${selection.selected.length} scenes in story order; ${selection.extras.length} alternate clips retained separately in the manifest.`);
+    if (!downloadState.downloadComplete) log(`DOWNLOAD INCOMPLETE: story expects ${EXPECTED} clips; ${ok} playable files saved. Recover missing downloads/generations before joining.`);
+    else if (downloadState.needsSceneOrdering) log(`DOWNLOAD COMPLETE: ${ok} playable clips saved. Scene order is pending; the pipeline will match their spoken dialogue before joining.`);
     log(`Manifest  : ${path.join(OUT_DIR, 'manifest.json')}`);
     log('');
     log('Order (as numbered):');
@@ -722,4 +1031,5 @@ async function hoverPass(page, log) {
 
     if (cdp) { try { await cdp.detach(); } catch {} }
     await browser.disconnect();
+    if (!downloadState.downloadComplete) process.exitCode = 2;
 })().catch(e => { console.error('DOWNLOAD FAILED:', e.message); process.exit(1); });

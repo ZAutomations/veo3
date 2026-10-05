@@ -1,0 +1,8 @@
+Save each video's Gemini responses here under unique filenames.
+
+analysis.json = source-video analysis (facts + clips)
+complete-answer.txt = both full writer responses (outline + scenes)
+cast.json = writer's cast and outline response
+clips-1.json, clips-2.json, ... = separate writer scene batches
+
+See ..\RECOVERY.md before importing. No sample file here is a real Gemini answer.

@@ -65,8 +65,42 @@ const errs2 = W.validate(withCast, [{ name: 'Mira', description: 'x' }]);
 ok('missing characters is still an error for a cast story',
    errs2.filter(e => /no characters listed/.test(e)).length === 2, JSON.stringify(errs2));
 
+console.log('\n--- optional-cast explainer with character-free cutaways ---');
+const zack = W.loadPreset('3d-zack-style');
+const leo = [{ name: 'Leo', description: 'A man in a plain white shirt.', sheet_prompt: 'Leo on a cyan backdrop.' }];
+const eyeScenes = Array.from({ length: 9 }, (_, i) => ({
+    scene_title: `Eye beat ${i + 1}`,
+    script_line: 'Your eye turns incoming light into signals.',
+    narrative_context: i >= 1 && i <= 6
+        ? 'A close-up cross-section shows light reaching the retina.'
+        : 'Leo looks at a coloured object.',
+    characters: i >= 1 && i <= 6 ? [] : ['Leo'],
+}));
+const eyeStory = W.buildStory(zack, leo, { description: 'How colour vision works.', moral: 'Look closer.' }, eyeScenes);
+const eyeErrors = W.validate(eyeStory, leo, zack);
+ok('nine-clip explainer accepts empty characters in clips 2-7', eyeErrors.length === 0, JSON.stringify(eyeErrors));
+ok('cutaways stay empty instead of adding Leo to the shot', eyeStory.scenes.slice(1, 7).every(s => s.characters.length === 0));
+ok('visible Leo is retained in the other clips', [0, 7, 8].every(i => eyeStory.scenes[i].characters.join(',') === 'leo'));
+const unknown = JSON.parse(JSON.stringify(eyeStory));
+unknown.scenes[1].characters = ['stranger'];
+ok('optional cast still rejects an unknown character', W.validate(unknown, leo, zack).some(e => /stranger.*not in the cast/.test(e)));
+const missingSpeaker = W.buildStory({ ...zack, narration_scope: 'dialogue' }, leo,
+    { description: 'd', moral: 'm' }, [{
+        narrative_context: 'Leo speaks to the viewer.',
+        dialogue: [{ speaker: 'Leo', line: 'Look closer.' }], characters: [],
+    }]);
+ok('optional cast does not allow an absent dialogue speaker',
+   W.validate(missingSpeaker, leo, { ...zack, narration_scope: 'dialogue' })
+       .some(e => /speaks but is not listed in characters/.test(e)));
+
 console.log('\n--- writePackage with no cast ---');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'veo3_nocast_'));
+if (!eyeErrors.length) {
+    const eyePath = W.writePackage(path.join(tmp, 'eye_explainer'), zack, eyeStory, leo);
+    const savedEye = JSON.parse(fs.readFileSync(eyePath, 'utf8'));
+    ok('mixed-cast story saves all nine clips', savedEye.scenes.length === 9);
+    ok('saved cutaways have no character attachments', savedEye.scenes.slice(1, 7).every(s => s.characters.length === 0));
+}
 const dir = path.join(tmp, 'science_test');
 fs.mkdirSync(dir, { recursive: true });
 const p1 = W.writePackage(dir, sci, noCast, []);

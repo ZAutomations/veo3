@@ -6,6 +6,7 @@
 //
 // Run: node test_mcp.js     (no network)
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
 
@@ -136,13 +137,31 @@ function textOf(result) {
 
     console.log('\n--- build_prompt spawns the real stage script ---');
     if (anyStory) {
-        const bp = await callTool('build_prompt', { story: anyStory.story_json });
-        const bt = textOf(bp);
-        ok('build_prompt succeeds', !bp.isError, bt.slice(0, 160));
-        ok('it names the agent_prompt.txt it wrote',
-            /agent_prompt\.txt: .+agent_prompt\.txt/.test(bt), bt.slice(-160));
-        ok('the prompt file exists on disk',
-            fs.existsSync(path.join(path.dirname(anyStory.story_json), 'agent_prompt.txt')));
+        // On a COPY, never the story itself. build_prompt writes
+        // agent_prompt.txt beside the story, and this suite runs against
+        // whatever real story is on disk - so it used to rewrite a file in the
+        // user's working folder, sometimes while a batch was running on it.
+        // Nothing here needs the original: story_to_agent_prompt.js reads the
+        // story JSON and nothing else.
+        const work = fs.mkdtempSync(path.join(os.tmpdir(), 'veo3-mcp-'));
+        const copyOf = path.join(work, path.basename(anyStory.story_json));
+        fs.copyFileSync(anyStory.story_json, copyOf);
+        const realPrompt = path.join(path.dirname(anyStory.story_json), 'agent_prompt.txt');
+        const before = fs.existsSync(realPrompt) ? fs.statSync(realPrompt).mtimeMs : null;
+        try {
+            const bp = await callTool('build_prompt', { story: copyOf });
+            const bt = textOf(bp);
+            ok('build_prompt succeeds', !bp.isError, bt.slice(0, 160));
+            ok('it names the agent_prompt.txt it wrote',
+                /agent_prompt\.txt: .+agent_prompt\.txt/.test(bt), bt.slice(-160));
+            ok('the prompt file exists on disk',
+                fs.existsSync(path.join(work, 'agent_prompt.txt')));
+            const after = fs.existsSync(realPrompt) ? fs.statSync(realPrompt).mtimeMs : null;
+            ok('the real story folder was left alone', before === after,
+                `before=${before} after=${after}`);
+        } finally {
+            try { fs.rmSync(work, { recursive: true, force: true }); } catch (e) { /* best effort */ }
+        }
     } else {
         console.log('  (no story on disk - skipping build_prompt)');
     }

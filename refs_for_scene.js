@@ -68,12 +68,20 @@ function isPlace(ref) {
 function readRefsFile(file) {
     const db = JSON.parse(fs.readFileSync(file, 'utf8'));
     const refs = Array.isArray(db) ? db : (db.refs || []);
+    let story = null;
+    try {
+        const folder = path.dirname(file);
+        const stories = fs.readdirSync(folder).filter(name => /_story\.json$/i.test(name));
+        if (stories.length === 1) story = JSON.parse(fs.readFileSync(path.join(folder, stories[0]), 'utf8'));
+    } catch {}
     return refs.filter(r => r && r.name && String(r.prompt || '').trim())
         .map(r => ({
             name: String(r.name).trim(),
             file: r.file ? String(r.file) : '',
             kind: isPlace(r) ? 'place' : 'character',
-            prompt: String(r.prompt).trim(),
+            prompt: isPlace(r) && require('./location_style').isRelationship(story)
+                ? require('./location_style').locationPrompt(story, {description: story.place?.description || r.prompt, prompt:r.prompt})
+                : String(r.prompt).trim(),
         }));
 }
 

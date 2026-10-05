@@ -1,0 +1,21 @@
+const assert = require('assert');
+const { completionTracker } = require('./agent_batch_completion');
+const { batchDriverArgs } = require('./agent_batch_run');
+const complete = completionTracker(6);
+const media = (ready, failed = 0, generating = 0) => ({ ready_video_tile: ready, failed_video_tile: failed, generating_video_tile: generating });
+assert(!complete(media(5)));
+assert(!complete(media(6)));
+assert(!complete(media(6, 0, 1)), 'active generation resets completion');
+assert(!complete(media(6)));
+assert(complete(media(6)), 'stable completed batch releases next prompts immediately');
+assert(!complete(media(7)), 'duplicate clips do not count as the requested batch');
+assert(!complete(media(6, 1)), 'failed clips prevent advancement');
+const args = batchDriverArgs(['--file', 'whole-story.txt', '--refs', 'story.json', '--watch', '300', '--aspect', '9:16'],
+    { _prompt_file: 'scenes7-12.txt', project_url: 'https://flow.google.com/project/test', _expected: 12, _required_ready: 6, watch: 900, no_upload_refs: true });
+assert(!args.includes('whole-story.txt'));
+assert(args.includes('scenes7-12.txt'));
+assert(args.includes('--no-upload-refs'));
+assert.strictEqual(args[args.indexOf('--expected') + 1], '12');
+assert.strictEqual(args[args.indexOf('--require-ready') + 1], '6');
+assert.strictEqual(args[args.indexOf('--aspect') + 1], '9:16');
+console.log('PASS: stable success advances automatically; busy, failed and duplicate batches wait; manual driver submits only the next subset.');

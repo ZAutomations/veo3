@@ -80,7 +80,7 @@ try {
         assert.strictEqual(cfg.timings.stallMs, 1234);
     });
     check('untouched keys keep their defaults', () => {
-        assert.strictEqual(cfg.selectors.emptySlotSelector, '.extend-placeholder-text');
+        assert.ok(/clip\.extend-composing/.test(cfg.selectors.emptySlotSelector));
     });
     check('underscore keys are skipped by the regex compiler', () => {
         assert.ok(!('_note' in rc.compilePatterns(cfg)));
@@ -116,12 +116,54 @@ check('timings are applied onto CONFIG', () => {
         'existing CONFIG.x call sites depend on this');
 });
 
-check('no mojibake-prone emoji were added to the engine', () => {
-    // The engine's older emoji are stored double-encoded; new ASCII-only code
-    // keeps a future cleanup pass possible without touching working output.
-    const lines = fs.readFileSync(path.join(__dirname, 'veo3_flow_new_ui.js'), 'utf8').split('\n');
-    const added = lines.filter(l => /PROGRESS|reportProgress|healStalled|hardenPage|waitForFlowShell/.test(l));
-    assert.ok(added.length > 0, 'expected to find the new code');
+check('no mojibake in the source files', () => {
+    // What this catches is not a typo. An emoji like "✅" is E2 9C 85 on disk;
+    // read back through cp1252 those three bytes become three characters, "âœ…",
+    // and once that text is saved the damage is permanent - it renders as
+    // nonsense forever after and no amount of console-codepage fixing helps.
+    // veo3_flow_new_ui.js picked up 1631 of them this way and printed
+    // "ðŸš€ CONNECTING THE AUTOMATION BROWSER" at every run.
+    //
+    // The check that used to sit here asserted only that the new code was
+    // present, so it watched that happen and said nothing. This reads the
+    // characters back the way they were written: a run of cp1252-alphabet
+    // characters that decodes cleanly as UTF-8 is mojibake, and a run that does
+    // not (a lone "…", say) is left alone.
+    const C2B = {};
+    const HIGH = '€\u0081‚ƒ„…†‡ˆ‰Š‹Œ\u008DŽ\u008F\u0090‘’“”•–—˜™š›œ\u009DžŸ';
+    for (let i = 0; i < 32; i++) C2B[HIGH[i]] = 0x80 + i;
+    const isBad = (ch) => {
+        const c = ch.codePointAt(0);
+        return (c >= 0xA0 && c <= 0xFF) || C2B[ch] !== undefined;
+    };
+    const decode = (run) => {
+        const bytes = [];
+        for (const ch of run) {
+            const c = ch.codePointAt(0);
+            const b = c < 0x100 ? c : C2B[ch];
+            if (b === undefined) return null;
+            bytes.push(b);
+        }
+        const out = Buffer.from(bytes).toString('utf8');
+        return (out.includes('�') || !/[^\x00-\x7F]/.test(out)) ? null : out;
+    };
+    const me = path.basename(__filename);
+    const files = fs.readdirSync(__dirname).filter((f) => /\.(js|py)$/.test(f) && f !== me);
+    const found = [];
+    for (const f of files) {
+        const src = fs.readFileSync(path.join(__dirname, f), 'utf8');
+        for (let i = 0; i < src.length;) {
+            if (!isBad(src[i])) { i++; continue; }
+            let j = i;
+            while (j < src.length && isBad(src[j])) j++;
+            const run = src.slice(i, j);
+            const back = decode(run);
+            if (back && !isBad(back[0])) found.push(`${f}: "${run}" should be "${back}"`);
+            i = j;
+        }
+    }
+    assert.equal(found.length, 0,
+        `${found.length} mojibake span(s) in the source:\n    ` + found.slice(0, 8).join('\n    '));
 });
 
 console.log(failures ? `\n${failures} FAILED\n` : '\nall good\n');

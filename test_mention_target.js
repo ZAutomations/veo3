@@ -49,8 +49,8 @@ if (BAD) {
     const c = M.chooseMentionTile(tiles(BAD), 'JULIAN');
     ok('still attaches something rather than failing', !!c.inner, JSON.stringify(c));
     ok('reports it as a Character tile', c.kind === 'character', c.kind);
-    ok('the log line warns about drift',
-       /drifts/.test(M.describeChoice(c, 'JULIAN')), M.describeChoice(c, 'JULIAN'));
+    ok('the log identifies a named Character',
+       /named Flow Character/.test(M.describeChoice(c, 'JULIAN')), M.describeChoice(c, 'JULIAN'));
     ok('skips the voice child (orus/achernar) that rides along with the Character',
        !/orus|achernar/i.test(M.normText(c.inner.text || c.inner.aria)));
     ok('skips the "Add to prompt" button',
@@ -243,6 +243,11 @@ ok('blanks and stray spaces are not chips',
    JSON.stringify(['Mia', 'Jon']), M.distinctMentions([' Mia ', '', '  ', null, undefined, 'Jon']));
 ok('an empty prompt means no chips', M.distinctMentions([]).length === 0);
 ok('a prompt with no "@" at all is safe', M.distinctMentions(undefined).length === 0);
+
+const requiredCharacter = M.chooseMentionTile(both, 'Tara', {requiredKind:'character'});
+ok('explicit Character mode selects Character even when Image exists', requiredCharacter.kind === 'character');
+ok('explicit Character mode refuses image-only fallback', !M.chooseMentionTile(both.filter(c=>M.tileKind(c.text)!=='character' && c.text!=='tara'), 'Tara', {requiredKind:'character'}).inner);
+ok('explicit Character mode refuses a different name', !M.chooseMentionTile(both, 'Sarah', {requiredKind:'character'}).inner);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

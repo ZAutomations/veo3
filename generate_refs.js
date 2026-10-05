@@ -9,10 +9,11 @@
  *
  * For each entry in the story's refs.json:
  *   1. Agent Mode OFF (a plain prompt makes an image; Agent Mode makes clips)
- *   2. paste the sheet/plate prompt into the Flow prompt box
- *   3. click Start generation
- *   4. wait for a new tile
- *   5. open that tile's More options -> Rename -> type the simple name ("Maya",
+ *   2. select Image / 16:9 / Nano Banana Pro in the compact settings summary
+ *   3. paste the sheet/plate prompt into the Flow prompt box
+ *   4. click Start generation
+ *   5. wait for a completed image; unusual activity waits 120s, max 2 retries
+ *   6. open that tile's More options -> Rename -> type the simple name ("Maya",
  *      "Leo", "Apartment") -> Done
  * Then Agent Mode ON again.
  *
@@ -50,6 +51,7 @@
 const fs = require('fs');
 const path = require('path');
 const puppeteer = require('puppeteer');
+const RI = require('./reference_image_step.js');
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 function ts() { return new Date().toTimeString().slice(0, 8); }
@@ -73,10 +75,6 @@ const CDP_PORT = String(flag('--cdp', '9222'));
 const STORY = typeof flag('--story') === 'string' ? flag('--story') : '';
 const REFS_FILE = typeof flag('--refs') === 'string' ? flag('--refs') : '';
 const ONLY = typeof flag('--only') === 'string' ? flag('--only') : '';
-const RATIO = typeof flag('--ratio') === 'string' ? flag('--ratio').trim() : '';
-// The video model this project should generate with ("Veo 3.1 - Fast",
-// "Omni 1.1 Flash", ...). Empty means leave Flow's own setting alone.
-const VIDEO_MODEL = typeof flag('--video-model') === 'string' ? flag('--video-model').trim() : '';
 const WAIT_S = num('--wait', 180);
 const KEEP_AGENT = !!flag('--keep-agent-on', false);
 const DRY = !!flag('--dry', false);
@@ -159,7 +157,13 @@ async function agentOn(page) {
 
 async function setAgent(page, want) {
     const now = await agentOn(page);
-    if (now === null) return { ok: false, changed: false, why: 'the Agent chip is not on the page' };
+    // Current project-home builds can omit the Agent chip entirely while the
+    // compact Image/Video settings remain available. An absent chip cannot be
+    // switched on, so it is a valid Agent-off state for reference/Ingredients
+    // generation. Turning Agent on still requires the actual control.
+    if (now === null) return want
+        ? { ok: false, changed: false, why: 'the Agent chip is not on the page' }
+        : { ok: true, changed: false, why: 'Agent chip absent; treated as off' };
     if (now === want) return { ok: true, changed: false, why: 'already there' };
     const clicked = await page.evaluate(() => {
         const host = document.querySelector('flow-agent-mode-toggle-chip');
@@ -233,8 +237,9 @@ async function settingsPanelUsable(page) {
 //
 // Success means the USABLE panel, not just its container - see
 // settingsPanelUsable above for why that distinction matters.
-async function openSettingsPanel(page) {
-    for (let i = 0; i < 3; i++) {
+async function openSettingsPanel(page, say = moduleLog, seconds = 12) {
+    const budget = Number(seconds) > 0 ? Number(seconds) : 12;
+    for (let i = 1; i <= 3; i++) {
         const clicked = await page.evaluate(() => {
             const visible = (el) => {
                 if (!el) return false;
@@ -251,18 +256,60 @@ async function openSettingsPanel(page) {
                     /^settings(\s+trigger)?$/i.test((x.getAttribute('aria-label') || '').trim())),
             ];
             const b = cands.find(visible);
-            if (!b) return false;
+            if (!b) return { ok: false };
             b.click();
-            return true;
+            return { ok: true, label: b.getAttribute('aria-label') || '(no label)' };
         });
-        if (!clicked) { await wait(1500); continue; }
+        if (!clicked.ok) {
+            say(`  settings: no visible Settings button on screen (attempt ${i}/3)`);
+            await wait(1500);
+            continue;
+        }
         // Poll for the usable panel rather than waiting a fixed 2.2s: the
         // drawer mounts its contents a moment after its container, so a single
         // fixed read can catch a working panel mid-mount and call it empty.
+        //
+        // Wait WHILE THE PANEL IS UP, and only give up on it once it has stopped
+        // changing. The old version polled a flat 8 seconds and then pressed
+        // Escape regardless - so a drawer that was open on screen but still
+        // short of its Save button got closed by us and re-opened, and the run
+        // read as "it opens the settings and then does nothing ... then 15 to 20
+        // seconds later it does the same thing and this time it works". Nothing
+        // was logged either way, so the second open was the only evidence the
+        // first had happened at all.
         const t0 = Date.now();
-        while ((Date.now() - t0) / 1000 < 8) {
+        let lastWhy = '';
+        while ((Date.now() - t0) / 1000 < budget) {
             await wait(400);
-            if (await settingsPanelUsable(page)) return true;
+            if (await settingsPanelUsable(page)) {
+                if (i > 1) say(`  settings: opened on attempt ${i} (clicked "${clicked.label}")`);
+                return true;
+            }
+            const why = await page.evaluate(() => {
+                const el = document.querySelector('.settings-content, .settings-section');
+                if (!el) return 'not-on-screen';
+                const r = el.getBoundingClientRect();
+                if (!r.width && !r.height) return 'not-on-screen';
+                const hasSave = !!document.querySelector('.settings-save-button')
+                    || [...document.querySelectorAll('button')].some((b) => {
+                        const src = b.querySelector('.mdc-button__label') || b;
+                        const c = src.cloneNode(true);
+                        c.querySelectorAll('mat-icon').forEach((x) => x.remove());
+                        return /^save$/i.test((c.innerText || c.textContent || '').replace(/\s+/g, ' ').trim());
+                    });
+                return hasSave ? 'usable' : 'open-without-save';
+            });
+            if (why !== lastWhy) lastWhy = why;
+        }
+        // Say what actually happened. A silent retry is indistinguishable from a
+        // button that did nothing, which is what made this cost a run.
+        if (lastWhy === 'open-without-save') {
+            say(`  settings: a panel opened (clicked "${clicked.label}") but it has no Save`);
+            say('  button - that is the compact view, not the generation defaults. Backing out.');
+        } else if (lastWhy === 'not-on-screen') {
+            say(`  settings: clicking "${clicked.label}" opened nothing (attempt ${i}/3)`);
+        } else {
+            say(`  settings: the panel went unused for ${budget}s (attempt ${i}/3) - backing out`);
         }
         // Whatever opened is not the panel we came for. Back out the way that
         // has always worked, rather than leaving it up for the caller to trip
@@ -571,15 +618,88 @@ async function waitForNewTile(page, before, seconds) {
 // Read the on-screen name of tile `idx` (0 = newest). Hovering a tile swaps its
 // label for action icons (favorite / redo / more_vert ...), so strip the icon
 // ligature words and walk up until only real text is left.
+//
+// The name is NOT always in innerText. On the build this broke on, the tile's
+// label is an <input class="editable-text-input"> - the same kind of field the
+// rename box uses - and an input's text lives in .value, which innerText never
+// sees. The read therefore came back null on every attempt, a rename that HAD
+// committed was scored a failure, the same tile was renamed three more times,
+// and the whole refs stage was thrown away with "0 made, 1 failed, of 1".
+// Inputs and titles are read too, so "I cannot see a name" stops being treated
+// as "the name is wrong".
+//
+// Action labels are not names: the tile's own More-options button carries
+// aria-label="More options", which would otherwise be the first thing found.
+const TILE_UI_LABEL = /^(more options|rename|done|cancel|favorite|favourite|redo|undo|download|share|delete|delete forever|edit|play|pause|expand|open|close|add|add to|flag|copy|tune|refresh)\b/i;
+// Whether a rename attempt is to be believed, and on what evidence.
+//
+// `label` is what tileName could read back, `typed` is what the rename box
+// actually held before Done, `closed` is whether the box then went away.
+//
+// The box is the authority. It is this process's own input, and a box that held
+// the wanted name and then closed is a committed rename - whereas the tile's
+// label is read from markup we do not control, and on the build this broke on
+// it could not be read at all. Scoring an unreadable label as "the name is
+// wrong" is what renamed one tile three times and threw the stage away.
+//
+// A label that AGREES is still the nicer confirmation, so it is used when it is
+// there and named in the log. A label that disagrees is reported, not acted on:
+// it is usually a stale render, and failing the batch over it costs the story,
+// the project and the generated image to save a rename that already happened.
+function renameVerdict({ label, typed, closed, want }) {
+    const w = String(want || '').trim().toLowerCase();
+    if (label && String(label).toLowerCase().includes(w)) return { ok: true, via: 'tile label' };
+    if (closed && String(typed || '').trim().toLowerCase() === w) {
+        return { ok: true, via: 'rename box', labelSays: label || null };
+    }
+    return { ok: false, via: null };
+}
 async function tileName(page, idx) {
     return await page.evaluate(({ expr, i }) => {
-        const ICON = /\b(play_circle|favorite|redo|undo|more_vert|edit|download|delete|delete_forever|keyboard_return|expand|add_2|add|tune|arrow_forward|article_spark|thumb_up|thumb_down|content_copy|flag|volume_up|share|video_library|photo_library|motion_blur|image|videocam|crop_free|crop_16_9|crop_9_16|crop_landscape|crop_square|crop_portrait|close|home|search|filter_list|help|refresh|check|done)\b/gi;
+        const WORDS = ['play_circle', 'favorite', 'favourite', 'redo', 'undo', 'more_vert', 'edit',
+            'download', 'delete', 'delete_forever', 'keyboard_return', 'expand', 'add_2', 'add',
+            'tune', 'arrow_forward', 'article_spark', 'thumb_up', 'thumb_down', 'content_copy',
+            'flag', 'volume_up', 'share', 'video_library', 'photo_library', 'motion_blur', 'image',
+            'videocam', 'crop_free', 'crop_16_9', 'crop_9_16', 'crop_landscape', 'crop_square',
+            'crop_portrait', 'close', 'home', 'search', 'filter_list', 'help', 'refresh', 'check', 'done'];
+        const ICON = new RegExp('\\b(' + WORDS.join('|') + ')\\b', 'gi');
+        const ANY = new RegExp(WORDS.join('|'), 'gi');
+        const UI = /^(more options|rename|done|cancel|favorite|favourite|redo|undo|download|share|delete|delete forever|edit|play|pause|expand|open|close|add|add to|flag|copy|tune|refresh)\b/i;
         const more = eval(expr);
         const b = more[i];
         if (!b) return null;
+        const clean = (s) => String(s || '').replace(ICON, ' ').replace(/\s+/g, ' ').trim();
+        // Nothing but icon ligatures, run together with no separators between
+        // them: Flow's hover actions come back as one word, "favoriteredom
+        // ore_vert". Stripping on word boundaries cannot touch that, so it was
+        // read as the tile's name and every rename was judged a failure. A real
+        // name is never spelled entirely from these words, so a label that
+        // disappears when they are removed anywhere is icons, not a name.
+        const soup = (s) => !String(s || '').replace(ANY, '').replace(/[\s_]+/g, '').trim();
+        const textsOf = (el) => {
+            const out = [];
+            const raw = String(el.innerText || el.textContent || '');
+            // The soup test belongs to innerText alone: it is the only place the
+            // hover ligatures appear. An input holds a real name, so a place
+            // called "Home" must not be thrown away for spelling an icon word.
+            if (raw && !soup(raw)) {
+                const t = clean(raw);
+                if (t && !UI.test(t)) out.push(t);
+            }
+            // The label is an input on some builds, and its text is in .value.
+            for (const f of el.querySelectorAll('input:not([type=hidden]), textarea')) {
+                const v = String(f.value || '').trim();
+                if (v && !UI.test(v)) out.push(v);
+            }
+            for (const x of el.querySelectorAll('[title]')) {
+                const v = String(x.getAttribute('title') || '').trim();
+                if (v && !UI.test(v)) out.push(v);
+            }
+            return out;
+        };
         let el = b.closest('[class*=hover-overlay], flow-image-tile, flow-video-tile');
         for (let k = 0; k < 6 && el; k++) {
-            const t = (el.innerText || '').replace(ICON, ' ').replace(/\s+/g, ' ').trim();
+            const t = textsOf(el)[0];
             if (t) return t;
             el = el.parentElement;
         }
@@ -593,17 +713,17 @@ async function tileName(page, idx) {
 // inline name field. The typed text went there, Done committed the rename
 // box's still-unchanged value, and the function returned ok:true regardless.
 // So: scope every lookup to the overlay, and VERIFY the tile name took.
-async function renameNewest(page, name) {
+async function renameNewest(page, name, tileIndex = 0) {
     for (let attempt = 1; attempt <= 3; attempt++) {
         await page.keyboard.press('Escape');
         await wait(700);
-        const opened = await page.evaluate((expr) => {
-            const more = eval(expr)[0];
+        const opened = await page.evaluate(({ expr, index }) => {
+            const more = eval(expr)[index];
             if (!more) return { ok: false, why: 'no media tile' };
             more.scrollIntoView({ block: 'center' });
             more.click();
             return { ok: true };
-        }, MEDIA_MORE);
+        }, { expr: MEDIA_MORE, index: tileIndex });
         if (!opened.ok) return opened;
         await wait(1800);
         const clicked = await page.evaluate(() => {
@@ -629,6 +749,17 @@ async function renameNewest(page, name) {
         await page.keyboard.press('Backspace');
         await page.keyboard.type(name, { delay: 25 });
         await wait(700);
+        // What the box actually holds, read BEFORE committing. This is the
+        // rename's own value, so it does not depend on how the tile draws its
+        // label - and on a tile whose label reads null it is the only evidence
+        // there is that the rename went in.
+        const typed = await page.evaluate(() => {
+            const o = document.querySelector('.rename-tile-overlay');
+            const inp = o && o.querySelector('input.editable-text-input, input');
+            if (inp) return String(inp.value || '');
+            const ce = o && o.querySelector('[contenteditable="true"]');
+            return ce ? String(ce.innerText || ce.textContent || '') : '';
+        });
         const clickedDone = await page.evaluate(() => {
             const b = document.querySelector('.rename-tile-overlay button[aria-label="Done"]')
                 || [...document.querySelectorAll('button')]
@@ -639,9 +770,12 @@ async function renameNewest(page, name) {
         });
         if (!clickedDone) await page.keyboard.press('Enter');
         await wait(1700);
-        const now = await tileName(page, 0);
-        if (now && now.toLowerCase().includes(name.toLowerCase())) return { ok: true, name: now };
-        log(`  rename attempt ${attempt} did not take (tile still "${now}") - retrying`);
+        const closed = await page.evaluate(() => !document.querySelector('.rename-tile-overlay'));
+        const now = await tileName(page, tileIndex);
+        const verdict = renameVerdict({ label: now, typed, closed, want: name });
+        if (verdict.ok) return { ok: true, name: now || name, verified: verdict.via, labelSays: verdict.labelSays };
+        log(`  rename attempt ${attempt} did not take (tile still "${now}", ` +
+            `box held "${typed}", box ${closed ? 'closed' : 'still open'}) - retrying`);
     }
     return { ok: false, why: 'rename did not commit after 3 attempts' };
 }
@@ -653,112 +787,75 @@ async function renameNewest(page, name) {
 // port, only the caller differs. `page` must be a Flow PROJECT page.
 // Returns { made, failed, total }.
 async function generateRefs(page, refs, opts = {}) {
+    refs = require('./saved_couple').applySavedRefs(refs,
+        opts.savedCouple === undefined ? require('./saved_couple').loadSavedCouple('agent') : opts.savedCouple);
     // Shadowing `log` with the caller's sink; the body's log() calls need no
     // change for it.
     const log = opts.log || moduleLog;
     const waitS = opts.waitS || WAIT_S;
-    const ratio = opts.ratio !== undefined ? opts.ratio : RATIO;
-    const videoModel = opts.videoModel !== undefined ? opts.videoModel : VIDEO_MODEL;
     const keepAgentOn = opts.keepAgentOn !== undefined ? opts.keepAgentOn : KEEP_AGENT;
 
     log(`${refs.length} reference image(s) to make:`);
     refs.forEach((r) => log(`  - ${r.name}  (${r.kind || 'ref'})`));
     if (!await waitForProjectReady(page)) log('warning: prompt bar is slow to appear - still trying.');
 
-    // ---- FIRST JOB: Agent Mode must be OFF --------------------------------
-    // Do this before touching the model picker or the prompt box. With the agent
-    // ON, the image models are not offered at all, so anything submitted makes a
-    // clip - and a run that starts in that state produces a grid of videos where
-    // the reference sheets should be. Check it, and turn it off, first.
-    const wasAgentOn = await agentOn(page);
-    if (wasAgentOn === null) {
-        log('WARNING: the Agent Mode chip is not on the page - is the prompt bar loaded?');
-    } else {
-        log(`Agent Mode: ${wasAgentOn ? 'ON' : 'OFF'}`);
-    }
-    if (wasAgentOn) {
-        log('Agent Mode is ON, which hides the image models. Turning it OFF to make sheets...');
+    // A plain prompt can still be in VIDEO mode with Agent off. Require both
+    // the Agent chip and the compact Image controls to read back correctly.
+    const prepare = async () => {
         const off = await setAgent(page, false);
-        log(off.ok
-            ? 'Agent Mode is OFF - a plain prompt will now make an image.'
-            : `WARNING: could not turn Agent Mode OFF (${off.why}) - the sheets may come out as CLIPS.`);
-    }
-
-    // The chip is already OFF, so an image model should be on offer here. If one
-    // still is not, this is the Settings panel's own "Image generation default",
-    // not the chip - so say so rather than leaving a grid of clips to explain it.
-    log('checking the image generation model...');
-    let imgMode = { ok: false, model: null };
-    if (await openSettingsPanel(page)) {
-        const model = await readImageModel(page);
-        imgMode = { ok: looksImageModel(model), model };
-        if (model) log(`image generation default: ${model}`);
-        if (!looksImageModel(model)) {
-            log('WARNING: the image default is not an image model, so the sheets may');
-            log('come out as clips. Set Settings > Image generation default to Nano Banana.');
-        }
-        // Apply the batch's ratio to the project itself (image AND video
-        // defaults), so every clip comes out in that shape.
-        let changed = false;
-        if (ratio && !/^(flow|auto|default|none)$/i.test(ratio)) {
-            const n = await setPanelRatio(page, ratio);
-            if (n > 0) { changed = true; log(`project ratio -> ${ratio}`); }
-            else log(`WARNING: ${ratio} not found in the Settings panel - ratio left as-is.`);
-        }
-        const cn = await setConfirmNever(page);
-        log(`confirm-before-generating -> ${cn === 'clicked' ? 'Never (set)' : cn === 'already' ? 'Never (already)' : cn}`);
-        if (cn === 'clicked') changed = true;
-        // The model the film will be generated with. It is saved into the project
-        // here, in the same panel visit as the ratio, so it is already right by
-        // the time the agent step reaches the Generate button. Setting it is the
-        // whole point: Flow remembers the last model used per project, so left
-        // alone a project quietly keeps whatever was picked last time.
-        if (videoModel) {
-            const vm = await setSectionModel(page, 'video', videoModel);
-            if (vm.ok) {
-                if (vm.changed) changed = true;
-                log(`video generation default -> ${vm.model}${vm.changed ? '' : ' (already)'}`);
-            } else {
-                log(`WARNING: could not set the video model to "${videoModel}" (${vm.why}) -`);
-                log('the film will generate with whatever Flow has selected.');
-            }
-        }
-        if (changed) {
-            const saved = await clickSave(page);
-            log(saved ? 'settings saved' : 'WARNING: no Save button found - settings not saved');
-        }
-        // Save is also the only way to close this drawer, so even a visit that
-        // changed nothing writes the project's own settings back unchanged. Left
-        // open it covers part of the prompt bar and the sheet prompts miss.
-        if (!await closeSettings(page)) {
-            log('WARNING: the Settings panel would not close. It covers part of the');
-            log('prompt bar, so the sheet prompts may not land - close it by hand.');
-        }
-        await wait(1500);   // let the panel's backdrop/animation finish
-    } else {
-        log('WARNING: could not open the Settings panel. Not checked or applied:');
-        log('  the image model (sheets may come out as clips), the project ratio,');
-        log(`  confirm-before-generating,${videoModel ? ` and the video model ("${videoModel}") -` : ' -'}`);
-        log('  the film will generate with whatever Flow has selected.');
-    }
+        if (!off.ok) throw new Error(`Cannot prepare reference images: ${off.why}. Nothing submitted.`);
+        await RI.configureReferenceImages(page, log);
+    };
 
     let made = 0, failed = 0;
     for (const r of refs) {
         const name = String(r.name || '').trim();
         log(`\n[${made + failed + 1}/${refs.length}] ${name}`);
-        const before = await countTiles(page);
-        log(`  tiles before: ${before}`);
-        if (!await insertPrompt(page, String(r.prompt).trim())) { failed++; continue; }
-        let click = await clickSubmit(page);
-        for (let a = 2; a <= 6 && !click.ok; a++) { await wait(5000); click = await clickSubmit(page); }
-        if (!click.ok) { log(`  could not submit: ${click.why}`); failed++; continue; }
-        log(`  generating... (up to ${waitS}s)`);
-        const after = await waitForNewTile(page, before, waitS);
-        if (after <= before) { log(`  TIMEOUT - no new tile after ${waitS}s`); failed++; continue; }
-        log(`  new tile appeared (${before} -> ${after}); renaming to "${name}"`);
-        const ren = await renameNewest(page, name);
-        if (ren.ok) { made++; log(`  ok - tile renamed "${name}"`); }
-        else { failed++; log(`  generated, but rename failed: ${ren.why}`); }
+        if (r.localFile) {
+            const uploaded = await require('./upload_saved_reference').uploadSavedReference(page, r, log);
+            if (!uploaded.ok) throw Error(`Saved ${name} upload failed: ${uploaded.why}. No replacement character will be generated.`);
+            made++;
+            continue;
+        }
+        const result = await RI.withActivityWait(async () => {
+            // Recheck before every sheet and retry, so a stale Video selection
+            // never silently turns a character sheet into a video.
+            await prepare();
+            if (!await insertPrompt(page, String(r.prompt).trim())) {
+                return { ok: false, why: 'Reference prompt did not land.' };
+            }
+            const before = await page.evaluate(RI.referenceState);
+            let click = await clickSubmit(page);
+            for (let a = 2; a <= 6 && !click.ok; a++) {
+                await wait(5000);
+                click = await clickSubmit(page);
+            }
+            if (!click.ok) return { ok: false, why: `Could not submit: ${click.why}` };
+            log(`  generating image... (up to ${waitS}s)`);
+            return RI.waitForReferenceImage(page, before, waitS);
+        }, { log });
+        if (!result.ok) {
+            failed++;
+            log(`  FAILED: ${result.why}`);
+            // A persistent activity block applies to the session. Do not send
+            // the next sheet (or next film) straight into the same restriction.
+            if (result.blocked) return { made, failed, total: refs.length, blocked: true };
+            continue;
+        }
+        log(`  completed image appeared; renaming to "${name}"`);
+        const ren = await renameNewest(page, name, result.tileIndex);
+        if (ren.ok) {
+            made++;
+            log(`  ok - tile renamed "${name}"${ren.verified ? ` (read back from the ${ren.verified})` : ''}`);
+            // Worth saying out loud: the rename box is the authority, but if the
+            // tile is still drawing the old label the later @mention has nothing
+            // to match, and that is much easier to act on here than in the agent
+            // step's "no tile named X".
+            if (ren.labelSays) {
+                log(`  note: the tile label still reads "${ren.labelSays}" - if the agent`);
+                log(`  cannot find @${name} later, that label is why.`);
+            }
+        } else { failed++; log(`  generated, but rename failed: ${ren.why}`); }
     }
 
     // Hand the chip back in the state the film run needs. agent_mode.js turns
@@ -778,6 +875,12 @@ async function generateRefs(page, refs, opts = {}) {
 
 // ── CLI ─────────────────────────────────────────────────────────────────────
 if (require.main === module) (async () => {
+    const couple = require('./saved_couple').loadSavedCouple('agent');
+    if (couple && STORY) {
+        const dir = fs.statSync(STORY).isDirectory() ? STORY : path.dirname(STORY);
+        const storyFile = fs.readdirSync(dir).find(f => /_story\.json$/i.test(f));
+        if (storyFile) require('./saved_couple').bindSavedStory(path.join(dir, storyFile), couple);
+    }
     const refs = loadRefs();
     if (DRY) { log(`${refs.length} reference image(s) would be made - --dry: nothing generated.`); return; }
 
@@ -788,21 +891,32 @@ if (require.main === module) (async () => {
         console.error(`Could not connect to Chrome on CDP port ${CDP_PORT}. Start the automation browser first.`);
         process.exit(1);
     }
-    const page = (await browser.pages()).find((p) => /flow\.google\.com\/project/i.test(p.url() || ''));
+    const { normalizeProjectUrl, selectAgentPage } = require('./flow_project');
+    const requested = flag('--project-url');
+    const target = requested ? normalizeProjectUrl(requested) : null;
+    const { page } = await selectAgentPage(browser, target);
     if (!page) { console.error('No Flow PROJECT tab open (need /project/<id>).'); await browser.disconnect(); process.exit(1); }
+    const home = target || normalizeProjectUrl(page.url());
+    if (page.url() !== home) await page.goto(home, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    await page.bringToFront();
     log(`Project: ${page.url()}`);
 
     const r = await generateRefs(page, refs, {
-        waitS: WAIT_S, ratio: RATIO, videoModel: VIDEO_MODEL, keepAgentOn: KEEP_AGENT,
+        waitS: WAIT_S, keepAgentOn: KEEP_AGENT,
     });
     log('Next: run agent_mode (or the MCP run_agent) with --no-upload-refs so it');
     log('@-mentions the tiles just made instead of uploading local files.');
     await browser.disconnect();
-    process.exit(r.failed ? 1 : 0);
+    process.exit(r.blocked ? 4 : r.failed ? 1 : 0);
 })().catch((e) => { console.error('FAILED: ' + (e && e.message)); process.exit(1); });
 
 module.exports = {
-    refsPath, loadRefs, renameNewest, tileName, agentOn, setAgent,
+    // generateRefs is what the Scenes/Ingredients engine calls on a page it has
+    // already opened - see the note above it. It was missing from this list, so
+    // that route died on its first line with "generateRefs is not a function"
+    // after the story, the project and the browser attach had all been paid for.
+    generateRefs,
+    refsPath, loadRefs, renameNewest, tileName, renameVerdict, agentOn, setAgent, clickSubmit,
     readSectionModel, readImageModel, readVideoModel, setSectionModel,
     setConfirmNever, modelKey, SECTION_OF, PICKER_OF,
     // The Settings-panel plumbing, so agent_mode.js can set the video model in

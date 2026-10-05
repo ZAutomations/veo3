@@ -74,7 +74,12 @@ try {
     process.exit(1);
 }
 
-const scenes = story.scenes || [];
+const allScenes = story.scenes || [];
+const rangeFrom = Math.max(1, parseInt(flag('--scene-from', '1'), 10) || 1);
+const rangeTo = Math.min(allScenes.length, parseInt(flag('--scene-to', String(allScenes.length)), 10) || allScenes.length);
+const scenes = allScenes.slice(rangeFrom - 1, rangeTo).map((sc, i) => ({
+    ...sc, _scene_number: sc._scene_number == null ? rangeFrom + i : sc._scene_number,
+}));
 if (!scenes.length) {
     console.error('Story has no scenes[].');
     process.exit(1);
@@ -149,6 +154,7 @@ const charNames = charKeys.map(cap);
 // reference image is pixels. The plate is uploaded by stage 2 and attached by
 // `@Name`, so the name here must be the asset name - no capitalising, no
 // tidying, or the mention resolves to nothing and the plate is never attached.
+const documentaryCuts = story.visual_shot_format === 'documentary-internal-cuts';
 const placeName = (story.place && String(story.place.name || '').trim()) || '';
 const placeDesc = (story.place && String(story.place.description || '').trim()) || '';
 const mentions = [...(placeName ? ['@' + placeName] : []), ...charNames.map(c => '@' + c)];
@@ -235,6 +241,7 @@ L.push('');
 L.push(AUTO_RATIO
     ? `FORMAT: keep the aspect ratio the Flow project is already set to. Do not request, crop or change the ratio, and keep it identical in every clip.`
     : `FORMAT: every clip is ${ASPECT || `${aspectRaw} aspect ratio`}. Keep the same aspect ratio in every clip.`);
+if (!AUTO_RATIO) L.push(`OUTPUT SHAPE IS MANDATORY: generate every video on a ${ASPECT || aspectRaw} canvas. Reference images may have a different shape; use them for identity and appearance only. Their dimensions must not override the video format. Compose the full frame for this video ratio, without letterboxing or placing a landscape video inside it.`);
 L.push('');
 L.push(`STORY: "${story.title || 'Untitled'}"`);
 if (story.description) L.push(story.description);
@@ -242,6 +249,9 @@ if (story.moral) L.push(`Message of the story: ${story.moral}`);
 L.push('');
 
 if (DIALOGUE) {
+    if (charNames.some(n => n.toLowerCase() === 'sarah') && charNames.some(n => n.toLowerCase() === 'george')) {
+        L.push('SPEAKER IDENTITY LOCK: Sarah is the female reference character with her own female voice. George is the male reference character with his own male voice. Each speaks ONLY the DIALOGUE lines labelled with their own name, in the exact listed order. Never swap lines or voices. Only the named speaker moves their lips; the listener keeps their mouth closed.');
+    }
     L.push('CRITICAL FORMAT - this is a SPOKEN DIALOGUE VIDEO, not a narrated one:');
     L.push('- There is NO narrator and NO voice-over anywhere in this video. Nothing is');
     L.push('  described out loud. Do not add a narrator, and do not voice the story yourself.');
@@ -310,9 +320,9 @@ if (described.length) {
 // text is repeated into every scene below (write_story.js prefixes it onto each
 // narrative_context), so this block is what tells the agent that the repetition
 // is deliberate - one place, and the attached image is what holds it.
-if (placeDesc) {
+if (placeDesc && !documentaryCuts) {
     L.push(`PLACE - FIXED. The whole film happens in ONE place${placeName ? `, attached as @${placeName}` : ''}:`);
-    L.push(`  ${placeDesc}`);
+    L.push(`  ${DIALOGUE ? require('./dialogue_shot_plan').occupiedPlace(placeDesc) : placeDesc}`);
     L.push('  That reference image is the place for every clip. Same layout, same');
     L.push('  furniture, same light, same time of day in all of them. Do not move the');
     L.push('  story to another location, do not redecorate, and do not invent a second');
@@ -330,21 +340,24 @@ if (placeDesc) {
 const blocking = String(story.blocking || '').trim();
 if (blocking) {
     L.push('BLOCKING - FIXED. This is where the characters are, and it is the same in every clip:');
-    L.push(`  ${blocking}`);
+    L.push(`  ${DIALOGUE ? require('./dialogue_shot_plan').dialogueBlocking(blocking) : blocking}`);
     L.push('  They do not move from it except where a scene below says in plain words that');
     L.push('  they do. Nobody stands up, sits down, lies down, walks across the room or');
     L.push('  swaps sides between clips, and the one who is on the left stays on the left');
     L.push('  for the whole film. Change the face, the gesture and the camera angle -');
     L.push('  never the seats.');
     L.push('  Where they are is anchored to the FURNITURE, so it is a fact about the room');
-    L.push('  and not about the shot: on an over-the-shoulder angle the camera reverses');
-    L.push('  and the frame side swaps, and that is the camera moving, not them. Whoever');
+    L.push('  and not about the shot. Maintain the 180-degree axis and consistent screen');
+    L.push('  direction through close-ups; do not mirror the cast or exchange identities. Whoever');
     L.push('  is on the bed is on the bed in the close-up too. Never render a clip that');
     L.push('  stands them up, re-seats them somewhere else, or trades their places.');
     L.push('');
 }
 
 L.push('SCENES:');
+if (rangeFrom > 1 || rangeTo < allScenes.length) {
+    L.push(`BATCH ONLY: Generate scenes ${rangeFrom}-${rangeTo} below, exactly once each. Earlier clips already exist. Never regenerate earlier scenes or generate later scenes. Wait for a separate request for the next batch.`);
+}
 L.push('');
 let withNarration = 0;
 let withVisual = 0;
@@ -417,14 +430,22 @@ for (const sc of scenes) {
             + 'make them look younger or older:');
         for (const c of present) L.push(`  ${c}: ${descFor(c)}`);
     }
-    if (DIALOGUE) {
+    const directed = require('./dialogue_shot_plan').shotPlan(story, { ...sc, dialogue: lines });
+    if (directed) {
+        withDialogue++;
+        withVisual++;
+        L.push(`VISUAL: ${directed.visual}`);
+        L.push(`DIALOGUE (spoken on screen, read exactly):\n${directed.audio}`);
+    } else if (DIALOGUE) {
         // Nobody narrates in this mode, so the NARRATION line is not emitted at
         // all - leaving it in with "(none found)" would invite the agent to fill
         // the gap with a narrator.
         if (lines.length) withDialogue++;
         L.push('DIALOGUE (spoken on screen, read exactly):');
+        L.push(require('./dialogue_speakers').audioMix().trim());
         if (lines.length) {
-            lines.forEach(d => L.push(`  ${d.speaker}: "${d.line}"`));
+            const fixedCouple = charNames.some(n => /^sarah$/i.test(n)) && charNames.some(n => /^george$/i.test(n));
+            lines.forEach(d => L.push(fixedCouple ? `  ${require('./dialogue_speakers').formatDialogueTurn(d)}` : `  ${d.speaker}: "${d.line}"`));
         } else {
             L.push('  (nobody speaks in this clip - a silent beat. No narration either.)');
         }
@@ -444,9 +465,9 @@ for (const sc of scenes) {
             : 'SOUND: (no sound brief in the story JSON for this scene - give it the natural '
               + 'sounds of the place, and no voice-over)');
     }
-    if (visual) {
+    if (visual && !directed) {
         withVisual++;
-        L.push(`VISUAL: ${visual}`);
+        L.push(`VISUAL: ${require('./location_style').withBrightLocation(story, visual)}`);
     }
     L.push('');
 }
@@ -460,13 +481,13 @@ L.push(charNames.length
       + 'hold who the characters are, not what the shot looks like. Do not reproduce a reference image as '
       + 'the frame - every clip is a moving shot with a moving camera and moving people, never a still of a '
       + 'sheet. Do not copy a reference frame-for-frame.'
-    : 'This video has NO characters' + (placeDesc ? '' : ' and no reference images')
+    : documentaryCuts ? 'All depicted crew and passengers are silent stylised 3D mannequins with completely blank matte heads; no facial features, hair, human skin or lip movement. Depict the people required by each narrated shot. Internal shot cuts stay inside one eight-second clip, not extra clips. The location reference applies only to matching interior shots, not airport, exterior or diagram shots.' : 'This video has NO characters' + (placeDesc ? '' : ' and no reference images')
       + '. Do not add people, faces or '
       + 'dialogue. Distant unnamed figures are acceptable only where a scene needs a sense '
       + 'of scale, and they are scenery - never the subject, never in the foreground.');
 // The place is a reference image too, so a story with no cast can still have
 // something attached - and the closing rule above must not claim otherwise.
-if (placeDesc) {
+if (placeDesc && !documentaryCuts) {
     L.push(`Every clip is in the same place as the ${placeName ? `@${placeName}` : 'place'} reference image. `
         + 'It does not change from clip to clip.');
 }
@@ -487,7 +508,10 @@ if (DIALOGUE) {
     L.push('Do not add any character dialogue anywhere - narration only.');
 }
 
-const body = L.join('\n');
+const body = require('./simple_dialogue_prompt').agent(story, {
+    from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS,
+    native:!!flag('--flow-characters',false),
+}) || L.join('\n');
 const outPath = OUT || path.join(path.dirname(storyPath), 'agent_prompt.txt');
 
 if (PRINT_ONLY) {

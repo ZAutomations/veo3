@@ -131,6 +131,7 @@ const MODELS = ['Omni 1.1 Flash', 'Veo 3.1 - Fast', 'Veo 3.1 - Quality', 'Veo 3.
 function buildPanel({ imageModel = 'Nano Banana', videoModel = 'Veo 3.1 - Quality', menu = MODELS,
                       deadClick = false, neverChecked = 'false',
                       settingsButtons = null, panelInitiallyClosed = false, pickers = null,
+                      noSave = false, opensOn = 1,
                       closer: closerOpts = {} } = {}) {
     const overlay = el('div', { cls: 'cdk-overlay-pane' });
     const state = { clicks: 0, opened: 0 };
@@ -222,7 +223,13 @@ function buildPanel({ imageModel = 'Nano Banana', videoModel = 'Veo 3.1 - Qualit
     // sections are simply never attached. A hidden button does nothing when
     // clicked, and is recorded either way so a test can prove it was not used.
     const settingsClicks = [];
+    let opens = 0;
     const openPanel = () => {
+        // `opensOn: 2` models the click that is swallowed while the page is
+        // still settling - the panel opens on the next press instead. It is the
+        // shape of the live run: the settings appear, nothing happens, and 15 to
+        // 20 seconds later the same thing works.
+        if (++opens < opensOn) return;
         for (const s of sections) {
             if (!root._children.includes(s)) { s._parent = root; root._children.push(s); }
         }
@@ -244,7 +251,7 @@ function buildPanel({ imageModel = 'Nano Banana', videoModel = 'Veo 3.1 - Qualit
     // measured and leaves the panel open, so the harness must not offer an exit
     // the real page does not have.
     const root = el('body', {
-        children: [...settingsBtns, ...pickerBtns, save,
+        children: [...settingsBtns, ...pickerBtns, ...(noSave ? [] : [save]),
                    ...(panelInitiallyClosed ? [] : sections), overlay],
     });
     const page = {
@@ -259,6 +266,14 @@ function buildPanel({ imageModel = 'Nano Banana', videoModel = 'Veo 3.1 - Qualit
     global.getComputedStyle = () => ({ display: 'block', visibility: 'visible' });
     return { page, state, overlay, neverRadio, save, vidSection, imgSection,
              settingsClicks, saveClicks, root };
+}
+
+// What the panel opener SAID, so a run that fails can be read instead of guessed
+// at. It used to retry silently, and a silent retry looks exactly like a button
+// that did nothing.
+function sayings() {
+    const lines = [];
+    return { lines, say: (m) => lines.push(String(m)) };
 }
 
 (async () => {
@@ -361,8 +376,38 @@ function buildPanel({ imageModel = 'Nano Banana', videoModel = 'Veo 3.1 - Qualit
     // "Tile grid settings" is a real button on the project page and must not be
     // mistaken for the panel's opener.
     t2 = buildPanel({ settingsButtons: [{ label: 'Tile grid settings' }], panelInitiallyClosed: true });
+    const noOpener = sayings();
     ok('"Tile grid settings" is not mistaken for the opener',
-       (await G.openSettingsPanel(t2.page)) === false && t2.settingsClicks.length === 0);
+       (await G.openSettingsPanel(t2.page, noOpener.say, 0.4)) === false && t2.settingsClicks.length === 0);
+    // A retry that says nothing is indistinguishable from a button that did
+    // nothing, which is the whole reason the live run read as "it opens the
+    // settings and then does nothing".
+    ok('and it says there was no Settings button to press',
+       noOpener.lines.length >= 3 && /no visible Settings button/.test(noOpener.lines[0]),
+       JSON.stringify(noOpener.lines));
+
+    // The compact view: nodes on screen, no Save button, so it must not be
+    // entered and must not be mistaken for a failure to open either.
+    t2 = buildPanel({ settingsButtons: [{ label: 'Settings trigger' }], panelInitiallyClosed: true,
+                      noSave: true });
+    const compact = sayings();
+    ok('a panel with no Save button is refused',
+       (await G.openSettingsPanel(t2.page, compact.say, 0.4)) === false);
+    ok('and the reason names the compact view',
+       /no Save/.test(compact.lines.join('\n')) && /compact view/.test(compact.lines.join('\n')),
+       JSON.stringify(compact.lines));
+
+    // A first attempt that opens nothing, then one that works - the shape of the
+    // live run - must still end in a usable panel, and must say it took two.
+    t2 = buildPanel({ settingsButtons: [{ label: 'Settings' }], panelInitiallyClosed: true,
+                      opensOn: 2 });
+    const twoTries = sayings();
+    ok('a panel that opens on the second try is still a success',
+       (await G.openSettingsPanel(t2.page, twoTries.say, 0.4)) === true);
+    ok('and the second attempt is reported',
+       /opened on attempt 2/.test(twoTries.lines.join('\n')), JSON.stringify(twoTries.lines));
+    ok('while the first attempt said it opened nothing',
+       /opened nothing \(attempt 1\/3\)/.test(twoTries.lines.join('\n')), JSON.stringify(twoTries.lines));
 
     console.log('\n--- the pickers Flow names outright beat the row beside them ---');
     // Live Flow marks them: class="video-model-picker" and

@@ -17,7 +17,9 @@
  *   Scene 1 : refs + prompt typed into project grid -> user clicks Start
  *             generation -> tool waits for clip -> opens editor
  *   Scene 2+: in editor, "Add clip" -> "Extend (Veo 3.1 - Lite)" -> prompt
- *             -> "Start generation" -> wait for timeline to grow by 8s
+ *             -> "Start generation" -> wait for timeline to grow by 8s.
+ *             Flow does not accept new image/voice ingredient chips in an
+ *             Extend request; continuity comes from the preceding clip.
  *   Final   : "Download scene" export -> ffmpeg split into scene-XX.mp4
  *
  * Usage:
@@ -38,6 +40,10 @@ const health = require('./page_health.js');
 // whether they actually attached. See refs_for_scene.js for the measured
 // failures this replaced.
 const { loadStoryRefs, refsForScene, refAliases, missingRefs, MAX_INGREDIENTS } = require('./refs_for_scene.js');
+// The narrator's voice, from the preset the story was written with, and the
+// picker walk that puts it on each clip. Veo invents a new narrator per clip
+// otherwise, so a film comes back in three different voices. See flow_voice.js.
+const { resolveFlowVoice, attachVoice } = require('./flow_voice.js');
 
 // Chrome installs to different folders depending on the installer's bitness
 // (and per-user installs land in LOCALAPPDATA). Resolve the real one at
@@ -72,7 +78,7 @@ const CONFIG = {
 
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ logging helpers
+// ────────────────────────────── logging helpers
 let LOG_T0 = Date.now();
 function ts() {
     const d = new Date();
@@ -83,7 +89,7 @@ function banner(msg) {
     console.log(`\n${'='.repeat(70)}\n${msg}\n${'='.repeat(70)}`);
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ sendkeys fallback for native dialogs
+// ────────────────────────────── sendkeys fallback for native dialogs
 function sendKeysToDialog(text) {
     // Activates the Windows "Open" file dialog and types a path + ENTER.
     try {
@@ -98,7 +104,7 @@ Write-Output "activated=$ok"`;
         const out = execFileSync('powershell', ['-NoProfile', '-Command', ps], { encoding: 'utf8', timeout: 20000 });
         return /activated=True/.test(out);
     } catch (e) {
-        log(`   âš ï¸  SendKeys fallback failed: ${e.message.slice(0, 100)}`);
+        log(`   ⚠️  SendKeys fallback failed: ${e.message.slice(0, 100)}`);
         return false;
     }
 }
@@ -117,7 +123,7 @@ if ($wsh.AppActivate('Open')) {
     } catch { return false; }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ dedicated profile (the "built browser")
+// ────────────────────────────── dedicated profile (the "built browser")
 // Same approach as the MCP setup: a persistent dedicated profile seeded once
 // from the real Chrome profile. Custom --user-data-dir is what makes modern
 // Chrome (136+) allow the remote-debugging port at all.
@@ -164,14 +170,14 @@ function buildDedicatedProfile() {
     const profileDir = path.join(process.env.LOCALAPPDATA, 'flow-mcp-profile');
 
     if (!fs.existsSync(path.join(profileDir, 'Local State'))) {
-        log(`   ðŸŒ± Seeding dedicated profile from real "${profile}" (one-time)...`);
+        log(`   🌱 Seeding dedicated profile from real "${profile}" (one-time)...`);
         fs.mkdirSync(path.join(profileDir, profile), { recursive: true });
         copyDirResilient(profileSource, path.join(profileDir, profile));
         try { fs.copyFileSync(localStateSrc, path.join(profileDir, 'Local State')); } catch {}
         makeCleanProfile(profileDir, profile);
-        log('   âœ… Dedicated profile ready (Flow login included)');
+        log('   ✅ Dedicated profile ready (Flow login included)');
     } else {
-        log('   âœ… Using the built automation browser profile (login persisted)');
+        log('   ✅ Using the built automation browser profile (login persisted)');
     }
     return profileDir;
 }
@@ -241,7 +247,7 @@ function flowClipOrder(a, b) {
     return (ka.stamp - kb.stamp) || a.localeCompare(b);
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ engine
+// ────────────────────────────── engine
 class Veo3FlowNewUI {
     constructor(jsonFilePath, opts = {}) {
         this.jsonFilePath = path.resolve(jsonFilePath);
@@ -249,6 +255,7 @@ class Veo3FlowNewUI {
         this.browser = null;
         this.page = null;
         this.scenes = [];
+        this.story = null;
         this.characterReferences = {};
         // Every ref the story declares, cast AND place, read from its refs.json
         // (or sheets file) rather than from character_references - which has no
@@ -258,7 +265,23 @@ class Veo3FlowNewUI {
         this.projectUrl = opts.projectUrl || '';
         this.fromScene = opts.fromScene || 1;
         this.toScene = opts.toScene || 0; // 0 = all
+        // A normal range resume belongs to the timeline already in Flow. Ignore
+        // stale phase-1 flags even when a caller other than the GUI supplies
+        // them. `--fresh-project` remains the explicit exception used when an
+        // account rotation must continue in a different account's new project.
+        this.resumeExisting = this.fromScene > 1 && !opts.freshProject;
+        this.resumeIgnoredNewProject = this.resumeExisting && !!opts.newProject;
+        this.resumeIgnoredGenRefs = this.resumeExisting && !!opts.genRefs;
+        if (this.resumeExisting) {
+            opts.newProject = false;
+            opts.genRefs = false;
+        }
         this.skipRefs = !!opts.skipRefs;
+        // A voice reference can be attached to the initial Ingredients clip.
+        // Flow rejects ingredient chips inside Extend, so subsequent clips
+        // inherit continuity from the preceding video instead.
+        this.noVoice = !!opts.noVoice;
+        this.flowVoice = null;
         // Attach the sheets to clip 1 too. Clip 1 is where the faces are set for
         // the whole film, so the sheets matter there most - but it is a step the
         // user drives by hand (they pick the model and press Start generation),
@@ -276,10 +299,10 @@ class Veo3FlowNewUI {
         // a story continues under the next account (projects are
         // per-account, so the old project cannot be extended there).
         this.accountLabel = opts.account || '';
-        this.freshProject = !!opts.freshProject;
+        this.freshProject = !!(opts.freshProject || opts.newProject);
         this._editorSeen = false;
-        // Which model the extends use. Plans differ in what they expose here,
-        // so this is overridable at runtime instead of baked in.
+        // Flow requires Veo 3.1 Lite for Extend. The first Ingredients clip may
+        // use Lite or Fast, but that choice must not leak into this setting.
         this.extendModel = opts.extendModel || CONFIG.EXTEND_MODEL;
         this.okScenes = []; // scene numbers that exist on the timeline
         this.sequenceSuspect = false; // set when a clip may have landed out of order
@@ -416,14 +439,14 @@ class Veo3FlowNewUI {
         process.stdin.resume();
         process.stdin.setEncoding('utf8');
         process.stdin.on('data', (key) => {
-            if (key === '\u0003') { log('ðŸ›‘ Ctrl+C - exiting...'); process.exit(); }
+            if (key === '\u0003') { log('🛑 Ctrl+C - exiting...'); process.exit(); }
             const k = key.toLowerCase().trim();
             if ((k === 'p' || k === 'r')) {
                 this.isPaused = !this.isPaused;
-                log(this.isPaused ? 'â¸ï¸  PAUSED - press P or R to resume...' : 'â–¶ï¸  RESUMED');
+                log(this.isPaused ? '⏸️  PAUSED - press P or R to resume...' : '▶️  RESUMED');
             }
         });
-        log('ðŸ’¡ TIP: press P to pause/resume, Ctrl+C to exit');
+        log('💡 TIP: press P to pause/resume, Ctrl+C to exit');
     }
 
     async checkPause() {
@@ -431,18 +454,26 @@ class Veo3FlowNewUI {
     }
 
     async waitForUserInput(message) {
+        if (this.opts.autoStart) throw Error('Batch needs attention: ' + message);
         const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
         return new Promise(res => rl.question(message, a => { rl.close(); res(a.trim()); }));
     }
 
-    // â”€â”€ story loading â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── story loading ─────────────────────────────────────────────
     async loadScenes() {
-        log(`ðŸ“‚ Loading scenes: ${this.jsonFilePath}`);
+        const savedCouple = require('./saved_couple').loadSavedCouple('ingredients');
+        require('./saved_couple').bindSavedStory(this.jsonFilePath, savedCouple);
+        require('./saved_couple').applyIngredientsReferenceMode(this, savedCouple);
+        if (savedCouple && !this.resumeExisting && !this.opts.exportOnly) {
+            log('Saved couple workflow ON: upload Sarah + George, generate the location, then attach all references to clip 1. Legacy reference flags are overridden.');
+        }
+        log(`📂 Loading scenes: ${this.jsonFilePath}`);
         const data = JSON.parse(await fsp.readFile(this.jsonFilePath, 'utf-8'));
         if (!data.scenes || !Array.isArray(data.scenes)) {
             throw new Error('Invalid JSON - missing "scenes" array');
         }
         this.scenes = data.scenes;
+        this.story = data;
         this.characterReferences = data.character_references || data.characterReferences || {};
         // Scenes 2+ are made by arming Extend, which carries the previous clip's
         // last frame forward. The prompt typed there should say what happens
@@ -452,15 +483,48 @@ class Veo3FlowNewUI {
         // continuation prompts and leaves them beside the story; if they are
         // there, the extends use them. No file, no change in behaviour.
         this.extendPrompts = {};
+        let extendPromptFile = null;
         const extendPromptsPath = path.join(path.dirname(this.jsonFilePath), 'extend_prompts.json');
         if (fs.existsSync(extendPromptsPath)) {
             try {
                 const ep = JSON.parse(fs.readFileSync(extendPromptsPath, 'utf8'));
+                extendPromptFile = ep;
                 this.extendPrompts = (ep && ep.prompts) || {};
                 log(`   ✍️  extend_prompts.json: ${Object.keys(this.extendPrompts).length} continuation prompt(s)`);
             } catch (e) {
-                log(`   ⚠️  extend_prompts.json unreadable (${e.message}) - using the story's own prompts`);
+                log(`   ⚠️  extend_prompts.json unreadable (${e.message}) - rebuilding it from the story`);
             }
+        }
+        // Never silently feed standalone scene briefs into the Extend box.
+        // Those briefs restage the room and cast on every clip, which is a
+        // strong instruction to redesign the people. Derive continuation-only
+        // prompts automatically and preserve any hand-written entries already
+        // present in the file.
+        try {
+            const { deriveExtendPrompts } = require('./extend_prompts.js');
+            const derived = deriveExtendPrompts(data, data.scenes.length);
+            if (derived.ok) {
+                let added = 0;
+                for (const [num, prompt] of Object.entries(derived.prompts)) {
+                    if (!this.extendPrompts[num]) {
+                        this.extendPrompts[num] = prompt;
+                        added++;
+                    }
+                }
+                if (added || !extendPromptFile) {
+                    fs.writeFileSync(extendPromptsPath, JSON.stringify({
+                        note: 'Continuation-only prompts for Flow Extend. Returning character identity, wardrobe and environment are locked to the preceding clip. Hand-written entries are preserved.',
+                        derivedFrom: path.basename(this.jsonFilePath),
+                        droppedBlock: derived.block,
+                        prompts: this.extendPrompts,
+                    }, null, 2));
+                    log(`   ✍️  auto-built ${added} missing continuation prompt(s); saved extend_prompts.json`);
+                }
+            } else {
+                log(`   ⚠️  could not derive continuation prompts (${derived.reason})`);
+            }
+        } catch (e) {
+            log(`   ⚠️  continuation prompt derivation failed (${e.message})`);
         }
         if (!this.projectUrl && data.project_url) this.projectUrl = data.project_url;
         if (!this.toScene || this.toScene > this.scenes.length) this.toScene = this.scenes.length;
@@ -475,9 +539,17 @@ class Veo3FlowNewUI {
         if (this.storyRefs.length > MAX_INGREDIENTS) {
             log(`   ⚠️  ${this.storyRefs.length} refs but the video model takes at most ${MAX_INGREDIENTS}`);
         }
-        log(`âœ… ${this.scenes.length} scenes loaded | range ${this.fromScene}-${this.toScene} | skipRefs=${this.skipRefs}`);
+        log(`✅ ${this.scenes.length} scenes loaded | range ${this.fromScene}-${this.toScene} | skipRefs=${this.skipRefs}`);
+        // Resolved here, before a credit is spent, so the voice the film will be
+        // narrated in is visible in the log from the first second. Veo invents
+        // its own narrator per clip when the prompt box names none, and a film
+        // came back with three different voices because nothing ever named one.
+        this.flowVoice = this.noVoice ? null : resolveFlowVoice(data);
+        if (this.noVoice) log('   🔊 voice: off (--no-voice)');
+        else if (this.flowVoice) log(`   🔊 voice: ${this.flowVoice.name} (from ${this.flowVoice.source}) - attached to every clip`);
+        else log('   🔊 voice: none - the preset names no flow_voice, so Veo will pick its own');
         for (const [name, p] of Object.entries(this.characterReferences)) {
-            log(`   ðŸ§‘ ${name}: ${p}`);
+            log(`   🧑 ${name}: ${p}`);
         }
     }
 
@@ -543,6 +615,80 @@ class Veo3FlowNewUI {
         return { text: r.text || '', chips: r.chips || [] };
     }
 
+    async ingredientChipState() {
+        const r = await this.evalJs(() => {
+            const boxes = [...document.querySelectorAll('.ProseMirror[contenteditable="true"]')];
+            const box = boxes.find(b => b.getBoundingClientRect().width > 0) || boxes[0];
+            const scope = box?.closest('flow-base-prompt-box, .base-prompt-box')
+                || box?.closest('flow-edit-video-prompt-box, flow-prompt-box') || box;
+            const chips = scope ? [...scope.querySelectorAll('button[aria-label="Ingredient"]')] : [];
+            return {
+                count: chips.length,
+                disabled: chips.filter(c => c.classList.contains('chip-container-disabled') ||
+                    !!c.querySelector('.disabled-error-icon')).length,
+                sources: chips.map(c => c.querySelector('img')?.getAttribute('src') || ''),
+            };
+        });
+        return r && !r.__error ? r : { count: 0, disabled: 0, sources: [] };
+    }
+
+    async removeIngredientChipsFromExtend() {
+        const removed = await this.evalJs(() => {
+            const boxes = [...document.querySelectorAll('.ProseMirror[contenteditable="true"]')];
+            const box = boxes.find(b => b.getBoundingClientRect().width > 0) || boxes[0];
+            const scope = box?.closest('flow-base-prompt-box, .base-prompt-box')
+                || box?.closest('flow-edit-video-prompt-box, flow-prompt-box') || box;
+            const chips = scope ? [...scope.querySelectorAll('button[aria-label="Ingredient"]')] : [];
+            let count = 0;
+            for (const chip of chips) {
+                const remove = chip.querySelector('button[aria-label*="Remove" i], button[aria-label*="Delete" i], button[aria-label*="Cancel" i], .cancel, mat-icon');
+                if (remove && /cancel|close|remove|delete/i.test(
+                    `${remove.getAttribute?.('aria-label') || ''} ${remove.textContent || ''} ${remove.className || ''}`)) {
+                    remove.click();
+                    count++;
+                    continue;
+                }
+                // In the current Flow build the chip itself removes an invalid
+                // ingredient when its error/cancel affordance is clicked.
+                if (chip.classList.contains('chip-container-disabled') || chip.querySelector('.disabled-error-icon')) {
+                    chip.click();
+                    count++;
+                }
+            }
+            return count;
+        });
+        if (Number(removed) > 0) {
+            await wait(500);
+            log(`   🧹 Removed ${removed} unsupported ingredient chip(s) left in the Extend prompt`);
+        }
+        const state = await this.ingredientChipState();
+        if (state.count) {
+            throw new Error(`Extend prompt still contains ${state.count} image/voice ingredient chip(s); Flow does not support them`);
+        }
+    }
+
+    buildIdentityLockedExtendPrompt(scene, prompt) {
+        const directed = require('./dialogue_shot_plan').shotPlan(this.story, scene, { extend: true });
+        if (directed) return 'STRICT CONTINUITY: preserve the preceding clip\'s character identities and setting.\n' + directed.prompt;
+        const required = this.refsFor(scene);
+        const names = required
+            .filter(r => r.kind !== 'place')
+            .map(r => r.name)
+            .filter(Boolean);
+        const named = names.length
+            ? ` Returning characters (${names.join(', ')}) must match their established appearance exactly.`
+            : '';
+        const lock = 'STRICT CONTINUITY: continue from the exact previous final frame.' + named
+            + ' Keep the same facial identity, age, skin tone, body, hairstyle, wardrobe and accessories. '
+            + 'Do not recast, redesign, replace, duplicate or introduce a different version of any returning character. '
+            + 'Keep the established location, furniture, palette and lighting consistent.';
+        let text = require('./dialogue_speakers').withDialogueAudio(this.story, scene, prompt).trim();
+        if (this.story?.narration_scope === 'dialogue' && !text.includes('AUDIO MIX:')) text += '\n' + require('./dialogue_speakers').audioMix();
+        text = require('./location_style').withBrightLocation(this.story, text);
+        text = require('./ingredients_camera').ingredientsCameraPrompt(this.story, scene, text);
+        return /^STRICT CONTINUITY:/i.test(text) ? text : `${lock}\n${text}`;
+    }
+
     async initializeFailedPromptsLog() {
         try {
             fs.mkdirSync(path.dirname(this.failedPromptsLogPath), { recursive: true });
@@ -557,15 +703,15 @@ class Veo3FlowNewUI {
         try {
             const entry = `\n[${new Date().toISOString()}] SCENE ${sceneNumber} (retry ${retryCount})\nERROR: ${errorMessage}\nPROMPT:\n${prompt}\n${'-'.repeat(60)}\n`;
             await fsp.appendFile(this.failedPromptsLogPath, entry);
-            log(`   ðŸ“ Logged to ${path.basename(this.failedPromptsLogPath)}`);
+            log(`   📝 Logged to ${path.basename(this.failedPromptsLogPath)}`);
         } catch {}
     }
 
-    // â”€â”€ browser connection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── browser connection ────────────────────────────────────────
     // Uses the dedicated "built" browser: system Chrome binary + persistent
     // cloned profile (flow login included) + CDP port. Same as the MCP setup.
     async connect() {
-        banner('ðŸš€ CONNECTING THE AUTOMATION BROWSER');
+        banner('🚀 CONNECTING THE AUTOMATION BROWSER');
         const port = this.cdpUrl.replace('http://127.0.0.1:', '');
         let connected = false;
         for (let i = 0; i < 3; i++) {
@@ -574,7 +720,7 @@ class Veo3FlowNewUI {
                 connected = true;
                 break;
             } catch {
-                log(`âš ï¸  No automation Chrome on CDP port ${port} (attempt ${i + 1}/3)`);
+                log(`⚠️  No automation Chrome on CDP port ${port} (attempt ${i + 1}/3)`);
                 if (i === 0) {
                     // --account runs on that account's own profile (a
                     // different Google login); without it, the legacy
@@ -593,7 +739,7 @@ class Veo3FlowNewUI {
                     }
                     const a = await this.waitForUserInput('   Launch it now? (y/n): ');
                     if (a.toLowerCase() !== 'y') break;
-                    log('   â³ Starting Chrome with the dedicated profile...');
+                    log('   ⏳ Starting Chrome with the dedicated profile...');
                     spawn(CONFIG.CHROME_EXE, [
                         `--remote-debugging-port=${port}`,
                         `--user-data-dir=${profileDir}`,
@@ -608,7 +754,7 @@ class Veo3FlowNewUI {
             }
         }
         if (!connected) throw new Error(`Could not connect to Chrome via CDP ${this.cdpUrl}`);
-        log(`âœ… Automation browser attached (CDP ${this.cdpUrl}, profile: ${this.accountLabel || CONFIG.CHROME_PROFILE})`);
+        log(`✅ Automation browser attached (CDP ${this.cdpUrl}, profile: ${this.accountLabel || CONFIG.CHROME_PROFILE})`);
 
         const pages = await this.browser.pages();
         // Prefer a tab already inside a project/editor over one sitting on
@@ -621,38 +767,34 @@ class Veo3FlowNewUI {
         this.page.setDefaultTimeout(120000);
         this.page.setDefaultNavigationTimeout(120000);
         await this.hardenPage();
-        log(`âœ… Page: ${this.page.url().slice(0, 90)}`);
+        log(`✅ Page: ${this.page.url().slice(0, 90)}`);
     }
 
     async gotoProject() {
         // A story continuing under a new account starts a NEW project on
         // the grid - the previous project belongs to that account's login
         // and cannot be opened or extended from here.
-        if (this.freshProject) {
+        if (this.freshProject && !this._projectPrepared) {
             log('Fresh project: starting on the Flow project grid');
             await this.page.goto('https://flow.google.com/', { waitUntil: 'domcontentloaded', timeout: 120000 });
             await this.waitForFlowShell();
             return;
         }
         if (!this.projectUrl) {
-            const a = await this.waitForUserInput('ðŸŒ Enter the Flow PROJECT url (https://flow.google.com/project/...): ');
+            const a = await this.waitForUserInput('🌐 Enter the Flow PROJECT url (https://flow.google.com/project/...): ');
             this.projectUrl = a;
         }
-        const cur = this.page.url() || '';
-        if (this.isEditorUrl(cur)) {
-            log('âœ… Already in scene editor');
-            return;
-        }
-        log(`ðŸŒ Opening project: ${this.projectUrl}`);
+        this.projectUrl = require('./flow_project').normalizeProjectUrl(this.projectUrl);
+        log(`🌐 Opening project: ${this.projectUrl}`);
         await this.page.goto(this.projectUrl, { waitUntil: 'domcontentloaded', timeout: 120000 });
         await this.waitForFlowShell();
     }
 
     isEditorUrl(url) {
-        return /\/project\/[0-9a-f-]+\/(scene|edit)\//i.test(url || '');
+        return /\/project\/[a-zA-Z0-9_-]+\/(scene|edit|tool)\//i.test(url || '');
     }
 
-    // â”€â”€ generic page helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── generic page helpers ──────────────────────────────────────
     async evalJs(fn, ...args) {
         try { return await this.page.evaluate(fn, ...args); }
         catch (e) { return { __error: e.message.slice(0, 150) }; }
@@ -705,46 +847,78 @@ class Veo3FlowNewUI {
         return Array.isArray(r) ? r.join(' ') : '';
     }
 
-    // â”€â”€ prompt typing (ProseMirror editor in new UI) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── prompt typing (ProseMirror editor in new UI) ─────────────
     async typePrompt(prompt) {
         const ok = await this.evalJs((p) => {
             // The prompt box is a ProseMirror editor; its placeholder span reads
             // "What happens next?" / "What do you want to create?" / "Describe how to editâ€¦"
-            let el = document.querySelector('.ProseMirror[contenteditable="true"]');
+            const visible = e => {
+                const r = e.getBoundingClientRect();
+                return r.width > 0 && r.height > 0;
+            };
+            let el = [...document.querySelectorAll('.ProseMirror[contenteditable="true"]')].find(visible);
             if (!el) {
-                const boxes = [...document.querySelectorAll('[contenteditable="true"]')];
+                const boxes = [...document.querySelectorAll('[contenteditable="true"]')].filter(visible);
                 el = boxes.find(e => /What do you want to create|What happens next|Describe how to edit/.test(e.innerText || ''))
                      || boxes[boxes.length - 1];
             }
             if (!el) return false;
             el.focus();
-            document.execCommand('selectAll', false, null);
-            document.execCommand('insertText', false, p);
-            return true;
+            const selection = window.getSelection();
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            const inserted = document.execCommand('insertText', false, p);
+            el.dispatchEvent(new InputEvent('input', {
+                bubbles: true, inputType: 'insertText', data: p,
+            }));
+            return inserted || (el.innerText || el.textContent || '').trim().length > 0;
         }, prompt);
         if (!ok) throw new Error('prompt box not found');
         await wait(500);
-        log('   âœ… Prompt entered');
+        const readBack = await this.evalJs(() => {
+            const visible = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+            const el = [...document.querySelectorAll('.ProseMirror[contenteditable="true"]')].find(visible)
+                || [...document.querySelectorAll('[contenteditable="true"]')].filter(visible).pop();
+            return el ? (el.innerText || el.textContent || '').trim() : '';
+        });
+        const norm = value => String(value || '').replace(/\s+/g, ' ').trim();
+        const expected = norm(prompt).slice(0, 48);
+        const actual = norm(readBack);
+        if (!actual || (expected && !actual.includes(expected))) {
+            throw new Error(`prompt was not written into the Extend box (read back ${actual.length} characters)`);
+        }
+        log(`   ✅ Prompt entered and verified (${actual.length} characters)`);
     }
 
-    // Definitive "extend armed" signal: the ProseMirror placeholder span appears
+    // Placeholder text disappears when the editor contains whitespace or a
+    // previous prompt. A composing timeline slot plus the active Extend
+    // composer remains authoritative in that state.
     extendArmedJs() {
         return (() => {
             const ph = document.querySelector('.prosemirror-placeholder');
             if (ph && /What happens next/i.test(ph.textContent || '')) return true;
             const pm = document.querySelector('.ProseMirror');
             if (pm && /What happens next/i.test(pm.textContent || '')) return true;
-            return /exit extend mode/i.test(document.body.innerText || '');
+            const active = [...document.querySelectorAll('.ProseMirror[contenteditable="true"]')]
+                .find(el => el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0);
+            const composing = document.querySelector('.clip.extend-composing, .extend-composing-content');
+            const controls = [...document.querySelectorAll('button')];
+            const extendControl = controls.some(b => /exit extend mode/i.test(b.getAttribute('aria-label') || '')
+                || /^Extend\s*\(Veo/i.test((b.innerText || b.textContent || '').trim()));
+            return !!(active && composing && extendControl)
+                || /exit extend mode/i.test(document.body.innerText || '');
         })();
     }
 
-    // â”€â”€ reference upload + attach as ingredient â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── reference upload + attach as ingredient ──────────────
     // Full flow: click + (add) -> pick existing asset OR "Upload media" ->
     // select the ref in the picker -> "Add to prompt". Uploading alone does
     // NOT attach the ref - without "Add to prompt" the generation ignores it.
     async uploadRef(filePath) {
         const base = path.basename(filePath).replace(/\.[^.]+$/, '');
-        log(`   ðŸ“¤ Uploading + attaching ref: ${path.basename(filePath)}`);
+        log(`   📤 Uploading + attaching ref: ${path.basename(filePath)}`);
 
         // Open the + (add) menu, retrying - it is flaky on first click
         let menuOpen = false;
@@ -759,10 +933,10 @@ class Veo3FlowNewUI {
                 add.click();
                 return true;
             });
-            if (!menuOpen) { log(`   âš ï¸  no add (+) button (attempt ${attempt})`); await wait(2500); }
+            if (!menuOpen) { log(`   ⚠️  no add (+) button (attempt ${attempt})`); await wait(2500); }
             else await wait(1500);
         }
-        if (!menuOpen) { log('   âš ï¸  add menu never opened'); return false; }
+        if (!menuOpen) { log('   ⚠️  add menu never opened'); return false; }
 
         // If the ref is already an asset in this project, select it directly;
         // otherwise upload it via Upload media first.
@@ -919,7 +1093,7 @@ async uploadRefViaSendKeys(filePath) {
         for (const ref of this.refsFor(scene)) {
             const p = ref.file || this.characterReferences[ref.name] || '';
             const abs = p ? this.resolveRefPath(p, ref.name) : null;
-            if (!abs) { log(`   âš ï¸  no ref file for "${ref.name}"`); continue; }
+            if (!abs) { log(`   ⚠️  no ref file for "${ref.name}"`); continue; }
             await this.uploadRef(abs);
             await wait(2000);
         }
@@ -933,20 +1107,24 @@ async uploadRefViaSendKeys(filePath) {
     // MULTI-SELECT (aria-multiselectable="true"), so we tick every character the
     // scene needs and press "Add to prompt" ONCE for all of them.
     async openAssetPicker() {
+        // If it is already up, it is already open. Clicking "+" a second time
+        // reads as "press the same button again" and CLOSES it, which is the
+        // shape of the round-3 failure: the sheet was left open by round 2, the
+        // "+" click shut it, and the log read "+ clicked but asset list not
+        // rendered (attempt 1/4)" four times before the scene gave up.
+        const isOpen = () => this.evalJs(() =>
+            !!document.querySelector('cdk-virtual-scroll-viewport[aria-label="Asset list"]'));
+        if (await isOpen()) return true;
         for (let attempt = 1; attempt <= 4; attempt++) {
             const opened = await this.evalJs(() => {
-                const b = document.querySelector('button[aria-label="Add ingredients to the prompt box"]')
-                       || [...document.querySelectorAll('button')].find(x =>
-                            (x.getAttribute('aria-label') || '').includes('Add ingredients'));
-                if (!b) return false;
-                b.click();
+                const button = document.querySelector('button[aria-label="Add ingredients to the prompt box"]');
+                if (!button) return false;
+                button.click();
                 return true;
             });
             if (opened) {
                 await wait(1500);
-                const ready = await this.evalJs(() =>
-                    !!document.querySelector('cdk-virtual-scroll-viewport[aria-label="Asset list"]'));
-                if (ready) return true;
+                if (await isOpen()) return true;
                 log(`   ⚠️  + clicked but asset list not rendered (attempt ${attempt}/4)`);
             } else {
                 log(`   ⚠️  no "Add ingredients to the prompt box" button (attempt ${attempt}/4)`);
@@ -960,38 +1138,84 @@ async uploadRefViaSendKeys(filePath) {
     // picker. The list is virtualised, so walk it in viewport-sized steps if the
     // target is not rendered yet - not being rendered is NOT the same as not
     // being there, and treating the two as one is how a ref went missing.
+    //
+    // The tick is a REAL mouse click at the item's centre, with the selection
+    // read back from aria-selected afterwards. Flow's Angular handlers ignore a
+    // synthetic el.click() because it carries isTrusted:false - measured on
+    // "Start generation" (see clickSubmit), and exactly the shape of the extend
+    // run this was fixed for:
+    //
+    //   🧩 Attaching ingredients for scene 3: Studio
+    //      Studio: clicked
+    //   ⚠️  "Add to prompt" never clicked
+    //      still missing: Studio - retrying        (twice, and then the picker
+    //   ⚠️  + clicked but asset list not rendered    stopped re-opening too)
+    //   ⚠️  only 0/1 ingredient(s) attached - MISSING: Studio
+    //
+    // The item was "clicked" and the tick never registered, so "Add to prompt"
+    // stayed disabled and there was nothing to press - ten polls in a row. A
+    // tick that does not take is an ingredient that never reaches the prompt:
+    // the clip is generated without its reference and re-invents the place from
+    // prose alone, which is the whole reason the refs exist.
     async findAssetItem(aliases) {
         const list = (Array.isArray(aliases) ? aliases : [aliases]).filter(Boolean);
         if (!list.length) return 'no-name';
-        for (let pass = 0; pass < 12; pass++) {
-            const state = await this.evalJs((names) => {
-                const keys = names.map(s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '')).filter(Boolean);
-                const vp = document.querySelector('cdk-virtual-scroll-viewport[aria-label="Asset list"]')
-                        || document.querySelector('.asset-list-viewport');
-                if (!vp) return { state: 'no-picker' };
-                const items = [...vp.querySelectorAll('button.asset-item')];
-                const hit = items.find(b => {
-                    const t = b.querySelector('.asset-title');
-                    if (!t) return false;
-                    const k = t.textContent.toLowerCase().replace(/[^a-z0-9]/g, '');
-                    // Exact on the key first; a containment test only for a
-                    // spelling long enough that it cannot match by accident
-                    // ("Godwin Reference Sheet" holds "godwin").
-                    return keys.some(n => k === n || (n.length >= 4 && (k.includes(n) || n.includes(k))));
-                });
-                if (hit) {
-                    if (hit.getAttribute('aria-selected') === 'true') return { state: 'already' };
-                    hit.click();
-                    return { state: 'clicked' };
+        const LOCATE = (names) => {
+            const keys = names.map(s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '')).filter(Boolean);
+            const vp = document.querySelector('cdk-virtual-scroll-viewport[aria-label="Asset list"]')
+                    || document.querySelector('.asset-list-viewport');
+            if (!vp) return { state: 'no-picker' };
+            const items = [...vp.querySelectorAll('button.asset-item')];
+            const hit = items.find(b => {
+                const t = b.querySelector('.asset-title');
+                if (!t) return false;
+                const k = t.textContent.toLowerCase().replace(/[^a-z0-9]/g, '');
+                // Exact on the key first; a containment test only for a
+                // spelling long enough that it cannot match by accident
+                // ("Godwin Reference Sheet" holds "godwin").
+                return keys.some(n => k === n || (n.length >= 4 && (k.includes(n) || n.includes(k))));
+            });
+            if (hit) {
+                // Current Flow is single-select and marks the chosen row with
+                // asset-item-active; aria-selected remains "false" even when
+                // Add to prompt is enabled for that row.
+                if (hit.getAttribute('aria-selected') === 'true' || hit.classList.contains('asset-item-active')) {
+                    return { state: 'already' };
                 }
-                // not rendered yet - nudge the virtual scroller and retry
-                const before = vp.scrollTop;
-                vp.scrollTop = before + Math.max(40, vp.clientHeight * 0.9);
-                return { state: 'scrolled', atEnd: vp.scrollTop === before, count: items.length };
-            }, list);
-            if (state.state === 'clicked' || state.state === 'already') return state.state;
-            if (state.state === 'no-picker') return state.state;
-            if (state.atEnd) return `not-found (${state.count} items visible)`;
+                // Centre it first. The actual click is made through a fresh
+                // ElementHandle below. A cached screen coordinate can become
+                // the Start generation button when Angular closes/reflows the
+                // picker, which previously submitted a clip by accident.
+                hit.scrollIntoView({ block: 'center' });
+                return { state: 'hit', key: (hit.querySelector('.asset-title')?.textContent || '').trim(), count: items.length };
+            }
+            // not rendered yet - nudge the virtual scroller and retry
+            const before = vp.scrollTop;
+            vp.scrollTop = before + Math.max(40, vp.clientHeight * 0.9);
+            return { state: 'scrolled', atEnd: vp.scrollTop === before, count: items.length };
+        };
+        for (let pass = 0; pass < 12; pass++) {
+            const st = await this.evalJs(LOCATE, list);
+            if (!st || st.__error) return 'locate-error';
+            if (st.state === 'no-picker') return st.state;
+            if (st.state === 'already') return 'already';
+            if (st.state === 'hit') {
+                const handles = await this.page.$$('cdk-virtual-scroll-viewport[aria-label="Asset list"] button.asset-item');
+                let hit = null;
+                for (const h of handles) {
+                    const title = await h.$eval('.asset-title', e => (e.textContent || '').trim()).catch(() => '');
+                    if (title === st.key) { hit = h; break; }
+                }
+                if (!hit) return 'item-detached-before-click';
+                try { await hit.click(); }
+                catch { return 'item-detached-before-click'; }
+                await wait(600);
+                if ((await this.evalJs(LOCATE, list)).state === 'already') return 'clicked';
+                const pickerStillOpen = await this.evalJs(() =>
+                    !!document.querySelector('cdk-virtual-scroll-viewport[aria-label="Asset list"]'));
+                return pickerStillOpen ? 'clicked but NOT selected' : 'picker closed before selection was verified';
+            }
+            if (st.atEnd) return `not-found (${st.count} items visible)`;
             await wait(500);
         }
         return 'not-found (scroll exhausted)';
@@ -1008,51 +1232,45 @@ async uploadRefViaSendKeys(filePath) {
 
         log(`   🧩 Attaching ingredients for scene ${sceneNum}: ${wanted.join(', ')}`);
 
-        // Tick every ref the scene needs, then ADD TO PROMPT, then READ BACK
-        // what actually attached - and repeat for whatever did not.
-        //
-        // The old version ticked each name, pressed "Add to prompt" once, and
-        // reported the number of ticks it had DISPATCHED - a number it never
-        // checked. Measured on a real extend run, one of the two characters was
-        // attached and the other was not, and the log read
-        // "2/2 ingredient(s) attached" regardless. Which one survived varied,
-        // which is why the film lost the man sometimes and the woman other
-        // times, and why the room was never attached at all.
-        //
-        // Reading the prompt box instead of trusting the clicks converges
-        // whichever way the picker misbehaves - closing itself after a tick, or
-        // replacing the selection rather than adding to it - because it never
-        // has to assume which one it does. Ticking ALL of them each round is
-        // what makes a replacing picker come out right in a single round;
-        // re-opening each round is what makes a self-closing one converge.
-        const ROUNDS = 4;
-        for (let round = 1; round <= ROUNDS; round++) {
-            if (!await this.openAssetPicker()) {
-                log(`   ⚠️  ingredient picker never opened (round ${round}/${ROUNDS})`);
-                break;
+        // The current picker is SINGLE-select. Selecting Apartment after
+        // Godwin replaces Godwin (asset-item-active moves to the new row), so
+        // each ingredient must be applied in its own picker transaction.
+        const attachedNames = new Set();
+        for (const ref of want) {
+            let landed = false;
+            for (let attempt = 1; attempt <= 2 && !landed; attempt++) {
+                const before = await this.ingredientChipState();
+                await this.closeStrayOverlay();
+                await wait(350);
+                if (!await this.openAssetPicker()) {
+                    log(`      ${ref.name}: ingredient picker did not open`);
+                    continue;
+                }
+                const picked = await this.findAssetItem(refAliases(ref, this.characterReferences));
+                log(`      ${ref.name}: ${picked}`);
+                if (picked !== 'already' && picked !== 'clicked') {
+                    await this.closeStrayOverlay();
+                    continue;
+                }
+                if (!await this.clickAddToPrompt()) {
+                    log(`      ${ref.name}: "Add to prompt" was not clicked`);
+                    await this.closeStrayOverlay();
+                    continue;
+                }
+                await wait(1600);
+                const after = await this.ingredientChipState();
+                if (after.disabled > before.disabled) {
+                    log(`      ${ref.name}: Flow added an ERROR/DISABLED ingredient chip`);
+                    break;
+                }
+                landed = after.count > before.count;
+                if (!landed) log(`      ${ref.name}: no ingredient chip appeared; retrying`);
             }
-            let ticked = 0;
-            for (const ref of want) {
-                const r = await this.findAssetItem(refAliases(ref, this.characterReferences));
-                log(`      ${ref.name}: ${r}`);
-                if (r === 'clicked' || r === 'already') ticked++;
-                await wait(600);
-            }
-            if (!ticked) {
-                log('   ⚠️  none of the ingredient sheets were found in the picker');
-                break;
-            }
-            const added = await this.clickAddToPrompt();
-            if (!added) log('   ⚠️  "Add to prompt" never clicked');
-            await wait(2000);
-
-            const missingNow = missingRefs(want, await this.readPromptBox(), this.characterReferences);
-            if (!missingNow.length) break;
-            log(`      still missing: ${missingNow.map(r => r.name).join(', ')} - retrying`);
+            if (landed) attachedNames.add(ref.name);
         }
 
-        const missing = missingRefs(want, await this.readPromptBox(), this.characterReferences);
-        const attached = want.length - missing.length;
+        const missing = want.filter(ref => !attachedNames.has(ref.name));
+        const attached = attachedNames.size;
         if (!missing.length) {
             log(`   ✅ ${attached}/${wanted.length} ingredient(s) attached to prompt`);
             await wait(1000);
@@ -1062,41 +1280,132 @@ async uploadRefViaSendKeys(filePath) {
         // ticks: a clip that comes back without the room should say so here, not
         // in the finished film.
         log(`   ⚠️  only ${attached}/${wanted.length} ingredient(s) attached - MISSING: ${missing.map(r => r.name).join(', ')}`);
-        log('      those clips may re-invent what is missing - check them before you use them');
+        log('      generation will not start until every required ingredient is attached');
         await this.closeStrayOverlay();
-        return attached > 0;
+        return false;
+    }
+
+    // Put the narrator's voice on THIS clip's prompt box.
+    //
+    // Every clip, scene 1 included, because a voice in Flow is an ASSET on the
+    // prompt box - not a setting on the project - so it has to be attached
+    // again for each generation. A clip generated without one is narrated by
+    // whatever voice Veo picks, which is how one film came back read by three
+    // different people: the preset says "Alnilam" and no clip was ever told.
+    //
+    // Runs after the ingredients, and begins with Escape, so it is never
+    // fighting a picker the ingredient step left open.
+    async attachVoiceToScene(sceneNum) {
+        if (this.noVoice || !this.flowVoice) return false;
+        if (this.skipRefs) {
+            log(`   🔊 voice skipped for scene ${sceneNum} (--skip-refs: the prompt already carries it)`);
+            return false;
+        }
+        const name = this.flowVoice.name;
+        log(`   🔊 Attaching voice "${name}" for scene ${sceneNum}`);
+        const ok = await attachVoice(this.page, name, { log, wait });
+        if (ok) log(`   ✅ "${name}" is on the scene ${sceneNum} prompt - this clip keeps the film's narrator`);
+        else log(`   ⚠️  "${name}" could not be attached to scene ${sceneNum} - this clip may read in another voice`);
+        return ok;
     }
 
     // Press the picker's "Add to prompt", which applies to every ticked asset.
+    //
+    // A REAL mouse click at the button's centre, for the reason measured on
+    // "Start generation" (see clickSubmit): Flow's Angular handlers ignore a
+    // synthetic el.click(), which carries isTrusted:false. This is the step the
+    // extend run died on - the picker was open, the sheet was ticked, the button
+    // was sitting there enabled, and ten polls of btn.click() in a row did
+    // nothing at all, so the clip generated without its reference.
+    //
+    // It also says WHY when it cannot press. The old version returned a bare
+    // false - "Add to prompt" never clicked - with no way to tell a missing
+    // button from a disabled one, and those two need opposite fixes: a disabled
+    // button means the TICK did not register (see findAssetItem), a missing one
+    // means the picker is not the thing on screen.
     async clickAddToPrompt() {
+        let why = null;
         for (let i = 0; i < 10; i++) {
-            const added = await this.evalJs(() => {
+            const where = await this.evalJs(() => {
                 const ov = document.querySelector('.cdk-overlay-container');
                 const scope = ov && ov.innerText ? ov : document;
-                const btn = [...scope.querySelectorAll('button')]
-                    .find(x => /add to prompt/i.test(x.innerText || x.getAttribute('aria-label') || ''));
-                if (!btn || btn.disabled) return false;
-                btn.click();
-                return true;
+                const btns = [...scope.querySelectorAll('button')];
+                const btn = btns.find(x => /add to prompt/i.test(x.innerText || x.getAttribute('aria-label') || ''));
+                if (!btn) {
+                    return {
+                        ok: false,
+                        why: 'no "Add to prompt" button on screen',
+                        seen: btns.map(b => String(b.innerText || b.getAttribute('aria-label') || '')
+                            .replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 8),
+                    };
+                }
+                if (btn.disabled) return { ok: false, why: 'the button is disabled - the tick did not register' };
+                const r = btn.getBoundingClientRect();
+                if (!r.width || !r.height) return { ok: false, why: 'the button is not on screen' };
+                return { ok: true, cx: Math.round(r.x + r.width / 2), cy: Math.round(r.y + r.height / 2) };
             });
-            if (added) return true;
+            if (where && where.ok) {
+                const buttons = await this.page.$$('button');
+                let button = null;
+                for (const h of buttons) {
+                    const label = await h.evaluate(x => x.innerText || x.getAttribute('aria-label') || '').catch(() => '');
+                    if (/add to prompt/i.test(label)) { button = h; break; }
+                }
+                if (!button) { why = { why: 'the Add to prompt button detached before click' }; continue; }
+                try { await button.click(); }
+                catch { why = { why: 'the Add to prompt button detached before click' }; continue; }
+                return true;
+            }
+            why = where || { why: 'the page did not answer' };
             await wait(1000);
+        }
+        // Say what was actually there. A silent false here cost a whole film's
+        // worth of drift before anyone could see which of the two it was.
+        if (why && why.why) log(`      (${why.why})`);
+        if (why && why.seen && why.seen.length) {
+            log(`      buttons on screen: ${why.seen.join(' | ')}`);
         }
         return false;
     }
 
-    // â”€â”€ scene 1 (project grid, text-to-video) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── scene 1 (project grid, text-to-video) ─────────────────────
     async prepareScene1(scene) {
-        banner(`ðŸŽ¬ SCENE 1 SETUP: ${scene.scene_title || 'Scene 1'}`);
+        banner(`🎬 SCENE 1 SETUP: ${scene.scene_title || 'Scene 1'}`);
         // prompt box must be the "What do you want to create?" one
-        await this.uploadStoryRefs(scene);
-        await this.typePrompt(scene.veo3_prompt);
+        if (this.opts.videoModel || this.opts.aspect || this._refsGenerated) {
+            await require('./ingredients_setup').prepareVideo(this.page, {
+                model: this.opts.videoModel || 'Flow', ratio: this.opts.aspect || 'Flow', log,
+            });
+        }
+        if (!this._refsGenerated && !this.opts.noUploadRefs) await this.uploadStoryRefs(scene);
+        const initialPrompt = this.story?.narration_scope === 'dialogue' && !String(scene.veo3_prompt).includes('AUDIO MIX:')
+            ? scene.veo3_prompt + '\n' + require('./dialogue_speakers').audioMix() : scene.veo3_prompt;
+        const initialAudio = require('./dialogue_speakers').withDialogueAudio(this.story, scene, initialPrompt);
+        const brightInitial = require('./location_style').withBrightLocation(this.story, initialAudio);
+        const directedInitial = require('./dialogue_shot_plan').shotPlan(this.story, scene);
+        await this.typePrompt(directedInitial ? directedInitial.prompt : require('./ingredients_camera').ingredientsCameraPrompt(this.story, scene, brightInitial));
         // The sheets attached to clip 1 as well, when asked for. See the
         // refsOnClip1 comment in the constructor.
-        if (this.refsOnClip1) await this.selectRefsForScene(scene, 1);
+        if (this.refsOnClip1) {
+            const required = this.refsFor(scene);
+            const attached = await this.selectRefsForScene(scene, 1);
+            if (!this.skipRefs && required.length && !attached) {
+                throw Error('scene 1: not all required ingredients were attached; generation was not started');
+            }
+        }
+        // The voice is NOT opt-in the way the sheets are: clip 1 is where the
+        // narrator is set for the whole film, and a clip 1 read by the wrong
+        // voice makes every extend that follows it sound wrong too.
+        await this.attachVoiceToScene(1);
         log('');
-        log('   ðŸ‘† IN BROWSER: pick model / aspect ratio, then click "Start generation" (arrow)');
-        log('   â³ Waiting for generation to start and finish... (max 12 min)');
+        if (this.opts.autoStart) {
+            await this.clickStartGeneration();
+            await this.autoApproveCredits();
+            log('Batch: first-clip generation submitted and confirmed.');
+        } else {
+            log('IN BROWSER: check video settings, then click Start generation.');
+        }
+        log('Waiting for generation to start and finish... (max 12 min)');
         const deadline = Date.now() + 720000;
         const started = Date.now();
         let sawGenerating = false;
@@ -1108,7 +1417,8 @@ async uploadRefViaSendKeys(filePath) {
             await wait(CONFIG.CHECK_INTERVAL);
             const st = await this.evalJs((pat) => ({
                 url: location.href,
-                generating: [...document.querySelectorAll('button')].some(b => (b.innerText || '').trim() === 'stop'),
+                generating: [...document.querySelectorAll('button')].some(b => /^stop(?: generation)?$/i.test(
+                    (b.innerText || b.getAttribute('aria-label') || b.getAttribute('title') || '').trim())),
                 approve: [...document.querySelectorAll('button')]
                     .some(b => /always approve/i.test(b.innerText || '') || (b.innerText || '').trim() === 'Approve'),
                 creditsOut: new RegExp(pat.creditsOut, 'i').test(document.body.innerText || ''),
@@ -1126,7 +1436,7 @@ async uploadRefViaSendKeys(filePath) {
             if (st.creditsOut || await this.checkCreditsOut()) throw new Error('CREDITS_EXHAUSTED');
             if (st.approve) await this.autoApproveCredits();
             if (st.failed) throw new Error('Scene 1 generation FAILED in browser');
-            if (st.generating) { if (!sawGenerating) { sawGenerating = true; log('   ðŸ”„ Generating...'); }                await this.reportProgress(1, ((Date.now() - started) / 180000) * 95, 'generating');
+            if (st.generating) { if (!sawGenerating) { sawGenerating = true; log('   🔄 Generating...'); }                await this.reportProgress(1, ((Date.now() - started) / 180000) * 95, 'generating');
                 // The first render is the slowest, so scene 1 gets a longer
                 // fuse before we call it stuck.
                 if (Date.now() - this._lastMoveAt > CONFIG.stallMs * 2 && this._heals < 3) {
@@ -1143,18 +1453,14 @@ async uploadRefViaSendKeys(filePath) {
                     return;
                 }
                 // click newest tile to enter editor
-                const clicked = await this.evalJs(() => {
-                    const tiles = [...document.querySelectorAll('flow-video-tile')];
-                    if (!tiles.length) return false;
-                    const t = tiles[tiles.length - 1];
-                    const el = t.querySelector('img, video') || t;
-                    el.click();
-                    return true;
-                });
+                const tiles = await this.page.$$('flow-video-tile');
+                const newest = tiles[tiles.length - 1];
+                const clicked = !!newest;
+                if (newest) await newest.click();
                 if (clicked) {
                     await wait(8000);
                     if (this.isEditorUrl(this.page.url())) {
-                        log('   âœ… Clip ready, editor open');
+                        log('   ✅ Clip ready, editor open');
                         await this.waitForEditorReady();
                         await this.clickNewestClip();
                         return;
@@ -1165,7 +1471,7 @@ async uploadRefViaSendKeys(filePath) {
         throw new Error('Scene 1: timed out waiting for clip/editor');
     }
 
-    // â”€â”€ scenes 2+ (extend in editor) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── scenes 2+ (extend in editor) ──────────────────────────────
     async ensureEditor() {
         if (this.isEditorUrl(this.page.url())) return this.waitForEditorReady();
         // Poll for up to 60s - the editor may open in any tab of the
@@ -1173,7 +1479,7 @@ async uploadRefViaSendKeys(filePath) {
         const deadline = Date.now() + 60000;
         while (Date.now() < deadline) {
             const pages = await this.browser.pages();
-            const ep = pages.find(p => this.isEditorUrl(p.url()));
+            const ep = pages.find(p => this.isEditorUrl(p.url()) && (!this.projectUrl || p.url().startsWith(this.projectUrl + '/')));
             if (ep) { this.page = ep; log('✅ Found editor tab'); return this.waitForEditorReady(); }
             await wait(3000);
         }
@@ -1182,13 +1488,10 @@ async uploadRefViaSendKeys(filePath) {
         log(`   ⚠️  No editor tab. Open tabs: ${JSON.stringify(urls)}`);
         if (/flow\.google\.com\/project/.test(this.page.url() || '') && !/\/(scene|edit)\//.test(this.page.url())) {
             log('   🖱️  Clicking newest clip tile to open the editor...');
-            const clicked = await this.evalJs(() => {
-                const tiles = [...document.querySelectorAll('flow-video-tile')];
-                if (!tiles.length) return false;
-                const el = tiles[tiles.length - 1].querySelector('img, video') || tiles[tiles.length - 1];
-                el.click();
-                return true;
-            });
+            const tiles = await this.page.$$('flow-video-tile');
+            const newest = tiles[tiles.length - 1];
+            const clicked = !!newest;
+            if (newest) await newest.click();
             if (clicked) {
                 await wait(8000);
                 if (this.isEditorUrl(this.page.url())) return this.waitForEditorReady();
@@ -1202,10 +1505,68 @@ async uploadRefViaSendKeys(filePath) {
         return this.waitForEditorReady();
     }
 
+    async prepareExistingTimelineResume() {
+        if (this.resumeIgnoredNewProject) {
+            log('   Resume safeguard: ignored --new-project because --from is greater than 1.');
+        }
+        if (this.resumeIgnoredGenRefs) {
+            log('   Resume safeguard: ignored --gen-refs; reference phase is already complete.');
+        }
+
+        // Prefer the editor belonging to the supplied project. With several
+        // Flow tabs open, connect() may have attached to a different project.
+        if (this.projectUrl) {
+            this.projectUrl = require('./flow_project').normalizeProjectUrl(this.projectUrl);
+            const pages = await this.browser.pages();
+            const editor = pages.find(p => this.isEditorUrl(p.url()) &&
+                p.url().startsWith(this.projectUrl + '/'));
+            if (editor) this.page = editor;
+            else if (!this.page.url().startsWith(this.projectUrl)) {
+                log(`🌐 Opening existing project for resume: ${this.projectUrl}`);
+                await this.page.goto(this.projectUrl, {
+                    waitUntil: 'domcontentloaded', timeout: 120000,
+                });
+                await this.waitForFlowShell();
+            }
+        }
+
+        await this.ensureEditor();
+        // Once an editor was found from the open browser, remember its project
+        // even when the GUI's URL box was empty.
+        if (!this.projectUrl) {
+            try { this.projectUrl = require('./flow_project').normalizeProjectUrl(this.page.url()); }
+            catch {}
+        }
+
+        const clips = await this.countClips();
+        const pending = await this.countEmptySlots();
+        if (pending > 1) {
+            throw new Error(`Resume found ${pending} unfinished Extend slots. Keep only the latest one before retrying.`);
+        }
+        const completed = await this.countCompletedClips();
+        const expected = this.fromScene - 1;
+        if (completed !== expected) {
+            throw new Error(`Resume requested from scene ${this.fromScene}, but the open timeline has ` +
+                `${completed} completed clip(s); expected exactly ${expected}. Set From to ${completed + 1} ` +
+                `or open the correct project before retrying.`);
+        }
+        // A failed attempt can leave one full-size .clip.extend-composing node.
+        // Select the completed clip immediately before it; doExtendScene() will
+        // reuse the unfinished slot instead of arming another Extend.
+        const selected = pending
+            ? await this.clickNewestCompletedClip()
+            : await this.clickNewestClip();
+        if (!selected) {
+            throw new Error(`Could not select the newest existing clip before extending scene ${this.fromScene}.`);
+        }
+        if (pending) log('   ♻️  Found one unfinished Extend slot; it will be reused for this scene.');
+        log(`✅ Resume ready: ${completed} completed clip(s); scene ${this.fromScene} will be added with Extend.`);
+    }
+
     // The editor takes 30-60s to hydrate (canvas, "Add clip" button). Wait for it.
     async waitForEditorReady(maxWaitMs = 120000) {
         this._editorSeen = true; // grid and resume paths both end here
-        log('   â³ Waiting for editor to fully load (Add clip button)...');
+        log('   ⏳ Waiting for editor to fully load (Add clip button)...');
         const deadline = Date.now() + maxWaitMs;
         while (Date.now() < deadline) {
             const ready = await this.evalJs((sel) => ({
@@ -1228,8 +1589,8 @@ async uploadRefViaSendKeys(filePath) {
                     return max;
                 })(),
             }), this.sel);
-            if (!ready.__error && (ready.addClip || ready.armed)) {
-                log(`   âœ… Editor ready (timeline ~${ready.secs}s)`);
+            if (!ready.__error && (ready.addClip || ready.armed || await this.isExtendArmed())) {
+                log(`   ✅ Editor ready (timeline ~${ready.secs}s)`);
                 return true;
             }
             await wait(4000);
@@ -1242,13 +1603,7 @@ async uploadRefViaSendKeys(filePath) {
     // the armed placeholder and another would re-click Add clip on top of it.
     // One probe, one answer.
     async isExtendArmed() {
-        const r = await this.evalJs((sel) => {
-            const want = new RegExp(sel.extendPlaceholder, 'i');
-            for (const el of document.querySelectorAll(`${sel.placeholderSelector}, .ProseMirror`)) {
-                if (want.test(el.textContent || '')) return true;
-            }
-            return /exit extend mode/i.test(document.body.innerText || '');
-        }, this.sel);
+        const r = await this.evalJs(this.extendArmedJs);
         return r === true;
     }
 
@@ -1263,9 +1618,9 @@ async uploadRefViaSendKeys(filePath) {
     }
 
     async armExtend(sceneNum) {
-        log(`   ðŸ”— Arming EXTEND mode for scene ${sceneNum}...`);
+        log(`   🔗 Arming EXTEND mode for scene ${sceneNum}...`);
         // if already armed ("What happens next?" placeholder), reuse
-        if (await this.isExtendArmed()) { log('   âœ… Extend mode already armed'); return; }
+        if (await this.isExtendArmed()) { log('   ✅ Extend mode already armed'); return; }
 
         // Seen when the menu opens and genuinely holds no Extend entry. That is
         // a fact about the plan, not a transient miss, so it is counted: three
@@ -1273,6 +1628,7 @@ async uploadRefViaSendKeys(filePath) {
         // about ninety seconds to reach the same conclusion.
         let noExtendSeen = 0;
         for (let attempt = 1; attempt <= 12; attempt++) {
+            if (await this.isExtendArmed()) { log('   ✅ Existing Extend composer ready'); return; }
             const ok = await this.evalJs((sel) => {
                 const addClip = [...document.querySelectorAll('button')]
                     .find(b => (b.getAttribute('aria-label') || '') === sel.addClipLabel);
@@ -1281,12 +1637,12 @@ async uploadRefViaSendKeys(filePath) {
                 return { step: 'clicked' };
             }, this.sel);
             if (ok.__error || !ok || ok.step !== 'clicked') {
-                log(`   âš ï¸  attempt ${attempt}/12: no Add clip button (${(ok && ok.step) || 'err'})`);
+                log(`   ⚠️  attempt ${attempt}/12: no Add clip button (${(ok && ok.step) || 'err'})`);
                 await wait(5000);
                 continue;
             }
             await wait(2500);
-            const picked = await this.evalJs((wantModel, sel) => {
+            const picked = await this.evalJs((wantModel, sel, strictModel) => {
                 const ov = document.querySelector(sel.overlayContainerSelector);
                 if (!ov) return { state: 'no-overlay' };
                 // Every extend entry reads "Extend (Veo ...)"; the plan decides
@@ -1306,12 +1662,17 @@ async uploadRefViaSendKeys(filePath) {
                     const l = el.querySelector('.label');
                     return ((l ? l.textContent : el.innerText) || '').trim();
                 };
-                const pref = items.find(x => labelOf(x).includes(wantModel));
+                const key = value => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+                const pref = items.find(x => key(labelOf(x).replace(/^extend\s*\(/i, '').replace(/\)$/, '')) === key(wantModel));
+                if (!pref && strictModel) return { state: 'model-unavailable', offered: items.map(labelOf) };
                 const item = pref || items[0];
                 item.click();
                 return { state: 'clicked', model: labelOf(item).slice(0, 70), preferred: !!pref,
                          available: items.map(x => labelOf(x).slice(0, 70)) };
-            }, this.extendModel, this.sel);
+            }, this.extendModel, this.sel, !!this.opts.videoModel && this.opts.videoModel !== 'Flow');
+            if (picked && picked.state === 'model-unavailable') {
+                throw Error(`Selected model "${this.extendModel}" is not offered for Extend. Available: ${picked.offered.join(', ')}`);
+            }
             if (!picked || picked.state !== 'clicked') {
                 // Never leave a bare "undefined" here again. That single word -
                 // "Extend menu problem: undefined" - is the reason this whole
@@ -1341,6 +1702,9 @@ async uploadRefViaSendKeys(filePath) {
                 }
             }
             if (picked && picked.state === 'clicked') {
+                if (!picked.preferred && this.opts.videoModel && this.opts.videoModel !== 'Flow') {
+                    throw Error(`The selected video model "${this.extendModel}" is not offered for Extend. No extension submitted.`);
+                }
                 log(picked.preferred
                     ? `   Extend model: ${picked.model}`
                     : `   WARNING: "${this.extendModel}" not offered - using: ${picked.model}`);
@@ -1350,11 +1714,11 @@ async uploadRefViaSendKeys(filePath) {
                 // give the editor a moment, then verify via the placeholder span
                 await wait(3500);
                 const verify = await this.isExtendArmed();
-                if (verify) { log('   âœ… Extend armed (What happens next? shown)'); return; }
-                log('   âš ï¸  Extend item clicked but placeholder not confirmed - re-checking...');
+                if (verify) { log('   ✅ Extend armed (What happens next? shown)'); return; }
+                log('   ⚠️  Extend item clicked but placeholder not confirmed - re-checking...');
                 await wait(3000);
                 const verify2 = await this.isExtendArmed();
-                if (verify2) { log('   âœ… Extend armed (late confirm)'); return; }
+                if (verify2) { log('   ✅ Extend armed (late confirm)'); return; }
             }
             // only close a stray overlay if NOT armed
             await this.closeStrayOverlay();
@@ -1364,18 +1728,36 @@ async uploadRefViaSendKeys(filePath) {
     }
 
     async clickStartGeneration() {
-        const ok = await this.evalJs((label, iconName) => {
-            const btn = [...document.querySelectorAll('button')].find(b => {
-                if ((b.getAttribute('aria-label') || '') === label) return true;
-                const icon = b.querySelector('mat-icon.google-symbols, .google-symbols');
-                return icon && icon.textContent.trim() === iconName;
+        const button = await this.page.$('button[aria-label="Start generation"]');
+        if (!button) throw new Error('Start generation (arrow_forward) button not found');
+        const disabled = await button.evaluate(b => b.disabled || b.getAttribute('aria-disabled') === 'true');
+        if (disabled) throw new Error('Start generation button is disabled');
+        try { await button.click(); }
+        catch (e) { throw new Error(`Start generation click failed: ${e.message}`); }
+
+        // Never claim submission from the click alone. Flow used to ignore the
+        // synthetic click silently, leaving the prompt untouched. Accept only a
+        // visible state transition: Stop, an approval dialog, or the Start
+        // control becoming unavailable/disabled after the click.
+        const deadline = Date.now() + 12000;
+        while (Date.now() < deadline) {
+            await wait(400);
+            const state = await this.evalJs(() => {
+                const buttons = [...document.querySelectorAll('button')];
+                const start = buttons.find(b => /start generation/i.test(b.getAttribute('aria-label') || ''));
+                const stop = buttons.some(b => /^stop(?: generation)?$/i.test(
+                    (b.innerText || b.getAttribute('aria-label') || b.getAttribute('title') || '').trim()));
+                const approve = buttons.some(b => /always approve/i.test(b.innerText || '') ||
+                    (b.innerText || '').trim() === 'Approve');
+                return { stop, approve, startGone: !start, startDisabled: !!start &&
+                    (start.disabled || start.getAttribute('aria-disabled') === 'true') };
             });
-            if (!btn) return false;
-            btn.click();
-            return true;
-        }, this.sel.startGenerationLabel, this.sel.startGenerationIcon);
-        if (!ok) throw new Error('Start generation (arrow_forward) button not found');
-        log('   ðŸ–±ï¸  Start generation clicked');
+            if (state && !state.__error && (state.stop || state.approve || state.startGone || state.startDisabled)) {
+                log('   ✅ Start generation submitted and confirmed');
+                return true;
+            }
+        }
+        throw new Error('Start generation click was not confirmed; the prompt was not submitted');
     }
 
     async autoApproveCredits() {
@@ -1386,7 +1768,7 @@ async uploadRefViaSendKeys(filePath) {
             if (b) { b.click(); return (b.innerText || '').trim(); }
             return null;
         });
-        if (clicked) { log(`   ðŸ’³ Approved credits dialog (${clicked})`); await wait(1500); }
+        if (clicked) { log(`   💳 Approved credits dialog (${clicked})`); await wait(1500); }
         return !!clicked;
     }
 
@@ -1433,11 +1815,22 @@ async uploadRefViaSendKeys(filePath) {
         return (typeof n === 'number') ? n : 0;
     }
 
-    async waitForExtendComplete(sceneNum, prevSeconds, slotsAfterArm) {
-        // VELOCITY OF VEO 3.1 LITE: a clip typically lands in 15-60s. There is
-        // NO reliable DOM signal for completion (the reserved slot's marker
-        // disappears at generation START). So we use
-        // the old tool's proven strategy: fixed minimum wait + error sniffing.
+    // Extend mode keeps a .clip.extend-composing insertion control on the
+    // timeline. It can remain there after a real generated clip is appended,
+    // so it is neither a pending job nor a completion signal. Count only video
+    // clips for resume validation and generation completion.
+    async countCompletedClips() {
+        const n = await this.evalJs((sel) => [...document.querySelectorAll(sel)]
+            .filter(c => !c.classList.contains('extend-composing') &&
+                !c.querySelector('.extend-placeholder-text')).length, this.sel.clipsSelector);
+        return (typeof n === 'number') ? n : 0;
+    }
+
+    async waitForExtendComplete(sceneNum, prevSeconds, completedBefore) {
+        // A clip typically lands in 15-60s. Current Flow creates a full
+        // .clip.extend-composing node as soon as Extend is armed, so timeline
+        // duration alone is not completion. Combine the slot lifecycle, the
+        // Stop control and the minimum wait before moving to the next scene.
         const minWaitMs = CONFIG.minClipWaitMs;   // never proceed before this
         const target = prevSeconds + CONFIG.SCENE_SECONDS - 1;
         const deadline = Date.now() + CONFIG.maxGenerationMs;
@@ -1450,6 +1843,7 @@ async uploadRefViaSendKeys(filePath) {
         const started = Date.now();
 
         let failedEarly = false;
+        let sawGenerating = false;
         // Phase 1: the mandatory quiet period. Nothing is expected on the
         // timeline yet, so no watchdog here - it would fire on a healthy job.
         const minEnd = started + minWaitMs;
@@ -1460,6 +1854,7 @@ async uploadRefViaSendKeys(filePath) {
             if (st.creditsOut || await this.checkCreditsOut()) throw new Error('CREDITS_EXHAUSTED');
             if (st.approve) await this.autoApproveCredits();
             if (st.failed) { failedEarly = true; break; }
+            if (st.generating) sawGenerating = true;
             await this.reportProgress(sceneNum, ((Date.now() - started) / minWaitMs) * 40, 'generating');
         }
         if (failedEarly) throw new Error(`Scene ${sceneNum} generation FAILED (Flow error text visible)`);
@@ -1473,9 +1868,18 @@ async uploadRefViaSendKeys(filePath) {
         while (Date.now() < deadline) {
             const secs = await this.getTimelineSeconds();
             if (secs > lastSecs) { lastSecs = secs; this._lastMoveAt = Date.now(); }
-            if (secs >= target) {
+            const st = await this.readState();
+            if ((st && st.creditsOut) || await this.checkCreditsOut()) throw new Error('CREDITS_EXHAUSTED');
+            if (st && st.approve) await this.autoApproveCredits();
+            if (st && st.failed) { failedEarly = true; break; }
+            if (st && st.generating) sawGenerating = true;
+            const completed = await this.countCompletedClips();
+            const generationStopped = !sawGenerating || !st || !st.generating;
+            // The insertion control can remain after generation. The only safe
+            // completion signal is a new real clip plus generation stopping.
+            if (completed >= completedBefore + 1 && generationStopped) {
                 await wait(5000);
-                log(`   Clip window complete (timeline ${secs}s)`);
+                log(`   Clip generation complete (${completedBefore} -> ${completed} completed clips, timeline ${secs}s)`);
                 return secs;
             }
             const pct = await this.reportProgress(
@@ -1487,8 +1891,6 @@ async uploadRefViaSendKeys(filePath) {
                 if (r.errorText) { failedEarly = true; break; }
                 this._lastMoveAt = Date.now();
             }
-            const st = await this.readState();
-            if (st && st.approve) await this.autoApproveCredits();
             // This interval is also the watchdog's reaction time, so a page
             // that sticks is noticed within one poll rather than at timeout.
             await wait(CONFIG.timelinePollMs);
@@ -1581,29 +1983,94 @@ async uploadRefViaSendKeys(filePath) {
         log(`   WARN: could not confirm the newest clip is selected (${pt.count} clips on timeline)`);
         return false;
     }
+
+    async clickNewestCompletedClip() {
+        await this.scrollTimelineToEnd();
+        const pt = await this.evalJs(() => {
+            const clips = [...document.querySelectorAll('.timeline-contents .clip')];
+            const completed = clips.filter(c =>
+                !c.classList.contains('extend-composing') &&
+                !c.querySelector('.extend-placeholder-text'));
+            if (!completed.length) return null;
+            const clip = completed[completed.length - 1];
+            const body = clip.querySelector('.clip-body') || clip;
+            const r = body.getBoundingClientRect();
+            return {
+                x: Math.round(r.x + r.width / 2),
+                y: Math.round(r.y + r.height / 2),
+                index: clips.indexOf(clip) + 1,
+                count: clips.length,
+                alreadySelected: clip.classList.contains('selected'),
+            };
+        });
+        if (!pt || pt.__error) return false;
+        if (!pt.alreadySelected) {
+            await this.page.mouse.click(pt.x, pt.y);
+            await wait(1200);
+        }
+        const ok = await this.evalJs((index) => {
+            const clips = [...document.querySelectorAll('.timeline-contents .clip')];
+            return !!clips[index - 1]?.classList.contains('selected');
+        }, pt.index);
+        if (ok === true) {
+            log(`   OK: newest completed clip (${pt.index}/${pt.count}) is selected`);
+            return true;
+        }
+        log(`   WARN: could not select newest completed clip (${pt.index}/${pt.count})`);
+        return false;
+    }
 async doExtendScene(scene, sceneNum) {
-        const prev = await this.getTimelineSeconds();
-        this.clipsBeforeExtend = await this.countClips();
-        log(`   📏 Timeline before: ${prev}s`);
-        await this.armExtend(sceneNum);
+        const completedAtEntry = await this.countCompletedClips();
+        const expectedBefore = sceneNum - 1;
+        if (completedAtEntry !== expectedBefore) {
+            throw new Error(`scene ${sceneNum}: timeline has ${completedAtEntry} completed clips; expected ${expectedBefore}. ` +
+                'Stopping before another prompt is added.');
+        }
+        const baseSelected = await this.clickNewestCompletedClip();
+        if (!baseSelected) throw new Error(`scene ${sceneNum}: could not select completed clip ${expectedBefore}`);
+        const totalBefore = await this.countClips();
+        const pendingBefore = await this.countEmptySlots();
+        if (pendingBefore > 1) {
+            throw new Error(`timeline already has ${pendingBefore} unfinished Extend slots; remove the extras before retrying`);
+        }
+        // Flow now counts the reserved "Prompt to extend" slot as a .clip and
+        // immediately adds eight seconds to the duration. It is not a completed
+        // clip. Base every integrity check on completed clips only, so a retry
+        // reuses the existing slot instead of stacking another one.
+        this.clipsBeforeExtend = completedAtEntry;
+        const rawPrev = await this.getTimelineSeconds();
+        const prev = this.clipsBeforeExtend * CONFIG.SCENE_SECONDS;
+        log(`   📏 Timeline before: ${rawPrev}s shown; ${this.clipsBeforeExtend} completed clip(s) (${prev}s)`);
+        if (pendingBefore === 1) {
+            log('   ♻️  Reusing the unfinished "Prompt to extend" slot from the previous attempt.');
+        }
+        if (pendingBefore === 0) await this.armExtend(sceneNum);
+        else log('   ✅ Existing Extend slot is already armed');
         const slotsAfterArm = await this.countEmptySlots();
         this.clipsAfterArm = await this.countClips();
         log(`   📐 Reserved empty slots after arming: ${slotsAfterArm} | clips ${this.clipsBeforeExtend} -> ${this.clipsAfterArm}`);
-        if (slotsAfterArm === 0) {
+        // Old Flow exposed a child marker; current Flow exposes a whole
+        // .clip.extend-composing node. Accept either the detected pending slot
+        // or one newly-added structural clip. Reject only when neither changed.
+        if (slotsAfterArm === 0 && this.clipsAfterArm <= this.clipsBeforeExtend) {
             throw new Error('no empty slot was reserved after arming - extend did not engage');
         }
+        // Ingredients/References-to-Video and Extend are separate Flow modes.
+        // Veo 3.1 Lite supports both modes, but an Extend request cannot accept
+        // newly attached image or voice ingredient chips. Clear any chip left
+        // by an older failed run before writing/submitting this continuation.
+        await this.removeIngredientChipsFromExtend();
         // Continuation prompt if one was derived for this scene, else the
         // scene's own prompt. The derived one exists precisely because the
         // scene's own prompt re-establishes the film rather than continuing it.
         const extendText = this.extendPrompts[sceneNum];
         if (extendText) log(`   ✍️  scene ${sceneNum}: continuation prompt (extend_prompts.json)`);
-        await this.typePrompt(extendText || scene.veo3_prompt);
-        // Attach the reference sheets for the characters THIS scene needs, from
-        // the ones already uploaded to the project (no re-upload).
-        await this.selectRefsForScene(scene, sceneNum);
+        const lockedPrompt = this.buildIdentityLockedExtendPrompt(scene, extendText || scene.veo3_prompt);
+        await this.typePrompt(lockedPrompt);
+        log(`   🧩 Extend scene ${sceneNum}: using the preceding clip for character, place and voice continuity`);
         await this.clickStartGeneration();
         await this.autoApproveCredits();
-        const now = await this.waitForExtendComplete(sceneNum, prev, slotsAfterArm);
+        const now = await this.waitForExtendComplete(sceneNum, prev, this.clipsBeforeExtend);
         const selected = await this.clickNewestClip();
 
         // INTEGRITY GUARD. One completed extend must leave exactly one MORE clip
@@ -1618,16 +2085,19 @@ async doExtendScene(scene, sceneNum) {
         // than no guard. Once a live run shows what these numbers actually look
         // like, the unambiguous cases below can be promoted to hard failures.
         const clipsNow = await this.countClips();
-        const gained = clipsNow - this.clipsBeforeExtend;
-        log(`   CLIPS: ${this.clipsBeforeExtend} -> ${this.clipsAfterArm} (after arm) -> ${clipsNow} (after gen) | timeline ${prev}s -> ${now}s`);
+        const pendingNow = await this.countEmptySlots();
+        const completedNow = await this.countCompletedClips();
+        const gained = completedNow - this.clipsBeforeExtend;
+        log(`   CLIPS COMPLETE: ${this.clipsBeforeExtend} -> ${completedNow} ` +
+            `(DOM clips ${this.clipsAfterArm} after arm -> ${clipsNow}, pending ${pendingNow}) | timeline ${prev}s -> ${now}s`);
         if (gained !== 1) {
             log(`   WARN: expected to gain exactly 1 clip for scene ${sceneNum}, gained ${gained}.`);
             log(`   WARN: the extend may have landed in the wrong place - check scene order before exporting.`);
             this.sequenceSuspect = true;
         }
-        if (clipsNow < this.clipsBeforeExtend) {
+        if (completedNow < this.clipsBeforeExtend) {
             throw new Error(
-                `Scene ${sceneNum}: clip count DROPPED from ${this.clipsBeforeExtend} to ${clipsNow}. ` +
+                `Scene ${sceneNum}: completed clip count DROPPED from ${this.clipsBeforeExtend} to ${completedNow}. ` +
                 `A clip was lost - stopping before more credits are spent.`
             );
         }
@@ -1665,7 +2135,7 @@ async doExtendScene(scene, sceneNum) {
     }
 
     async exportSceneVideo() {
-        banner('â¬‡ï¸  EXPORTING FULL SCENE');
+        banner('⬇️  EXPORTING FULL SCENE');
         await this.ensureEditor();
         await this.setDownloadDir(this.downloadDir);
         // Everything already there, under BOTH the folder we asked for and the
@@ -1698,9 +2168,9 @@ async doExtendScene(scene, sceneNum) {
             dl.click();
             return true;
         });
-        if (!clicked) log('   âš ï¸  no explicit download button in dialog - maybe export started directly');
+        if (!clicked) log('   ⚠️  no explicit download button in dialog - maybe export started directly');
 
-        log('   â³ Waiting for the .mp4 to land in Downloads...');
+        log('   ⏳ Waiting for the .mp4 to land in Downloads...');
         // Wait for the export to finish writing. "Finished" is not one file
         // arriving: Flow writes ONE FILE PER CLIP, so the set is polled until it
         // stops growing. this.okScenes.length is how many clips were asked for,
@@ -1736,7 +2206,7 @@ async doExtendScene(scene, sceneNum) {
             throw new Error('Export produced no .mp4 anywhere - searched '
                 + sweepRoots.join(' and ') + ', sub-folders included');
         }
-        log(`   âœ… Downloaded: ${files.length} file(s)`);
+        log(`   ✅ Downloaded: ${files.length} file(s)`);
         log(`   📂 Folder: ${dir}`);
         return { files, dir };
     }
@@ -1865,7 +2335,7 @@ async doExtendScene(scene, sceneNum) {
     }
 
     splitIntoScenes(fullFile) {
-        banner('âœ‚ï¸  SPLITTING WITH FFMPEG');
+        banner('✂️  SPLITTING WITH FFMPEG');
         fs.mkdirSync(this.outputDir, { recursive: true });
         const results = [];
         // Offsets are this timeline's own positions: in a fresh-project
@@ -1877,21 +2347,21 @@ async doExtendScene(scene, sceneNum) {
             try {
                 execFileSync('ffmpeg', ['-y', '-ss', String(ss), '-t', String(CONFIG.SCENE_SECONDS),
                     '-i', fullFile, '-c:v', 'libx264', '-c:a', 'aac', out], { stdio: 'pipe', timeout: 300000 });
-                log(`   âœ… scene-${String(n).padStart(2, '0')}.mp4 (${ss}s - ${ss + CONFIG.SCENE_SECONDS}s)`);
+                log(`   ✅ scene-${String(n).padStart(2, '0')}.mp4 (${ss}s - ${ss + CONFIG.SCENE_SECONDS}s)`);
                 results.push(out);
             } catch (e) {
-                log(`   âŒ ffmpeg failed for scene ${n}: ${String(e.message).slice(0, 120)}`);
+                log(`   ❌ ffmpeg failed for scene ${n}: ${String(e.message).slice(0, 120)}`);
             }
         });
         return results;
     }
 
-    // â”€â”€ per-scene processing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── per-scene processing ──────────────────────────────────────
     async processScene(scene, index) {
         const sceneNum = index + 1;
-        banner(`ðŸ“ SCENE ${sceneNum}/${this.scenes.length}: ${scene.scene_title || `Scene ${sceneNum}`}`);
-        log(`â±ï¸  ${new Date().toLocaleTimeString()} | ${scene.scene_builder_action || (sceneNum === 1 ? 'text_to_video' : 'extend')}`);
-        if (scene.script_line) log(`ðŸ“ "${scene.script_line.slice(0, 120)}..."`);
+        banner(`📍 SCENE ${sceneNum}/${this.scenes.length}: ${scene.scene_title || `Scene ${sceneNum}`}`);
+        log(`⏱️  ${new Date().toLocaleTimeString()} | ${scene.scene_builder_action || (sceneNum === 1 ? 'text_to_video' : 'extend')}`);
+        if (scene.script_line) log(`📝 "${scene.script_line.slice(0, 120)}..."`);
 
         await this.checkPause();
 
@@ -1943,6 +2413,11 @@ async doExtendScene(scene, sceneNum) {
                 const msg = e.message || String(e);
                 if (/CREDITS_EXHAUSTED/.test(msg)) throw e;
                 lastMsg = msg;
+                // These failures happen before a generation was safely
+                // submitted. Repeating clicks cannot repair a missing asset or
+                // an unconfirmed submit and can hit controls after the picker
+                // reflows, so stop this scene immediately.
+                if (/not all required ingredients|prompt was not written|Start generation|not submitted|timeline has|could not select completed clip/i.test(msg)) break;
                 if (attempt >= maxAttempts) break;
 
                 // Jittered backoff. A tight retry loop is exactly the shape
@@ -1958,15 +2433,15 @@ async doExtendScene(scene, sceneNum) {
                 await this.healStalled(`retry ${attempt} of scene ${sceneNum}`, true);
             }
         }
-        log(`   Scene ${sceneNum} failed after ${maxAttempts} attempts - continuing to the next scene`);
+        log(`   Scene ${sceneNum} failed - STOPPING before any later prompt is added.`);
         await this.logFailedPrompt(sceneNum, lastMsg, scene.veo3_prompt, maxAttempts);
-        return false;
+        throw new Error(`SEQUENCE_STOP at scene ${sceneNum}: ${lastMsg}`);
     }
 
     async askResumeOption() {
         console.log(`
 ${'='.repeat(70)}
-ðŸ”„ WHERE DO YOU WANT TO START?
+🔄 WHERE DO YOU WANT TO START?
 ${'='.repeat(70)}
   1. Fresh (scene 1 setup in browser)
   2. Resume from a scene (clips already on the timeline)
@@ -1975,54 +2450,63 @@ ${'='.repeat(70)}
         if (a === '2') {
             const b = await this.waitForUserInput('Start from scene number: ');
             this.fromScene = Math.max(2, parseInt(b, 10) || 2);
-            log(`âœ… Resuming from scene ${this.fromScene} (editor must be open)`);
+            log(`✅ Resuming from scene ${this.fromScene} (editor must be open)`);
         }
     }
 
-    // â”€â”€ main â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── main ──────────────────────────────────────────────────────
+    async exportAndFinish() {
+        const ex = await this.exportSceneVideo();
+        const parts = ex.files.length === 1
+            ? this.splitIntoScenes(ex.files[0])
+            : await this.collectPerClipExport(ex.files);
+        log(`DONE: ${parts.length}/${this.okScenes.length} scene files in ${this.outputDir}`);
+        if (this.opts.join) {
+            if (this.sequenceSuspect || parts.length !== this.okScenes.length || !parts.length ||
+                this.okScenes.length !== (this.freshProject ? this.toScene - this.fromScene + 1 : this.toScene)) {
+                throw Error('Cannot join an incomplete export or an uncertain scene order.');
+            }
+            execFileSync(process.execPath, [path.join(__dirname, 'join_clips.js'), this.outputDir,
+                '--order', parts.map(p => path.basename(p)).sort().join(','),
+                '--out', path.join(path.dirname(this.jsonFilePath), 'ingredients_final.mp4')],
+                { stdio: 'inherit', timeout: 1800000 });
+        }
+        return parts;
+    }
+
     async run() {
-        banner('ðŸŽ¬ VEO3 FLOW NEW-UI ENGINE');
+        banner('🎬 VEO3 FLOW NEW-UI ENGINE');
         await this.loadScenes();
         await this.initializeFailedPromptsLog();
         await this.connect();
 
-        // THE REFERENCE IMAGES, MADE FOR YOU. This is the step that used to mean
-        // generating each character sheet and the place plate by hand, saving
-        // them into character_refs/, and letting the engine upload them. Instead
-        // the same routine Agent Mode uses builds them INSIDE this project and
-        // renames each tile to the ref's own simple name, so nothing is made or
-        // saved by hand and nothing has to be uploaded - the tiles are attached
-        // by name (refs_for_scene.js) instead.
-        if (this.genRefs) {
-            if (!this.storyRefs.length) {
-                log('⚠️  --gen-refs: the story declares no reference images to make');
-            } else {
-                banner('🧩 REFERENCE IMAGES (made in this project)');
-                // Required lazily so the engine does not pull the ref
-                // generator's CLI parsing in at load time.
-                const { generateRefs } = require('./generate_refs.js');
-                const rr = await generateRefs(this.page, this.storyRefs, {
-                    log: (m) => log(`   ${m}`),
-                    // Leave Agent Mode OFF: the Scenes route generates in the
-                    // plain project grid, and it is Agent Mode that makes a
-                    // prompt produce a clip instead of an image.
-                    keepAgentOn: true,
-                });
-                if (rr.failed) {
-                    log(`⚠️  ${rr.failed}/${rr.total} reference image(s) failed. The run continues,`);
-                    log('   but a clip without its sheet will drift. Retry just those with');
-                    log('   `node generate_refs.js --story <this story folder> --only <name>`');
-                    log('   and then start the film.');
-                }
+        if (this.genRefs || this.opts.newProject || this.freshProject) {
+            banner('REFERENCE IMAGES - PROJECT HOME');
+            await require('./ingredients_setup').prepareReferences(this, { log });
+        }
+        if (this.opts.refsOnly) {
+            log('Phase 1 complete. No video clips were submitted.');
+            await this.browser.disconnect();
+            return;
+        }
+        if (this.opts.exportOnly) {
+            if (this.projectUrl && !this.page.url().startsWith(require('./flow_project').normalizeProjectUrl(this.projectUrl))) {
+                await this.page.goto(require('./flow_project').normalizeProjectUrl(this.projectUrl), { waitUntil: 'domcontentloaded' });
             }
+            await this.ensureEditor();
+            this.okScenes = Array.from({ length: this.toScene }, (_, i) => i + 1);
+            await this.exportAndFinish();
+            await this.browser.disconnect();
+            return;
         }
 
         // allow CLI range override after load
         if (!this.opts.toScene) this.toScene = this.scenes.length;
         if (this.fromScene > 1) {
-            log(`â–¶ï¸  Resume mode: scenes ${this.fromScene}-${this.toScene}`);
+            log(`▶️  Resume mode: scenes ${this.fromScene}-${this.toScene}`);
             if (!this.freshProject) {
                 this.okScenes = Array.from({ length: this.fromScene - 1 }, (_, i) => i + 1);
+                await this.prepareExistingTimelineResume();
             }
         }
 
@@ -2043,8 +2527,9 @@ ${'='.repeat(70)}
         for (let n = this.fromScene; n <= this.toScene; n++) {
             if (!this.okScenes.includes(n)) failed.push(n);
         }
+        this.failedScenes = failed;
         if (failed.length) {
-            log(`âš ï¸  Scenes missing from timeline: ${failed.join(', ')}`);
+            log(`⚠️  Scenes missing from timeline: ${failed.join(', ')}`);
             log('   Re-run with --from/--to for just those scenes before exporting.');
         }
 
@@ -2056,23 +2541,15 @@ ${'='.repeat(70)}
             console.log('will happily cut a scrambled timeline into scene-01.mp4, scene-02.mp4, ...');
         }
 
-        if (this.okScenes.length >= 1) {
+        if (this.okScenes.length >= 1 && this.opts.download !== false) {
             try {
-                const ex = await this.exportSceneVideo();
-                // One file means Flow handed back the whole timeline, which has
-                // to be cut into scenes. More than one means it handed back the
-                // clips already separate - and cutting those would be both
-                // pointless and wrong.
-                const parts = ex.files.length === 1
-                    ? this.splitIntoScenes(ex.files[0])
-                    : await this.collectPerClipExport(ex.files);
-                log(`\nâœ… DONE: ${parts.length}/${this.okScenes.length} scene files in ${this.outputDir}`);
+                await this.exportAndFinish();
             } catch (e) {
-                log(`\nâš ï¸  Export/split failed: ${e.message}`);
-                log('   The timeline still holds all clips - fix the issue and re-run export only.');
+                if (!creditsOut) throw e;
+                log(`Partial export/join could not complete: ${e.message}. Preserving the account-rotation signal.`);
             }
         } else {
-            log('âŒ No scenes succeeded - nothing to export.');
+            log(this.okScenes.length ? 'Download disabled; clips remain in Flow.' : 'No scenes succeeded - nothing to export.');
         }
 
         this.creditsExhausted = creditsOut;
@@ -2080,7 +2557,7 @@ ${'='.repeat(70)}
     }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ CLI
+// ────────────────────────────── CLI
 function parseArgs(argv) {
     const opts = { _: [] };
     for (let i = 2; i < argv.length; i++) {
@@ -2089,25 +2566,36 @@ function parseArgs(argv) {
         else if (a === '--from') opts.fromScene = parseInt(argv[++i], 10);
         else if (a === '--to') opts.toScene = parseInt(argv[++i], 10);
         else if (a === '--skip-refs') opts.skipRefs = true;
+        else if (a === '--no-voice') opts.noVoice = true;
         else if (a === '--refs-on-clip1') opts.refsOnClip1 = true;
         else if (a === '--gen-refs') opts.genRefs = true;
+        else if (a === '--auto-start') opts.autoStart = true;
+        else if (a === '--refs-only') { opts.refsOnly = true; opts.genRefs = true; }
+        else if (a === '--no-upload-refs') opts.noUploadRefs = true;
+        else if (a === '--new-project') opts.newProject = true;
+        else if (a === '--video-model') opts.videoModel = argv[++i];
+        else if (a === '--aspect') opts.aspect = argv[++i];
+        else if (a === '--no-download') opts.download = false;
+        else if (a === '--join') opts.join = true;
+        else if (a === '--export-only') opts.exportOnly = true;
         else if (a === '--extend-model') opts.extendModel = argv[++i];
         else if (a === '--cdp') opts.cdp = `http://127.0.0.1:${argv[++i]}`;
         else if (a === '--account') opts.account = argv[++i];
         else if (a === '--fresh-project') opts.freshProject = true;
         else opts._.push(a);
     }
+    if (opts.join) opts.download = true;
     return opts;
 }
 
 // Exported so the watchdog and retry logic can be driven against a stub page
 // in tests. A direct `node veo3_flow_new_ui.js ...` still runs the CLI below.
-module.exports = { Veo3FlowNewUI, CONFIG, mp4sUnder, flowClipKey, flowClipOrder };
+module.exports = { Veo3FlowNewUI, CONFIG, mp4sUnder, flowClipKey, flowClipOrder, parseArgs };
 
 if (require.main === module) (async () => {
     const opts = parseArgs(process.argv);
     if (!opts._.length) {
-        console.log('Usage: node veo3_flow_new_ui.js <story.json> [--project-url URL] [--from N] [--to N] [--skip-refs] [--refs-on-clip1] [--gen-refs] [--cdp 9222] [--account X] [--fresh-project]');
+        console.log('Usage: node veo3_flow_new_ui.js <story.json> [--project-url URL] [--from N] [--to N] [--skip-refs] [--refs-on-clip1] [--gen-refs] [--no-voice] [--cdp 9222] [--account X] [--fresh-project]');
         process.exit(1);
     }
     const engine = new Veo3FlowNewUI(opts._[0], opts);
@@ -2117,7 +2605,7 @@ if (require.main === module) (async () => {
     try {
         await engine.run();
     } catch (e) {
-        console.error(`\nâŒ FATAL: ${e.message}`);
+        console.error(`\n❌ FATAL: ${e.message}`);
         process.exit(1);
     }
     if (engine.creditsExhausted) {
@@ -2129,6 +2617,6 @@ if (require.main === module) (async () => {
         console.log(`The story can continue on the next account from scene ${last + 1} (fresh project).`);
         process.exit(3);
     }
-    process.exit(0);
+    process.exit((engine.failedScenes && engine.failedScenes.length) || (opts.autoStart && engine.sequenceSuspect) ? 2 : 0);
 })();
 

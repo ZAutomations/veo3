@@ -49,9 +49,9 @@ const typed = db.styles.filter(p => Array.isArray(p.cast_types));
 // Named in full rather than counted: the point is that each genre which opts in
 // gets a per-type identity profile and the rest are untouched, so a third one
 // appearing should be a deliberate edit to this line, not a silent pass.
-ok('exactly the three intended presets declare cast_types',
+ok('exactly the intended presets declare cast_types',
    typed.map(p => p.id).sort().join(', ') ===
-   'animal-kindness, relationship-dialogue, relationship-dialogue-real',
+   'animal-kindness, relationship-dialogue, relationship-dialogue-ghibli, relationship-dialogue-real',
    typed.map(p => p.id).join(', '));
 ok('every declared cast type is one the prompts know how to describe',
    typed.every(p => p.cast_types.every(t => ['animal', 'human'].includes(t))),
@@ -216,24 +216,26 @@ ok('character_descriptions are plain strings',
 ok('references point at the refs folder',
    mixedOut.story.character_references.rusty === './character_refs/rusty.jpg');
 
-console.log('\n--- the realistic twin of the dialogue preset ---');
-// Same film, same rules, a filmed look instead of a drawn one. It exists as a
-// separate preset rather than an edit so the manhwa version survives, which
-// makes "did the look actually change?" the only thing worth asserting - a twin
-// that still carries one drawn-medium field produces a photoreal cast standing
-// in an illustrated room, which reads worse than staying cartoon.
+console.log('\n--- the realistic alternative to the dialogue preset ---');
+// This remains a separate photographic alternative. The 2.5D preset now has a
+// more specific grounded-conversation format, so camera, blocking and story
+// shapes are intentionally allowed to differ; their rendering media must still
+// stay cleanly separated.
 ok('exists', !!real && real.id === 'relationship-dialogue-real');
 ok('has a label that says which one it is', /realistic/i.test(real.label), real.label);
 ok('it is the same kind of film', real.kind === manhwa.kind);
 ok('still a spoken two-hander', real.narration_scope === 'dialogue');
 ok('still requires a human cast',
    real.cast === 'required' && JSON.stringify(real.cast_types) === '["human"]');
-ok('keeps the locked camera the dialogue mode needs',
-   real.camera === manhwa.camera);
-ok('keeps the locked blocking', real.blocking === manhwa.blocking);
+ok('both keep controlled conversation cameras',
+   /locked|static/i.test(real.camera) && /shot-reverse-shot|same axis/i.test(manhwa.camera));
+ok('both lock the pair to one arrangement',
+   /SPATIAL BLOCKING \(LOCKED\)/.test(real.blocking) && /SPATIAL BLOCKING \(LOCKED\)/.test(manhwa.blocking));
 ok('neither hardcodes a place any more',
    !real.setting && !manhwa.setting && !manhwa.setting_name && !real.setting_prompt);
-ok('has the same story shapes', JSON.stringify(real.story_shapes) === JSON.stringify(manhwa.story_shapes));
+ok('both versions carry the same grounded repair shapes',
+   JSON.stringify(real.story_shapes) === JSON.stringify(manhwa.story_shapes) &&
+   manhwa.story_shapes.some(s => /without making either person a villain/i.test(s)));
 
 // The positive wording is what the model copies. The negatives after NOT are
 // deliberate, so split them off rather than searching the whole field.

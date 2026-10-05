@@ -71,7 +71,8 @@ const READ_STATE = (pat) => {
     const err = body.match(new RegExp(pat.errorText, 'i'));
     return {
         url: location.href,
-        generating: buttons.some(b => (b.innerText || '').trim() === 'stop'),
+        generating: buttons.some(b => /^stop(?: generation)?$/i.test(
+            (b.innerText || b.getAttribute('aria-label') || b.getAttribute('title') || '').trim())),
         failed: !!err,
         errorText: err ? err[0].trim().slice(0, 160) : null,
         approve: buttons.some(b => /always approve/i.test(b.innerText || '') || (b.innerText || '').trim() === 'Approve'),

@@ -1,0 +1,34 @@
+const assert = require('assert');
+const W = require('./write_story');
+const D = require('./dialogue_speakers');
+const { spawnSync } = require('child_process');
+for (const id of ['relationship-dialogue', 'relationship-dialogue-ghibli']) {
+    const p = W.loadPreset(id);
+    const cast = W.normaliseCast(p, [{ name: 'George', gender: 'male', source_name: 'John' }, { name: 'Sarah', gender: 'female', source_name: 'Jane' }]);
+    const source = [{ source_dialogue: [{ speaker: 'Jane', gender: 'female', line: 'Why did you do that?' }, { speaker: 'John', gender: 'male', line: 'I should have told you.' }] }];
+    const scenes = [{ dialogue: [{ speaker: 'George', line: 'Why did you do that?' }, { speaker: 'Sarah', line: 'I should have told you.' }] }];
+    const fixed = W.enforceSourceDialogueFidelity(scenes, cast, { clips: source }, p);
+    assert.deepStrictEqual(fixed.scenes[0].dialogue.map(d => d.speaker), ['Sarah', 'George']);
+    assert.deepStrictEqual(fixed.restored, [1], 'identical wording with reversed speakers must be repaired');
+    assert.strictEqual(D.sourceSpeakerMap([{source_dialogue:[{speaker:'Female'},{speaker:'Male'}]}],cast,p).get('Female'), 'Sarah');
+    assert.throws(() => D.sourceSpeakerMap([{source_dialogue:[{speaker:'Person A'},{speaker:'Person B'}]}],cast,p), /Cannot identify/);
+    assert.throws(() => D.alignUnlabelledTranscript(p, scenes, 'Why? >> Because. >> But how?'), /Label EVERY turn/);
+    const labelled = D.alignUnlabelledTranscript(p, scenes, 'Female: Why did you do that? >> Male: I should have told you.');
+    assert.deepStrictEqual(labelled[0].dialogue.map(d => d.speaker), ['Sarah','George']);
+    const maleFirst = D.alignUnlabelledTranscript(p, scenes, 'Male: Why did you do that? >> Female: I should have told you.');
+    assert.deepStrictEqual(maleFirst[0].dialogue.map(d => d.speaker), ['George','Sarah']);
+    const repeated = D.labelledTranscriptTurns('Male: One. >> Male: Two. >> Female: Three.');
+    assert.deepStrictEqual(repeated.map(t => t.speaker), ['George','George','Sarah']);
+    assert.throws(() => D.sourceSpeakerMap([{ source_dialogue:[{speaker:'A',gender:'male'},{speaker:'A',gender:'female'}]}],cast,p), /changes gender/);
+    assert.throws(() => D.sourceSpeakerMap([{ source_dialogue:[{speaker:'A',gender:'unknown'}]}],cast,p), /unknown gender/);
+    const prompt = require('./analyze_video').buildPrompt(id);
+    assert(prompt.includes('"gender":"female or male or unknown"'));
+    assert(prompt.includes('matching voice across the video'));
+    assert(prompt.includes('Never') && prompt.includes('sentence meaning'));
+    assert(D.speakerLock(p).includes('Sarah is the female'));
+}
+const stopped = spawnSync(process.execPath, ['write_story.js', '--title', 'Our relationship', '--preset', 'relationship-dialogue-ghibli', '--detail', 'Why did you do it? >> I am sorry. >> What now?', '--dry-run'], {encoding:'utf8'});
+assert.notStrictEqual(stopped.status, 0);
+assert((stopped.stdout + stopped.stderr).includes('Label EVERY turn'));
+assert(!stopped.stdout.includes('[1/2] writing'), 'ambiguous source is stopped before API writing');
+console.log('PASS: source identity overrides cast order; reversed speakers are detected; labelled transcripts override anonymous defaults.');

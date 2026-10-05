@@ -87,11 +87,11 @@ const path = require('path');
 // cast holds across clips. See mention_target.js for the measurement.
 const MT = require('./mention_target.js');
 const W  = require('./write_story.js');
-// The Settings-panel helpers, so the video model is set by the same code that
-// sets it when the reference sheets are made, rather than a second copy that can
-// drift from it. Safe to require: generate_refs.js runs its own work only under
-// `require.main === module`.
-const GR = require('./generate_refs.js');
+const { applyAgentSettings } = require('./agent_settings.js');
+// The narrator's voice: which one a preset asks for, and the picker walk that
+// attaches it. Shared with the extend engine, which now attaches the same voice
+// to every clip - see flow_voice.js.
+const { attachVoice: attachVoiceShared } = require('./flow_voice.js');
 
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -112,7 +112,8 @@ const CDP_URL    = `http://127.0.0.1:${CDP_PORT}`;
 // A specific project to open before anything else. project_setup.js prints this
 // URL, so a batch can give every film its own project instead of trusting
 // whichever tab happens to be open.
-const PROJECT_URL = typeof flag('--project-url') === 'string' ? flag('--project-url').trim() : '';
+const { normalizeProjectUrl, selectAgentPage } = require('./flow_project.js');
+const PROJECT_URL = typeof flag('--project-url') === 'string' ? normalizeProjectUrl(flag('--project-url')) : '';
 // The video model this project must generate with ("Veo 3.1 - Fast",
 // "Omni 1.1 Flash", ...). Empty leaves Flow's own setting alone, which is what
 // every run did before this existed.
@@ -170,7 +171,7 @@ const PROMPT_TEXT = (PROMPT_BASE && MODEL_HINT)
 // Belt-and-braces policy pass: strip wording the video model refuses outright
 // before it ever reaches the box. The writer already carries the rule; this
 // catches a slip. Long prompts still paste, so the text is otherwise untouched.
-const SEND_TEXT = W.sanitizeForPolicy(PROMPT_TEXT);
+const SEND_TEXT = PROMPT_TEXT == null ? null : W.sanitizeForPolicy(PROMPT_TEXT);
 if (SEND_TEXT !== PROMPT_TEXT) log('Policy sanitizer adjusted the prompt before sending.');
 
 // A long prompt must NOT be typed key by key - a 3000-character story at 45ms a
@@ -178,10 +179,16 @@ if (SEND_TEXT !== PROMPT_TEXT) log('Policy sanitizer adjusted the prompt before 
 // safe for the mention flow because the mention is typed separately in step 5b.
 const LONG_PROMPT = !!(PROMPT_TEXT && PROMPT_TEXT.length > 400);
 const CHECK_ONLY = !!flag('--check', false);
+// Recovery mode for an interrupted Agent run. It never types or submits the
+// story prompt; it only retries controls that are physically inside a failed
+// media tile. Flow's conversation-level "Try again" repeats the whole request
+// and creates duplicates, so that control must never be clicked here.
+const RETRY_FAILED_ONLY = !!flag('--retry-failed-only', false);
 const DO_SETTINGS= !!flag('--settings', false);
 const NO_SUBMIT  = !!flag('--no-submit', false);
 const AUTO_APPROVE = !!flag('--auto-approve', false);
 const USE_PASTE  = !!flag('--paste', false);
+const FLOW_CHARACTERS = !!flag('--flow-characters', false);
 const WATCH_SECS = parseInt(flag('--watch', '240'), 10);
 // Veo fails a clip now and then (most often "Audio generation failed"). After
 // the first watch, click the Retry affordances and watch again - this many
@@ -191,6 +198,8 @@ const RETRY_WATCH = parseInt(flag('--retry-watch', '90'), 10);
 // Expected clip count, read from the prompt ("Create N separate clips"). Used as
 // a gate: a partial film must not be downloaded and joined as if it were whole.
 const EXPECTED_CLIPS = (() => {
+    const explicit = parseInt(flag('--expected', '0'), 10);
+    if (Number.isInteger(explicit) && explicit > 0) return explicit;
     const m = String(PROMPT_TEXT || '').match(/create\s+(\d+)\s+separate\s+clips/i);
     return m ? parseInt(m[1], 10) : 0;
 })();
@@ -295,8 +304,18 @@ function snapshotFn() {
         .slice(0, 60)
         .map(el => d(el, 1));
 
+    const videoEls = [...document.querySelectorAll('flow-video-tile')];
+    const FAIL = /audio generation failed|failed to generate|generation failed|something went wrong|try a different prompt|you have not been charged/i;
+    const BUSY = /generating|generation in progress|queued|processing|creating|(?:^|\n)\s*\d{1,2}%\s*(?:\n|$)/i;
+    const failedVideos = videoEls.filter(t => FAIL.test(t.innerText || t.textContent || '')
+        || !!t.querySelector('[class*=error-tile], button[aria-label="Retry"]'));
+    const generatingVideos = videoEls.filter(t => !failedVideos.includes(t)
+        && (BUSY.test(t.innerText || t.textContent || '') || !!t.querySelector('mat-progress-spinner, [role="progressbar"], [class*=spinner]')));
     const mediaTiles = {
-        flow_video_tile: document.querySelectorAll('flow-video-tile').length,
+        flow_video_tile: videoEls.length,
+        ready_video_tile: Math.max(0, videoEls.length - failedVideos.length - generatingVideos.length),
+        failed_video_tile: failedVideos.length,
+        generating_video_tile: generatingVideos.length,
         flow_image_tile: document.querySelectorAll('flow-image-tile').length,
         any_tile: [...document.querySelectorAll('*')].filter(el => /tile/i.test(cls(el)) && vis(el)).length,
     };
@@ -305,7 +324,9 @@ function snapshotFn() {
 
     return {
         url: location.href,
-        agentOn: !!(chip && /checked/.test(cls(chip))),
+        agentOn: !!(chip && /checked/.test(cls(chip)))
+            || [...document.querySelectorAll('.agent-panel-prompt-box, .agent-panel-wrapper')]
+                .some(vis),
         chipClass: chip ? cls(chip) : null,
         instructionsBtn: !!document.querySelector('button[aria-label="Agent instructions"]'),
         settingsBtn: !!document.querySelector('button[aria-label="Settings"]'),
@@ -319,6 +340,9 @@ function snapshotFn() {
             .filter(el => el.children.length).map(el => d(el, 2)),
         buttons,
         chatish,
+        conversationRows: [...document.querySelectorAll('.messages-list .message-row')]
+            .map(el => ({ role: el.classList.contains('user-row') ? 'user' : 'agent',
+                text: (el.innerText || '').trim(), error: !!el.querySelector('.chat-error-card') })),
         mediaTiles,
         tail: body.slice(-2000),
     };
@@ -333,10 +357,12 @@ function retryFn() {
     // The specific Veo failure wording, NOT a bare /error/ - that appears in
     // unrelated UI and would make every page look broken.
     const FAIL = /audio generation failed|failed to generate|generation failed|something went wrong|try a different prompt/i;
-    const body = document.body.innerText || '';
-    const failedText = FAIL.test(body);
-    const retryButtons = [...document.querySelectorAll('button')]
-        .filter(b => vis(b) && /^retry$/i.test((b.getAttribute('aria-label') || '').trim())).length;
+    const scopes = [...document.querySelectorAll('flow-video-tile, [class*=error-tile], [class*=generation-error], [class*=media-error]')]
+        .filter(vis).filter(el => FAIL.test(el.innerText || el.textContent || '')
+            || !!el.querySelector('button[aria-label="Retry"], button.reuse-prompt-button, button[aria-label="Reuse prompt"]'));
+    const failedText = scopes.some(el => FAIL.test(el.innerText || el.textContent || ''));
+    const retryButtons = scopes.reduce((n, el) => n + [...el.querySelectorAll('button')]
+        .filter(b => vis(b) && /^retry$/i.test((b.getAttribute('aria-label') || '').trim()) && !b.disabled).length, 0);
     // A failed media tile renders as an "error tile" holding a Reuse-prompt
     // button. That is the precise anchor: matching a generic ancestor (the
     // virtual-scroll container, a whole section) counts healthy tiles too.
@@ -346,28 +372,29 @@ function retryFn() {
     // A policy refusal reads very differently from a generation failure: the
     // model says it cannot help with that. Count it so the agent can re-ask
     // with a policy-safe wording instead of blindly clicking Retry.
-    const refusedText = /policy|violat|community guidelines|not allowed|cannot (generate|create|help)|can't (generate|create|help)|unable to (generate|create)|against our|blocked by|safety/i.test(body);
+    const refusedText = scopes.some(el => /policy|violat|community guidelines|not allowed|cannot (generate|create|help)|can't (generate|create|help)|unable to (generate|create)|against our|blocked by|safety/i.test(el.innerText || el.textContent || ''));
     return { failedText, retryButtons, reuseInError, refusedText };
 }
 
-// Click them. Conversation Retry buttons are safe to click together. A failed
-// grid tile offers only "Reuse prompt": clicking it refills the prompt box and
-// Start generation resubmits it - so do at most ONE of those per round, since
-// the box holds one prompt at a time.
+// Click only a control owned by a failed MEDIA tile. Never click Flow's global
+// conversation "Try again": that repeats the complete multi-clip request.
+// Do one tile per pass so the prompt box cannot be overwritten by another tile.
 async function clickFailures(page) {
     return await page.evaluate(() => {
         const vis = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
         let retry = 0, reuse = 0;
-        for (const b of [...document.querySelectorAll('button')]) {
-            if (vis(b) && /^retry$/i.test((b.getAttribute('aria-label') || '').trim()) && !b.disabled) {
-                b.click(); retry++;
-            }
-        }
-        if (!retry) {
-            const tile = [...document.querySelectorAll('[class*=error-tile]')].find(vis);
-            if (tile) {
+        const FAIL = /audio generation failed|failed to generate|generation failed|something went wrong|try a different prompt|you have not been charged/i;
+        const scopes = [...document.querySelectorAll('flow-video-tile, [class*=error-tile], [class*=generation-error], [class*=media-error]')]
+            .filter(vis).filter(el => FAIL.test(el.innerText || el.textContent || '')
+                || !!el.querySelector('button[aria-label="Retry"], button.reuse-prompt-button, button[aria-label="Reuse prompt"]'));
+        const tile = scopes[0];
+        if (tile) {
+            const rb = [...tile.querySelectorAll('button')].find(b => vis(b)
+                && /^retry$/i.test((b.getAttribute('aria-label') || '').trim()) && !b.disabled);
+            if (rb) { rb.click(); retry = 1; }
+            else {
                 const b = tile.querySelector('button.reuse-prompt-button, button[aria-label="Reuse prompt"]');
-                if (b && !b.disabled && vis(b)) { b.click(); reuse++; }
+                if (b && !b.disabled && vis(b)) { b.click(); reuse = 1; }
             }
         }
         return { retry, reuse };
@@ -426,103 +453,12 @@ async function nudgeAgent(page) {    const box = await page.evaluate(() => {
     return true;
 }
 
-// Attach a named voice from Flow's Voices library to the prompt box:
-//   "+" (Add ingredients) -> Voices filter -> search the name -> pick the
-//   asset-item -> "Add to prompt".
-// Without this Veo invents its own narrator and the voice drifts clip to clip.
+// Attach a named voice from Flow's Voices library to the prompt box.
+// The walk itself lives in flow_voice.js, because the extend engine attaches
+// the same voice to every clip and two copies of this sequence would drift.
+// Kept as a function with this exact name so every call site is unchanged.
 async function attachVoice(page, name) {
-    for (let attempt = 1; attempt <= 3; attempt++) {
-        await page.keyboard.press('Escape');
-        await wait(700);
-        const btnBox = await page.evaluate(() => {
-            const b = [...document.querySelectorAll('button')].find((x) => !!x.querySelector('.add-menu-icon'))
-                || document.querySelector('button[aria-label="Add ingredients to the prompt box"]');
-            if (!b) return null;
-            b.scrollIntoView({ block: 'center' });
-            const r = b.getBoundingClientRect();
-            return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
-        });
-        if (!btnBox) { log(`  attempt ${attempt}: no ingredients menu button`); await wait(1200); continue; }
-        await page.mouse.click(btnBox.x, btnBox.y);
-        await wait(2500);
-        const menuOpen = await page.evaluate(() => !!document.querySelector('input[aria-label="Search assets"]'));
-        if (!menuOpen) { log(`  attempt ${attempt}: ingredients menu did not open`); await wait(800); continue; }
-        await page.evaluate(() => {
-            const el = [...document.querySelectorAll('mat-list-item, [role="menuitem"], button, li, span')]
-                .find((x) => /^voices$/i.test((x.innerText || '').trim()));
-            if (el) el.click();
-        });
-        await wait(1300);
-        const preCount = await page.evaluate(() => document.querySelectorAll('button.asset-item').length);
-        log(`  (voice list shows ${preCount} item(s) before search)`);
-        const wantedSrc = '\\b' + String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b';
-        const findItem = () => page.evaluate((src) => {
-            const re = new RegExp(src, 'i');
-            const el = [...document.querySelectorAll('button.asset-item')].find((x) => re.test(x.innerText || ''));
-            if (!el) return null;
-            el.scrollIntoView({ block: 'center' });
-            const r = el.getBoundingClientRect();
-            return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2), text: (el.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 42) };
-        }, wantedSrc);
-        // The voices list is short, so SCAN it first. The search box is fussy
-        // about a full name and often says "No assets found" for an item that is
-        // plainly in the list, so it is only the fallback.
-        let item = await findItem();
-        if (!item) {
-            const query = String(name).slice(0, Math.max(3, Math.min(String(name).length, 4)));
-            const inp = await page.evaluate(() => {
-                // The top bar has input.search-input too, so match the aria-label
-                // that only the assets picker uses.
-                const i = document.querySelector('input[aria-label="Search assets"]')
-                    || [...document.querySelectorAll('input')].find((x) => /search assets/i.test(x.getAttribute('placeholder') || ''));
-                if (!i) return null;
-                const r = i.getBoundingClientRect();
-                return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
-            });
-            if (inp) {
-                await page.mouse.click(inp.x, inp.y);
-                await wait(300);
-                await page.keyboard.down('Control'); await page.keyboard.press('KeyA'); await page.keyboard.up('Control');
-                await page.keyboard.press('Backspace');
-                await page.keyboard.type(query, { delay: 60 });
-                await wait(2200);
-                item = await findItem();
-            }
-        }
-        if (!item) {
-            const info = await page.evaluate(() => ({
-                items: [...document.querySelectorAll('button.asset-item')].map((x) => (x.innerText || '').replace(/voice_selection/i, '').replace(/\s+/g, ' ').trim()).slice(0, 20),
-                searchVal: (document.querySelector('input[aria-label="Search assets"]') || {}).value,
-                pane: (document.querySelector('.cdk-overlay-pane') || {}).innerText
-                    ? document.querySelector('.cdk-overlay-pane').innerText.replace(/\n/g, ' | ').slice(0, 200) : null,
-            }));
-            log(`  attempt ${attempt}: no voice matched "${name}" | listed=${JSON.stringify(info.items)} searchVal=${JSON.stringify(info.searchVal)} pane=${JSON.stringify(info.pane)}`);
-            await page.keyboard.press('Escape');
-            await wait(900);
-            continue;
-        }
-        // A REAL click: a synthetic .click() selects the row but does not arm the
-        // detail pane, so the "Add to prompt" button never appears.
-        await page.mouse.click(item.x, item.y);
-        log(`  selected voice: ${item.text}`);
-        await wait(2400);
-        const addBtn = await page.evaluate(() => {
-            const b = document.querySelector('[class*=detail-add-to]')
-                || [...document.querySelectorAll('button')].find((x) => /add to prompt/i.test((x.innerText || '').trim()));
-            if (!b) return null;
-            const r = b.getBoundingClientRect();
-            return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
-        });
-        let added = false;
-        if (addBtn) { await page.mouse.click(addBtn.x, addBtn.y); added = true; }
-        await wait(1500);
-        await page.keyboard.press('Escape');
-        await wait(800);
-        log(`  voice "${name}" ${added ? 'added to the prompt' : 'selected, but Add-to-prompt not found'}`);
-        if (added) return true;
-    }
-    log(`  could not attach voice "${name}" after 3 attempts`);
-    return false;
+    return attachVoiceShared(page, name, { log, wait });
 }
 
 // A short watch that also auto-approves, used between retry rounds.
@@ -540,6 +476,7 @@ async function sweepFor(page, secs, tag) {
         }
         if (AUTO_APPROVE) {
             const cands = cur.buttons.filter(b => b.aria && APPROVE.test(b.aria) && !b.disabled &&
+                !/try again|retry|regenerate/i.test(b.aria + ' ' + b.text) &&
                 !/^(Settings|Agent instructions|Start generation|Start new session|New session|Home|Search|Favorite|Expand)$/i.test(b.aria));
             if (cands.length) {
                 await page.evaluate((lbl) => {
@@ -554,6 +491,61 @@ async function sweepFor(page, secs, tag) {
     // No snapshot here: `snap` lives in the run scope, not at module level, and
     // calling it from here crashed the retry pass with "snap is not defined".
     return await page.evaluate(snapshotFn);
+}
+
+async function retryFailedMediaOnly(page, snap, label = 'retry') {
+    let retried = 0;
+    for (let round = 1; round <= RETRY_ROUNDS; round++) {
+        const cur = await page.evaluate(snapshotFn);
+        const mt = cur.mediaTiles;
+        const tally = EXPECTED_CLIPS > 0
+            ? `ready=${mt.ready_video_tile}/${EXPECTED_CLIPS}, failed=${mt.failed_video_tile}, generating=${mt.generating_video_tile}`
+            : `ready=${mt.ready_video_tile}, failed=${mt.failed_video_tile}, generating=${mt.generating_video_tile}`;
+        const st = await page.evaluate(retryFn);
+
+        // Once the project already has the requested number of completed
+        // videos, retrying an additional failed attempt can only increase the
+        // excess count. Let download + dialogue ordering choose one per scene.
+        if (EXPECTED_CLIPS > 0 && mt.ready_video_tile >= EXPECTED_CLIPS) {
+            log(`Round ${round}: ${tally}; enough completed clips already exist, so failed attempts are left untouched.`);
+            if (mt.ready_video_tile > EXPECTED_CLIPS) log('  Duplicate count detected; retrying would create more clutter.');
+            break;
+        }
+
+        if (!st.retryButtons && !st.reuseInError) {
+            if (mt.generating_video_tile > 0) {
+                log(`Round ${round}: ${tally}; waiting for active generations.`);
+                await sweepFor(page, RETRY_WATCH, `${label}-${round}-waiting`);
+                continue;
+            }
+            log(`Round ${round}: ${tally}; no failed media-tile retry control remains.`);
+            break;
+        }
+        if (st.refusedText) {
+            log(`Round ${round}: a failed media tile reports a policy refusal.`);
+            log('  Safe retry stopped. Edit that one prompt manually; the full story will not be resubmitted.');
+            break;
+        }
+
+        log(`Round ${round}: ${tally}; retrying ONE failed media tile only.`);
+        const c = await clickFailures(page);
+        retried += c.retry + c.reuse;
+        if (!c.retry && !c.reuse) {
+            log('  No media-scoped retry control was clickable. The conversation-level Try again was deliberately ignored.');
+            break;
+        }
+        log(`  clicked inside failed tile: Retry=${c.retry}, Reuse prompt=${c.reuse}`);
+        await wait(2500);
+        if (c.reuse) {
+            const started = await clickStart(page);
+            log(`  Start generation: ${started ? 'clicked' : 'not clickable'}`);
+            if (!started) break;
+            await wait(2500);
+        }
+        await snap(`${label}-${round}`);
+        await sweepFor(page, RETRY_WATCH, `${label}-${round}-after`);
+    }
+    return retried;
 }
 
 // ---- deep read of the "@" picker -------------------------------------------
@@ -724,15 +716,11 @@ async function uploadRefThroughPicker(page, box, file) {
     fs.mkdirSync(RUN_DIR, { recursive: true });
 
     const browser = await puppeteer.connect({ browserURL: CDP_URL, defaultViewport: null });
-    const pages = await browser.pages();
+    const { page, pages, flowTabs } = await selectAgentPage(browser, PROJECT_URL);
     // Prefer a tab that is actually IN a project over one sitting on the
     // Flow home page: the browser often carries both, and first-match
     // grabbed whichever loaded first - the home tab - and then failed the
     // project-id check below even though the project was open all along.
-    const flowTabs = pages.filter(p => /flow\.google\.com/i.test(p.url() || ''));
-    const page = flowTabs.find(p => /\/project\//i.test(p.url() || ''))
-              || flowTabs.find(p => /\/edit\/|\/scene\//i.test(p.url() || ''))
-              || flowTabs[0];
     if (!page) {
         console.error('No Flow tab found in the AUTOMATION browser. Open a Flow project there.');
         console.error('Open tabs:\n  ' + pages.map(p => p.url()).join('\n  '));
@@ -759,7 +747,7 @@ async function uploadRefThroughPicker(page, box, file) {
         await page.goto(PROJECT_URL, { waitUntil: 'domcontentloaded', timeout: 120000 });
         await wait(5000);
     }
-    const m = page.url().match(/\/project\/([0-9a-f-]+)/i);
+    const m = page.url().match(/\/project\/([a-zA-Z0-9_-]+)/);
     if (!m) {
         console.error(`Cannot find a project id in ${page.url()}`);
         console.error('Open a Flow project (https://flow.google.com/project/...) and retry.');
@@ -805,6 +793,52 @@ async function uploadRefThroughPicker(page, box, file) {
         await wait(2500);
         s = await snap('agent-on');
         log(`Agent Mode now ${s.agentOn ? 'ON' : 'STILL OFF (clicked, but class did not change)'}`);
+    }
+
+    if (!s.agentOn) throw Error('Agent Mode did not turn on. No generation submitted.');
+
+    if (RETRY_FAILED_ONLY) {
+        // An Agent request error is different from a failed video tile. Only
+        // replay the exact pending request after two empty-media observations.
+        const { failedBeforeMedia } = require('./agent_batch_recovery');
+        if (failedBeforeMedia(s, SEND_TEXT)) {
+            await wait(10000);
+            s = await snap('recovery-no-media-confirmed');
+            if (failedBeforeMedia(s, SEND_TEXT)) {
+                log('BATCH_REQUEST_FAILED_BEFORE_MEDIA: exact pending request has an Agent error and no video tiles.');
+                await browser.disconnect();
+                process.exit(3);
+            }
+        }
+        banner(`SAFE RETRY: FAILED MEDIA TILES ONLY${EXPECTED_CLIPS ? ` (expect ${EXPECTED_CLIPS})` : ''}`);
+        log('The full story prompt will not be typed or submitted.');
+        log('Flow conversation-level "Try again" is ignored because it repeats every clip.');
+        const retried = await retryFailedMediaOnly(page, snap, 'safe-retry');
+        const final = await snap('safe-retry-final');
+        const mt = final.mediaTiles;
+        log(`Safe retries : ${retried}`);
+        log(`Clip state   : ready=${mt.ready_video_tile}, failed=${mt.failed_video_tile}, generating=${mt.generating_video_tile}, total=${mt.flow_video_tile}`);
+        const duplicate = EXPECTED_CLIPS > 0 && mt.ready_video_tile > EXPECTED_CLIPS;
+        const incomplete = mt.failed_video_tile > 0 || mt.generating_video_tile > 0
+            || (EXPECTED_CLIPS > 0 && mt.ready_video_tile !== EXPECTED_CLIPS);
+        if (duplicate) log('DUPLICATES DETECTED: ready clips exceed the story count. Download can map one clip per scene; automatic join stays blocked until the manifest is exact.');
+        await browser.disconnect();
+        if (incomplete) process.exit(2);
+        return;
+    }
+
+    // Batch orchestrator supplies the exact completed count required before
+    // adding another request. A reused project or uncertain interrupted run
+    // must never receive the same scene batch a second time.
+    const requiredReady = flag('--require-ready', null);
+    if (requiredReady !== null) {
+        const mt = s.mediaTiles;
+        if (mt.ready_video_tile !== Number(requiredReady)
+            || mt.generating_video_tile > 0 || mt.failed_video_tile > 0) {
+            log(`BATCH STOP: expected ${requiredReady} completed clips and no pending failures; found ready=${mt.ready_video_tile}, failed=${mt.failed_video_tile}, generating=${mt.generating_video_tile}. No prompt submitted.`);
+            await browser.disconnect();
+            process.exit(2);
+        }
     }
 
     // ---- 4. Optional: dump the settings menu -------------------------------
@@ -866,7 +900,7 @@ async function uploadRefThroughPicker(page, box, file) {
     // Must happen first: it types a bare "@" to open the picker, and there is
     // nothing in the box yet to disturb. An Image tile cannot be picked if the
     // sheet was never uploaded to this project.
-    if (REFS.length) {
+    if (REFS.length && !FLOW_CHARACTERS) {
         banner('REFERENCE IMAGES');
         log(`${REFS.length} reference image(s) declared.`);
         let ready = 0, missing = 0;
@@ -984,7 +1018,9 @@ async function uploadRefThroughPicker(page, box, file) {
             // name", which is blind to the tile's TYPE - and type is the whole
             // story: an Image tile keeps the cast stable, a Character tile does
             // not. chooseMentionTile ranks by type first, depth second.
-            const choice = MT.chooseMentionTile(pk.clickable || [], name);
+            const requiredKind = FLOW_CHARACTERS && /^(Sarah|George)$/i.test(name) ? 'character' : null;
+            const choice = MT.chooseMentionTile(pk.clickable || [], name, {requiredKind});
+            if(requiredKind && !choice.inner) throw Error(`Named Flow Character ${name} was not found. Create ${name} in Characters, add its reference image and assign its voice before running. No generation submitted.`);
             fs.writeFileSync(
                 path.join(RUN_DIR, `${String(snapN).padStart(2, '0')}_mention${mi + 1}-choice.json`),
                 JSON.stringify(choice, null, 2));
@@ -1007,6 +1043,7 @@ async function uploadRefThroughPicker(page, box, file) {
                 });
                 log(`   chips in the editor now: ${chipsNow} (expected ${mi + 1})`);
                 if (chipsNow >= 0 && chipsNow < mi + 1) {
+                    if(FLOW_CHARACTERS)throw Error(`Attachment ${name} failed. No generation submitted.`);
                     log('   the click did NOT attach a chip - the mention is missing from the prompt.');
                 }
             } else {
@@ -1024,6 +1061,7 @@ async function uploadRefThroughPicker(page, box, file) {
         });
         log(`Mention chips in the prompt: ${chips} (expected ${MENTIONS.length})`);
         if (chips >= 0 && chips < MENTIONS.length) {
+            if(FLOW_CHARACTERS)throw Error('Required character/location chips are missing. No generation submitted.');
             log('Fewer chips than characters - at least one attachment FAILED. Do not submit blind.');
         }
     } else {
@@ -1042,41 +1080,13 @@ async function uploadRefThroughPicker(page, box, file) {
     log(`Final prompt: "${(s.promptText || '').slice(0, 140)}"`);
     log(`Submit button: ${s.generateBtn.exists ? (s.generateBtn.disabled ? 'STILL DISABLED' : 'READY') : 'NOT FOUND'}`);
 
-    // ---- 5b. The video model ------------------------------------------------
-    // Last thing before Generate, which is where it has to be: the model is a
-    // property of the PROJECT, and Flow remembers the last one used in it. Left
-    // alone, a project opened for a new film quietly generates on whatever was
-    // picked last time. Setting it here means the choice is made against the
-    // project as it actually stands - refs attached, prompt typed - rather than
-    // inherited from a run weeks ago.
-    if (VIDEO_MODEL) {
-        banner(`VIDEO MODEL -> ${VIDEO_MODEL}`);
-        if (await GR.openSettingsPanel(page)) {
-            const vm = await GR.setSectionModel(page, 'video', VIDEO_MODEL);
-            if (vm.ok) {
-                log(vm.changed
-                    ? `Video generation default set to ${vm.model}`
-                    : `Video generation default already ${vm.model} - nothing to change`);
-                if (vm.changed) {
-                    const saved = await GR.clickSave(page);
-                    log(saved ? 'settings saved' : 'WARNING: no Save button found - the model may not stick');
-                }
-            } else {
-                log(`WARNING: could not set the video model (${vm.why}).`);
-                log('The film will generate with whatever Flow has selected - check the');
-                log('model in the prompt bar before trusting this run.');
-            }
-            // Save is also the only way to close this drawer, so this runs even
-            // when nothing changed - it writes the project's own values back.
-            if (!await GR.closeSettings(page)) {
-                log('WARNING: the Settings panel would not close - it covers part of');
-                log('the prompt bar, so the next step may misclick. Close it by hand.');
-            }
-            await wait(1500);   // let the panel's backdrop/animation finish
-        } else {
-            log('WARNING: could not open the Settings panel to set the video model.');
-        }
-    }
+    // Apply the GUI choices together before submitting any generation.
+    if(FLOW_CHARACTERS && !/omni/i.test(VIDEO_MODEL || '')) throw Error('Flow Character voice mode requires an Omni Flash video model. Choose it in the GUI. No generation submitted.');
+    await applyAgentSettings(page, {
+        videoModel: VIDEO_MODEL,
+        aspect: typeof flag('--aspect') === 'string' ? flag('--aspect') : 'Flow',
+        log,
+    });
 
     if (NO_SUBMIT) {
         log(`--no-submit: stopping here. Snapshots in ${RUN_DIR}`);
@@ -1119,6 +1129,15 @@ async function uploadRefThroughPicker(page, box, file) {
         await browser.disconnect();
         process.exit(1);
     }
+    // Persist uncertainty BEFORE the credit-spending click. Recovery can only
+    // replay automatically when this point was never reached.
+    const submissionFile = flag('--submission-file', null);
+    if (submissionFile) {
+        const intent = JSON.parse(fs.readFileSync(submissionFile, 'utf8'));
+        intent.status = 'submitting';
+        fs.writeFileSync(submissionFile + '.tmp', JSON.stringify(intent));
+        fs.renameSync(submissionFile + '.tmp', submissionFile);
+    }
     await page.mouse.click(target.cx, target.cy);
     log('Submitted.');
 
@@ -1140,11 +1159,17 @@ async function uploadRefThroughPicker(page, box, file) {
     let lastTailAt = 0;       // when the agent's text last changed
     let lastNudgeAt = -999;   // when we last sent a nudge
     let nudges = 0;
+    const completedBatch = require('./agent_batch_completion').completionTracker(EXPECTED_CLIPS);
 
     while ((Date.now() - t0) / 1000 < WATCH_SECS) {
         await wait(4000);
         const cur = await page.evaluate(snapshotFn);
         const elapsed = Math.round((Date.now() - t0) / 1000);
+        if (completedBatch(cur.mediaTiles)) {
+            log(`[${elapsed}s] All ${EXPECTED_CLIPS} clips are completed, with no failed or active generations. Releasing the next batch automatically.`);
+            await snap('batch-completed');
+            break;
+        }
 
         if (cur.chatish.length && !sawChat) {
             sawChat = true;
@@ -1170,6 +1195,7 @@ async function uploadRefThroughPicker(page, box, file) {
         // Approval buttons the agent has put on screen.
         const cands = cur.buttons.filter(b =>
             b.aria && APPROVE.test(b.aria) && !b.disabled &&
+            !/try again|retry|regenerate/i.test(b.aria + ' ' + b.text) &&
             !/^(Settings|Agent instructions|Start generation|Start new session|New session|Home|Search|Favorite|Expand)$/i.test(b.aria)
         );
         if (cands.length) {
@@ -1199,7 +1225,7 @@ async function uploadRefThroughPicker(page, box, file) {
         // never renders an approval card, so nothing ever starts. Nudge it.
         const asking = /going to generate|i will generate|i'll generate|about to generate|shall i|would you like me to|ready to generate|once you confirm|please confirm|let me know/i.test(cur.tail || '');
         const stuckFor = elapsed - lastTailAt;
-        if (AUTO_APPROVE && !cands.length && asking && stuckFor > 12 && nudges < 4 && (elapsed - lastNudgeAt) > 30) {
+        if (requiredReady === null && AUTO_APPROVE && !cands.length && asking && stuckFor > 12 && nudges < 4 && (elapsed - lastNudgeAt) > 30) {
             nudges++;
             lastNudgeAt = elapsed;
             if (await nudgeAgent(page)) {
@@ -1215,50 +1241,9 @@ async function uploadRefThroughPicker(page, box, file) {
     // Click the Retry affordances and watch again, a bounded number of rounds,
     // instead of handing back a short film.
     let retried = 0;
-    let policyNudges = 0;
     if (RETRY_ROUNDS > 0) {
         banner(`CHECKING CLIPS${EXPECTED_CLIPS > 0 ? ` (expect ${EXPECTED_CLIPS})` : ''} - up to ${RETRY_ROUNDS} retry rounds`);
-        for (let round = 1; round <= RETRY_ROUNDS; round++) {
-            const cur = await page.evaluate(snapshotFn);
-            const have = cur.mediaTiles.flow_video_tile;
-            const tally = EXPECTED_CLIPS > 0 ? `${have}/${EXPECTED_CLIPS}` : `video=${have}`;
-            // SUCCESS: every clip is on screen. Nothing to retry.
-            if (EXPECTED_CLIPS > 0 && have >= EXPECTED_CLIPS) {
-                log(`Round ${round}: clips ${tally} [OK] - all clips ready.`);
-                break;
-            }
-            const st = await page.evaluate(retryFn);
-            // A policy refusal is not a transient failure: clicking Retry sends
-            // the same refused words. Re-ask for a policy-safe version instead.
-            if (st.refusedText) {
-                policyNudges++;
-                log(`Round ${round}: clips ${tally} - POLICY REFUSAL on screen; re-asking with policy-safe wording (${policyNudges}).`);
-                if (await policyNudge(page)) {
-                    await snap(`policy-nudge-${policyNudges}`);
-                    await sweepFor(page, RETRY_WATCH, `policy-nudge-${policyNudges}-after`);
-                }
-                if (policyNudges >= 2) { log('  policy nudge limit reached - stopping.'); break; }
-                continue;
-            }
-            // Nothing failed and nothing is retryable: the gate downstream decides.
-            if (!st.retryButtons && !st.reuseInError) {
-                log(`Round ${round}: clips ${tally}, no retry affordance on screen - stopping.`);
-                break;
-            }
-            log(`Round ${round}: clips ${tally} [INCOMPLETE], ${st.retryButtons} Retry button(s), ${st.reuseInError} failed tile(s) - retrying.`);
-            const c = await clickFailures(page);
-            retried += c.retry + c.reuse;
-            if (!c.retry && !c.reuse) { log('  nothing clickable - stopping retries.'); break; }
-            log(`  clicked: ${c.retry} Retry, ${c.reuse} Reuse prompt`);
-            await wait(2500);
-            if (c.reuse) {
-                const s = await clickStart(page);
-                log(`  Start generation: ${s ? 'clicked' : 'not clickable'}`);
-                await wait(2500);
-            }
-            await snap(`retry-${round}`);
-            await sweepFor(page, RETRY_WATCH, `retry-${round}-after`);
-        }
+        retried = await retryFailedMediaOnly(page, snap, 'retry');
         log(`Retry pass done: ${retried} affordance(s) clicked.`);
     }
 
@@ -1267,7 +1252,7 @@ async function uploadRefThroughPicker(page, box, file) {
     banner('AGENT RUN SUMMARY');
     log(`Project      : ${projectId}`);
     log(`Agent Mode   : ${final.agentOn ? 'ON' : 'OFF'}`);
-    log(`Clips/images : video=${final.mediaTiles.flow_video_tile} image=${final.mediaTiles.flow_image_tile} any-tile=${final.mediaTiles.any_tile}`);
+    log(`Clips/images : ready=${final.mediaTiles.ready_video_tile} failed=${final.mediaTiles.failed_video_tile} generating=${final.mediaTiles.generating_video_tile} total-video=${final.mediaTiles.flow_video_tile} image=${final.mediaTiles.flow_image_tile}`);
     log(`Approvals    : ${approvals} auto-clicked`);
     log(`Retries      : ${retried} failed-clip affordance(s) clicked`);
     log(`Conversation : ${sawChat ? 'yes' : 'no chat nodes matched'}`);
@@ -1277,9 +1262,12 @@ async function uploadRefThroughPicker(page, box, file) {
     // whole. Video tiles are the clips (the reference sheets are images).
     let incomplete = false;
     if (EXPECTED_CLIPS > 0) {
-        const have = final.mediaTiles.flow_video_tile;
-        incomplete = have < EXPECTED_CLIPS;
-        log(`Clips ready  : ${have}/${EXPECTED_CLIPS}  [${incomplete ? 'INCOMPLETE' : 'OK'}]`);
+        const have = final.mediaTiles.ready_video_tile;
+        const failed = final.mediaTiles.failed_video_tile;
+        const generating = final.mediaTiles.generating_video_tile;
+        incomplete = have !== EXPECTED_CLIPS || failed > 0 || generating > 0;
+        const state = have > EXPECTED_CLIPS ? 'DUPLICATES' : (incomplete ? 'INCOMPLETE' : 'OK');
+        log(`Clips ready  : ${have}/${EXPECTED_CLIPS}, failed=${failed}, generating=${generating}  [${state}]`);
         if (incomplete) {
             log('  Not every clip was produced, so download/join is SKIPPED - a partial');
             log('  film would look broken. Re-run to retry it, or raise --retry-rounds.');

@@ -44,6 +44,9 @@ function stubEngine(script) {
     engine.state = { timeline: script.startSeconds || 0, pct: null };
     engine.sweeps = [];
     engine.polls = 0;
+    engine.countCompletedClips = async () => engine.state.completed !== undefined
+        ? engine.state.completed
+        : (engine.state.timeline >= 15 ? 1 : 0);
 
     engine.evalJs = async (fn, ...args) => {
         const src = fn.toString();
@@ -53,7 +56,9 @@ function stubEngine(script) {
         if (/always approve/.test(src)) {              // READ_STATE
             return {
                 url: 'https://flow.google.com/project/a/scene/b',
-                generating: script.generating !== false,
+                generating: engine.state.generating !== undefined
+                    ? engine.state.generating
+                    : script.generating !== false,
                 failed: !!engine.state.failed,
                 errorText: engine.state.errorText || null,
                 approve: false,
@@ -85,7 +90,7 @@ async function main() {
     await check('a healthy generation that finishes is not flagged as stalled', async () => {
         const e = stubEngine({ startSeconds: 8 });
         // Timeline reaches the target shortly after the minimum wait.
-        setTimeout(() => { e.state.timeline = 15; }, 80);
+        setTimeout(() => { e.state.timeline = 15; e.state.generating = false; }, 80);
         const secs = await e.waitForExtendComplete(2, 8, 0);
         assert.strictEqual(secs, 15, `expected timeline 15, got ${secs}`);
         assert.strictEqual(e.sweeps.length, 0, `healed ${e.sweeps.length} times on a healthy run`);
@@ -95,7 +100,7 @@ async function main() {
         const e = stubEngine({ startSeconds: 8 });
         let pct = 0;
         const tick = setInterval(() => { pct += 4; e.state.pct = Math.min(pct, 99); }, 30);
-        setTimeout(() => { clearInterval(tick); e.state.timeline = 15; }, 260);
+        setTimeout(() => { clearInterval(tick); e.state.timeline = 15; e.state.generating = false; }, 260);
         const secs = await e.waitForExtendComplete(2, 8, 0);
         assert.strictEqual(secs, 15);
         assert.strictEqual(e.sweeps.length, 0, 'a rising percentage must not look like a stall');
@@ -107,7 +112,7 @@ async function main() {
         const p = e.waitForExtendComplete(2, 8, 0).catch(err => err);
         await wait(CONFIG.minClipWaitMs + CONFIG.stallMs + 200);
         assert.ok(e.sweeps.length >= 1, 'expected the watchdog to heal a frozen generation');
-        e.state.timeline = 15;   // let it finish so the promise resolves
+        e.state.timeline = 15; e.state.generating = false; // let it finish so the promise resolves
         await p;
     });
 
@@ -146,6 +151,89 @@ async function main() {
         assert.ok(Date.now() - started < CONFIG.minClipWaitMs, 'should not sit out the minimum wait');
     });
 
+    await check('a pending Extend clip cannot count as completed generation', async () => {
+        const e = stubEngine({ startSeconds: 16 });
+        e.state.generating = true;
+        e.state.completed = 1;
+        setTimeout(() => {
+            e.state.generating = false;
+            e.state.completed = 2;
+        }, 180);
+        const started = Date.now();
+        const secs = await e.waitForExtendComplete(2, 8, 1);
+        assert.strictEqual(secs, 16);
+        assert.ok(Date.now() - started >= 150, 'advanced while the Extend slot was still generating');
+    });
+
+    console.log('\nextend slot contract');
+
+    await check('Start generation requires a real click and a confirmed state change', async () => {
+        const e = stubEngine({});
+        let clicked = false;
+        e.page = {
+            $: async () => ({
+                evaluate: async () => false,
+                click: async () => { clicked = true; },
+            }),
+        };
+        e.evalJs = async () => clicked
+            ? { stop: true, approve: false, startGone: false, startDisabled: false }
+            : { stop: false, approve: false, startGone: false, startDisabled: false };
+        await e.clickStartGeneration();
+        assert.strictEqual(clicked, true);
+    });
+
+    await check('an armed slot is filled and completed before the next scene', async () => {
+        const e = stubEngine({});
+        const events = [];
+        const clipCounts = [1, 2, 2];
+        const pendingCounts = [0, 1, 0];
+        e.okScenes = [];
+        e.extendPrompts = {};
+        e.countClips = async () => clipCounts.shift();
+        e.countEmptySlots = async () => pendingCounts.shift();
+        { const values = [1, 2]; e.countCompletedClips = async () => values.shift(); }
+        e.getTimelineSeconds = async () => 8;
+        e.clickNewestCompletedClip = async () => { events.push('base'); return true; };
+        e.armExtend = async () => events.push('armed');
+        e.typePrompt = async () => events.push('prompt');
+        e.removeIngredientChipsFromExtend = async () => events.push('clean');
+        e.clickStartGeneration = async () => events.push('start');
+        e.autoApproveCredits = async () => {};
+        e.waitForExtendComplete = async () => { events.push('finished'); return 16; };
+        e.clickNewestClip = async () => { events.push('selected'); return true; };
+        e._countClip = () => {};
+        await e.doExtendScene({ veo3_prompt: 'scene two' }, 2);
+        assert.deepStrictEqual(events,
+            ['base', 'armed', 'clean', 'prompt', 'start', 'finished', 'selected']);
+        assert.deepStrictEqual(e.okScenes, [2]);
+    });
+
+    await check('extend does not try to attach unsupported image ingredients', async () => {
+        const e = stubEngine({});
+        const clipCounts = [1, 2];
+        const pendingCounts = [0, 1, 0];
+        let started = false;
+        e.extendPrompts = {};
+        e.countClips = async () => clipCounts.shift();
+        e.countEmptySlots = async () => pendingCounts.shift();
+        e.countCompletedClips = async () => 1;
+        e.getTimelineSeconds = async () => 8;
+        e.clickNewestCompletedClip = async () => true;
+        e.armExtend = async () => {};
+        e.typePrompt = async () => {};
+        e.removeIngredientChipsFromExtend = async () => {};
+        e.refsFor = () => [{ name: 'Godwin' }, { name: 'Wife' }];
+        e.selectRefsForScene = async () => { throw new Error('must not be called in Extend'); };
+        e.attachVoiceToScene = async () => { throw new Error('must not be called in Extend'); };
+        e.clickStartGeneration = async () => { started = true; };
+        e.autoApproveCredits = async () => {};
+        e.waitForExtendComplete = async () => 16;
+        e.clickNewestClip = async () => true;
+        await e.doExtendScene({ veo3_prompt: 'scene two' }, 2);
+        assert.strictEqual(started, true);
+    });
+
     console.log('\nretry');
 
     await check('a scene that fails then succeeds is not recorded as failed', async () => {
@@ -161,15 +249,15 @@ async function main() {
         assert.strictEqual(recorded.length, 0, 'a recovered scene must not leave a failure note');
     });
 
-    await check('a scene that never succeeds is recorded once and the run continues', async () => {
+    await check('a scene that never succeeds is recorded once and stops the sequence', async () => {
         const e = stubEngine({});
         const recorded = [];
         e.logFailedPrompt = async (...a) => recorded.push(a);
         e.healStalled = async () => {};
         let calls = 0;
         e.processScene = async () => { calls++; throw new Error('permanent'); };
-        const ok = await e.processSceneWithRetry({ veo3_prompt: 'p' }, 4);
-        assert.strictEqual(ok, false, 'expected the wrapper to report giving up');
+        const err = await e.processSceneWithRetry({ veo3_prompt: 'p' }, 4).catch(x => x);
+        assert.ok(/SEQUENCE_STOP/.test(err.message), 'expected a sequence stop after giving up');
         assert.strictEqual(calls, CONFIG.sceneRetries + 1, `expected ${CONFIG.sceneRetries + 1} attempts, saw ${calls}`);
         assert.strictEqual(recorded.length, 1, `expected one failure note, saw ${recorded.length}`);
         assert.strictEqual(recorded[0][0], 5, 'the note should name the 1-based scene number');

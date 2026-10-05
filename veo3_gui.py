@@ -34,12 +34,17 @@ Fields:
   - CDP port (your Chrome debug port, default 9222)
 """
 
+from pathlib import Path
 import json
 import os
+import re
 import subprocess
+import sys
 import threading
 import time
 import urllib.request
+import urllib.parse
+import re
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
@@ -72,6 +77,10 @@ STYLES_FILE = os.path.join(BASE_DIR, "styles.json")
 GENAI_STYLES_FILE = os.path.join(BASE_DIR, "genai_styles.json")
 PRESET_GROUPS = ["Classic", "GENAI Presets"]
 WRITER = os.path.join(BASE_DIR, "write_story.js")
+# The AI Studio transport, driven by hand for the "Check AI Studio" button. The
+# story writer itself never shells out to this: it is require()d by
+# write_story.js when --transport web is passed.
+AISTUDIO_CLIENT = os.path.join(BASE_DIR, "ask_web.js")
 DOWNLOADER = os.path.join(BASE_DIR, "agent_download.js")
 JOINER = os.path.join(BASE_DIR, "join_clips.js")
 SETTINGS_FILE = os.path.join(BASE_DIR, "gui_settings.json")
@@ -79,6 +88,25 @@ ACCOUNT_MGR = os.path.join(BASE_DIR, "account_manager.js")
 ACCOUNTS_FILE = os.path.join(BASE_DIR, "accounts.json")
 STORIES_DIR = os.path.join(BASE_DIR, "stories")
 MCP_SERVER = os.path.join(BASE_DIR, "mcp_server.js")
+
+
+def normalize_flow_project_url(value):
+    """Accept a project link (including an editor link), return its project home."""
+    try:
+        url = urllib.parse.urlsplit(str(value or "").strip())
+        if url.scheme != "https" or url.username or url.password or url.port not in (None, 443):
+            raise ValueError()
+        if url.hostname == "flow.google.com":
+            match = re.fullmatch(r"/project/([a-zA-Z0-9_-]+)(?:/.*)?", url.path)
+        elif url.hostname == "labs.google":
+            match = re.fullmatch(r"/fx/(?:[a-z]{2}/)?tools/flow/project/([a-zA-Z0-9_-]+)(?:/.*)?", url.path)
+        else:
+            match = None
+        if match:
+            return "https://flow.google.com/project/" + match.group(1)
+    except ValueError:
+        pass
+    raise ValueError("Paste a Flow project URL, such as https://flow.google.com/project/<project-id>.")
 
 
 def read_xlsx_rows(path):
@@ -177,6 +205,8 @@ DEFAULTS = {
     # batch runs exactly those - no analysing, no writing - so the videos are
     # made from the story text the user already reviewed and approved.
     "mcp_stories": "",
+    "mcp_start_phase": "start",
+    "mcp_resume_url": "",
     "mcp_preset": "",
     "mcp_seconds": 8,
     "mcp_clips": 8,
@@ -251,6 +281,16 @@ DEFAULTS = {
     # not fail a story half-written. "gemini_api_key" is still read as a fallback
     # for settings files written before this existed.
     "gemini_api_keys": [],
+
+    # Who writes the story: the API key, or Google AI Studio in a real Chrome
+    # window. "api" is what every run did before; "web" is the same prompts,
+    # answered by the signed-in AI Studio account instead of the free-tier API -
+    # a bigger model, and no per-project 503 when a batch is running. "auto"
+    # tries the API and hands the call to the browser when it gives up. The
+    # browser keeps its own profile and port (9223), so it never touches the
+    # Flow browser this tool drives.
+    "story_transport": "api",
+    "mcp_transport": "api",
 }
 
 
@@ -324,6 +364,11 @@ class Veo3LauncherGUI:
         try:
             with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
                 s = json.load(f)
+            # Existing workflow preferences win; fill only keys absent in older files.
+            for target, legacy in (("mcp_video_model", "video_model"), ("mcp_aspect", "aspect_ratio"),
+                                   ("mcp_seconds", "scene_seconds"), ("mcp_resume_url", "agent_project_url")):
+                if target not in s and legacy in s:
+                    s[target] = s[legacy]
             for k, v in DEFAULTS.items():
                 s.setdefault(k, v)
             return s
@@ -351,6 +396,9 @@ class Veo3LauncherGUI:
         style.theme_use("clam")
 
         style.configure("TFrame", background=SURFACE)
+        style.configure("TLabelframe", background=SURFACE, bordercolor=BORDER, relief="solid")
+        style.configure("TLabelframe.Label", background=SURFACE, foreground=TEXT,
+                        font=("Segoe UI", 10, "bold"))
         style.configure("TLabel", background=SURFACE, foreground=TEXT,
                         font=("Segoe UI", 10))
         style.configure("Hint.TLabel", foreground=TEXT_DIM, font=("Segoe UI", 9))
@@ -549,14 +597,13 @@ class Veo3LauncherGUI:
         scr_tab, scr = self.make_scrollable_tab()
         ing_tab, ing = self.make_scrollable_tab()
         agt_tab, agt = self.make_scrollable_tab()
-        # Script first: it is where a video now starts. The ingredients path is
-        # unchanged and still second.
+        # Accounts sits after Script; generation tabs follow.
         self.nb.add(scr_tab, text="Script")
         self.nb.add(ing_tab, text="Ingredients (extend)")
         self.nb.add(agt_tab, text="Agent Mode")
         self.agent_tab = agt_tab
         acc_tab, acc = self.make_scrollable_tab()
-        self.nb.add(acc_tab, text="Accounts")
+        self.nb.insert(1, acc_tab, text="Accounts")
         mcp_tab, mcp = self.make_scrollable_tab()
         self.nb.add(mcp_tab, text="MCP")
 
@@ -564,7 +611,8 @@ class Veo3LauncherGUI:
         self.build_ingredients_tab(ing)
         self.build_agent_tab(agt)
         self.build_accounts_tab(acc)
-        self.build_mcp_tab(mcp)
+        self.mcp_tab = mcp_tab
+        self.build_mcp_integration_tab(mcp)
         # One binding for all three tabs - see _on_tab_wheel for why it is a
         # single bind_all rather than one binding per canvas.
         self.root.bind_all("<MouseWheel>", self._on_tab_wheel)
@@ -725,6 +773,8 @@ class Veo3LauncherGUI:
         d3, ids3, bydisp3, _ = load_style_presets(group)
         self._mcp_displays, self._mcp_ids, self._mcp_by_display = d3, ids3, bydisp3
         self.mcp_preset_box.configure(values=d3 or ["styles.json missing or empty"])
+        if hasattr(self, "manual_preset_box"):
+            self.manual_preset_box.configure(values=d3)
         if self.mcp_preset_var.get() not in d3:
             self.mcp_preset_var.set(d3[0] if d3 else "styles.json missing or empty")
 
@@ -740,13 +790,20 @@ class Veo3LauncherGUI:
 
         tk.Label(f, justify="left", anchor="w", bg=CARD, fg=TEXT,
                  font=("Segoe UI", 9), highlightthickness=1, highlightbackground=BORDER,
-                 text=("Write a whole story package from a title and a preset. Produces the story\n"
+                 text=("Write story packages from video links or titles and details, one or many. Produces the story\n"
                        "JSON, a style bible, and paste-ready character-sheet prompts, in its own\n"
                        "folder under stories/. It writes NO video and spends NO Flow credits -\n"
-                       "the images are still made by hand, then run through the Agent Mode stages.")
+                       "Open Agent Mode to generate references, clips and the final video.")
                  ).grid(row=r, column=0, columnspan=3, sticky="ew", padx=10, pady=(10, 8), ipady=6)
         r += 1
 
+        ttk.Label(f, text="Story source:").grid(row=r, column=0, sticky="e", **pad)
+        self.script_source_var = tk.StringVar(value=self.settings.get("script_source", "Title & details"))
+        ttk.Combobox(f, textvariable=self.script_source_var, state="readonly", width=26,
+                     values=["Title & details", "Video links", "Multiple stories"]).grid(row=r, column=1, columnspan=2, sticky="w", **pad)
+        self.script_input_widgets = {"Title & details": [], "Video links": [], "Multiple stories": []}
+        r += 1
+        single_start = r
         ttk.Label(f, text="Video title:").grid(row=r, column=0, sticky="e", **pad)
         self.gen_title_var = tk.StringVar()
         ttk.Entry(f, textvariable=self.gen_title_var, width=58).grid(
@@ -763,6 +820,33 @@ class Veo3LauncherGUI:
         ttk.Label(f, text="a sentence or two - who, where, what changes. The model fills the rest",
                   style="Hint.TLabel").grid(row=r, column=1, columnspan=2, sticky="w", padx=14, pady=(0, 4))
         r += 1
+
+        for row in range(single_start, r):
+            self.script_input_widgets["Title & details"].extend(f.grid_slaves(row=row))
+        for source, attr, setting, height in [("Video links", "script_links", "script_links", 5),
+                                              ("Multiple stories", "script_ideas", "script_ideas", 7)]:
+            ttk.Label(f, text=source + ":").grid(row=r, column=0, sticky="ne", **pad)
+            box = tk.Text(f, height=height, width=58, bg=INPUT, fg=TEXT, insertbackground=TEXT,
+                          wrap="word", font=("Segoe UI", 9))
+            setattr(self, attr, box)
+            box.grid(row=r, column=1, columnspan=2, sticky="ew", **pad)
+            box.insert("1.0", self.settings.get(setting, ""))
+            self.script_input_widgets[source].extend(f.grid_slaves(row=r))
+            r += 1
+            hint = ("One video URL per line; links are processed one by one." if source == "Video links" else
+                    "STORY 1\nTITLE: First title\nDetails or labelled transcript...\n\nSTORY 2\nTITLE: Second title\nDetails...\nWithout STORY markers, all lines belong to one story.")
+            ttk.Label(f, text=hint, style="Hint.TLabel", justify="left").grid(row=r, column=1, columnspan=2, sticky="w", **pad)
+            self.script_input_widgets[source].extend(f.grid_slaves(row=r))
+            r += 1
+        ttk.Button(f, text="Import links / stories…", command=self.import_script_inputs).grid(row=r, column=1, sticky="w", **pad)
+        r += 1
+        self.script_match_ref_var = tk.BooleanVar(value=self.settings.get("script_match_ref", True))
+        match = ttk.Checkbutton(f, text="Match each source video's duration", variable=self.script_match_ref_var)
+        match.grid(row=r, column=1, columnspan=2, sticky="w", **pad)
+        self.script_input_widgets["Video links"].append(match)
+        r += 1
+        self.script_source_var.trace_add("write", lambda *_: self.update_script_source())
+        self.update_script_source()
 
         # Style preset - the same list the Agent tab applies after the fact. Here
         # it is an input: the story is written in this look from the first word,
@@ -877,20 +961,111 @@ class Veo3LauncherGUI:
         self.refresh_key_list()
         r += 1
 
+        # WHO WRITES IT. Same prompts either way, and the story folder is
+        # identical - the only difference is who answers: the API key (fast, but
+        # the free tier is the smallest model and rate-limited per project) or
+        # Google AI Studio in its own signed-in Chrome window (bigger model, no
+        # 503, no key). Not a per-run afterthought: a batch of ten films is
+        # exactly when the API's quota runs out.
+        ttk.Label(f, text="Story writer:").grid(row=r, column=0, sticky="e", **pad)
+        wr = tk.Frame(f, bg=SURFACE)
+        wr.grid(row=r, column=1, columnspan=2, sticky="ew", padx=14)
+        self.gen_transport_var = tk.StringVar(value=self.settings.get("story_transport", "api"))
+        for val, lbl in (("api", "Gemini API key"),
+                         ("web", "Google AI Studio (browser)"),
+                         ("auto", "API, browser as backup")):
+            ttk.Radiobutton(wr, text=lbl, value=val,
+                            variable=self.gen_transport_var).pack(side="left", padx=(0, 14))
+        ttk.Button(wr, text="Check AI Studio",
+                   command=lambda: self.check_aistudio("gen")).pack(side="left", padx=(6, 0))
+        r += 1
+
+        self.gen_transport_hint = ttk.Label(f, text="", style="Hint.TLabel", justify="left")
+        self.gen_transport_hint.grid(row=r, column=1, columnspan=2, sticky="w", padx=14, pady=(0, 4))
+        r += 1
+
         btns = tk.Frame(f, bg=SURFACE)
         btns.grid(row=r, column=1, columnspan=2, sticky="w", padx=14, pady=(10, 4))
-        ttk.Button(btns, text="Write story", command=self.write_story, width=20,
+        ttk.Button(btns, text="Write stories", command=self.write_story, width=20,
                    style="Accent.TButton").pack(side="left")
-        ttk.Button(btns, text="Preview prompts (dry run)",
-                   command=lambda: self.write_story(dry=True)).pack(side="left", padx=(10, 0))
+        self.script_preview_button = ttk.Button(btns, text="Preview prompts (dry run)",
+                                                command=lambda: self.write_story(dry=True))
+        self.script_preview_button.pack(side="left", padx=(10, 0))
         ttk.Button(btns, text="Open stories folder",
                    command=lambda: self._open_dir(STORIES_DIR)).pack(side="left", padx=(10, 0))
         r += 1
 
-        ttk.Label(f, text=("Dry run prints the exact prompts and calls nothing - worth doing once to see\n"
-                           "what the model will be told before you spend a single credit."),
-                  style="Hint.TLabel", justify="left").grid(
+        self.script_preview_hint = ttk.Label(f, text="", style="Hint.TLabel", justify="left")
+        self.script_preview_hint.grid(
             row=r, column=1, columnspan=2, sticky="w", padx=14, pady=(4, 10))
+        self.update_script_source()
+
+        self.gen_transport_var.trace_add("write", lambda *a: self.update_transport_hint("gen"))
+        self.update_transport_hint("gen")
+
+    # ── the story writer: api key or the browser ──────────────
+    def _transport_var(self, which):
+        """The radio pair for a tab - the Script tab and the MCP tab each own one."""
+        return self.gen_transport_var if which == "gen" else self.mcp_transport_var
+
+    def update_transport_hint(self, which):
+        """Say what the chosen writer means, next to the choice itself.
+
+        The hint is the only place the AI Studio profile is mentioned before a
+        run, so someone who picks the browser and has never signed in finds out
+        here rather than from a failed batch.
+        """
+        lbl = self.gen_transport_hint if which == "gen" else self.mcp_transport_hint
+        val = self._transport_var(which).get()
+        if val == "api":
+            lbl.configure(text="Gemini answers through your API key. The keys above are required.")
+        elif val == "auto":
+            lbl.configure(text="Tries the API key first; if it gives up, the same prompt goes to "
+                               "Google AI Studio in its own Chrome window.")
+        else:
+            lbl.configure(text="Google AI Studio answers in its own Chrome window (port 9223, its own "
+                               "profile). No key is used and your API quota is untouched - the window "
+                               "must be signed into Google once. Press \"Check AI Studio\" to see.")
+
+    def check_aistudio(self, which="gen"):
+        """Report whether the AI Studio browser is up and signed in.
+
+        Opens nothing unless asked: a status check that launches a window would
+        be a surprise. The one thing it does do is offer to open that window,
+        because the first run has to sign in by hand and there is no way around
+        it - the profile is empty until a person types their password.
+        """
+        st = self._aistudio_state()
+        if st.get("up") and st.get("signedIn"):
+            self._console(f"\n✅ Google AI Studio is ready (port {st.get('port')}, "
+                          f"{st.get('model') or 'model unknown'}). Stories written this way use no "
+                          f"API key and no API quota.\n")
+            return
+        if st.get("up") and not st.get("signedIn"):
+            if messagebox.askyesno("Sign in to AI Studio",
+                                   "The AI Studio window is open but not signed in.\n\n"
+                                   "A Chrome window is about to be brought to the front - sign in "
+                                   "with the Google account that should write the stories. It is "
+                                   "remembered after that.\n\nOpen it now?"):
+                self._launch_aistudio()
+            return
+        if not st.get("up"):
+            if messagebox.askyesno("Open AI Studio",
+                                   "No AI Studio browser is running.\n\n"
+                                   "Open one now? A Chrome window using its own profile will start, "
+                                   "and you sign into Google once in it. It stays open between runs."):
+                self._launch_aistudio()
+            return
+        self._console(f"\n⚠  Could not read AI Studio's status: {st.get('error') or 'unknown'}\n")
+
+    def _launch_aistudio(self):
+        try:
+            subprocess.Popen(["node", AISTUDIO_CLIENT, "--status", "--launch"], cwd=BASE_DIR,
+                             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0), shell=False)
+            self._console("\nA Chrome window for AI Studio is opening. Sign in there, then press "
+                          "\"Check AI Studio\" again.\n")
+        except Exception as e:
+            messagebox.showerror("Could not open AI Studio", str(e))
 
     def update_gen_count(self):
         """Show the clip count as the duration is edited, before anything runs."""
@@ -1023,6 +1198,63 @@ class Veo3LauncherGUI:
             "The dropdown here is filled from that file every time the GUI starts.")
 
     # ── tab 1: ingredients (unchanged behaviour) ──────────────
+    def saved_couple_controls(self, parent, mode):
+        if not hasattr(self, "couple_sarah_file_var"):
+            for name in ("sarah", "george"):
+                for field in ("file", "description"):
+                    key = f"couple_{name}_{field}"
+                    setattr(self, key + "_var", tk.StringVar(value=self.settings.get(key, "")))
+        key = "ing_saved_couple" if mode == "ingredients" else "agent_saved_couple"
+        var = tk.BooleanVar(value=self.settings.get(key, False))
+        setattr(self, mode + "_saved_couple_var", var)
+        frame = ttk.LabelFrame(parent, text="Saved couple reference sheets")
+        frame.columnconfigure(1, weight=1)
+        label = ("Enable saved couple workflow (upload Sarah + George, generate location, attach to clip 1)"
+                 if mode == "ingredients" else "Use my saved Sarah and George images (skip character generation)")
+        ttk.Checkbutton(frame, text=label,
+                        variable=var).grid(row=0, column=0, columnspan=3, sticky="w", padx=8, pady=6)
+        for index, name in enumerate(("sarah", "george")):
+            row = index * 2 + 1
+            file_var = getattr(self, f"couple_{name}_file_var")
+            ttk.Label(frame, text=name.title() + " image:").grid(row=row, column=0, padx=8, pady=4)
+            ttk.Entry(frame, textvariable=file_var).grid(row=row, column=1, sticky="ew", padx=8, pady=4)
+            def choose(target=file_var):
+                chosen = filedialog.askopenfilename(title="Choose character reference sheet",
+                    filetypes=[("Reference images", "*.png *.jpg *.jpeg *.webp")])
+                if chosen:
+                    target.set(chosen)
+            ttk.Button(frame, text="Browse", command=choose).grid(row=row, column=2, padx=8, pady=4)
+            ttk.Label(frame, text="Appearance (optional):").grid(row=row + 1, column=0, padx=8, pady=4)
+            ttk.Entry(frame, textvariable=getattr(self, f"couple_{name}_description_var")).grid(
+                row=row + 1, column=1, columnspan=2, sticky="ew", padx=8, pady=4)
+        hint = ("Enabled: reference options above are automatic and locked. Scene 2+ resumes skip reference preparation."
+                if mode == "ingredients" else "Both modes share these files. Locations are still generated normally.")
+        ttk.Label(frame, text=hint,
+                  style="Hint.TLabel").grid(row=5, column=0, columnspan=3, sticky="w", padx=8, pady=6)
+        if mode == "ingredients":
+            var.trace_add("write", lambda *_: self.update_ingredients_reference_mode())
+            self.update_ingredients_reference_mode()
+        return frame
+
+    def update_ingredients_reference_mode(self):
+        enabled = self.ingredients_saved_couple_var.get()
+        variables = (self.skip_refs_var, self.gen_refs_var, self.refs_on_clip1_var)
+        if enabled:
+            if getattr(self, "_ingredients_manual_refs", None) is None:
+                saved = self.settings.get("ingredients_manual_reference_options")
+                self._ingredients_manual_refs = (tuple(saved) if isinstance(saved, (list, tuple)) and len(saved) == 3
+                                                  else tuple(var.get() for var in variables))
+                self.settings["ingredients_manual_reference_options"] = list(self._ingredients_manual_refs)
+            for var, value in zip(variables, (False, True, True)):
+                var.set(value)
+        elif getattr(self, "_ingredients_manual_refs", None) is not None:
+            for var, value in zip(variables, self._ingredients_manual_refs):
+                var.set(value)
+            self._ingredients_manual_refs = None
+            self.settings.pop("ingredients_manual_reference_options", None)
+        for widget in (self.skip_refs_check, self.gen_refs_check, self.refs_on_clip1_check):
+            widget.state(["disabled"] if enabled else ["!disabled"])
+
     def build_ingredients_tab(self, f):
         pad = dict(padx=14, pady=6)
         f.columnconfigure(1, weight=1)
@@ -1031,6 +1263,10 @@ class Veo3LauncherGUI:
         self.story_var = tk.StringVar(value=self.settings["story_json"])
         ttk.Entry(f, textvariable=self.story_var, width=58).grid(row=1, column=1, sticky="ew", **pad)
         ttk.Button(f, text="Browse…", command=self.browse_story).grid(row=1, column=2, **pad)
+        # A story JSON is fine for the engine and hard to read for a person.
+        # This writes the same story out as an .xlsx (Scenes / Dialogue / Cast)
+        # for reviewing or fixing by hand - it only reads the JSON.
+        ttk.Button(f, text="Export Excel", command=self.export_story_excel).grid(row=1, column=3, **pad)
 
         self.story_info = tk.StringVar(value="No story loaded")
         ttk.Label(f, textvariable=self.story_info, style="Hint.TLabel").grid(
@@ -1058,220 +1294,368 @@ class Veo3LauncherGUI:
             row=5, column=1, sticky="w", padx=(120, 14), pady=6)
 
         self.skip_refs_var = tk.BooleanVar(value=self.settings["skip_refs"])
-        ttk.Checkbutton(f, text="Skip refs upload (refs already in project)",
-                        variable=self.skip_refs_var).grid(row=6, column=1, sticky="w", **pad)
+        self.skip_refs_check = ttk.Checkbutton(f, text="Skip refs upload (refs already in project)",
+                        variable=self.skip_refs_var)
+        self.skip_refs_check.grid(row=6, column=1, sticky="w", **pad)
 
         # The manual step this removes: generating each character sheet and the
         # place plate by hand and saving it into character_refs/. Tick this and
         # the engine makes them inside the project first, renames the tiles, and
         # attaches them - both characters AND the place.
         self.gen_refs_var = tk.BooleanVar(value=self.settings["gen_refs"])
-        ttk.Checkbutton(f, text="Make reference images in the project first (no manual sheets)",
-                        variable=self.gen_refs_var).grid(row=7, column=1, sticky="w", **pad)
+        self.gen_refs_check = ttk.Checkbutton(f, text="Make reference images in the project first (no manual sheets)",
+                        variable=self.gen_refs_var)
+        self.gen_refs_check.grid(row=7, column=1, sticky="w", **pad)
         ttk.Label(f, text="reads refs.json - the cast AND the place", style="Hint.TLabel").grid(
             row=7, column=1, sticky="w", padx=(430, 14), pady=6)
 
         self.refs_on_clip1_var = tk.BooleanVar(value=self.settings["refs_on_clip1"])
-        ttk.Checkbutton(f, text="Attach the sheets to clip 1 as well",
-                        variable=self.refs_on_clip1_var).grid(row=8, column=1, sticky="w", **pad)
+        self.refs_on_clip1_check = ttk.Checkbutton(f, text="Attach the sheets to clip 1 as well",
+                        variable=self.refs_on_clip1_var)
+        self.refs_on_clip1_check.grid(row=8, column=1, sticky="w", **pad)
 
-        ttk.Button(f, text="▶  Run engine", command=self.run_engine,
-                   style="Accent.TButton").grid(row=9, column=1, sticky="w", pady=(16, 4))
-        ttk.Button(f, text="Stop engine", command=self.kill_engine).grid(
-            row=9, column=1, sticky="w", padx=(170, 14), pady=(16, 4))
+        controls = ttk.LabelFrame(f, text="Ingredients video and output settings")
+        controls.grid(row=9, column=0, columnspan=4, sticky="ew", padx=14, pady=10)
+        controls.columnconfigure(1, weight=1)
+        self.ing_video_model_var = tk.StringVar(value=self.settings.get("ing_video_model", "Flow"))
+        self.ing_aspect_var = tk.StringVar(value=self.settings.get("ing_aspect", "Flow"))
+        self.ing_new_project_var = tk.BooleanVar(value=self.settings.get("ing_new_project", False))
+        self.ing_download_var = tk.BooleanVar(value=self.settings.get("ing_download", True))
+        self.ing_join_var = tk.BooleanVar(value=self.settings.get("ing_join", False))
+        ttk.Label(controls, text="Video model:").grid(row=0, column=0, padx=10, pady=8)
+        ttk.Combobox(controls, textvariable=self.ing_video_model_var, values=VIDEO_MODELS,
+                     state="readonly").grid(row=0, column=1, sticky="ew", padx=10, pady=8)
+        ttk.Label(controls, text="Ratio:").grid(row=1, column=0, padx=10, pady=8)
+        ttk.Combobox(controls, textvariable=self.ing_aspect_var, values=["Flow", "16:9", "9:16", "1:1"],
+                     state="readonly").grid(row=1, column=1, sticky="ew", padx=10, pady=8)
+        ttk.Checkbutton(controls, text="Create a new project", variable=self.ing_new_project_var).grid(row=2, column=0, columnspan=2, sticky="w", padx=10, pady=6)
+        ttk.Checkbutton(controls, text="Download after generation", variable=self.ing_download_var).grid(row=3, column=0, sticky="w", padx=10, pady=6)
+        ttk.Checkbutton(controls, text="Join downloaded clips", variable=self.ing_join_var).grid(row=3, column=1, sticky="w", padx=10, pady=6)
+        self.saved_couple_controls(controls, "ingredients").grid(row=4, column=0, columnspan=2, sticky="ew", padx=10, pady=8)
+        actions = ttk.Frame(f)
+        actions.grid(row=10, column=0, columnspan=4, sticky="w", padx=14, pady=8)
+        for index, (label, command) in enumerate([
+                ("Create references only", lambda: self.run_engine(refs_only=True)),
+                ("Run engine", self.run_engine),
+                ("Download clips", lambda: self.run_engine(export_only=True)),
+                ("Join clips", self.join_ingredients_clips), ("Stop", self.kill_engine)]):
+            ttk.Button(actions, text=label, command=command, style="Accent.TButton").grid(
+                row=index // 3, column=index % 3, sticky="ew", padx=(0, 8), pady=5)
+        ttk.Label(f, text="Phase 1: project home > Image / 16:9 / Nano Banana Pro > generate > rename.\n"
+                  "Clip 1: Ingredients mode with Veo 3.1 Lite or Fast. Extend always uses Veo 3.1 Lite.\n"
+                  "Flow does not allow image ingredients inside Extend; later clips inherit the previous clip.\n"
+                  "Resume: set From to 2 or higher; the current project opens in Edit and extends its newest clip.\n"
+                  "Downloads export the timeline and split it into this story's output folder. Join also enables download.",
+                  style="Hint.TLabel", wraplength=650).grid(row=11, column=0, columnspan=4, sticky="w", padx=14, pady=8)
 
-        ttk.Label(f, text="This path exports ONE continuous timeline and SPLITS it with ffmpeg.\n"
-                          "It is kept for a future Ultra account where the extend models are available.",
-                  style="Hint.TLabel", justify="left").grid(row=10, column=1, columnspan=2,
-                                                            sticky="w", padx=14, pady=(10, 6))
+        queue = ttk.LabelFrame(f, text="Multiple stories - one project per story")
+        queue.grid(row=12, column=0, columnspan=4, sticky="ew", padx=14, pady=10)
+        queue.columnconfigure(0, weight=1)
+        self.ing_stories = tk.Text(queue, height=5, bg=INPUT, fg=TEXT, insertbackground=TEXT,
+                                   font=("Consolas", 9), wrap="none")
+        self.ing_stories.grid(row=0, column=0, sticky="ew", padx=10, pady=8)
+        self.ing_stories.insert("1.0", self.settings.get("ing_stories", ""))
+        bar = ttk.Frame(queue)
+        bar.grid(row=1, column=0, sticky="w", padx=10, pady=6)
+        ttk.Button(bar, text="Select stories", command=self.pick_ingredients_batch, style="Accent.TButton").pack(side="left")
+        ttk.Button(bar, text="Browse files", command=self.browse_ingredients_batch, style="Accent.TButton").pack(side="left", padx=8)
+        ttk.Button(bar, text="Clear", command=lambda: self.ing_stories.delete("1.0", "end"), style="Accent.TButton").pack(side="left")
+        span = ttk.Frame(queue)
+        span.grid(row=2, column=0, sticky="w", padx=10, pady=6)
+        self.ing_batch_from_var = tk.IntVar(value=self.settings.get("ing_batch_from", 1))
+        self.ing_batch_to_var = tk.IntVar(value=self.settings.get("ing_batch_to", 0))
+        ttk.Label(span, text="From story:").pack(side="left")
+        ttk.Spinbox(span, from_=1, to=999, textvariable=self.ing_batch_from_var, width=5).pack(side="left", padx=8)
+        ttk.Label(span, text="To (0 = all):").pack(side="left")
+        ttk.Spinbox(span, from_=0, to=999, textvariable=self.ing_batch_to_var, width=5).pack(side="left", padx=8)
+        buttons = ttk.Frame(queue)
+        buttons.grid(row=3, column=0, sticky="w", padx=10, pady=8)
+        for label, action in [("Generate batch", self.run_ingredients_batch),
+                              ("Batch references only", lambda: self.run_ingredients_batch(refs_only=True)),
+                              ("Stop", self.kill_engine)]:
+            ttk.Button(buttons, text=label, command=action, style="Accent.TButton").pack(side="left", padx=(0, 8))
+        ttk.Label(queue, text="Each selected story runs in a new project: references, clips, then optional download/join.\n"
+                  "Batch mode generates all scenes and starts the first clip automatically. Stops on failure.\n"
+                  "Video model, ratio, download and join use this tab's settings; single-story URL/range are ignored.",
+                  style="Hint.TLabel", wraplength=650).grid(row=4, column=0, sticky="w", padx=10, pady=8)
 
-    # ── tab 2: agent mode ─────────────────────────────────────
+    def browse_ingredients_batch(self):
+        paths = filedialog.askopenfilenames(title="Select stories", initialdir=STORIES_DIR,
+                                           filetypes=[("Story JSON", "*.json")])
+        self.add_ingredients_stories(paths)
+
+    def add_ingredients_stories(self, paths):
+        existing = [line.strip() for line in self._mcp_text(self.ing_stories).splitlines() if line.strip()]
+        for path in paths:
+            normalized = os.path.normpath(os.path.join(BASE_DIR, path))
+            if normalized not in existing:
+                existing.append(normalized)
+        self.ing_stories.delete("1.0", "end")
+        self.ing_stories.insert("1.0", "\n".join(existing))
+
+    def pick_ingredients_batch(self):
+        stories = self._find_stories()
+        win = tk.Toplevel(self.root)
+        win.title("Select Ingredients stories")
+        win.configure(bg=SURFACE)
+        box = tk.Listbox(win, selectmode="extended", width=85, height=16, bg=INPUT, fg=TEXT,
+                         selectbackground=ACCENT, selectforeground="#000000", exportselection=False)
+        box.pack(fill="both", expand=True, padx=12, pady=12)
+        for path, title, scenes in stories:
+            box.insert("end", f"{title or path}  [{scenes} scenes]")
+        def add():
+            self.add_ingredients_stories([stories[i][0] for i in box.curselection()])
+            win.destroy()
+        ttk.Button(win, text="Add selected", command=add, style="Accent.TButton").pack(pady=(0, 12))
+
+    def run_ingredients_batch(self, refs_only=False):
+        if self._work_busy():
+            messagebox.showwarning("Busy", "Wait for the current job or stop it first.")
+            return
+        self.collect_inputs()
+        stories = [line.strip().strip('"') for line in self._mcp_text(self.ing_stories).splitlines()
+                   if line.strip() and not line.strip().startswith("#")]
+        if not stories:
+            messagebox.showerror("No stories", "Select stories for the Ingredients batch first.")
+            return
+        if not messagebox.askyesno("Ingredients batch", "Run the selected story range one by one in new projects?\n\n"
+                                 "This generates reference images" + ("." if refs_only else " and video clips automatically.") +
+                                 " Flow credits will be spent."):
+            return
+        if not self._ensure_active_browser():
+            return
+        account = self._account_store()
+        options = {"refs_only": refs_only, "video_model": self.ing_video_model_var.get(),
+                   "aspect": self.ing_aspect_var.get(), "download": self.ing_download_var.get(),
+                   "join": self.ing_join_var.get(), "cdp": self.read_int(self.cdp_var, 9222)}
+        if account:
+            options["account"] = account["accounts"][account.get("current", 0)]["label"]
+        payload = {"stories": stories, "options": options, "from": self.read_int(self.ing_batch_from_var, 1),
+                   "to": self.read_int(self.ing_batch_to_var, 0)}
+        self.save_settings()
+        folder = os.path.join(BASE_DIR, "logs")
+        os.makedirs(folder, exist_ok=True)
+        request = os.path.join(folder, "ingredients_batch_" + str(time.time_ns()) + ".json")
+        with open(request, "w", encoding="utf-8") as stream:
+            json.dump(payload, stream, indent=2)
+        self._launch(["node", os.path.join(BASE_DIR, "ingredients_batch.js"), request],
+                     "Ingredients batch: processing selected stories one at a time...")
+
     def build_agent_tab(self, f):
-        pad = dict(padx=14, pady=5)
-        f.columnconfigure(1, weight=1)
-        r = 0
+        # Keep the established workflow/settings keys; manual tools share them.
+        self.model_var = tk.StringVar(value=self.settings.get("model_hint", ""))
+        self.watch_var = tk.IntVar(value=self.settings.get("watch_secs", 300))
+        self.agent_cdp_var = self.cdp_var
+        self.no_submit_var = tk.BooleanVar(value=self.settings.get("no_submit", True))
+        self.reverse_var = tk.BooleanVar(value=self.settings.get("reverse", True))
+        self.agent_story_var = tk.StringVar(value=self.settings.get("agent_story_json", self.settings["story_json"]))
+        self.agent_story_info = tk.StringVar(value="Select a story for manual tools")
+        self.clips_var = tk.StringVar(value=self.settings.get("clips_dir", ""))
+        f.columnconfigure(0, weight=1)
+        header = tk.Frame(f, bg=SURFACE)
+        header.grid(row=0, column=0, sticky="ew", padx=16, pady=(16, 8))
+        tk.Label(header, text="Agent Mode", bg=SURFACE, fg=TEXT,
+                 font=("Segoe UI", 16, "bold")).pack(anchor="w")
+        tk.Label(header, text="Choose how you want to work.", bg=SURFACE, fg=TEXT_DIM,
+                 font=("Segoe UI", 10)).pack(anchor="w", pady=(3, 12))
+        selector = tk.Frame(header, bg=SURFACE)
+        selector.pack(anchor="w")
+        self.agent_view_var = tk.StringVar(value="auto")
+        for label, value in (("Auto", "auto"), ("Manual", "manual")):
+            tk.Radiobutton(selector, text=label, value=value, variable=self.agent_view_var,
+                           indicatoron=False, width=16, pady=9, padx=10, borderwidth=1,
+                           relief="flat", selectcolor=ACCENT_DK, bg=ACCENT, fg="#000000",
+                           activebackground=ACCENT_DK, activeforeground="#000000",
+                           font=("Segoe UI", 10, "bold"), cursor="hand2",
+                           command=self.update_agent_view).pack(side="left", padx=(0, 8))
+        self.agent_auto_panel = ttk.Frame(f)
+        self.agent_auto_panel.grid(row=1, column=0, sticky="ew")
+        self.build_workflow_tab(self.agent_auto_panel)
+        self.aspect_var = self.mcp_aspect_var
+        self.video_model_var = self.mcp_video_model_var
+        self.seconds_var = self.mcp_seconds_var
+        self.style_var = self.mcp_preset_var
+        self.style_box = self.mcp_preset_box
+        self._style_ids = self._mcp_ids
+        self._style_displays = self._mcp_displays
+        self._style_by_display = self._mcp_by_display
+        self.auto_approve_var = self.mcp_auto_approve_var
+        self.agent_url_var = self.mcp_resume_url_var
+        self.agent_start_phase_var = self.mcp_start_phase_var
+        self.agent_new_project_var = self.mcp_new_project_var
+        self.agent_generate_refs_var = self.mcp_generate_refs_var
+        self.agent_download_var = self.mcp_download_var
+        self.agent_join_var = self.mcp_join_var
+        self.agent_new_project_check = self.mcp_new_project_check
+        self.agent_refs_check = self.mcp_refs_check
 
-        # ---- the manual steps, stated up front -------------------------------
-        manual = tk.Frame(f, bg=CARD, highlightthickness=1, highlightbackground=BORDER)
-        manual.grid(row=r, column=0, columnspan=3, sticky="ew", padx=10, pady=(10, 8))
-        tk.Label(manual, text="Do these by hand once per project", bg=CARD, fg=WARN,
-                 font=("Segoe UI", 10, "bold"), anchor="w").pack(fill="x", padx=10, pady=(8, 2))
-        tk.Label(manual, justify="left", anchor="w", bg=CARD, fg=TEXT, font=("Segoe UI", 9),
-                 text=("0. Start the automation browser: double-click START_CHROME_CDP.bat, and check you are\n"
-                       "   signed into Google Flow in the window that opens (it uses its own profile).\n"
-                       "1. Create the Flow project, and upload each character reference sheet as a Character,\n"
-                       "   named exactly as the @mention will be (Mia, Daniel - capital first letter).\n"
-                       "2. Open Agent instructions (the ✨ spark icon) and paste the character + style blocks.\n"
-                       "3. Leave the browser ON the project home page - not the scene editor.\n"
-                       "These are manual because they are one-time and a wrong value here poisons every\n"
-                       "later stage silently. Everything below them is automated.")
-                 ).pack(fill="x", padx=10, pady=(0, 10))
-        r += 1
-
-        ttk.Label(f, text="Story JSON:").grid(row=r, column=0, sticky="e", **pad)
-        self.agent_story_var = tk.StringVar(value=self.settings["story_json"])
-        ttk.Entry(f, textvariable=self.agent_story_var, width=58).grid(row=r, column=1, sticky="ew", **pad)
-        ttk.Button(f, text="Browse…", command=self.browse_story).grid(row=r, column=2, padx=6)
-        r += 1
-
-        self.agent_story_info = tk.StringVar(value="No story loaded")
-        ttk.Label(f, textvariable=self.agent_story_info, style="Hint.TLabel").grid(
-            row=r, column=1, columnspan=2, sticky="w", padx=14)
-        r += 1
-
-        ttk.Label(f, text="Project URL:").grid(row=r, column=0, sticky="e", **pad)
-        self.agent_url_var = tk.StringVar(value=self.settings["project_url"])
-        ttk.Entry(f, textvariable=self.agent_url_var, width=58).grid(row=r, column=1, columnspan=2, sticky="ew", **pad)
-        r += 1
-
-        # Model hint and Style preset share one line - the tab is long enough
-        # already. Same widgets as before, packed side by side.
-        line1 = tk.Frame(f, bg=SURFACE)
-        line1.grid(row=r, column=0, columnspan=3, sticky="ew", padx=14, pady=5)
-        ttk.Label(line1, text="Model hint:").pack(side="left")
-        self.model_var = tk.StringVar(value=self.settings["model_hint"])
-        ttk.Entry(line1, textvariable=self.model_var, width=22).pack(side="left", padx=(6, 20))
-        ttk.Label(line1, text="Style preset:").pack(side="left")
-        # Style presets. Read-only on purpose: each entry is an id that styles.js
-        # looks up, so a typed-in near-miss would fail in a console the user is
-        # not watching. styles.json is the menu; the button applies one.
-        self._style_displays, self._style_ids, self._style_by_display, _ = load_style_presets()
-        self.style_var = tk.StringVar()
-        self.style_box = ttk.Combobox(line1, textvariable=self.style_var, width=28,
-                                      values=self._style_displays, state="readonly",
-                                      style="Preset.TCombobox")
-        self.style_box.pack(side="left")
-        self.style_apply = ttk.Button(line1, text="Apply to story", command=self.apply_style)
-        self.style_apply.pack(side="left", padx=(8, 0))
-        ttk.Label(line1, text="List:").pack(side="left", padx=(10, 4))
-        self.agent_group_box = ttk.Combobox(line1, textvariable=self.preset_group_var, width=13,
-                                            values=PRESET_GROUPS, state="readonly")
-        self.agent_group_box.pack(side="left")
-        if self._style_displays:
-            want = self.settings.get("style_preset") or ""
-            for disp, sid in self._style_ids.items():
-                if sid == want:
-                    self.style_var.set(disp)
-                    break
-        else:
-            self.style_box.configure(values=["styles.json missing or empty"])
-            self.style_var.set("styles.json missing or empty")
-            self.style_apply.state(["disabled"])
-        r += 1
-        ttk.Label(f, text="model hint: plain English - Agent Mode has no model menu    ·    "
-                          "preset: rewrites the story's style field - the words the agent renders in",
-                  style="Hint.TLabel").grid(row=r, column=0, columnspan=3, sticky="w", padx=14, pady=(0, 4))
-        r += 1
-
-        # Clip format, Watch and the CDP port share one line - three small
-        # controls that never needed a row each.
-        line2 = tk.Frame(f, bg=SURFACE)
-        line2.grid(row=r, column=0, columnspan=3, sticky="ew", padx=14, pady=5)
-        ttk.Label(line2, text="Clip format:").pack(side="left")
-        # The format is asked for in words because there is no panel to set it
-        # in. Combobox left editable rather than readonly: the builder passes
-        # an unrecognised ratio through as written, so a ratio Flow adds later
-        # can be typed here without waiting for this list to learn about it.
-        self.aspect_var = tk.StringVar(value=self.settings["aspect_ratio"])
-        ttk.Combobox(line2, textvariable=self.aspect_var, width=7,
-                     values=["Flow", "16:9", "9:16", "1:1"]).pack(side="left", padx=(6, 4))
-        ttk.Label(line2, text="aspect", style="Hint.TLabel").pack(side="left", padx=(0, 14))
-        self.seconds_var = tk.IntVar(value=self.settings["scene_seconds"])
-        ttk.Spinbox(line2, from_=1, to=8, textvariable=self.seconds_var,
-                    width=4).pack(side="left", padx=(0, 4))
-        ttk.Label(line2, text="sec/clip", style="Hint.TLabel").pack(side="left", padx=(0, 16))
-        ttk.Label(line2, text="Watch:").pack(side="left")
-        self.watch_var = tk.IntVar(value=self.settings["watch_secs"])
-        ttk.Spinbox(line2, from_=30, to=3600, textvariable=self.watch_var,
-                    width=7).pack(side="left", padx=(6, 4))
-        ttk.Label(line2, text="sec after submit", style="Hint.TLabel").pack(side="left", padx=(0, 16))
-        ttk.Label(line2, text="CDP port:").pack(side="left")
-        self.agent_cdp_var = tk.IntVar(value=self.settings["cdp_port"])
-        ttk.Spinbox(line2, from_=1024, to=65535, textvariable=self.agent_cdp_var,
-                    width=8).pack(side="left", padx=(6, 0))
-        r += 1
-        # The video model is a property of the Flow PROJECT, not something the
-        # prompt can ask for, so it is picked here and written into the project by
-        # the agent just before it presses Generate. Flow remembers the last model
-        # used per project, which is how a new film quietly inherits an old one's
-        # model - so this is set explicitly on every run rather than left to luck.
-        model_line = tk.Frame(f, bg=SURFACE)
-        model_line.grid(row=r, column=0, columnspan=3, sticky="ew", padx=14, pady=(0, 5))
-        ttk.Label(model_line, text="Video model:").pack(side="left")
-        self.video_model_var = tk.StringVar(value=self.settings.get("video_model", "Flow"))
-        ttk.Combobox(model_line, textvariable=self.video_model_var, width=30,
-                     values=VIDEO_MODELS).pack(side="left", padx=(6, 4))
-        ttk.Label(model_line, text='"Flow" leaves each project on its own setting',
-                  style="Hint.TLabel").pack(side="left", padx=(6, 0))
-        r += 1
-        ttk.Label(f, text="clip format is stated in the prompt - a story JSON carrying its own values fills these in",
-                  style="Hint.TLabel").grid(row=r, column=0, columnspan=3, sticky="w", padx=14, pady=(0, 4))
-        r += 1
-
-        # The two safety switches, side by side.
-        line3 = tk.Frame(f, bg=SURFACE)
-        line3.grid(row=r, column=0, columnspan=3, sticky="ew", padx=14, pady=5)
-        self.auto_approve_var = tk.BooleanVar(value=self.settings["auto_approve"])
-        ttk.Checkbutton(line3, text="Auto-approve storyboard (⚠ spends credits)",
-                        variable=self.auto_approve_var).pack(side="left")
-        self.no_submit_var = tk.BooleanVar(value=self.settings["no_submit"])
-        ttk.Checkbutton(line3, text="Dry run - type but don't submit (safety default)",
-                        variable=self.no_submit_var).pack(side="left", padx=(24, 0))
-        r += 1
-
-        # ---- stages ----------------------------------------------------------
-        ttk.Separator(f, orient="horizontal").grid(row=r, column=0, columnspan=3, sticky="ew", padx=10, pady=8)
-        r += 1
-
-        stages = tk.Frame(f, bg=SURFACE)
-        stages.grid(row=r, column=0, columnspan=3, sticky="w", padx=12, pady=2)
-        r += 1
-
-        def stage(parent, col, num, title, sub, cmd):
-            box = tk.Frame(parent, bg=SURFACE)
-            box.grid(row=0, column=col, sticky="n", padx=(0, 14))
-            ttk.Label(box, text=f"{num}. {title}", style="Step.TLabel").pack(anchor="w")
-            ttk.Label(box, text=sub, style="Hint.TLabel", justify="left", wraplength=170).pack(anchor="w", pady=(0, 4))
-            # The same accent fill as "Run engine" and "Write story", so a Run
-            # button is the green one on every tab rather than only two of them.
-            ttk.Button(box, text="Run", command=cmd, width=20,
-                       style="Accent.TButton").pack(anchor="w")
-
-        stage(stages, 0, "1", "Build prompt", "story JSON →\nagent_prompt.txt", self.build_prompt)
-        stage(stages, 1, "2", "Run agent", "type prompt, attach\nmentions, submit", self.run_agent)
-        stage(stages, 2, "3", "Download clips", "pull clips out\nof Flow", self.download_clips)
-        stage(stages, 3, "4", "Join clips", "ffmpeg concat →\none final mp4", self.join_clips)
-        stage(stages, 4, "?", "Check order", "rebuild the contact\nsheet, no browser", self.check_order)
-
-        r += 1
-        ttk.Separator(f, orient="horizontal").grid(row=r, column=0, columnspan=3, sticky="ew", padx=10, pady=8)
-        r += 1
-
-        self.reverse_var = tk.BooleanVar(value=self.settings["reverse"])
-        ttk.Checkbutton(f, text="Number clips oldest-first  (Flow's grid is newest-first — leave ON)",
-                        variable=self.reverse_var).grid(
-            row=r, column=0, columnspan=3, sticky="w", padx=14, pady=(0, 2))
-        r += 1
-
-        ttk.Label(f, text="Clips folder:").grid(row=r, column=0, sticky="e", **pad)
-        self.clips_var = tk.StringVar(value=self.settings["clips_dir"])
-        ttk.Entry(f, textvariable=self.clips_var, width=58).grid(row=r, column=1, sticky="ew", **pad)
-        ttk.Button(f, text="Browse…", command=self.browse_clips).grid(row=r, column=2, padx=6)
-        r += 1
-        # Wired here rather than at the story field, because clips_var has to
-        # exist first. A stored folder for a story that is no longer loaded is
-        # corrected on startup as well as on every later change of story.
+        self.agent_manual_panel = ttk.Frame(f)
+        self.agent_manual_panel.grid(row=1, column=0, sticky="ew", padx=14, pady=8)
+        self.agent_manual_panel.columnconfigure(0, weight=1)
+        box = ttk.LabelFrame(self.agent_manual_panel, text="Manual tools")
+        box.grid(row=0, column=0, sticky="ew", padx=2, pady=8)
+        box.columnconfigure(1, weight=1)
+        ttk.Label(box, text="Story:").grid(row=0, column=0, padx=8, pady=6)
+        self.manual_story_box = ttk.Combobox(box, textvariable=self.agent_story_var, state="readonly", width=55)
+        self.manual_story_box.grid(row=0, column=1, sticky="ew", padx=8, pady=6)
+        ttk.Button(box, text="Browse...", command=self.browse_manual_story).grid(row=0, column=2, padx=8)
+        ttk.Label(box, text="Choose a story, adjust its settings, then run the stage you need.",
+                  style="Hint.TLabel", wraplength=650).grid(row=1, column=0, columnspan=3, sticky="w", padx=8)
+        ttk.Label(box, text="Project URL:").grid(row=2, column=0, padx=8, pady=6)
+        ttk.Entry(box, textvariable=self.agent_url_var).grid(row=2, column=1, columnspan=2, sticky="ew", padx=8)
+        opts = tk.Frame(box, bg=SURFACE)
+        opts.grid(row=3, column=0, columnspan=3, sticky="w", padx=8, pady=6)
+        ttk.Checkbutton(opts, text="Generate clips: type only (dry run)", variable=self.no_submit_var).pack(side="left")
+        ttk.Checkbutton(opts, text="Download oldest-first", variable=self.reverse_var).pack(side="left", padx=12)
+        actions = tk.Frame(box, bg=SURFACE)
+        actions.grid(row=4, column=0, columnspan=3, sticky="w", padx=8, pady=8)
+        for i, (title, action) in enumerate([
+                ("Generate clips", self.run_agent), ("Retry failed clips", self.retry_failed_clips),
+                ("Download clips", self.download_clips),
+                ("Join clips", self.join_clips), ("Stop", self.stop_all) ]):
+            ttk.Button(actions, text=title, command=lambda fn=action: self.manual_action(fn)).grid(
+                row=i // 4, column=i % 4, sticky="ew", padx=(0, 8), pady=4)
+        ttk.Label(box, text="Clips folder:").grid(row=5, column=0, padx=8, pady=6)
+        ttk.Entry(box, textvariable=self.clips_var).grid(row=5, column=1, sticky="ew", padx=8)
+        ttk.Button(box, text="Browse", command=self.browse_clips).grid(row=5, column=2, padx=8)
+        ttk.Button(box, text="Open clips folder", command=self.open_clips).grid(row=6, column=1, sticky="w", padx=8, pady=6)
+        settings = ttk.LabelFrame(self.agent_manual_panel, text="Generation settings")
+        settings.grid(row=1, column=0, sticky="ew", padx=2, pady=8)
+        for col in range(3):
+            settings.columnconfigure(col, weight=1, uniform="manual-settings")
+        fields = [
+            ("Video model", self.video_model_var, VIDEO_MODELS),
+            ("Aspect ratio", self.aspect_var, ["Flow", "16:9", "9:16", "1:1"]),
+            ("Start phase", self.agent_start_phase_var, ["start", "clips"]),
+            ("Seconds per clip", self.seconds_var, None),
+            ("Watch seconds", self.watch_var, None),
+            ("CDP port", self.agent_cdp_var, None),
+        ]
+        for index, (label, var, values) in enumerate(fields):
+            cell = ttk.Frame(settings)
+            cell.grid(row=index // 3, column=index % 3, sticky="ew", padx=12, pady=8)
+            ttk.Label(cell, text=label).pack(anchor="w", pady=(0, 5))
+            if values is None:
+                widget = ttk.Entry(cell, textvariable=var, width=12)
+            else:
+                widget = ttk.Combobox(cell, textvariable=var, values=values, state="readonly", width=16)
+            widget.pack(fill="x")
+        preset = ttk.Frame(settings)
+        preset.grid(row=2, column=0, columnspan=3, sticky="ew", padx=12, pady=8)
+        preset.columnconfigure(0, weight=1)
+        ttk.Label(preset, text="Style preset").grid(row=0, column=0, sticky="w", pady=(0, 5))
+        self.manual_preset_box = ttk.Combobox(preset, textvariable=self.style_var,
+                                             values=self._style_displays, state="readonly")
+        self.manual_preset_box.grid(row=1, column=0, sticky="ew")
+        ttk.Button(preset, text="Apply", command=lambda: self.manual_action(self.apply_style)).grid(
+            row=1, column=1, padx=(10, 0))
+        ttk.Label(settings, text="Settings are shared with Auto. Clip phase uses existing reference images.",
+                  style="Hint.TLabel", wraplength=560).grid(row=3, column=0, columnspan=3, sticky="w", padx=12, pady=10)
+        self.manual_advanced_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(self.agent_manual_panel, text="Advanced tools", variable=self.manual_advanced_var,
+                        command=self.update_manual_advanced).grid(row=2, column=0, sticky="w", padx=12, pady=8)
+        self.manual_advanced_panel = ttk.LabelFrame(self.agent_manual_panel, text="Advanced")
+        self.manual_advanced_panel.grid(row=3, column=0, sticky="ew", padx=2, pady=(0, 10))
+        for i, (label, action) in enumerate([
+                ("Build prompt", self.build_prompt), ("Resolve clip order", self.resolve_clip_order),
+                ("Create contact sheet", self.check_order), ("Refresh stories", self.refresh_manual_stories)]):
+            ttk.Button(self.manual_advanced_panel, text=label,
+                       command=(action if action == self.refresh_manual_stories
+                                else lambda fn=action: self.manual_action(fn))).grid(
+                row=i // 2, column=i % 2, sticky="ew", padx=10, pady=8)
+        self.manual_advanced_panel.columnconfigure((0, 1), weight=1)
+        self.update_manual_advanced()
+        self.style_agent_buttons(f)
+        self.update_agent_view()
         self.agent_story_var.trace_add("write", self.follow_story_clips)
+        self.mcp_stories.bind("<<Modified>>", self.workflow_stories_changed)
+        self.refresh_manual_stories()
         self.follow_story_clips()
 
-        btns = tk.Frame(f, bg=SURFACE)
-        btns.grid(row=r, column=1, columnspan=2, sticky="w", padx=14, pady=(2, 10))
-        ttk.Button(btns, text="Open clips folder", command=self.open_clips).pack(side="left")
-        ttk.Button(btns, text="Stop engine", command=self.kill_engine).pack(side="left", padx=10)
-        ttk.Label(btns, text="stage 3 defaults to the story folder /clips",
-                  style="Hint.TLabel").pack(side="left", padx=8)
+    def update_manual_advanced(self):
+        if self.manual_advanced_var.get():
+            self.manual_advanced_panel.grid()
+        else:
+            self.manual_advanced_panel.grid_remove()
 
-    # ── actions ───────────────────────────────────────────────
+    def style_agent_buttons(self, parent):
+        style = ttk.Style(self.root)
+        style.configure("Agent.TButton", font=("Segoe UI", 10, "bold"), padding=(12, 8),
+                        background=ACCENT, foreground="#000000", borderwidth=0,
+                        lightcolor=ACCENT, darkcolor=ACCENT, bordercolor=ACCENT)
+        style.map("Agent.TButton", background=[("disabled", "#44664a"), ("active", ACCENT_DK), ("pressed", ACCENT_DK)],
+                  foreground=[("disabled", "#18241b"), ("active", "#000000"), ("!disabled", "#000000")])
+        def apply(widget):
+            if isinstance(widget, ttk.Button):
+                widget.configure(style="Agent.TButton")
+            for child in widget.winfo_children():
+                apply(child)
+        apply(parent)
+
+    def update_agent_view(self):
+        if self.agent_view_var.get() == "manual":
+            self.agent_auto_panel.grid_remove()
+            self.agent_manual_panel.grid()
+        else:
+            self.agent_manual_panel.grid_remove()
+            self.agent_auto_panel.grid()
+        self.root.update_idletasks()
+
+    def browse_manual_story(self):
+        path = filedialog.askopenfilename(title="Choose story", initialdir=STORIES_DIR,
+                                         filetypes=[("Story JSON", "*.json")])
+        if path:
+            values = list(self.manual_story_box.cget("values"))
+            if path not in values:
+                self.manual_story_box.configure(values=[path] + values)
+            self.agent_story_var.set(path)
+
+    def workflow_stories_changed(self, event=None):
+        if self.mcp_stories.edit_modified():
+            self.mcp_stories.edit_modified(False)
+            self.refresh_manual_stories()
+
+    def refresh_manual_stories(self):
+        paths = []
+        for item in self._mcp_story_paths():
+            path = os.path.normpath(item if os.path.isabs(item) else os.path.join(BASE_DIR, item))
+            if os.path.isdir(path):
+                choices = sorted(Path(path).glob("*_story.json"))
+                path = str(choices[0]) if choices else ""
+            if path and path not in paths:
+                paths.append(path)
+        if not paths:
+            paths = [os.path.join(BASE_DIR, rel) for rel, _, _ in self._find_stories()]
+        current = self.agent_story_var.get()
+        self.manual_story_box.configure(values=paths)
+        if len(paths) == 1 or current not in paths:
+            self.agent_story_var.set(paths[0] if len(paths) == 1 else "")
+
+    def manual_action(self, action):
+        if action == self.stop_all:
+            return action()
+        if not self.agent_story_var.get() or not os.path.isfile(self.agent_story_var.get()):
+            messagebox.showerror("Choose a story", "Choose one story in Manual tools first.")
+            return
+        if self._work_busy():
+            messagebox.showwarning("Busy", "Wait for the current job, or stop it before running a manual stage.")
+            return
+        action()
+
+    def resolve_clip_order(self):
+        self.collect_inputs()
+        self.save_settings()
+        self._launch(["node", os.path.join(BASE_DIR, "order_clips_by_dialogue.js"),
+                      self.agent_story_var.get(), "--write"], "Resolving clip order from dialogue...")
+
+    def _work_busy(self):
+        return bool(getattr(self, "_workflow_running", False) or
+                    (getattr(self, "proc", None) and self.proc.poll() is None))
+
+    def stop_all(self):
+        self.stop_mcp()
+        self.kill_engine()
+
     def browse_story(self):
         start = self.story_var.get() or STORIES_DIR
         p = filedialog.askopenfilename(initialdir=start, filetypes=[("Story JSON", "*.json")])
@@ -1310,6 +1694,48 @@ class Veo3LauncherGUI:
             return self.agent_story_var.get().strip()
         return self.story_var.get().strip()
 
+    def export_story_excel(self):
+        """Write the loaded story out as an .xlsx beside it, for reading by hand.
+
+        Runs the exporter as its own process rather than importing it, so a
+        missing openpyxl reports as a message here instead of taking the GUI
+        down with an ImportError. The story JSON is only read - an export can
+        never damage the story the engine is about to build.
+        """
+        story = self._story_path()
+        if not story or not os.path.exists(story):
+            messagebox.showinfo("No story", "Choose a Story JSON first.")
+            return
+        script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "story_to_excel.py")
+        if not os.path.exists(script):
+            messagebox.showerror("Missing", f"Not found:\n{script}")
+            return
+        try:
+            r = subprocess.run([sys.executable, script, story],
+                               capture_output=True, text=True, timeout=120)
+        except Exception as e:
+            messagebox.showerror("Export failed", f"Could not run the exporter:\n{e}")
+            return
+        if r.returncode != 0:
+            messagebox.showerror("Export failed",
+                                 (r.stderr or r.stdout or "unknown error").strip()[:800])
+            return
+        out = ""
+        for line in (r.stdout or "").splitlines():
+            if line.startswith("Wrote "):
+                out = line[6:].strip()
+        summary = (r.stdout or "").strip()
+        if out and os.path.exists(out):
+            if messagebox.askyesno("Exported", f"{summary}\n\nOpen it now?"):
+                try:
+                    os.startfile(out)
+                except Exception as e:
+                    # The file is written; only the viewer failed. Say where it
+                    # is rather than implying the export did not work.
+                    messagebox.showinfo("Exported", f"{summary}\n\nCould not open it: {e}")
+        else:
+            messagebox.showinfo("Exported", summary or "Done.")
+
     def load_story_info(self):
         for p, var in ((self.story_var.get(), self.story_info),
                        (self.agent_story_var.get(), self.agent_story_info)):
@@ -1334,33 +1760,11 @@ class Veo3LauncherGUI:
                 var.set(f"{n} scenes | characters: {chars or '-'}")
                 if p == self.story_var.get():
                     self.to_var.set(n)
-                if p == self.agent_story_var.get():
-                    # The aspect control is NOT overwritten from the story. It is
-                    # the authority now: Build prompt and Run agent pass it to the
-                    # builder as --aspect, which beats the story's own value.
-                    # Syncing it from the story used to snap a "Flow" or a
-                    # landscape choice back to the story's 9:16 the moment the
-                    # story was (re)loaded - the exact lock this fixes.
-                    try:
-                        if data.get("scene_seconds"):
-                            self.seconds_var.set(int(data["scene_seconds"]))
-                    except (TypeError, ValueError):
-                        pass
-                    # Show which preset the story currently carries, when it is
-                    # one of ours. A story can hold hand-written style text that
-                    # matches no preset; then the dropdown is simply left as-is
-                    # rather than being blanked, since the field is not the
-                    # story's only style - only the one this tool can name.
-                    cur = str(data.get("style") or "")
-                    if cur:
-                        for disp, style in self._style_by_display.items():
-                            if style and style == cur:
-                                self.style_var.set(disp)
-                                break
             except Exception as e:
                 var.set(f"⚠️ Could not parse: {e}")
 
     def collect_inputs(self):
+        self.update_ingredients_reference_mode()
         self.settings.update({
             "story_json": self.story_var.get().strip(),
             "from_scene": self.read_int(self.from_var, 1),
@@ -1368,6 +1772,14 @@ class Veo3LauncherGUI:
             "skip_refs": bool(self.skip_refs_var.get()),
             "gen_refs": bool(self.gen_refs_var.get()),
             "refs_on_clip1": bool(self.refs_on_clip1_var.get()),
+            "ing_stories": self._mcp_text(self.ing_stories),
+            "ing_batch_from": self.read_int(self.ing_batch_from_var, 1),
+            "ing_batch_to": self.read_int(self.ing_batch_to_var, 0),
+            "ing_video_model": self.ing_video_model_var.get(),
+            "ing_aspect": self.ing_aspect_var.get(),
+            "ing_new_project": self.ing_new_project_var.get(),
+            "ing_download": self.ing_download_var.get(),
+            "ing_join": self.ing_join_var.get(),
             "project_url": self.url_var.get().strip(),
             "cdp_port": self.read_int(self.cdp_var, 9222),
             "model_hint": self.model_var.get().strip(),
@@ -1382,12 +1794,30 @@ class Veo3LauncherGUI:
             "style_preset": self._style_ids.get(self.style_var.get(), ""),
             "auto_rotate": bool(self.auto_rotate_var.get()) if hasattr(self, "auto_rotate_var")
                            else bool(self.settings.get("auto_rotate", True)),
+            "agent_story_json": self.agent_story_var.get().strip(),
+            "agent_project_url": self.agent_url_var.get().strip(),
+            "agent_cdp_port": self.read_int(self.agent_cdp_var, 9222),
+            "agent_start_phase": self.agent_start_phase_var.get(),
+            "agent_new_project": bool(self.agent_new_project_var.get()),
+            "agent_generate_refs": bool(self.agent_generate_refs_var.get()),
+            "agent_download": bool(self.agent_download_var.get()),
+            "agent_join": bool(self.agent_join_var.get()),
             # script tab
             "gen_detail": self.gen_detail.get("1.0", "end").strip(),
+            "script_source": self.script_source_var.get(),
+            "script_links": self.script_links.get("1.0", "end").strip(),
+            "script_ideas": self.script_ideas.get("1.0", "end").strip(),
+            "script_match_ref": bool(self.script_match_ref_var.get()),
             "gen_duration": self.read_int(self.gen_duration_var, 56),
             "gen_scene_seconds": self.read_int(self.gen_seconds_var, 8),
             "gen_aspect_ratio": self.gen_aspect_var.get().strip() or "Flow",
             "gen_preset": self._gen_ids.get(self.gen_preset_var.get(), ""),
+            "agent_saved_couple": self.agent_saved_couple_var.get(),
+            "ing_saved_couple": self.ingredients_saved_couple_var.get(),
+            "couple_sarah_file": self.couple_sarah_file_var.get().strip(),
+            "couple_george_file": self.couple_george_file_var.get().strip(),
+            "couple_sarah_description": self.couple_sarah_description_var.get().strip(),
+            "couple_george_description": self.couple_george_description_var.get().strip(),
             "preset_group": self.preset_group_var.get() if hasattr(self, "preset_group_var") else self.settings.get("preset_group", "Classic"),
             "gemini_model": self.gen_model_var.get().strip() or "gemini-3.8-flash,gemini-3.7-flash,gemini-3.6-flash",
             # Anything typed into the entry but not yet Added counts too, so a
@@ -1397,11 +1827,21 @@ class Veo3LauncherGUI:
             # Cleared: the list is now the only source. Leaving a stale single
             # key here would resurrect an old key the user had removed.
             "gemini_api_key": "",
+            # Who writes the story: api / web / auto. Saved per tab, because the
+            # Script tab's one-off story and the MCP tab's batch can reasonably
+            # want different answers - a batch is where the API quota runs out.
+            "story_transport": (self.gen_transport_var.get() if hasattr(self, "gen_transport_var")
+                                else self.settings.get("story_transport", "api")),
+            "mcp_transport": (self.mcp_transport_var.get() if hasattr(self, "mcp_transport_var")
+                              else self.settings.get("mcp_transport", "api")),
             # mcp tab - guarded so a settings save never depends on the tab
             # having been built yet.
             "mcp_links": self._mcp_text(self.mcp_links) if hasattr(self, "mcp_links") else self.settings.get("mcp_links", ""),
             "mcp_ideas": self._mcp_text(self.mcp_ideas) if hasattr(self, "mcp_ideas") else self.settings.get("mcp_ideas", ""),
+            "agent_input_source": self.agent_input_source_var.get(),
             "mcp_stories": self._mcp_text(self.mcp_stories) if hasattr(self, "mcp_stories") else self.settings.get("mcp_stories", ""),
+            "mcp_start_phase": self.mcp_start_phase_var.get() if hasattr(self, "mcp_start_phase_var") else self.settings.get("mcp_start_phase", "start"),
+            "mcp_resume_url": self.mcp_resume_url_var.get().strip() if hasattr(self, "mcp_resume_url_var") else self.settings.get("mcp_resume_url", ""),
             "mcp_preset": self._mcp_preset_id() if hasattr(self, "mcp_preset_var") else self.settings.get("mcp_preset", ""),
             "mcp_seconds": self.read_int(self.mcp_seconds_var, 8) if hasattr(self, "mcp_seconds_var") else self.settings.get("mcp_seconds", 8),
             "mcp_clips": self.read_int(self.mcp_clips_var, 0) if hasattr(self, "mcp_clips_var") else self.settings.get("mcp_clips", 0),
@@ -1596,12 +2036,59 @@ class Veo3LauncherGUI:
         except Exception as e:
             return False, str(e)
 
+    def _aistudio_state(self):
+        """Ask the AI Studio driver what its browser is doing. Never opens one.
+
+        Its own profile and its own port, deliberately away from the Flow
+        browser this tool drives, so this check cannot disturb a running film.
+        """
+        try:
+            p = subprocess.run(["node", AISTUDIO_CLIENT, "--status"], cwd=BASE_DIR,
+                               capture_output=True, text=True, encoding="utf-8",
+                               errors="replace", timeout=90, shell=False)
+        except Exception as e:
+            return {"up": False, "signedIn": False, "error": str(e)}
+        try:
+            return json.loads((p.stdout or "").strip())
+        except Exception:
+            return {"up": False, "signedIn": False,
+                    "error": ((p.stderr or "").strip().splitlines() or ["status check failed"])[-1]}
+
+    def _aistudio_ready(self):
+        """True when the browser can write a story right now.
+
+        Checked BEFORE a batch starts, not after the first link has failed: the
+        AI Studio profile is signed into Google once, by hand, and until that has
+        happened every story in the batch would die on the same wall.
+        """
+        st = self._aistudio_state()
+        if st.get("up") and st.get("signedIn"):
+            return True
+        if st.get("up"):
+            if messagebox.askyesno("Sign in to AI Studio",
+                                   "The AI Studio window is open but not signed in, so the browser "
+                                   "cannot write the stories.\n\nSign in with the Google account "
+                                   "that should write them - it is remembered after that.\n\n"
+                                   "Open the window now?"):
+                self._launch_aistudio()
+            else:
+                self._console("\n⏹  Batch not started: the AI Studio browser is not signed in.\n")
+            return False
+        if messagebox.askyesno("Open AI Studio",
+                               "No AI Studio browser is running. It writes the stories in its own "
+                               "Chrome window, with its own profile, and needs to be signed into "
+                               "Google once.\n\nOpen it now?"):
+            self._launch_aistudio()
+        else:
+            self._console("\n⏹  Batch not started: the AI Studio browser is not running.\n")
+        return False
+
     def _acc_report(self, ok, out):
         if out:
             self.output.insert("end", ("" if ok else "\u26A0  ") + out + "\n")
             self.output.see("end")
 
-    def _ensure_active_browser(self):
+    def _ensure_active_browser(self, port=None):
         """The automation browser on the CDP port must be the ACTIVE
         account's profile before a run starts. No accounts configured =
         nothing to do (the engine uses the single shared profile)."""
@@ -1610,12 +2097,12 @@ class Veo3LauncherGUI:
             return True
         acc = store["accounts"][store.get("current", 0)]
         label = acc.get("label", "")
-        if store.get("browser") == label and self._cdp_alive(self.settings["cdp_port"]):
+        if store.get("browser") == label and self._cdp_alive(port or self.settings["cdp_port"]):
             return True
-        return self._switch_to_account(label)
+        return self._switch_to_account(label, port)
 
-    def _switch_to_account(self, label):
-        port = self.settings["cdp_port"]
+    def _switch_to_account(self, label, port=None):
+        port = port or self.settings["cdp_port"]
         self.output.insert("end", f"\nSwitching the automation browser to '{label}' (the old one closes)...\n")
         self.output.see("end")
         self.root.update_idletasks()
@@ -1734,6 +2221,17 @@ class Veo3LauncherGUI:
 
     def _handle_proc_exit(self, code):
         """Engine finished. Code 3 = the account's Veo credits are spent."""
+        job = getattr(self, "_ingredients_job", None)
+        self._ingredients_job = None
+        if job and job["project"]:
+            self.url_var.set(job["project"])
+            if code == 0 and job["refs_only"]:
+                self.ing_new_project_var.set(False)
+                self.gen_refs_var.set(False)
+                self.settings["ingredients_reference_project"] = job["project"]
+                self.settings["ingredients_reference_story"] = job["story"]
+                self._console("References ready. Run engine will reuse this project and its named images.")
+            self.save_settings()
         self._refresh_accounts_list()
         self._reset_progress("idle")
         ctx = getattr(self, "_rotate_ctx", None)
@@ -1767,7 +2265,7 @@ class Veo3LauncherGUI:
         cmd = ["node", ENGINE, ctx["story"],
                "--from", str(nxt), "--to", str(ctx["to_scene"]),
                "--cdp", str(ctx["cdp"]),
-               "--account", label, "--fresh-project"]
+               "--account", label, "--fresh-project"] + ctx.get("extra", [])
         if self._launch(cmd, f"Continuing on '{label}' from scene {nxt} (fresh project)..."):
             # keep the ctx alive in case THIS account drains too
             self._rotate_ctx = ctx
@@ -1776,9 +2274,11 @@ class Veo3LauncherGUI:
     def _launch(self, cmd, what):
         """One place for the Popen dance - four stages share it."""
         self._rotate_ctx = None
-        if self.proc and self.proc.poll() is None:
+        if self._work_busy():
             messagebox.showwarning("Busy", "A stage is already running. Wait, or kill it first.")
             return False
+        self._ingredients_job = ({"refs_only": "--refs-only" in cmd, "story": cmd[2], "project": ""}
+                                 if len(cmd) > 2 and cmd[1] == ENGINE else None)
         self.output.delete("1.0", "end")
         self.output.insert("end", f"🚀 {what}\n\n")
         self._reset_progress("starting...")
@@ -1798,24 +2298,65 @@ class Veo3LauncherGUI:
         threading.Thread(target=self.stream_output, daemon=True).start()
         return True
 
-    def run_engine(self):
+    def join_ingredients_clips(self):
+        self.collect_inputs()
+        story = self.story_var.get().strip()
+        folder = os.path.join(os.path.dirname(story), "output")
+        first, last = self.read_int(self.from_var, 1), self.read_int(self.to_var, 1)
+        clips = [f"scene-{i:02d}.mp4" for i in range(first, last + 1)]
+        if not clips or not all(os.path.isfile(os.path.join(folder, name)) for name in clips):
+            messagebox.showerror("Missing clips", "Download the selected scene range first. Ingredients clips belong in the story's output folder.")
+            return
+        self._launch(["node", JOINER, folder, "--order", ",".join(clips),
+                      "--out", os.path.join(os.path.dirname(story), "ingredients_final.mp4")],
+                     "Joining Ingredients clips in scene order...")
+
+    def run_engine(self, refs_only=False, export_only=False):
         self.collect_inputs()
         story = self.settings["story_json"]
         if not story or not os.path.exists(story):
             messagebox.showerror("Missing story", "Pick a valid story JSON first.")
             return
+        # Scene 2+ means the timeline already exists. A stale checked
+        # "Create a new project" box used to win over the range and silently
+        # start a new film, while "Make reference images" navigated back to the
+        # project home and repeated phase 1. Resume always wins: stay in the
+        # current project/editor and extend the newest existing clip.
+        resume_existing = (not refs_only and not export_only and
+                           self.settings["from_scene"] > 1)
+        if resume_existing:
+            self.ing_new_project_var.set(False)
+            self.gen_refs_var.set(False)
+            self.settings["ing_new_project"] = False
+            self.settings["gen_refs"] = False
         self.save_settings()
         cmd = ["node", ENGINE, story,
                "--from", str(self.settings["from_scene"]),
                "--to", str(self.settings["to_scene"]),
                "--cdp", str(self.settings["cdp_port"])]
+        if refs_only:
+            cmd += ["--refs-only"]
+        if export_only:
+            cmd += ["--export-only"]
+        else:
+            if self.settings["ing_new_project"]:
+                cmd += ["--new-project"]
+            cmd += ["--video-model", self.settings["ing_video_model"], "--aspect", self.settings["ing_aspect"]]
+        if self.settings["ing_join"] and not refs_only:
+            cmd += ["--join"]
+        if not self.settings["ing_download"] and not export_only and not self.settings["ing_join"]:
+            cmd += ["--no-download"]
         if self.settings["project_url"]:
             cmd += ["--project-url", self.settings["project_url"]]
+        if (not self.settings["ing_new_project"] and not refs_only and
+                self.settings.get("ingredients_reference_project") == self.settings["project_url"] and
+                self.settings.get("ingredients_reference_story") == story):
+            cmd += ["--no-upload-refs"]
         if self.settings["skip_refs"]:
             cmd += ["--skip-refs"]
         # Make the sheets (cast + place) inside the project first, so nothing is
         # generated or saved by hand.
-        if self.settings["gen_refs"]:
+        if self.settings["gen_refs"] and not export_only and not resume_existing:
             cmd += ["--gen-refs"]
         if self.settings["refs_on_clip1"]:
             cmd += ["--refs-on-clip1"]
@@ -1826,23 +2367,108 @@ class Veo3LauncherGUI:
         store = self._account_store()
         if store:
             cmd += ["--account", store["accounts"][store.get("current", 0)]["label"]]
-        if not self._launch(cmd, "Starting the ingredients engine in a separate console..."):
+        launch_text = (f"Resuming the current Ingredients project from scene "
+                       f"{self.settings['from_scene']} in the Edit/Extend screen..."
+                       if resume_existing else
+                       "Starting the ingredients engine in a separate console...")
+        if not self._launch(cmd, launch_text):
             return
         # If this account drains mid-story the engine exits with code 3;
         # _handle_proc_exit then continues on the next account.
-        self._rotate_ctx = {
+        self._rotate_ctx = None if refs_only or export_only else {
             "story": story,
             "to_scene": self.settings["to_scene"],
             "cdp": self.settings["cdp_port"],
+            "extra": ["--video-model", self.settings["ing_video_model"], "--aspect", self.settings["ing_aspect"]]
+                     + (["--gen-refs"] if self.settings["gen_refs"] else [])
+                     + (["--refs-on-clip1"] if self.settings["refs_on_clip1"] else [])
+                     + (["--join"] if self.settings["ing_join"] else [])
+                     + (["--no-download"] if not self.settings["ing_download"] and not self.settings["ing_join"] else []),
         }
 
     # ── script tab actions ────────────────────────────────────
+    def update_script_source(self):
+        for source, widgets in self.script_input_widgets.items():
+            for widget in widgets:
+                widget.grid() if source == self.script_source_var.get() else widget.grid_remove()
+        if hasattr(self, "script_preview_button"):
+            single = self.script_source_var.get() == "Title & details"
+            self.script_preview_button.configure(text="Preview prompts (dry run)" if single else "Preview batch inputs")
+            self.script_preview_hint.configure(text=("Dry run prints prompts without calling Gemini." if single else
+                                                     "Preview shows parsed stories and settings without calling Gemini. Write stories processes the batch one by one."))
+
+    def import_script_inputs(self):
+        file = filedialog.askopenfilename(title="Import video links or story briefs", filetypes=[("Text files", "*.txt *.md"), ("All files", "*.*")])
+        if not file:
+            return
+        try:
+            with open(file, encoding="utf-8-sig") as fh:
+                text = fh.read()
+            source = "Video links" if all(not line.strip() or line.strip().startswith("http") for line in text.splitlines()) else "Multiple stories"
+            box = self.script_links if source == "Video links" else self.script_ideas
+            box.delete("1.0", "end")
+            box.insert("1.0", text)
+            self.script_source_var.set(source)
+        except Exception as e:
+            messagebox.showerror("Import failed", str(e))
+
+    def script_batch_request(self):
+        source = self.script_source_var.get()
+        seconds = self.read_int(self.gen_seconds_var, 8)
+        args = {"generate": False, "submit": False, "download": False, "join": False,
+                "generate_refs": False, "new_project": False,
+                "preset": self._gen_ids.get(self.gen_preset_var.get(), ""),
+                "seconds": seconds, "duration": self.read_int(self.gen_duration_var, 56),
+                "clips": max(1, round(self.read_int(self.gen_duration_var, 56) / max(1, seconds))),
+                "aspect": self.gen_aspect_var.get(), "transport": self.gen_transport_var.get(),
+                "model": self.gen_model_var.get().strip(),
+                "match_ref": source == "Video links" and bool(self.script_match_ref_var.get())}
+        if source == "Video links":
+            links = [line.strip() for line in self.script_links.get("1.0", "end").splitlines() if line.strip()]
+            if not links or any(not re.match(r"^https?://\S+$", link, re.I) for link in links):
+                raise ValueError("Paste valid video URLs, one per line.")
+            args["references"] = links
+        else:
+            ideas = self._parse_ideas_text(self.script_ideas.get("1.0", "end"))
+            if not ideas:
+                raise ValueError("Add a story title and details. Use STORY 1, STORY 2… for multiple stories.")
+            args["ideas"] = ideas
+        if not args["preset"]:
+            raise ValueError("Choose a style preset first.")
+        return args
+
+    def write_script_batch(self, dry=False):
+        if self._work_busy():
+            messagebox.showwarning("Busy", "A job is already running. Wait, or stop it first.")
+            return
+        try:
+            args = self.script_batch_request()
+        except ValueError as e:
+            messagebox.showerror("Story inputs", str(e))
+            return
+        if dry:
+            self._console("\nStory batch preview (inputs and settings only; no calls):\n" + json.dumps(args, indent=2, ensure_ascii=False))
+            return
+        self.collect_inputs()
+        self.save_settings()
+        if args["transport"] == "api" and not self.settings["gemini_api_keys"]:
+            messagebox.showerror("No API key", "Add a Gemini API key or choose Google AI Studio as the writer.")
+            return
+        if args["transport"] in ("web", "auto") and not self._aistudio_ready():
+            return
+        self.stop_mcp()
+        self._console(f"\nWriting story batch: {len(args.get('references', args.get('ideas', [])))} item(s).\n")
+        self._reset_progress("story batch")
+        self.start_workflow_worker(args)
+
     def write_story(self, dry=False):
         """Generate a story package from the title, detail and preset.
 
         Nothing here touches Flow: it is text generation only, which is why it
         can be run freely. The images it asks for are still made by hand.
         """
+        if self.script_source_var.get() != "Title & details":
+            return self.write_script_batch(dry)
         self.collect_inputs()
         title = self.gen_title_var.get().strip()
         if not title:
@@ -1881,12 +2507,25 @@ class Veo3LauncherGUI:
             cmd += ["--dry-run"]
             self._launch(cmd, f"Building the prompts for '{title}' - nothing is sent...")
         else:
-            if not self.settings["gemini_api_keys"]:
+            transport = self.gen_transport_var.get()
+            cmd += ["--transport", transport]
+            # The API key is only required by a run that uses the API. Asking for
+            # one when the story is being written in the browser would be a lie
+            # about what the run needs.
+            if transport == "api" and not self.settings["gemini_api_keys"]:
                 messagebox.showerror("No API key",
-                                     "Add at least one Gemini API key on this tab first.\n"
-                                     "They are saved to gui_settings.json, which is gitignored.")
+                                     "Add at least one Gemini API key on this tab first, or pick "
+                                     "Google AI Studio as the story writer - that one needs no key.\n"
+                                     "Keys are saved to gui_settings.json, which is gitignored.")
                 return
-            self._launch(cmd, f"Writing '{title}' with {self.settings['gemini_model']}...")
+            # The browser has to exist and be signed in before this starts. The
+            # same check the batch does, for the same reason: a run that dies
+            # half-written because nobody had signed in is a wasted wait.
+            if transport in ("web", "auto") and not self._aistudio_ready():
+                return
+            who = ("Google AI Studio in the browser" if transport == "web"
+                   else self.settings["gemini_model"])
+            self._launch(cmd, f"Writing '{title}' with {who}...")
 
     def use_flash_chain(self):
         """Put the default flash chain back: newest first, then the next two."""
@@ -2026,17 +2665,19 @@ class Veo3LauncherGUI:
         self.save_settings()
         # The agent driver types into whatever browser owns the CDP port -
         # make sure that is the ACTIVE account's before it starts.
-        if not self._ensure_active_browser():
+        if not self._ensure_active_browser(self.settings["agent_cdp_port"]):
             return
         # --refs is what keeps the cast stable. The "@" picker offers each
         # character as either a raw Image or a saved Flow Character, and only
         # the Image holds the face across clips - the Character is re-derived
         # per clip and drifts. Passing the story JSON uploads the sheets (once;
         # they are skipped on later runs) so an Image tile exists to pick.
-        cmd = ["node", AGENT_ENGINE, "--file", prompt_file,
+        engine = AGENT_ENGINE if self.settings["no_submit"] else os.path.join(BASE_DIR, "agent_batch_run.js")
+        cmd = ["node", engine, "--file", prompt_file,
                "--refs", story,
-               "--cdp", str(self.settings["cdp_port"]),
-               "--watch", str(self.settings["watch_secs"])]
+               "--cdp", str(self.settings["agent_cdp_port"]),
+               "--watch", str(self.settings["watch_secs"]),
+               "--aspect", self.settings["aspect_ratio"]]
         if self.settings["model_hint"]:
             cmd += ["--model", self.settings["model_hint"]]
         # "Flow" is the sentinel for "leave the project alone" - passing it as a
@@ -2048,7 +2689,50 @@ class Veo3LauncherGUI:
             cmd += ["--auto-approve"]
         if self.settings["no_submit"]:
             cmd += ["--no-submit"]
-        self._launch(cmd, "Running the Agent Mode driver (dry run is ON by default)...")
+        if self.agent_url_var.get().strip():
+            try:
+                cmd += ["--project-url", normalize_flow_project_url(self.agent_url_var.get())]
+            except ValueError as e:
+                messagebox.showerror("Flow project URL", str(e))
+                return
+        if self.agent_start_phase_var.get() == "clips":
+            cmd += ["--no-upload-refs"]
+        self._launch(cmd, "Running the Agent Mode driver...")
+
+    def retry_failed_clips(self):
+        """Retry only failed Flow media tiles in the current Agent project.
+
+        This deliberately does not rebuild, paste, or submit agent_prompt.txt.
+        Flow's conversation-level "Try again" repeats the full request and makes
+        duplicate clips; agent_mode.js ignores it in this recovery mode.
+        """
+        self.collect_inputs()
+        story = self.agent_story_var.get().strip()
+        if not story or not os.path.exists(story):
+            messagebox.showerror("Missing story", "Pick a valid story JSON first.")
+            return
+        project_url = self.agent_url_var.get().strip()
+        if not project_url:
+            messagebox.showerror("Missing project URL",
+                                 "Paste the existing Flow project URL first.")
+            return
+        try:
+            project_url = normalize_flow_project_url(project_url)
+            with open(story, "r", encoding="utf-8") as fh:
+                expected = len(json.load(fh).get("scenes", []))
+        except (ValueError, OSError, json.JSONDecodeError) as e:
+            messagebox.showerror("Cannot start safe retry", str(e))
+            return
+        self.save_settings()
+        if not self._ensure_active_browser(self.settings["agent_cdp_port"]):
+            return
+        cmd = ["node", AGENT_ENGINE, "--retry-failed-only",
+               "--project-url", project_url,
+               "--expected", str(expected),
+               "--cdp", str(self.settings["agent_cdp_port"]),
+               "--retry-rounds", "8",
+               "--retry-watch", "90"]
+        self._launch(cmd, "Retrying failed clip tiles only (the full story will not be resubmitted)...")
 
     def download_clips(self):
         self.collect_inputs()
@@ -2059,9 +2743,22 @@ class Veo3LauncherGUI:
         self.clips_var.set(out)
         self.save_settings()
         # Clips download from the ACTIVE account's Flow project.
-        if not self._ensure_active_browser():
+        if not self._ensure_active_browser(self.settings["agent_cdp_port"]):
             return
-        cmd = ["node", DOWNLOADER, "--out", out, "--cdp", str(self.settings["cdp_port"])]
+        cmd = ["node", DOWNLOADER, "--out", out, "--cdp", str(self.settings["agent_cdp_port"])]
+        try:
+            with open(self.agent_story_var.get(), "r", encoding="utf-8") as fh:
+                expected = len(json.load(fh).get("scenes", []))
+            if expected:
+                cmd += ["--expected", str(expected), "--story", self.agent_story_var.get()]
+        except Exception:
+            pass
+        if self.agent_url_var.get().strip():
+            try:
+                cmd += ["--project-url", normalize_flow_project_url(self.agent_url_var.get())]
+            except ValueError as e:
+                messagebox.showerror("Flow project URL", str(e))
+                return
         if self.settings.get("reverse", True):
             # Flow lists newest-first, so without this scene 7 is written as
             # scene-01.mp4 and the join runs the story backwards.
@@ -2075,10 +2772,48 @@ class Veo3LauncherGUI:
             messagebox.showerror("No clips folder", "Pick the folder holding the downloaded clips.")
             return
         self.save_settings()
+        cmd = ["node", JOINER, d]
+        manifest_file = os.path.join(d, "manifest.json")
+        try:
+            with open(manifest_file, "r", encoding="utf-8") as fh:
+                manifest = json.load(fh)
+            expected = int(manifest.get("expected") or 0)
+            numbered = [f"scene-{n:02d}.mp4" for n in range(1, expected + 1)]
+            actual = [f for f in os.listdir(d) if f.lower().endswith(".mp4")
+                      and not re.search(r"(_final|_joined|_concat)\.mp4$", f, re.I)]
+            if expected > len(actual) > 0:
+                present = [c.get("file") for c in manifest.get("clips", [])
+                           if c.get("got") is not False and c.get("file") in actual]
+                if len(present) != len(actual) or len(set(present)) != len(present):
+                    messagebox.showerror("Clip order needs checking",
+                                         "The downloaded files and manifest disagree. Resolve clip order before exporting.")
+                    return
+                if not messagebox.askyesno(
+                        "Export available clips?",
+                        f"This story expects {expected} clips, but only {len(actual)} were downloaded.\n\n"
+                        f"Export these {len(actual)} clips in their current manifest order?\n"
+                        "The result is saved as clips_partial.mp4. Missing scenes are not generated, "
+                        "and the story remains marked incomplete.\n\n"
+                        "Yes: export the available clips.\nNo: stop so you can recover missing scenes."):
+                    return
+                cmd += ["--allow-partial", "--order", ",".join(present)]
+            if (manifest.get("complete") is False and expected > 0
+                    and set(actual) == set(numbered)):
+                if not messagebox.askyesno(
+                        "Confirm clip order",
+                        f"All {expected} numbered clips are present, but the saved scene mapping is unresolved or outdated.\n\n"
+                        "Have you checked that scene-01.mp4 through "
+                        f"scene-{expected:02d}.mp4 are in the correct story order?\n\n"
+                        "Yes: validate the clips and join in that filename order, saving the corrected manifest.\n"
+                        "No: stop so you can check or resolve the order first."):
+                    return
+                cmd += ["--order", ",".join(numbered)]
+        except (OSError, ValueError, TypeError):
+            pass  # The joiner reports invalid or missing manifest data.
         # No --reencode: join_clips.js checks the stream signatures and only
         # re-encodes when the clips actually differ. Passing it here would force
         # a slow encode on every run, including the ones that need nothing.
-        self._launch(["node", JOINER, d], "Joining the clips with ffmpeg...")
+        self._launch(cmd, "Joining the clips with ffmpeg...")
 
     def check_order(self):
         """Rebuild the contact sheet so the join order can be eyeballed.
@@ -2100,6 +2835,11 @@ class Veo3LauncherGUI:
         self._credits_scene = 0
         try:
             for line in self.proc.stdout:
+                job = getattr(self, "_ingredients_job", None)
+                if job:
+                    match = re.search(r"project_url:\s*(https://flow\.google\.com/project/[a-zA-Z0-9_-]+)", line)
+                    if match:
+                        job["project"] = match.group(1)
                 self.output.insert("end", line)
                 self.output.see("end")
                 # The engine's drain sentinel: how far the story got
@@ -2174,24 +2914,56 @@ class Veo3LauncherGUI:
     # client). Same tool layer the agents see, so there is one batch
     # implementation, not two - and because it runs here, it can use the account
     # pool before a generating batch.
-    def build_mcp_tab(self, f):
+    def build_workflow_tab(self, f):
         pad = dict(padx=14, pady=5)
         f.columnconfigure(1, weight=1)
         r = 0
 
         intro = tk.Frame(f, bg=CARD, highlightthickness=1, highlightbackground=BORDER)
         intro.grid(row=r, column=0, columnspan=3, sticky="ew", padx=10, pady=(10, 8))
-        tk.Label(intro, text="Batch builder - feeds the MCP server", bg=CARD, fg=ACCENT,
+        tk.Label(intro, text="Auto workflow", bg=CARD, fg=ACCENT,
                  font=("Segoe UI", 10, "bold"), anchor="w").pack(fill="x", padx=10, pady=(8, 2))
-        tk.Label(intro, justify="left", anchor="w", bg=CARD, fg=TEXT, font=("Segoe UI", 9),
-                 text=("Video links (one per line) are analysed and made into films. Ideas are written\n"
-                       "from scratch:   Title | preset | detail   (preset and detail optional).\n"
-                       "Already-written stories skip all of that and go straight to Flow.\n"
-                       "Import a .txt / .csv / .xlsx too: a row with a link is a reference; a row with a\n"
-                       "title in column A and the details in column B is an idea. Films are made ONE BY ONE.")
-                 ).pack(fill="x", padx=10, pady=(0, 10))
+        tk.Label(intro, justify="left", anchor="w", bg=CARD, fg=TEXT_DIM,
+                 font=("Segoe UI", 10), wraplength=600,
+                 text="Add video links, ideas, or existing stories. Choose your settings and run the complete workflow.").pack(
+                     fill="x", padx=12, pady=(0, 12))
         r += 1
 
+        phase = tk.Frame(f, bg=SURFACE)
+        self.saved_couple_controls(f, "agent").grid(row=r, column=0, columnspan=3, sticky="ew", padx=14, pady=8)
+        r += 1
+        phase.grid(row=r, column=0, columnspan=3, sticky="ew", padx=14, pady=8)
+        ttk.Label(phase, text="Start from:").pack(side="left", padx=(0, 10))
+        saved_phase = self.settings.get("mcp_start_phase", "start")
+        self.mcp_start_phase_var = tk.StringVar(value=saved_phase if saved_phase in ("start", "clips") else "start")
+        ttk.Radiobutton(phase, text="From start", value="start",
+                        variable=self.mcp_start_phase_var).pack(side="left", padx=(0, 18))
+        ttk.Radiobutton(phase, text="Clip generation", value="clips",
+                        variable=self.mcp_start_phase_var).pack(side="left")
+        r += 1
+        self.mcp_resume_frame = tk.Frame(f, bg=CARD)
+        self.mcp_resume_frame.grid(row=r, column=0, columnspan=3, sticky="ew", padx=14, pady=5)
+        self.mcp_resume_frame.columnconfigure(1, weight=1)
+        ttk.Label(self.mcp_resume_frame, text="Flow project URL:").grid(row=0, column=0, padx=8, pady=8)
+        self.mcp_resume_url_var = tk.StringVar(value=self.settings.get("mcp_resume_url", ""))
+        ttk.Entry(self.mcp_resume_frame, textvariable=self.mcp_resume_url_var).grid(row=0, column=1, sticky="ew", padx=8, pady=8)
+        ttk.Label(self.mcp_resume_frame, text="Choose ONE existing story below and paste its project URL.\n"
+                  "Uses the named reference images already in that project and runs the story's clip generation.",
+                  style="Hint.TLabel").grid(row=1, column=0, columnspan=2, sticky="w", padx=8, pady=(0, 8))
+        r += 1
+
+        ttk.Label(f, text="Input source:").grid(row=r, column=0, sticky="e", **pad)
+        choices = ["Video links", "Ideas", "Existing stories"]
+        default_source = ("Existing stories" if self.settings.get("mcp_stories", "").strip()
+                          else "Ideas" if self.settings.get("mcp_ideas", "").strip() else "Video links")
+        source = self.settings.get("agent_input_source", default_source)
+        self.agent_input_source_var = tk.StringVar(value=source if source in choices else default_source)
+        self.agent_input_source_box = ttk.Combobox(f, textvariable=self.agent_input_source_var,
+                                                  values=choices, state="readonly", width=24)
+        self.agent_input_source_box.grid(row=r, column=1, columnspan=2, sticky="w", **pad)
+        self.workflow_input_widgets = {}
+        r += 1
+        links_row = r
         tk.Label(f, text="Video links:").grid(row=r, column=0, sticky="ne", **pad)
         self.mcp_links = tk.Text(f, height=5, bg=INPUT, fg=TEXT, insertbackground=TEXT,
                                  font=("Consolas", 9), wrap="none")
@@ -2199,13 +2971,18 @@ class Veo3LauncherGUI:
         self._mcp_set_text(self.mcp_links, self.settings.get("mcp_links", ""))
         r += 1
 
-        tk.Label(f, text="Ideas:").grid(row=r, column=0, sticky="ne", **pad)
+        self.workflow_input_widgets["Video links"] = list(f.grid_slaves(row=links_row))
+        ideas_row = r
+        tk.Label(f, text="Ideas:\nUse STORY 1, STORY 2…\nfor a multi-story batch:",
+                 justify="right").grid(row=r, column=0, sticky="ne", **pad)
         self.mcp_ideas = tk.Text(f, height=7, bg=INPUT, fg=TEXT, insertbackground=TEXT,
                                  font=("Consolas", 9), wrap="none")
         self.mcp_ideas.grid(row=r, column=1, columnspan=2, sticky="ew", **pad)
         self._mcp_set_text(self.mcp_ideas, self.settings.get("mcp_ideas", ""))
         r += 1
 
+        self.workflow_input_widgets["Ideas"] = list(f.grid_slaves(row=ideas_row))
+        stories_row = r
         # Stories that are ALREADY written. A story is the expensive, reviewed
         # part of the job, and it is the part people want to keep: re-running a
         # film because Flow failed a tile, or making the same film again in a
@@ -2224,12 +3001,17 @@ class Veo3LauncherGUI:
         ttk.Button(st, text="Add story…", command=self.mcp_pick_story).pack(side="left")
         ttk.Button(st, text="Clear", command=lambda: self.mcp_stories.delete("1.0", "end")).pack(side="left", padx=8)
         ttk.Label(st, text="story JSON or its folder, one per line - "
-                           "these RUN INSTEAD of the links and ideas above: nothing is written or analysed",
+                           "uses the existing story text without rewriting it",
                   style="Hint.TLabel").pack(side="left", padx=8)
         r += 1
 
+        self.workflow_input_widgets["Existing stories"] = list(f.grid_slaves(row=stories_row)) + list(f.grid_slaves(row=stories_row + 1))
+        self.agent_input_source_var.trace_add("write", lambda *_: self.update_agent_input_source())
+        self.update_agent_input_source()
         imp = tk.Frame(f, bg=SURFACE)
         imp.grid(row=r, column=0, columnspan=3, sticky="w", padx=14, pady=5)
+        self.workflow_import_frame = imp
+        self.update_agent_input_source()
         ttk.Button(imp, text="Import file…", command=self.mcp_import_file).pack(side="left")
         ttk.Label(imp, text=".txt / .csv / .xlsx   (links, or Title in col A + details in col B)",
                   style="Hint.TLabel").pack(side="left", padx=8)
@@ -2276,6 +3058,30 @@ class Veo3LauncherGUI:
                   style="Hint.TLabel").pack(side="left", padx=(6, 0))
         r += 1
 
+        # WHO WRITES THE STORIES IN THIS BATCH. The same choice as the Script tab,
+        # but its own copy: a batch of ten links is exactly the run where the free
+        # API tier runs out, and switching this one should not quietly change how
+        # a single story on the other tab gets written.
+        line1d = tk.Frame(f, bg=SURFACE)
+        line1d.grid(row=r, column=0, columnspan=3, sticky="w", padx=14, pady=5)
+        ttk.Label(line1d, text="Story writer:").pack(side="left")
+        self.mcp_transport_var = tk.StringVar(value=self.settings.get("mcp_transport", "api"))
+        for val, lbl in (("api", "API keys"),
+                         ("web", "Google AI Studio (browser)"),
+                         ("auto", "API, browser as backup")):
+            ttk.Radiobutton(line1d, text=lbl, value=val,
+                            variable=self.mcp_transport_var).pack(side="left", padx=(6, 12))
+        ttk.Button(line1d, text="Check AI Studio",
+                   command=lambda: self.check_aistudio("mcp")).pack(side="left", padx=(4, 0))
+        r += 1
+
+        self.mcp_transport_hint = ttk.Label(f, text="", style="Hint.TLabel", justify="left")
+        self.mcp_transport_hint.grid(row=r, column=0, columnspan=3, sticky="w", padx=14)
+        r += 1
+        self.mcp_transport_var.trace_add("write", lambda *a: self.update_transport_hint("mcp"))
+        self.update_transport_hint("mcp")
+        r += 1
+
         line1b = tk.Frame(f, bg=SURFACE)
         line1b.grid(row=r, column=0, columnspan=3, sticky="w", padx=14, pady=5)
         self.mcp_match_ref_var = tk.BooleanVar(value=bool(self.settings.get("mcp_match_ref", True)))
@@ -2290,18 +3096,16 @@ class Veo3LauncherGUI:
         line2 = tk.Frame(f, bg=SURFACE)
         line2.grid(row=r, column=0, columnspan=3, sticky="w", padx=14, pady=5)
         self.mcp_generate_var = tk.BooleanVar(value=bool(self.settings.get("mcp_generate", False)))
-        ttk.Checkbutton(line2, text="Generate (spends credits)",
-                        variable=self.mcp_generate_var).pack(side="left")
         self.mcp_download_var = tk.BooleanVar(value=bool(self.settings.get("mcp_download", True)))
         ttk.Checkbutton(line2, text="Download", variable=self.mcp_download_var).pack(side="left", padx=(12, 0))
         self.mcp_join_var = tk.BooleanVar(value=bool(self.settings.get("mcp_join", True)))
         ttk.Checkbutton(line2, text="Join", variable=self.mcp_join_var).pack(side="left", padx=(12, 0))
         self.mcp_new_project_var = tk.BooleanVar(value=bool(self.settings.get("mcp_new_project", True)))
-        ttk.Checkbutton(line2, text="New project per film",
-                        variable=self.mcp_new_project_var).pack(side="left", padx=(12, 0))
+        self.mcp_new_project_check = ttk.Checkbutton(line2, text="New project per film", variable=self.mcp_new_project_var)
+        self.mcp_new_project_check.pack(side="left", padx=(12, 0))
         self.mcp_generate_refs_var = tk.BooleanVar(value=bool(self.settings.get("mcp_generate_refs", True)))
-        ttk.Checkbutton(line2, text="Refs in Flow",
-                        variable=self.mcp_generate_refs_var).pack(side="left", padx=(12, 0))
+        self.mcp_refs_check = ttk.Checkbutton(line2, text="Refs in Flow", variable=self.mcp_generate_refs_var)
+        self.mcp_refs_check.pack(side="left", padx=(12, 0))
         self.mcp_auto_approve_var = tk.BooleanVar(value=bool(self.settings.get("mcp_auto_approve", True)))
         ttk.Checkbutton(line2, text="Auto-approve", variable=self.mcp_auto_approve_var).pack(side="left", padx=(12, 0))
         self.mcp_verbose_var = tk.BooleanVar(value=bool(self.settings.get("mcp_verbose", True)))
@@ -2313,30 +3117,123 @@ class Veo3LauncherGUI:
         line3.grid(row=r, column=0, columnspan=3, sticky="w", padx=14, pady=5)
         ttk.Label(line3, text="From:").pack(side="left")
         self.mcp_from_var = tk.IntVar(value=int(self.settings.get("mcp_from", 1)))
-        ttk.Spinbox(line3, from_=1, to=999, textvariable=self.mcp_from_var, width=5).pack(side="left", padx=(6, 16))
+        self.mcp_from_box = ttk.Spinbox(line3, from_=1, to=999, textvariable=self.mcp_from_var, width=5)
+        self.mcp_from_box.pack(side="left", padx=(6, 16))
         ttk.Label(line3, text="To (0 = end):").pack(side="left")
         self.mcp_to_var = tk.IntVar(value=int(self.settings.get("mcp_to", 0)))
-        ttk.Spinbox(line3, from_=0, to=999, textvariable=self.mcp_to_var, width=5).pack(side="left", padx=(6, 16))
+        self.mcp_to_box = ttk.Spinbox(line3, from_=0, to=999, textvariable=self.mcp_to_var, width=5)
+        self.mcp_to_box.pack(side="left", padx=(6, 16))
         ttk.Label(line3, text="Flow runs strictly one film at a time.", style="Hint.TLabel").pack(side="left")
         r += 1
 
         acts = tk.Frame(f, bg=SURFACE)
         acts.grid(row=r, column=0, columnspan=3, sticky="w", padx=14, pady=(8, 4))
-        ttk.Button(acts, text="Write stories only",
-                   command=lambda: self.run_mcp_batch(False)).pack(side="left")
+        self.mcp_write_button = ttk.Button(acts, text="Write stories only", command=lambda: self.run_mcp_batch(False))
+        self.mcp_write_button.pack(side="left")
         ttk.Button(acts, text="Generate batch",
                    command=lambda: self.run_mcp_batch(True)).pack(side="left", padx=8)
-        ttk.Button(acts, text="Stop", command=self.stop_mcp).pack(side="left")
+        ttk.Button(acts, text="Stop", command=self.stop_all).pack(side="left")
+        self.mcp_start_phase_var.trace_add("write", lambda *_: self.update_mcp_start_phase())
+        self.update_mcp_start_phase()
         r += 1
 
-        ag = tk.Frame(f, bg=SURFACE)
-        ag.grid(row=r, column=0, columnspan=3, sticky="w", padx=14, pady=(4, 10))
-        ttk.Button(ag, text="Copy MCP config", command=self.copy_mcp_config).pack(side="left")
-        ttk.Button(ag, text="Copy agent instruction",
-                   command=self.copy_agent_instruction).pack(side="left", padx=8)
-        ttk.Label(ag, text="paste into opencode / Claude Code / Cursor",
-                  style="Hint.TLabel").pack(side="left", padx=4)
-        r += 1
+        advanced = tk.Frame(f, bg=SURFACE)
+        advanced.grid(row=r, column=0, columnspan=3, sticky="w", padx=14, pady=8)
+        ttk.Label(advanced, text="CDP port:").pack(side="left")
+        ttk.Spinbox(advanced, from_=1024, to=65535, textvariable=self.cdp_var, width=7).pack(side="left", padx=8)
+        ttk.Label(advanced, text="Watch seconds:").pack(side="left")
+        ttk.Spinbox(advanced, from_=30, to=3600, textvariable=self.watch_var, width=7).pack(side="left", padx=8)
+        ttk.Label(advanced, text="Model hint:").pack(side="left")
+        ttk.Entry(advanced, textvariable=self.model_var, width=20).pack(side="left", padx=8)
+        return r + 1
+
+    def build_mcp_integration_tab(self, f):
+        f.columnconfigure(0, weight=1)
+        ttk.Label(f, text="MCP integration", style="Step.TLabel").grid(row=0, column=0, sticky="w", padx=14, pady=12)
+        ttk.Label(f, text="Connect an external AI assistant to the local veo3-flow tools.\n"
+                  "Configure your production workflow in Agent Mode, then copy its request here.\n"
+                  "The client launches the local Node server; no separate network service is needed.",
+                  style="Hint.TLabel", wraplength=650).grid(row=1, column=0, sticky="w", padx=14)
+        buttons = tk.Frame(f, bg=SURFACE)
+        buttons.grid(row=2, column=0, sticky="w", padx=14, pady=10)
+        ttk.Button(buttons, text="Copy MCP config", command=self.copy_mcp_config).pack(side="left")
+        ttk.Button(buttons, text="Test connection / Refresh tools", command=self.test_mcp_connection).pack(side="left", padx=8)
+        ttk.Button(buttons, text="Inspect story status", command=self.inspect_mcp_story).pack(side="left")
+        self.integration_status = tk.StringVar(value="Not tested in this session.")
+        ttk.Label(f, textvariable=self.integration_status, style="Hint.TLabel", wraplength=650).grid(row=3, column=0, sticky="w", padx=14)
+        copyrow = tk.Frame(f, bg=SURFACE)
+        copyrow.grid(row=4, column=0, sticky="w", padx=14, pady=10)
+        ttk.Checkbutton(copyrow, text="Allow generation in copied request (spends credits)", variable=self.mcp_generate_var).pack(side="left")
+        ttk.Button(copyrow, text="Copy workflow instruction", command=self.copy_agent_instruction).pack(side="left", padx=8)
+        self.integration_tools = tk.Listbox(f, height=10, bg=INPUT, fg=TEXT, exportselection=False)
+        self.integration_tools.grid(row=5, column=0, sticky="ew", padx=14, pady=6)
+        self.integration_tools.bind("<<ListboxSelect>>", self.show_mcp_tool)
+        self.integration_output = tk.Text(f, height=18, wrap="word", bg=INPUT, fg=TEXT,
+                                          insertbackground=TEXT, font=("Consolas", 9))
+        self.integration_output.grid(row=6, column=0, sticky="ew", padx=14, pady=8)
+        self._integration_catalog = []
+
+    def show_mcp_tool(self, event=None):
+        selected = self.integration_tools.curselection()
+        if selected:
+            self.integration_output.delete("1.0", "end")
+            self.integration_output.insert("end", json.dumps(self._integration_catalog[selected[0]], indent=2))
+
+    def test_mcp_connection(self):
+        self._integration_check()
+
+    def inspect_mcp_story(self):
+        story = self.agent_story_var.get().strip()
+        if not story:
+            messagebox.showinfo("Choose a story", "Select a story under Agent Mode > Manual tools first.")
+            return
+        self._integration_check(story)
+
+    def _integration_check(self, story=None):
+        if getattr(self, "_integration_busy", False):
+            return
+        self._integration_busy = True
+        self.integration_status.set("Checking local MCP server...")
+
+        def worker():
+            client = None
+            try:
+                from mcp_client import MCPClient
+                client = MCPClient(MCP_SERVER, cwd=BASE_DIR)
+                client.start()
+                catalog = client.request("tools/list", {}, timeout=30).get("tools", [])
+                result = client.call_tool("pipeline_status", {"story": story}, timeout=30) if story else None
+                def display():
+                    self._integration_catalog = catalog
+                    self.integration_tools.delete(0, "end")
+                    for tool in catalog:
+                        self.integration_tools.insert("end", tool["name"])
+                    self.integration_status.set(f"Connected: {len(catalog)} tools available." +
+                                                (" Story inspection reported an error." if result and result["isError"] else ""))
+                    self.integration_output.delete("1.0", "end")
+                    self.integration_output.insert("end", result["text"] if result else
+                                                   "Connection successful. Select a tool to inspect its description and arguments.")
+                self._ui(display)
+            except Exception as e:
+                message = str(e)
+                self._ui(lambda msg=message: self.integration_status.set("Connection error: " + msg))
+            finally:
+                if client:
+                    client.stop()
+                self._integration_busy = False
+        threading.Thread(target=worker, daemon=True).start()
+
+    def update_mcp_start_phase(self):
+        clips = self.mcp_start_phase_var.get() == "clips"
+        if clips:
+            self.mcp_resume_frame.grid()
+            self.agent_input_source_var.set("Existing stories")
+        else:
+            self.mcp_resume_frame.grid_remove()
+        self.agent_input_source_box.configure(state="disabled" if clips else "readonly")
+        for widget in (self.mcp_new_project_check, self.mcp_refs_check,
+                       self.mcp_from_box, self.mcp_to_box, self.mcp_write_button):
+            widget.configure(state="disabled" if clips else "normal")
 
     @staticmethod
     def _mcp_text(widget):
@@ -2480,6 +3377,10 @@ class Veo3LauncherGUI:
             self.mcp_ideas.delete("1.0", "end")
             self.mcp_ideas.insert("1.0", (old + "\n" if old else "") +
                                   "\n".join(self._idea_line(i) for i in ideas))
+        if refs or ideas:
+            self.agent_input_source_var.set("Video links" if refs else "Ideas")
+            if refs and ideas:
+                self._console("This file contains both input types. Select Video links or Ideas to run each group.")
         self._console(f"Imported {len(refs)} link(s) and {len(ideas)} idea(s) from {os.path.basename(p)}")
 
     @staticmethod
@@ -2494,12 +3395,16 @@ class Veo3LauncherGUI:
     def _read_items_file(self, path):
         ext = os.path.splitext(path)[1].lower()
         if ext in (".txt", ".md"):
-            # Text has no columns, so a "Title | preset | detail" line is split
-            # on the pipe here - the same separator the Ideas box uses.
             with open(path, encoding="utf-8", errors="replace") as fh:
-                rows = [[c.strip() for c in ln.split("|")]
-                        for ln in fh
-                        if ln.strip() and not ln.lstrip().startswith("#")]
+                raw = fh.read()
+            useful = [ln.strip() for ln in raw.splitlines()
+                      if ln.strip() and not ln.lstrip().startswith("#")]
+            refs = [ln for ln in useful if ln.lower().startswith("http")]
+            idea_text = "\n".join(ln for ln in useful
+                                  if not ln.lower().startswith("http"))
+            # Use exactly the same STORY N boundaries as the Ideas box. An
+            # imported detailed brief must not become one film per heading.
+            return refs, self._parse_ideas_text(idea_text)
         elif ext == ".csv":
             import csv
             with open(path, newline="", encoding="utf-8", errors="replace") as fh:
@@ -2533,62 +3438,137 @@ class Veo3LauncherGUI:
             ideas.append({"title": title, "detail": detail})
         return refs, ideas
 
-    def _parse_idea_lines(self):
-        ideas = []
-        for ln in self.mcp_ideas.get("1.0", "end").splitlines():
-            ln = ln.strip()
-            if not ln or ln.startswith("#"):
-                continue
-            parts = [p.strip() for p in ln.split("|")]
-            title = parts[0] if parts else ""
+    @staticmethod
+    def _parse_ideas_text(raw):
+        """Turn the Ideas box into films without shredding a pasted brief.
+
+        The explicit multiline format is:
+          STORY 1
+          TITLE: First title
+          any number of detail lines
+
+          STORY 2
+          TITLE: Second title
+          any number of detail lines
+
+        Without STORY markers, the entire box is ONE film. This is the safe
+        default: headings such as THE QUESTION and THE HOOK are details, not
+        surprise new films. The compact format remains available when EVERY
+        non-empty line contains a pipe:
+          Title | optional preset | optional detail
+        """
+        lines = [ln.strip() for ln in str(raw or "").splitlines()
+                 if ln.strip() and not ln.lstrip().startswith("#")]
+        if not lines:
+            return []
+
+        story_marker = re.compile(r"^story\s+(\d+)\s*(?::|-)?\s*(.*)$", re.IGNORECASE)
+        marker_at = [(i, story_marker.match(ln)) for i, ln in enumerate(lines)
+                     if story_marker.match(ln)]
+
+        def parse_block(block, marker_title=""):
+            title = marker_title.strip()
+            preset, detail_lines = "", []
+            for line in block:
+                m_title = re.match(r"^title\s*:\s*(.+)$", line, flags=re.IGNORECASE)
+                m_preset = re.match(r"^preset\s*:\s*(.+)$", line, flags=re.IGNORECASE)
+                if m_title:
+                    title = m_title.group(1).strip()
+                elif m_preset:
+                    preset = m_preset.group(1).strip()
+                else:
+                    detail_lines.append(line)
+            if not title and detail_lines:
+                title = detail_lines.pop(0).strip()
             if not title:
-                continue
-            if len(parts) >= 3:
-                ideas.append({"title": title, "preset": parts[1], "detail": " | ".join(parts[2:])})
-            elif len(parts) == 2:
-                ideas.append({"title": title, "detail": parts[1]})
+                return None
+            idea = {"title": title}
+            if preset:
+                idea["preset"] = preset
+            if detail_lines:
+                idea["detail"] = "\n".join(detail_lines)
+            return idea
+
+        # Explicit markers are the only way plain multiline text becomes more
+        # than one film. Text before STORY 1 is deliberately ignored as a note.
+        if marker_at:
+            ideas = []
+            for pos, (start, match) in enumerate(marker_at):
+                end = marker_at[pos + 1][0] if pos + 1 < len(marker_at) else len(lines)
+                idea = parse_block(lines[start + 1:end], match.group(2) or "")
+                if idea:
+                    ideas.append(idea)
+            return ideas
+
+        # Compact batches are unambiguous only when each line uses the separator.
+        if all("|" in ln for ln in lines):
+            ideas = []
+            for ln in lines:
+                parts = [p.strip() for p in ln.split("|")]
+                if not parts[0]:
+                    continue
+                idea = {"title": parts[0]}
+                if len(parts) >= 3:
+                    if parts[1]:
+                        idea["preset"] = parts[1]
+                    if any(parts[2:]):
+                        idea["detail"] = " | ".join(parts[2:])
+                elif len(parts) == 2 and parts[1]:
+                    idea["detail"] = parts[1]
+                ideas.append(idea)
+            return ideas
+
+        single = parse_block(lines)
+        return [single] if single else []
+
+    def _parse_idea_lines(self):
+        return self._parse_ideas_text(self.mcp_ideas.get("1.0", "end"))
+
+    def update_agent_input_source(self):
+        selected = self.agent_input_source_var.get()
+        for name, widgets in self.workflow_input_widgets.items():
+            for widget in widgets:
+                if name == selected:
+                    widget.grid()
+                else:
+                    widget.grid_remove()
+
+        if hasattr(self, "workflow_import_frame"):
+            if selected == "Existing stories":
+                self.workflow_import_frame.grid_remove()
             else:
-                ideas.append({"title": title})
-        return ideas
+                self.workflow_import_frame.grid()
 
-    def run_mcp_batch(self, generate):
-        self.collect_inputs()
-        self.save_settings()
-        links = [l.strip() for l in self.mcp_links.get("1.0", "end").splitlines()
-                 if l.strip().lower().startswith("http")]
-        ideas = self._parse_idea_lines()
-        # Existing stories WIN. Someone who has just picked a story off the disk
-        # does not want the leftover links in the box analysed alongside it - that
-        # would write new stories and spend credits on work they did not ask for.
-        stories = self._mcp_story_paths()
-        if not links and not ideas and not stories:
-            messagebox.showinfo("Nothing to do", "Add video links, ideas or existing stories first.")
-            return
-        total = len(stories) if stories else len(links) + len(ideas)
-        if stories:
-            what = (f"Make {total} film(s) from the {len(stories)} existing stor"
-                    f"{'y' if len(stories) == 1 else 'ies'} listed?\n\n"
-                    "Nothing is written and nothing is analysed - the story text already on "
-                    "disk is used exactly as it is.\n\n")
-        else:
-            what = f"Generate {total} film(s) now?\n\n"
-        if generate and not messagebox.askyesno(
-                "Generate batch",
-                what + "This drives Flow one film at a time and SPENDS credits. It can take "
-                       "a long time. You can Stop, then Resume with From/To."):
-            return
-        if generate and not self._ensure_active_browser():
-            return
-        if not os.path.exists(MCP_SERVER):
-            messagebox.showerror("MCP server missing", f"Not found:\n{MCP_SERVER}")
-            return
+    def selected_workflow_inputs(self):
+        selected = self.agent_input_source_var.get()
+        links = [line.strip() for line in self._mcp_text(self.mcp_links).splitlines()
+                 if line.strip().lower().startswith("http")] if selected == "Video links" else []
+        ideas = self._parse_idea_lines() if selected == "Ideas" else []
+        stories = self._mcp_story_paths() if selected == "Existing stories" else []
+        return links, ideas, stories
 
+    def workflow_request(self, generate):
+        """One request builder for GUI runs and copied MCP instructions."""
+        links, ideas, stories = self.selected_workflow_inputs()
+        clip_start = self.mcp_start_phase_var.get() == "clips"
+        project_url = ""
+        if clip_start:
+            if len(stories) != 1:
+                raise ValueError("Clip generation requires exactly one existing story.")
+            project_url = normalize_flow_project_url(self.mcp_resume_url_var.get())
+            if not generate:
+                raise ValueError("Clip generation requires generation enabled.")
+        if not stories and not links and not ideas:
+            raise ValueError("Add links, ideas, or existing stories in Agent Mode first.")
         args = {
             "aspect": self.mcp_aspect_var.get().strip() or "Flow",
             "video_model": self.mcp_video_model_var.get().strip() or "Flow",
             "seconds": self.read_int(self.mcp_seconds_var, 8),
-            "generate": bool(generate),
-            "submit": bool(generate),
+            # api / web / auto - every link in the batch is analysed and written
+            # by this one. "web" needs no key and no per-project quota, which is
+            # what makes a long batch of links possible at all.
+            "transport": self.mcp_transport_var.get() if hasattr(self, "mcp_transport_var") else "api",
+            "generate": bool(generate),            "submit": bool(generate),
             "download": bool(self.mcp_download_var.get()),
             "join": bool(self.mcp_join_var.get()),
             "auto_approve": bool(self.mcp_auto_approve_var.get()),
@@ -2609,8 +3589,12 @@ class Veo3LauncherGUI:
         # The batch decides: match_ref true = the link's own duration wins and
         # clips is ignored; false = clips is a hard limit for every preset.
         args["match_ref"] = bool(self.mcp_match_ref_var.get())
-        frm = self.read_int(self.mcp_from_var, 1)
-        to = self.read_int(self.mcp_to_var, 0)
+        args["start_phase"] = "clips" if clip_start else "start"
+        if clip_start:
+            args.update({"project_url": project_url, "new_project": False,
+                         "generate_refs": False, "no_upload_refs": True})
+        frm = 1 if clip_start else self.read_int(self.mcp_from_var, 1)
+        to = 0 if clip_start else self.read_int(self.mcp_to_var, 0)
         if frm > 1:
             args["from"] = frm
         if to > 0:
@@ -2623,17 +3607,86 @@ class Veo3LauncherGUI:
             if ideas:
                 args["ideas"] = ideas
 
+        return args
+
+    def run_mcp_batch(self, generate):
+        if self._work_busy():
+            messagebox.showwarning("Busy", "A job is already running. Wait, or stop it first.")
+            return
+        self.collect_inputs()
+        self.save_settings()
+        links, ideas, stories = self.selected_workflow_inputs()
+        clip_start = self.mcp_start_phase_var.get() == "clips"
+        project_url = ""
+        if clip_start:
+            if not generate:
+                messagebox.showinfo("Clip generation", "Select an existing story and use Generate batch to start its clips.")
+                return
+            if len(stories) != 1:
+                messagebox.showerror("Choose one story", "Clip generation needs exactly one existing story for the project URL. Use Add story below.")
+                return
+            try:
+                project_url = normalize_flow_project_url(self.mcp_resume_url_var.get())
+            except ValueError as e:
+                messagebox.showerror("Flow project URL", str(e))
+                return
+        if not links and not ideas and not stories:
+            messagebox.showinfo("Nothing to do", "Add video links, ideas or existing stories first.")
+            return
+        total = len(stories) if stories else len(links) + len(ideas)
+        if clip_start:
+            what = (f"Generate clips for the selected story in this existing project?\n{project_url}\n\n"
+                    "Uses the reference images already there. Project creation, image generation and renaming are skipped.\n\n")
+        elif stories:
+            what = (f"Make {total} film(s) from the {len(stories)} existing stor"
+                    f"{'y' if len(stories) == 1 else 'ies'} listed?\n\n"
+                    "Nothing is written and nothing is analysed - the story text already on "
+                    "disk is used exactly as it is.\n\n")
+        else:
+            what = f"Generate {total} film(s) now?\n\n"
+        if generate and not messagebox.askyesno(
+                "Generate batch",
+                what + "This drives Flow one film at a time and SPENDS credits. It can take "
+                       "a long time." + (" This restarts the story's clip phase." if clip_start
+                                         else " You can Stop, then Resume with From/To.")):
+            return
+        if generate and not self._ensure_active_browser():
+            return
+        if not os.path.exists(MCP_SERVER):
+            messagebox.showerror("MCP server missing", f"Not found:\n{MCP_SERVER}")
+            return
+
+        args = self.workflow_request(generate)
+
+        # Before anything runs: a batch that writes through the browser needs a
+        # signed-in AI Studio. Stories already on disk need no writer at all, so
+        # this is only asked of a batch that actually has to write something.
+        if (links or ideas) and not stories and args.get("transport") in ("web", "auto"):
+            if not self._aistudio_ready():
+                return
+
         self.stop_mcp()
         self.output.delete("1.0", "end")
-        if stories:
-            self.output.insert("end", f"🚀 MCP batch: {len(stories)} existing story(ies)   "
+        if clip_start:
+            self.output.insert("end", f"Agent Mode: starting at clip generation\nProject: {project_url}\n"
+                                     "Using existing reference images; skipping project and image preparation.\n\n")
+        elif stories:
+            self.output.insert("end", f"🚀 Agent batch: {len(stories)} existing story(ies)   "
                                      f"{'GENERATING' if generate else 'prompts only'}   "
                                      f"(links/ideas ignored)\n\n")
         else:
-            self.output.insert("end", f"🚀 MCP batch: {len(links)} link(s), {len(ideas)} idea(s)   "
-                                     f"{'GENERATING' if generate else 'stories only'}\n\n")
+            who = {"web": "Google AI Studio (browser)", "auto": "API, browser as backup"}.get(
+                args.get("transport"), "Gemini API keys")
+            self.output.insert("end", f"🚀 Agent batch: {len(links)} link(s), {len(ideas)} idea(s)   "
+                                     f"{'GENERATING' if generate else 'stories only'}   "
+                                     f"written by: {who}\n\n")
         self.output.see("end")
         self._reset_progress("mcp batch")
+
+        self.start_workflow_worker(args)
+
+    def start_workflow_worker(self, args):
+        self._workflow_running = True
 
         def worker():
             try:
@@ -2641,6 +3694,7 @@ class Veo3LauncherGUI:
             except Exception as e:
                 self._ui(lambda: messagebox.showerror("MCP client missing",
                                                       f"mcp_client.py could not load:\n{e}"))
+                self._workflow_running = False
                 return
             client = MCPClient(MCP_SERVER, cwd=BASE_DIR,
                                log=lambda ln: self._ui(lambda l=ln: self._console(l)))
@@ -2657,6 +3711,7 @@ class Veo3LauncherGUI:
             finally:
                 client.stop()
                 self._mcp_client = None
+                self._workflow_running = False
                 self._ui(lambda: self._reset_progress("idle"))
                 self._ui(self.load_story_info)
 
@@ -2681,50 +3736,32 @@ class Veo3LauncherGUI:
         except Exception:
             pass
         messagebox.showinfo("MCP config copied",
-                            "Paste into Cursor / Claude Desktop / opencode:\n\n" + cfg +
-                            "\n\n(opencode uses the same server under its `mcp` key.)")
+                            "Local stdio server configuration:\n\n" + cfg +
+                            "\n\nUse node and this server path in your client. Configuration syntax depends on the client.")
 
     def copy_agent_instruction(self):
-        links = [l.strip() for l in self.mcp_links.get("1.0", "end").splitlines()
-                 if l.strip().lower().startswith("http")]
-        ideas = self._parse_idea_lines()
-        # Same rule as the batch: a named story means the story, not the links.
-        stories = self._mcp_story_paths()
-        if stories:
-            links, ideas = [], []
-        preset = self._mcp_preset_id()
-        clips = self.read_int(self.mcp_clips_var, 0)
-        match_ref = bool(self.mcp_match_ref_var.get())
-        L = ["Using the veo3-flow MCP, call batch_pipeline with:"]
-        if stories:
-            L.append("  stories: " + json.dumps(stories))
-            L.append("  # these stories are already written - do NOT call write_story or analyze_video for them")
-        if links:
-            L.append("  references: " + json.dumps(links))
-        if ideas:
-            L.append("  ideas: " + json.dumps(ideas))
-        if preset:
-            L.append(f'  preset: "{preset}"')
-        if clips > 0:
-            L.append(f"  clips: {clips}" + ("" if not match_ref else "   # ignored while match_ref is true"))
-        L.append(f"  match_ref: {str(match_ref).lower()}   # "
-                 + ("true = build each link to its own duration; the clips number above is ignored"
-                    if match_ref else "false = the clips number above is the limit"))
-        L.append(f"  seconds: {self.read_int(self.mcp_seconds_var, 8)}")
-        L.append(f'  aspect: "{self.mcp_aspect_var.get().strip() or "Flow"}"')
-        L.append(f'  video_model: "{self.mcp_video_model_var.get().strip() or "Flow"}"')
-        L.append("  generate: false   # write the stories first, then review before spending credits")
-        text = "\n".join(L)
+        self.collect_inputs()
         try:
-            self.root.clipboard_clear()
-            self.root.clipboard_append(text)
-        except Exception:
-            pass
-        messagebox.showinfo("Agent instruction copied", text)
+            args = self.workflow_request(bool(self.mcp_generate_var.get()))
+        except ValueError as e:
+            messagebox.showerror("Workflow settings", str(e))
+            return
+        text = ("Using the veo3-flow MCP, call batch_pipeline with these exact arguments:\n"
+                + json.dumps(args, indent=2) + "\nUse existing stories as written when stories is supplied.")
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
+        self.integration_output.delete("1.0", "end")
+        self.integration_output.insert("end", text)
+        self.integration_status.set("Copied the current Agent Mode workflow request.")
 
     def kill_engine(self):
         if self.proc and self.proc.poll() is None:
-            self.proc.kill()
+            if os.name == "nt":
+                subprocess.run(["taskkill", "/PID", str(self.proc.pid), "/T", "/F"],
+                               capture_output=True, timeout=10,
+                               creationflags=subprocess.CREATE_NO_WINDOW)
+            else:
+                self.proc.kill()
             self.output.insert("end", "\n🛑 Killed.\n")
 
     def on_close(self):

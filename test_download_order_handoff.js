@@ -1,0 +1,15 @@
+const assert = require('assert');
+const fs = require('fs');
+const { downloadCompletion } = require('./download_tile_logic');
+const clips = Array.from({ length: 9 }, (_, i) => ({ file: `scene-${i + 1}.mp4`, got: true, caption: 'People talking in kitchen', prompt: '' }));
+const full = downloadCompletion(clips, 9, false, 0);
+assert.strictEqual(full.downloadComplete, true, 'nine valid transfers must allow dialogue ordering to run');
+assert.strictEqual(full.needsSceneOrdering, true, 'generic captions still require real ordering');
+assert.strictEqual(downloadCompletion(clips.slice(0, 8), 9, false, 0).downloadComplete, false, 'missing files remain a failure');
+assert.strictEqual(downloadCompletion(clips, 9, true, 0).needsSceneOrdering, false);
+assert.strictEqual(downloadCompletion(clips, 9, false, 1).downloadComplete, false, 'failed transfers stay blocked');
+assert.strictEqual(downloadCompletion([...clips.slice(0, 8), clips[0]], 9, false, 0).downloadComplete, false, 'duplicates cannot replace missing files');
+const source = fs.readFileSync(require.resolve('./agent_download'), 'utf8');
+assert(source.includes('if (!downloadState.downloadComplete) process.exitCode = 2;'));
+assert(!source.includes('if (failed || !storyReady) process.exitCode = 2;'));
+console.log('PASS: all downloaded clips advance to dialogue ordering; missing, failed and duplicate transfers stay blocked.');

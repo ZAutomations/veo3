@@ -182,8 +182,14 @@ ok('nothing is missing once all three are in',
    R.missingRefs(need.refs, box('@Godwin @Tari @Bedroom', []), MAP).length === 0);
 
 console.log('\n--- against the real story on disk ---');
-const STORY_DIR = path.join(__dirname, 'stories', 'the_price_of_obligation');
-if (fs.existsSync(path.join(STORY_DIR, 'refs.json'))) {
+// The story is looked for beside the others first, then in the archive folders
+// the finished stories get moved into - it was moved once and the suite went red
+// over a folder that is plainly still there, just tidied away.
+const STORY_NAME = 'the_price_of_obligation';
+const STORY_DIR = [path.join(__dirname, 'stories', STORY_NAME)]
+    .concat(['old', 'old2'].map(d => path.join(__dirname, 'stories', d, STORY_NAME)))
+    .find(d => fs.existsSync(path.join(d, 'refs.json')));
+if (STORY_DIR) {
     const story = JSON.parse(fs.readFileSync(path.join(STORY_DIR, 'the_price_of_obligation_story.json'), 'utf8'));
     const real = R.loadStoryRefs(path.join(STORY_DIR, 'the_price_of_obligation_story.json'), story);
     ok('the real story loads its refs from refs.json', real.source === 'refs.json', real.source);

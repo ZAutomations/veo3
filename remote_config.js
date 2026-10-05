@@ -37,7 +37,11 @@ const DEFAULTS = {
         placeholderSelector: '.prosemirror-placeholder',
         // Timeline structure.
         clipsSelector: '.timeline-contents .clip',
-        emptySlotSelector: '.extend-placeholder-text',
+        // Current Flow: the reserved slot is itself a .clip.extend-composing
+        // and reads "Prompt to extend". :has keeps compatibility with the
+        // older child-marker build while querySelectorAll de-duplicates a clip
+        // that happens to match both selectors.
+        emptySlotSelector: '.timeline-contents .clip.extend-composing, .timeline-contents .clip:has(.extend-placeholder-text)',
         durationReadoutSelector: '.duration-timecode-value',
         timelineScrollerSelector: '.timeline-area',
         // Grid and overlays.

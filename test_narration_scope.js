@@ -34,9 +34,9 @@ const db = JSON.parse(fs.readFileSync(path.join(__dirname, 'styles.json'), 'utf8
 const intro = db.styles.filter(p => p.narration_scope);
 // Named in full rather than counted: each mode is opted into deliberately, so a
 // third one appearing should be an edit to this line, not a silent pass.
-ok('exactly the three intended presets declare narration_scope',
+ok('exactly the intended presets declare narration_scope',
    intro.map(p => p.id).sort().join(', ') ===
-   'animal-kindness, relationship-dialogue, relationship-dialogue-real',
+   'animal-kindness, relationship-dialogue, relationship-dialogue-ghibli, relationship-dialogue-real',
    intro.map(p => `${p.id}:${p.narration_scope}`).join(', '));
 ok('the animal preset is the intro one',
    intro.find(p => p.id === 'animal-kindness').narration_scope === 'intro');
@@ -110,8 +110,12 @@ const ghibliCast = W.castPrompt(ghibli);
 ok('the animal outline asks for visually-told beats', /This film is SOUND-LED/.test(castPrompt));
 ok('and forbids a beat that needs narration', /No beat may need a line of narration/.test(castPrompt));
 ok('ghibli is never told this', !/SOUND-LED/.test(ghibliCast));
+// The shapes list is still the last thing the outline step is told, and the
+// closing line is unchanged. `\n+` and not `\n`: the intro/dialogue blocks are
+// interpolated on their own line and render empty for a plain preset, which
+// leaves a blank line between the last bullet and the closing instruction.
 ok('ghibli keeps its closing outline instruction verbatim',
-   /Draw on these shapes that suit this look:\n(     - [^\n]*\n)*\nReturn ONLY this JSON/.test(ghibliCast));
+   /Draw on these shapes that suit this look:\n(     - [^\n]*\n)*\n+Return ONLY this JSON/.test(ghibliCast));
 
 console.log('\n--- buildStory writes the new fields only when asked ---');
 const meta = { description: 'd', moral: 'm', target_audience: 'a' };

@@ -16,6 +16,11 @@ function ok(name, cond, extra) {
 }
 
 const talk = W.loadPreset('relationship-dialogue');
+// These legacy dialogue tests use a mother/daughter cast; couple naming has
+// its own regression test and does not belong to these generic speech checks.
+delete talk.fixed_couple_names;
+const ghibliTalk = W.loadPreset('relationship-dialogue-ghibli');
+const realTalk = W.loadPreset('relationship-dialogue-real');
 const ghibli = W.loadPreset('ghibli');
 const animal = W.loadPreset('animal-kindness');
 
@@ -44,8 +49,9 @@ ok('forbids on-screen text', /no on-screen text/i.test(talk.avoid));
 ok('forbids subtitles and watermarks',
    /subtitles/i.test(talk.avoid) && /watermarks/i.test(talk.avoid));
 ok('forbids glitch and blur', /no glitch/i.test(talk.avoid) && /no motion blur/i.test(talk.avoid));
-ok('describes the exchange shape in direction',
-   /hook/i.test(talk.direction) && /aphorism/i.test(talk.direction) && /resolution/i.test(talk.direction));
+ok('describes a grounded exchange in direction',
+   /concise line/i.test(talk.direction) && /both people have an understandable point of view/i.test(talk.direction) &&
+   /specific boundary, apology, question or next step/i.test(talk.direction));
 ok('says outright that nobody narrates', /no narrator/i.test(talk.direction));
 // This genre used to name four possible rooms here, which each batch read as a
 // menu and picked from - so the film changed cafe every clip. The place is now
@@ -53,11 +59,51 @@ ok('says outright that nobody narrates', /no narrator/i.test(talk.direction));
 ok('keeps the pair in one room instead of offering a menu of them',
    /SAME room/i.test(talk.direction) && !/a cafe, a tearoom/i.test(talk.direction));
 ok('and hardcodes no place for the film', !talk.setting && !talk.setting_name);
-ok('offers the hook-rules-doubt-aphorism shape',
-   (talk.story_shapes || []).some(s => /provocative/i.test(s) && /aphorism/i.test(s)));
+ok('offers grounded conflict-and-repair shapes',
+   (talk.story_shapes || []).some(s => /vulnerable reason/i.test(s) && /next step/i.test(s)) &&
+   (talk.story_shapes || []).some(s => /without making either person a villain/i.test(s)));
 ok('is a human-only typed cast',
    talk.cast === 'required' && JSON.stringify(talk.cast_types) === '["human"]',
    JSON.stringify(talk.cast_types));
+ok('requires exactly two people', talk.cast_count === 2, talk.cast_count);
+ok('enables the grounded dialogue prompt branch', talk.grounded_dialogue === true);
+ok('enables source dialogue fidelity for link-based stories', talk.source_dialogue_fidelity === true);
+ok('the realistic relationship preset uses the same grounded dialogue contract',
+   realTalk.grounded_dialogue === true && realTalk.cast_count === 2
+   && /18-24 spoken words/.test(realTalk.direction)
+   && /both people speak at least once/.test(realTalk.direction));
+ok('both relationship presets limit source edits to about three words in ten',
+   talk.source_dialogue_fidelity === true && realTalk.source_dialogue_fidelity === true
+   && /three words/.test(talk.direction) && /newly invented relationship script/.test(talk.direction));
+ok('the Ghibli relationship copy keeps the complete dialogue contract',
+   ghibliTalk.narration_scope === 'dialogue' && ghibliTalk.grounded_dialogue === true
+   && ghibliTalk.cast_count === 2 && ghibliTalk.source_dialogue_fidelity === true
+   && ghibliTalk.direction === talk.direction && ghibliTalk.blocking === talk.blocking);
+ok('the Ghibli copy changes the visual and character treatment',
+   /hand-painted 2D/i.test(ghibliTalk.style) && /watercolour/i.test(ghibliTalk.whisk)
+   && /clean ink outlines/i.test(ghibliTalk.cast_idiom)
+   && !/2\.5D semi-realistic/.test(ghibliTalk.style));
+
+console.log('\n--- source dialogue guard ---');
+const sourceMap = {clips:[{source_dialogue:[
+    {speaker:'Person A',line:'You promised we would talk before making another decision alone.'},
+    {speaker:'Person B',line:'I was afraid you would say no before hearing me.'},
+]}]};
+const sourceCast = [{name:'Vera'},{name:'Nadia'}];
+const replaced = W.enforceSourceDialogueFidelity([{dialogue:[
+    {speaker:'Vera',line:'This is a completely different argument invented by the writer.'},
+    {speaker:'Nadia',line:'Then we should immediately solve everything and celebrate.'},
+],characters:[]}], sourceCast, sourceMap);
+ok('a newly invented exchange is restored to the source dialogue',
+   replaced.restored[0] === 1
+   && replaced.scenes[0].dialogue[0].line === sourceMap.clips[0].source_dialogue[0].line);
+ok('source speaker roles map consistently onto the generated cast',
+   replaced.scenes[0].dialogue.map(d=>d.speaker).join(',') === 'Vera,Nadia');
+const light = W.enforceSourceDialogueFidelity([{dialogue:[
+    {speaker:'Vera',line:'You promised we would speak before making another choice alone.'},
+    {speaker:'Nadia',line:'I was scared you would say no before hearing me.'},
+],characters:['Vera','Nadia']}], sourceCast, sourceMap);
+ok('a light three-words-in-ten simplification is retained', light.restored.length === 0);
 ok('declares no narrator voice', !talk.narration_voice);
 ok('declares no sound bed', !talk.sound_style);
 
@@ -81,12 +127,20 @@ const cast = [
 const talkPrompt = W.scenesPrompt(talk, cast, outline, 0, 4, []);
 ok('explains how the film speaks', /HOW THIS FILM SPEAKS/.test(talkPrompt));
 ok('says there is no narrator or voice-over', /There is NO narrator and NO voice-over/.test(talkPrompt));
-ok('forbids narration in the lines', /do not write a line of narration/i.test(talkPrompt));
-ok('forbids describing the scene out loud', /nobody says what the camera can already see/.test(talkPrompt));
+ok('forbids narration in the lines', /There is NO narrator and NO voice-over/i.test(talkPrompt));
+ok('forbids describing the scene out loud', /nobody says what the camera can already see/i.test(talkPrompt));
 ok('asks for dialogue as a field', /"dialogue"\s+- the lines spoken in THIS clip/.test(talkPrompt));
 ok('shows the shape of a line', /\{"speaker": "<a cast name/.test(talkPrompt));
-ok('asks for two to four turns', /Two to four turns per clip/.test(talkPrompt));
-ok('requires at least one line', /at least one - this film is\s+a conversation/.test(talkPrompt));
+ok('asks for two or three natural turns', /Use two or three turns per clip/.test(talkPrompt));
+ok('requires both people and enough speech to fill the clip',
+   /make BOTH people speak/.test(talkPrompt) && /18-24 spoken words/.test(talkPrompt) && /no long silent tail/.test(talkPrompt));
+ok('requires at least one line', /At least one line is required - this film\s+is a conversation/.test(talkPrompt));
+ok('requires listening instead of routine interruption',
+   /One person speaks while the other genuinely listens/.test(talkPrompt) &&
+   /at most\s+one brief interruption in the whole film/.test(talkPrompt));
+ok('rejects speeches, slogans and advice lists in the prompt',
+   /Never write overlapping arguments, shouting, insults or theatrical\s+speeches/.test(talkPrompt) &&
+   /numbered advice\s+list, generic therapy slogan, moral lesson/.test(talkPrompt));
 ok('gives a word budget derived from the clip length',
    /total is 24 words\s+or fewer, hard limit 30/.test(talkPrompt));
 // The prompt is hard-wrapped for reading, so allow the wrap.
@@ -113,8 +167,14 @@ ok('the animal preset never hears about dialogue',
 console.log('\n--- the outline step plans a conversation ---');
 const talkCast = W.castPrompt(talk);
 ok('tells call 1 the film is a conversation', /This film is a CONVERSATION, not a montage/.test(talkCast));
-ok('rules out beats that are only a picture', /A beat that is only a picture has nothing for anyone to say/.test(talkCast));
-ok('names the turns to build', /the hook that stops the viewer, a rule, the doubt/.test(talkCast));
+ok('rules out beats that are only a picture', /A beat that\s+is only a picture has nothing for either person to say/.test(talkCast));
+ok('names the grounded turns to build',
+   /clarify the concern, name a\s+concrete example, reveal the vulnerable reason/.test(talkCast) &&
+   /specific boundary,\s+apology, question or next step/.test(talkCast));
+ok('does not impose spectacle escalation on this conversation',
+   !/The beats ESCALATE: each one is stranger or bigger/.test(talkCast));
+ok('requires an exact two-person cast',
+   /Design EXACTLY 2 adult human characters/.test(talkCast) && /never add a third party/i.test(talkCast));
 ok('the human identity profile is used',
    /human\s+- age, build, hair, face and skin tone/.test(talkCast));
 ok('it still asks for a type per character', /"type"\s+- one of: human/.test(talkCast));
@@ -125,12 +185,12 @@ console.log('\n--- buildStory writes the lines ---');
 const meta = { description: 'd', moral: 'm', target_audience: 'a' };
 const talkScenes = [
     { scene_title: 'Hook', dialogue: [
-        { speaker: 'Vera', line: 'Sit down, child.' },
+        { speaker: 'Vera', line: 'Sit down, child, because I need to understand what happened.' },
         { speaker: 'Nadia', line: 'What if his anger is because he cares too much?' },
     ], narrative_context: 'x', characters: ['vera', 'nadia'] },
     { scene_title: 'Rule', dialogue: [
         { speaker: 'Vera', line: 'Then he loves you loudly and listens quietly.' },
-        { speaker: 'Nadia', line: 'That is the same thing.' },
+        { speaker: 'Nadia', line: 'That feels like the same thing when I am standing there.' },
     ], narrative_context: 'y', characters: ['vera', 'nadia'] },
 ];
 const talkStory = W.buildStory(talk, cast, meta, talkScenes);
@@ -150,12 +210,12 @@ ok('a model that returns a script_line has it cleared', (() => {
     return s.scenes[0].script_line === '' && !/She said nothing/.test(s.scenes[0].veo3_prompt);
 })());
 ok('the AUDIO tag attributes each line',
-   /\[AUDIO\] Vera \(on screen, speaking\): "Sit down, child\."\s{2}Nadia \(on screen, speaking\): "What if his anger/.test(talkStory.scenes[0].veo3_prompt));
+   /\[AUDIO\][\s\S]*?Vera \(on screen, speaking\): "Sit down, child, because I need to understand what happened\."\s{2}Nadia \(on screen, speaking\): "What if his anger/.test(talkStory.scenes[0].veo3_prompt));
 ok('a wordless clip says so rather than leaving it blank', (() => {
     const s = W.buildStory(talk, cast, meta, [
         { scene_title: 'T', dialogue: [], narrative_context: 'x', characters: ['vera'] },
     ]);
-    return /\[AUDIO\] No dialogue in this clip\. Room tone/.test(s.scenes[0].veo3_prompt);
+    return /\[AUDIO\][\s\S]*?No dialogue in this clip\. Room tone/.test(s.scenes[0].veo3_prompt);
 })());
 ok('no clip claims a narrator', !/Narrator/.test(talkStory.scenes[0].veo3_prompt + talkStory.scenes[1].veo3_prompt));
 ok('blank lines are dropped', (() => {
@@ -175,16 +235,17 @@ console.log('\n--- validate ---');
 const okStory = talkStory;
 ok('accepts a well-formed dialogue story',
    W.validate(okStory, cast, talk).length === 0, W.validate(okStory, cast, talk).join(' | '));
+ok('rejects any cast that breaks the exact two-person format', (() => {
+    const three = cast.concat({ name: 'Omar', type: 'human', description: 'Same Omar throughout.' });
+    return W.validate(okStory, three, talk).some(b => /requires exactly 2 characters; generated 3/.test(b));
+})());
 // buildStory clears a stray script_line by construction, so this check guards
 // the hand-edited and legacy JSON that never went through it.
 ok('rejects a script_line', (() => {
-    const s = W.buildStory(talk, cast, meta, [
-        { scene_title: 'T', dialogue: [{ speaker: 'Vera', line: 'x' }],
-          narrative_context: 'x', characters: ['vera'] },
-    ]);
+    const s = W.buildStory(talk, cast, meta, [talkScenes[0]]);
     s.scenes[0].script_line = 'She said nothing.';
     const bad = W.validate(s, cast, talk);
-    return bad.length === 1 && /there is no narrator/.test(bad[0]);
+    return bad.some(x => /there is no narrator/.test(x));
 })());
 ok('rejects a clip with nobody speaking', (() => {
     const bad = W.validate(W.buildStory(talk, cast, meta, [
@@ -231,6 +292,15 @@ ok('rejects an exchange too long to be said in the clip', (() => {
     ]), cast, talk);
     return bad.some(b => /40 spoken words across 2 line\(s\), over the 30-word limit/.test(b));
 })());
+ok('rejects a sparse one-line clip that would leave dead air', (() => {
+    const bad = W.validate(W.buildStory(talk, cast, meta, [
+        { scene_title: 'T', dialogue: [{ speaker: 'Vera', line: 'Sit down, child.' }],
+          narrative_context: 'x', characters: ['vera'] },
+    ]), cast, talk);
+    return bad.some(b => /grounded conversation needs 2 or 3 turns/.test(b))
+        && bad.some(b => /both people must speak/.test(b))
+        && bad.some(b => /long silent tail/.test(b));
+})());
 ok('accepts an exchange inside the budget', (() => {
     const bad = W.validate(W.buildStory(talk, cast, meta, [
         { scene_title: 'T', dialogue: [
@@ -261,7 +331,7 @@ ok('the bible has a Voices section', /## Voices\n/.test(talkBible));
 ok('and says there is no narrator', /No narrator and no voice-over/.test(talkBible));
 ok('it has no Narrator section', !/## Narrator/.test(talkBible));
 ok('it prints the script', /## Script\n/.test(talkBible));
-ok('with the speaker attributed', /\*\*Vera:\*\* "Sit down, child\."/.test(talkBible));
+ok('with the speaker attributed', /\*\*Vera:\*\* "Sit down, child, because I need to understand what happened\."/.test(talkBible));
 
 // A hand-edited story, which is the only way a wordless clip reaches the
 // converter: `validate` rejects one, and buildStory clears a stray script_line.
@@ -299,7 +369,7 @@ ok('asks for visible speaking', /mouths move, they look at each/.test(conv));
 ok('forbids invented lines', /Do not invent any line that is not in the DIALOGUE block/.test(conv));
 ok('keeps the room consistent', /same two\s+people stay in the same room/.test(conv));
 ok('emits a DIALOGUE block', /DIALOGUE \(spoken on screen, read exactly\):/.test(conv));
-ok('attributes the first line', /^  Vera: "Sit down, child\."$/m.test(conv));
+ok('attributes the first line', /^  Vera: "Sit down, child, because I need to understand what happened\."$/m.test(conv));
 ok('attributes the second speaker', /^  Nadia: "What if his anger is because he cares too much\?"$/m.test(conv));
 ok('never emits a NARRATION line', !/NARRATION/.test(conv));
 ok('never promises a voice-over in every clip',
@@ -322,7 +392,7 @@ const sparseConv = convert(sparseOut.story, sparseOut.dir, 'sparse_story.json');
 ok('a wordless beat is marked, not filled in', /nobody speaks in this clip - a silent beat/.test(sparseConv));
 ok('and warns about the wordless clip', /WARNING: 1 scene\(s\) have no dialogue/.test(sparseConv));
 ok('and still never emits a NARRATION line', !/NARRATION/.test(sparseConv));
-ok('and keeps the spoken clip intact', /^  Vera: "Sit down, child\."$/m.test(sparseConv));
+ok('and keeps the spoken clip intact', /^  Vera: "Sit down, child, because I need to understand what happened\."$/m.test(sparseConv));
 
 console.log('\n--- the converter still handles the other modes ---');
 const ghibliConv = convert(ghibliOut.story, ghibliOut.dir, 'ghibli_story.json');

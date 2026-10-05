@@ -92,7 +92,7 @@ function contains(node, rect) {
 //   'ok'            a typed asset tile matched
 //   'no-type'       matched something, but nothing said Image/Character/Video
 //   'no-match'      nothing matched at all
-function chooseMentionTile(candidates, name) {
+function chooseMentionTile(candidates, name, {requiredKind=null} = {}) {
     const re = new RegExp(escapeRe(name), 'i');
 
     const matched = (candidates || []).filter(c => {
@@ -104,7 +104,14 @@ function chooseMentionTile(candidates, name) {
 
     if (!matched.length) return { tile: null, inner: null, kind: null, reason: 'no-match' };
 
-    const typed = matched.filter(c => tileKind(c.text || c.aria));
+    const typed = matched.filter(c => {
+        const kind=tileKind(c.text||c.aria);
+        if(!requiredKind)return !!kind;
+        if(kind!==requiredKind)return false;
+        const base=normText(c.text||c.aria).replace(/\s+(image|character|avatar|video|voice)$/i,'').replace(/\.(jpg|jpeg|png|webp)$/i,'').trim();
+        return base.toLowerCase()===String(name).trim().toLowerCase();
+    });
+    if(requiredKind && !typed.length)return {tile:null,inner:null,kind:null,reason:'required-type-missing'};
     if (!typed.length) {
         // Nothing advertised a type - keep the old behaviour rather than
         // refusing to attach. The caller logs this so it is visible.
@@ -138,7 +145,7 @@ function describeChoice(choice, name) {
     const kind = choice.kind ? choice.kind.toUpperCase() : 'UNKNOWN TYPE';
     let note = '';
     if (choice.kind === 'character') {
-        note = '  <-- CHARACTER tile: this is the one that drifts. An Image tile is preferred.';
+        note = '  (named Flow Character; may include its assigned voice)';
     } else if (choice.kind === 'image') {
         note = '  (raw image - the good kind)';
     } else if (choice.reason === 'no-type') {

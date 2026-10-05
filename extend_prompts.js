@@ -65,8 +65,11 @@ function banner(msg) { console.log(`\n${'='.repeat(70)}\n${msg}\n${'='.repeat(70
 // The one line that is added. Everything else is the story's own words. It has
 // to be explicit because the extend box is a blank slate: Flow will happily
 // read a bare action sentence as a fresh scene brief.
-const CONTINUE_LINE = 'Continue the same shot from the previous clip without cutting - '
-    + 'same framing, same lighting, same positions.';
+const CONTINUE_LINE = 'Continue directly from the exact final frame of the previous clip. '
+    + 'IDENTITY LOCK: every returning person is the same exact actor with the same face, age, '
+    + 'skin tone, body proportions, hairstyle and clothing; never recast, redesign, replace or '
+    + 'change their wardrobe. Keep the same room, furniture, color palette and lighting. '
+    + 'Preserve screen direction and positions unless the action below explicitly moves them.';
 
 // ── reading a veo3_prompt apart ──────────────────────────────────────────────
 // A prompt is [SHOT] body \n[LOOK] style \n[AUDIO] lines. Both markers are
@@ -141,9 +144,11 @@ function deriveExtendPrompts(story, toScene) {
     for (let i = 1; i < scenes.length; i++) {
         const num = i + 1;
         if (toScene && num > toScene) break;
+        const directed = require('./dialogue_shot_plan').shotPlan(story, scenes[i], { extend: true });
+        if (directed) { prompts[num] = directed.prompt; continue; }
         const action = stripCamera(bodies[i].slice(block.length).trim());
         if (!action) { skipped.push(num); continue; }
-        const audio = audioPart(scenes[i].veo3_prompt);
+        const audio = require('./dialogue_speakers').dialogueAudio(story, scenes[i]) || audioPart(scenes[i].veo3_prompt);
         prompts[num] = CONTINUE_LINE + '\n' + action + (audio ? `\n[AUDIO] ${audio}` : '');
     }
     if (!Object.keys(prompts).length) {
