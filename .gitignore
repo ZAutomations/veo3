@@ -1,5 +1,8 @@
 # ── Dependencies ────────────────────────────────────────────────────────────
 node_modules/
+.venv/
+tools/
+portable_manifest.json
 __pycache__/
 *.pyc
 
@@ -38,6 +41,7 @@ reference/
 # Never part of the repo: it would duplicate every tracked file and drag
 # hundreds of megabytes of generated media along with it.
 Veo3_Portable/
+Veo3_Portable_*/
 
 # ── A different project that happens to live inside this folder ─────────────
 # "veo automation autoflow" is its OWN git repository - a Chrome extension and
@@ -61,3 +65,11 @@ backups/
 debug_flow_*.png
 GEMINI-BY-HAND/_answers/
 AI-STUDIO-WORKFLOW/saved-answers/*.json
+
+# Private job state, archived tools, and local recovery copies
+Extra Files/
+*.before-*
+script_last_job.json
+story_writer_last_job.json
+story_writer_settings.json
+Setup/setup.log

@@ -23,21 +23,23 @@ function settingChoice({ kind, ratio, click }) {
     return selected;
 }
 
-async function applyAgentSettings(page, { videoModel = '', aspect = 'Flow', log = () => {} } = {}) {
+async function applyAgentSettings(page, { videoModel = '', aspect = 'Flow', resolution = 'Flow', log = () => {} } = {}) {
     const ratio = String(aspect || 'Flow').trim();
     if (!['Flow', '16:9', '1:1', '9:16'].includes(ratio)) throw Error(`Unsupported video aspect ratio: ${ratio}`);
+    if (!['Flow','360p','720p'].includes(resolution)) throw Error('Choose Flow, 360p or 720p for Agent resolution.');
     if (!await GR.openSettingsPanel(page)) throw Error('Could not open Agent settings. Generation stopped.');
     if (videoModel && !/^(flow|auto|default|none)$/i.test(videoModel)) {
         const result = await GR.setSectionModel(page, 'video', videoModel);
         if (!result.ok) throw Error(`Could not select video model: ${result.why}`);
         log(`Video generation default: ${result.model}`);
     }
+    // Agent resolution is requested in the prompt; this drawer has no resolution control.
     for (const kind of ['confirm', ...(ratio === 'Flow' ? [] : ['ratio'])]) {
         await page.evaluate(settingChoice, { kind, ratio, click: true });
         try {
             await page.waitForFunction(settingChoice, { timeout: 5000 }, { kind, ratio, click: false });
         } catch (_) {
-            throw Error(`Could not verify ${kind === 'confirm' ? 'Confirm before generating: Never' : 'video ratio: ' + ratio}. Generation stopped.`);
+            throw Error(`Could not verify ${kind==='confirm'?'confirmation Never':'video ratio '+ratio}. Generation stopped.`);
         }
     }
     if (!await GR.clickSave(page)) throw Error('Agent settings Save button was not found. Generation stopped.');
@@ -47,7 +49,7 @@ async function applyAgentSettings(page, { videoModel = '', aspect = 'Flow', log 
         if (Date.now() > deadline) throw Error('Agent settings did not close after Save. Generation stopped.');
         await new Promise(resolve => setTimeout(resolve, 250));
     }
-    log(`Agent settings saved: confirmation Never; video ratio ${ratio === 'Flow' ? 'unchanged (Flow)' : ratio}.`);
+    log(`Agent settings saved: confirmation Never; video ratio ${ratio}; resolution instruction ${resolution} (prompt only).`);
 }
 
 module.exports = { applyAgentSettings, settingChoice };

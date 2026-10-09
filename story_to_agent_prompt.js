@@ -155,6 +155,7 @@ const charNames = charKeys.map(cap);
 // `@Name`, so the name here must be the asset name - no capitalising, no
 // tidying, or the mention resolves to nothing and the plate is never attached.
 const documentaryCuts = story.visual_shot_format === 'documentary-internal-cuts';
+const zackCuts = story.visual_shot_format === 'zack-internal-cuts' || /Zack D/i.test(story.niche || '');
 const placeName = (story.place && String(story.place.name || '').trim()) || '';
 const placeDesc = (story.place && String(story.place.description || '').trim()) || '';
 const mentions = [...(placeName ? ['@' + placeName] : []), ...charNames.map(c => '@' + c)];
@@ -244,6 +245,7 @@ L.push(AUTO_RATIO
 if (!AUTO_RATIO) L.push(`OUTPUT SHAPE IS MANDATORY: generate every video on a ${ASPECT || aspectRaw} canvas. Reference images may have a different shape; use them for identity and appearance only. Their dimensions must not override the video format. Compose the full frame for this video ratio, without letterboxing or placing a landscape video inside it.`);
 L.push('');
 L.push(`STORY: "${story.title || 'Untitled'}"`);
+if (story.single_speaker_advice && story.voice_direction) L.push(`VOICE DELIVERY: ${story.voice_direction}`);
 if (story.description) L.push(story.description);
 if (story.moral) L.push(`Message of the story: ${story.moral}`);
 L.push('');
@@ -511,7 +513,7 @@ if (DIALOGUE) {
 const body = require('./simple_dialogue_prompt').agent(story, {
     from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS,
     native:!!flag('--flow-characters',false),
-}) || L.join('\n');
+}) || (zackCuts ? require('./zack_shot_contract').DIRECTION + '\n\n' : '') + L.join('\n');
 const outPath = OUT || path.join(path.dirname(storyPath), 'agent_prompt.txt');
 
 if (PRINT_ONLY) {
@@ -519,6 +521,11 @@ if (PRINT_ONLY) {
 } else {
     fs.writeFileSync(outPath, body, 'utf8');
     console.log(`Wrote ${outPath}`);
+    const individual = require('./single_scene_prompts').writeSingleScenePrompts(path.dirname(storyPath), story, {
+        aspect: AUTO_RATIO ? 'Flow' : ASPECT || story.aspect_ratio, seconds: SECONDS, native: !!flag('--flow-characters', false),
+    });
+    console.log(`Wrote ${individual.count} numbered clip prompts in ${individual.folder}`);
+    console.log(`Wrote ${individual.all}`);
 }
 
 console.log('');

@@ -1,4 +1,6 @@
 @echo off
+setlocal
+call "%~dp0..\Setup\environment.bat"
 chcp 65001 >nul
 cd /d "%~dp0.."
 title Agent prompt banao - stage 1

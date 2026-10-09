@@ -1,0 +1,15 @@
+const assert=require('assert');
+const retry=require('../single_clip_omni_retry');
+assert(retry.blocked('This prompt might violate our policies about minors.'));
+assert(retry.blocked('We noticed unusual activity.'));
+assert(!retry.blocked('Generation failed. Please try again.'));
+let clicked=0,foreign=0;
+const rect=()=>({width:100});
+const own={innerText:'Retry',getAttribute:()=>null,getBoundingClientRect:rect,click:()=>clicked++};
+const tile={parentElement:null,querySelectorAll:s=>s==='button,[role="button"]'?[own]:[]};
+global.window={__singleOmniTileKeys:{keys:new WeakMap([[tile,'failed-scene']])}};
+global.document={querySelectorAll:s=>s==='flow-video-tile'?[tile]:[{innerText:'Try again',click:()=>foreign++}]};
+assert.equal(retry.clickRetry({key:'failed-scene'}),'retry');assert.equal(clicked,1);assert.equal(foreign,0);
+assert.equal(retry.clickRetry({key:'unrelated'}),null);assert.equal(clicked,1);
+delete global.window;delete global.document;
+console.log('PASS: Retry is limited to the selected failed source tile; provider policy/account blocks excluded.');

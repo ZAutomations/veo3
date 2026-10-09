@@ -249,7 +249,9 @@ const SNAPSHOT = `(() => {
             return !!c && c.classList.contains('model');
         })
         .map(t => {
-            let nodes = Array.from(t.querySelectorAll('ms-text-chunk'));
+            let nodes = Array.from(t.querySelectorAll('pre code, pre'));
+            nodes = nodes.filter(e => !nodes.some(other => other !== e && other.contains(e)));
+            if (!nodes.length) nodes = Array.from(t.querySelectorAll('ms-text-chunk'));
             if (!nodes.length) nodes = Array.from(t.querySelectorAll('ms-prompt-chunk'));
             return nodes
                 .filter(e => !e.closest('ms-thought-chunk, [class*="think" i]'))
@@ -386,7 +388,7 @@ async function waitErrorClear(page, ms = 45000) {
  */
 async function startNewChat(page) {
     const hit = await page.evaluate(() => {
-        const want = /^(new chat|start new chat|new prompt|create new chat)\\s*$/i;
+        const want = /^(new chat|start new chat|new prompt|create new chat)\s*$/i;
         const nodes = Array.from(document.querySelectorAll('button, a, [role="button"], [role="menuitem"]'));
         const el = nodes.find(n => want.test((n.innerText || '').trim()) ||
                                   want.test(n.getAttribute('aria-label') || ''));
@@ -394,7 +396,7 @@ async function startNewChat(page) {
         el.click();
         return (el.innerText || el.getAttribute('aria-label') || '').trim() || 'control';
     }).catch(() => null);
-    if (!hit) { log('no New chat control found - this prompt continues the open conversation'); return false; }
+    if (!hit) { log('no New chat control found; refusing to reuse the previous video conversation'); return false; }
     log(`clicked "${hit}" for a fresh chat`);
     const until = Date.now() + 20000;
     while (Date.now() < until) {
@@ -539,7 +541,8 @@ function psLiteral(s) { return `'${String(s).replace(/'/g, "''")}'`; }
 
 /** The Windows clipboard, through PowerShell - the same thing Ctrl+C puts there. */
 function clipboard(args) {
-    const r = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', args],
+    const script = `$ErrorActionPreference='Stop'; for($attempt=0;$attempt -lt 8;$attempt++){try{ ${args}; exit 0 }catch{if($attempt -eq 7){Write-Error $_; exit 1}; Start-Sleep -Milliseconds 250}}`;
+    const r = spawnSync('powershell.exe', ['-STA', '-NoProfile', '-NonInteractive', '-Command', script],
                         { encoding: 'utf8', timeout: 30000 });
     if (r.error) throw r.error;
     if (r.status !== 0) throw new Error(String(r.stderr || '').trim() || `powershell exited ${r.status}`);
@@ -599,7 +602,26 @@ async function submitPrompt(page, prompt, sel) {
 
     let got = null;
     if (prompt.length >= TYPE_LIMIT) {
-        await step(`paste ${prompt.length} characters`, () => pastePrompt(page, prompt, sel));
+        try {
+            // AI Studio converts a large Ctrl+V into an inline media attachment,
+            // leaving the textarea empty. Insert plain text without clipboard.
+            const client = await step('open plain-text input session', () => page.createCDPSession());
+            try {
+                await page.keyboard.down('Control');
+                await page.keyboard.press('KeyA');
+                await page.keyboard.up('Control');
+                await page.keyboard.press('Backspace');
+                await step(`insert ${prompt.length} characters as plain text`, () => client.send('Input.insertText', { text: prompt }));
+                await sleep(600);
+            } finally { await client.detach().catch(() => {}); }
+        } catch (e) {
+            log(`plain-text input failed; retrying editor input: ${String(e.message).split('\n')[0]}`);
+            await focusComposer(page, sel);
+            await page.keyboard.down('Control');
+            await page.keyboard.press('KeyA');
+            await page.keyboard.up('Control');
+            await page.keyboard.press('Backspace');
+        }
         got = await boxLen(page, sel);
         if (got === null || got < prompt.length * 0.9) {
             log(`the paste left ${got === null ? 'an unreadable box' : `${got} of ` +
@@ -609,7 +631,14 @@ async function submitPrompt(page, prompt, sel) {
 
     if (got === null || got < prompt.length * 0.9) {
         const client = await step('open a CDP session', () => page.createCDPSession());
-        await step(`insert ${prompt.length} characters`, () => client.send('Input.insertText', { text: prompt }));
+        try {
+            await focusComposer(page, sel);
+            await page.keyboard.down('Control');
+            await page.keyboard.press('KeyA');
+            await page.keyboard.up('Control');
+            await page.keyboard.press('Backspace');
+            await step(`insert ${prompt.length} characters`, () => client.send('Input.insertText', { text: prompt }));
+        } finally { await client.detach().catch(() => {}); }
         await sleep(600);
         got = await step('read the box back', () => boxLen(page, sel));
     }
@@ -715,15 +744,16 @@ async function sent(page, prompt) {
  */
 async function waitForAnswer(page, base) {
     const deadline = Date.now() + ANSWER_TIMEOUT_MS;
-    let last = '', stable = 0, sawRunning = false, refused = 0;
+    let last = '', stable = 0, sawRunning = false, sawAnswer = false, refused = 0;
     const startedAt = Date.now();
     while (Date.now() < deadline) {
         const s = await read(page);
         if (s.running) sawRunning = true;
+        if (isFresh(s, base)) sawAnswer = true;
         if (isFresh(s, base) && !s.running && TOOL_LIMIT_RE.test(s.text) && !s.text.includes('{')) {
             return { ok: false, error: s.text.slice(0, 200) };
         }
-        if (isFresh(s, base) && !s.running) {
+        if (isFresh(s, base) && !s.running && require('./aistudio_response').completeAnswer(s.text)) {
             if (s.text === last) {
                 if (++stable >= 2) return { ok: true, text: s.text };
             } else { last = s.text; stable = 0; }
@@ -748,7 +778,7 @@ async function waitForAnswer(page, base) {
         // A reload is the cure and it is safe here: the conversation lives on the
         // server and comes back with it. It is reported as a failure so the
         // caller's retry sends the prompt again, into a tab that works.
-        if (!sawRunning && !s.error && Date.now() - startedAt > WEDGE_MS) {
+        if (!sawRunning && !sawAnswer && !s.error && Date.now() - startedAt > WEDGE_MS) {
             log(`the prompt was accepted but nothing has started after ` +
                 `${Math.round(WEDGE_MS / 1000)}s - reloading the stuck tab`);
             await page.reload({ waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => {});
@@ -803,7 +833,7 @@ async function askWebWithRetries(prompt, opts = {}) {
         lastError = r.error;
         if (attempt < tries) {
             const wait = 15000 * attempt;
-            log(`AI Studio refused it ("${r.error}") - attempt ${attempt + 1} of ${tries} in ${wait / 1000}s`);
+            log(`AI Studio request failed ("${r.error}") - attempt ${attempt + 1} of ${tries} in ${wait / 1000}s`);
             await sleep(wait);
         }
     }
@@ -832,7 +862,10 @@ async function askWebOnce(prompt, opts = {}) {
     // conversation that is already on screen. `newChat: true` asks the app itself
     // for a new chat (its own New chat control, a real click) rather than
     // reloading - which is what a batch wants between films.
-    if (opts.newChat === true) await step('start a fresh chat', () => startNewChat(page));
+    if (opts.newChat === true) {
+        const fresh = await step('start a fresh chat', () => startNewChat(page));
+        if (!fresh) throw new Error('A fresh AI Studio chat could not be confirmed. No new video prompt was submitted; open a blank New chat and retry.');
+    }
     _readState = { stuck: 0 };
     await step('wait for any old refusal to clear', () => waitErrorClear(page));
     const boot = Date.now() + BOOT_MS;

@@ -1114,7 +1114,13 @@ async uploadRefViaSendKeys(filePath) {
         // rendered (attempt 1/4)" four times before the scene gave up.
         const isOpen = () => this.evalJs(() =>
             !!document.querySelector('cdk-virtual-scroll-viewport[aria-label="Asset list"]'));
-        if (await isOpen()) return true;
+        const ready = async () => {
+            if (this.opts.referenceCategory === 'Images') {
+                await require('./reference_picker_images').selectImages(this.page, {log});
+            }
+            return true;
+        };
+        if (await isOpen()) return ready();
         for (let attempt = 1; attempt <= 4; attempt++) {
             const opened = await this.evalJs(() => {
                 const button = document.querySelector('button[aria-label="Add ingredients to the prompt box"]');
@@ -1124,7 +1130,13 @@ async uploadRefViaSendKeys(filePath) {
             });
             if (opened) {
                 await wait(1500);
-                if (await isOpen()) return true;
+                const ready = async () => {
+            if (this.opts.referenceCategory === 'Images') {
+                await require('./reference_picker_images').selectImages(this.page, {log});
+            }
+            return true;
+        };
+        if (await isOpen()) return ready();
                 log(`   ⚠️  + clicked but asset list not rendered (attempt ${attempt}/4)`);
             } else {
                 log(`   ⚠️  no "Add ingredients to the prompt box" button (attempt ${attempt}/4)`);
@@ -1160,13 +1172,19 @@ async uploadRefViaSendKeys(filePath) {
     async findAssetItem(aliases) {
         const list = (Array.isArray(aliases) ? aliases : [aliases]).filter(Boolean);
         if (!list.length) return 'no-name';
-        const LOCATE = (names) => {
+        const LOCATE = (names, imagesOnly) => {
             const keys = names.map(s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '')).filter(Boolean);
             const vp = document.querySelector('cdk-virtual-scroll-viewport[aria-label="Asset list"]')
                     || document.querySelector('.asset-list-viewport');
             if (!vp) return { state: 'no-picker' };
             const items = [...vp.querySelectorAll('button.asset-item')];
             const hit = items.find(b => {
+                if (imagesOnly) {
+                    const type = b.getAttribute('data-asset-type') || '';
+                    const icons = [...b.querySelectorAll('mat-icon')].map(e => e.textContent || '').join(' ');
+                    if (/video/i.test(type) || /\bVideo\s*$/i.test((b.innerText || '').trim())
+                        || b.querySelector('video, flow-video-tile') || /play_circle|play_arrow|movie/i.test(icons)) return false;
+                }
                 const t = b.querySelector('.asset-title');
                 if (!t) return false;
                 const k = t.textContent.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -1195,7 +1213,7 @@ async uploadRefViaSendKeys(filePath) {
             return { state: 'scrolled', atEnd: vp.scrollTop === before, count: items.length };
         };
         for (let pass = 0; pass < 12; pass++) {
-            const st = await this.evalJs(LOCATE, list);
+            const st = await this.evalJs(LOCATE, list, this.opts.referenceCategory === 'Images');
             if (!st || st.__error) return 'locate-error';
             if (st.state === 'no-picker') return st.state;
             if (st.state === 'already') return 'already';
@@ -1210,7 +1228,7 @@ async uploadRefViaSendKeys(filePath) {
                 try { await hit.click(); }
                 catch { return 'item-detached-before-click'; }
                 await wait(600);
-                if ((await this.evalJs(LOCATE, list)).state === 'already') return 'clicked';
+                if ((await this.evalJs(LOCATE, list, this.opts.referenceCategory === 'Images')).state === 'already') return 'clicked';
                 const pickerStillOpen = await this.evalJs(() =>
                     !!document.querySelector('cdk-virtual-scroll-viewport[aria-label="Asset list"]'));
                 return pickerStillOpen ? 'clicked but NOT selected' : 'picker closed before selection was verified';

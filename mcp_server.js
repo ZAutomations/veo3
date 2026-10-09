@@ -293,6 +293,8 @@ function refDuration(cm, seconds) {
         try { cm = JSON.parse(fs.readFileSync(cm, 'utf8')); } catch (e) { return undefined; }
     }
     const clips = (cm && (cm.clips || cm.segments)) || [];
+    const verified = require('./reference_duration').verifiedSeconds(cm);
+    if (verified) { const per = Number(seconds) > 0 ? Number(seconds) : 8; return Math.ceil(verified / per) * per; }
     const facts = (cm && Array.isArray(cm.facts)) ? cm.facts : [];
     const fmt = (cm && cm.format) || {};
     const toSec = (t) => {
@@ -332,7 +334,7 @@ function storyDuration(a, contentMap, item) {
 }
 
 function isRelationshipDialoguePreset(id) {
-    return /^relationship-dialogue(?:-(?:real|ghibli))?$/.test(String(id || '').trim());
+    return /^relationship-dialogue(?:-(?:real|ghibli|3d))?$/.test(String(id || '').trim());
 }
 
 function contentMapHasSourceDialogue(cm) {
@@ -368,6 +370,8 @@ const ANALYZE_TIMEOUT_MS = 30 * 60 * 1000;
 async function doAnalyzeVideo(a) {
     const url = String(a.url || '').trim();
     if (!url) return { ok: false, text: 'url is required.', contentMap: null, detailFile: null };
+    const sourceMetadata = await require('./reference_duration').probeDuration(url);
+    if (sourceMetadata) log(`[analyze] verified source video length: ${sourceMetadata.duration_s}s (video metadata).`);
 
     // ALREADY READ THIS VIDEO. Analysis is the slowest and most failure-prone
     // call in the pipeline, and its answer does not change - the same link at
@@ -385,9 +389,22 @@ async function doAnalyzeVideo(a) {
                 if (preset.require_source_speaker_gender) require('./dialogue_speakers').sourceSpeakerMap(writer.contentMapClips(hit.cm), [], preset);
             } catch { verifiedSpeakers = false; }
         }
-        if (hit && isRelationshipDialoguePreset(a.preset) && (!contentMapHasSourceDialogue(hit.cm) || !verifiedSpeakers)) {
+        if (hit && require('./reference_duration').sourceUnavailable(hit.cm)) {
+            fs.renameSync(hit.file, hit.file + `.unverified-source-${Date.now()}`);
+            return { ok: false, text: 'The saved analysis says the source video was unavailable. Its dialogue is unverified and was preserved outside the reusable cache. Upload the source video or supply its actual labelled transcript before writing a faithful story.', contentMap: null, detailFile: null };
+        } else if (hit && sourceMetadata && require('./reference_duration').timingMismatch(hit.cm, sourceMetadata.duration_s, a.seconds)) {
+            const backup = hit.file + `.invalid-duration-${Date.now()}`;
+            fs.renameSync(hit.file, backup);
+            log(`[analyze] rejected stretched cached analysis (${hit.cm.format?.source_duration_s}s versus verified ${sourceMetadata.duration_s}s). Preserved as ${path.basename(backup)}; analysing the actual video again.`);
+        } else if (hit && isRelationshipDialoguePreset(a.preset) && (!contentMapHasSourceDialogue(hit.cm) || !verifiedSpeakers)) {
             log(`[analyze] cached relationship analysis lacks verified dialogue speakers - reading the video again with gender attribution.`);
+        } else if (hit && ['fern-documentary', '3d-zack-style'].includes(a.preset) && !require('./source_narration').hasNarration(hit.cm)) {
+            log('[analyze] cached narration analysis contains summaries only - reading the video again to capture the complete source narration.');
         } else if (hit) {
+            if (sourceMetadata) {
+                hit.cm.source_metadata = sourceMetadata;
+                fs.writeFileSync(hit.file, JSON.stringify(hit.cm, null, 2) + '\n');
+            }
             log(`[analyze] reusing the analysis already on disk: ${path.basename(hit.file)}`);
             let detail = '';
             if (hit.detail) { try { detail = fs.readFileSync(hit.detail, 'utf8').trim(); } catch (e) { /* gone */ } }
@@ -408,7 +425,8 @@ async function doAnalyzeVideo(a) {
     const args = [url];
     pushOpt(args, '--preset', a.preset);
     pushOpt(args, '--seconds', a.seconds);
-    pushOpt(args, '--clips', a.clips);
+    // The requested production clip count must never stretch the source analysis.
+    pushOpt(args, '--source-duration', sourceMetadata?.duration_s);
     pushOpt(args, '--model', modelArg(a));
     pushOpt(args, '--transport', a.transport);
     pushOpt(args, '--out', a.out);
@@ -507,7 +525,12 @@ async function doWriteStory(a) {
     for (const k of (a.keys || [])) args.push('--key', String(k));
 
     try {
-        const r = await runNode('write_story.js', args, { timeoutMs: 20 * 60 * 1000 });
+        // Long browser-written stories make one outline call plus a call per
+        // six clips. A fixed 20-minute limit can kill a healthy long run.
+        const writingClips = Math.ceil((Number(a.duration) || 56) / (Number(a.scene_seconds) || 8));
+        const writingTimeout = Math.max(20 * 60 * 1000,
+            (10 + 4 * (1 + Math.ceil(writingClips / 6))) * 60 * 1000);
+        const r = await runNode('write_story.js', args, { timeoutMs: writingTimeout });
         const m = r.out.match(/wrote\s+(.+_story\.json)/i);
         const storyJson = m ? path.resolve(HERE, m[1].trim()) : null;
         const ok = r.code === 0 && !!storyJson;
@@ -578,6 +601,8 @@ async function doRunAgent(a) {
     pushOpt(args, '--submission-file', a._submission_file);
     pushOpt(args, '--project-url', a.project_url);
     pushOpt(args, '--aspect', a.aspect);
+    pushOpt(args, '--video-resolution', a.video_resolution);
+    pushOpt(args, '--scene-seconds', a.scene_seconds || a.seconds || readJson(storyJson, {}).scene_seconds || 8);
     pushOpt(args, '--watch', a.watch);
     pushOpt(args, '--model', a.model);
     // "Flow" is the sentinel for "leave the project alone" - passing it as a
@@ -601,6 +626,7 @@ async function doRunAgent(a) {
     return {
         ok: r.code === 0,
         retrySubmission: r.code === 3 && r.out.includes('BATCH_REQUEST_FAILED_BEFORE_MEDIA:'),
+        reconciledTo: r.code === 0 ? Number((r.out.match(/BATCH_RECONCILED_READY:(\d+)/) || [])[1]) || undefined : undefined,
         storyJson,
         text: (a.submit ? '' : 'DRY RUN (no credits spent - pass submit:true to generate).\n\n') +
             r.out + (r.err ? '\n[stderr]\n' + r.err : '') +
@@ -614,6 +640,7 @@ async function doDownloadClips(a) {
     if (!out && storyJson) out = path.join(storyDirOf(storyJson), 'clips');
     if (!out) return { ok: false, text: 'Give either story (folder or JSON) or an explicit out folder.' };
     const args = ['--out', path.resolve(HERE, String(out)), '--cdp', String(a.cdp || 9222)];
+    if (a.upscaled === true || /omni/i.test(a.video_model || '') || a.video_resolution === '360p') args.push('--upscaled');
     pushOpt(args, '--project-url', a.project_url);
     if (storyJson) {
         pushOpt(args, '--story', storyJson);
@@ -627,7 +654,15 @@ async function doDownloadClips(a) {
     if (a.probe) args.push('--probe');
     if (a.no_sheet) args.push('--no-sheet');
     const r = await runNode('agent_download.js', args, { timeoutMs: 20 * 60 * 1000 });
-    return { ok: r.code === 0, storyJson, text: r.out + (r.err ? '\n[stderr]\n' + r.err : '') };
+    let failure = '';
+    if (r.code !== 0) {
+        const manifest = readJson(path.join(path.resolve(HERE, String(out)), 'manifest.json'), null);
+        const clips = manifest && Array.isArray(manifest.clips) ? manifest.clips : [];
+        const ready = clips.filter(c => c.got).length;
+        failure = `\nDOWNLOAD FAILED: ${ready}/${manifest && manifest.expected || '?'} playable clips saved; ${clips.filter(c => !c.got).length} transfers failed. See logs/agent_download_*/download.log for each source/menu error.`;
+        if (r.killed) failure += ' Downloader exceeded the allotted time.';
+    }
+    return { ok: r.code === 0, storyJson, text: r.out + (r.err ? '\n[stderr]\n' + r.err : '') + failure };
 }
 
 async function doJoin(a) {
@@ -817,6 +852,7 @@ const TOOLS = [
                 scene_seconds: { type: 'integer', description: 'Seconds per clip. Default 8 (Veo 3.1 Lite max).' },
                 aspect: { type: 'string', description: '"Flow" (default, set the ratio in Flow), or 16:9 / 9:16 / 1:1.' },
                 video_model: { type: 'string', description: 'Video model for this project, e.g. "Veo 3.1 - Fast". "Flow" (default) leaves it alone.' },
+                video_resolution: { type: "string", enum: ["Flow", "360p", "720p"], description: "Agent video resolution; verified and repeated in every clip prompt." },
                 model: { type: 'string', description: 'Gemini model, e.g. gemini-3.6-flash.' },
                 models: { type: 'array', items: { type: 'string' }, description: 'Fallback chain, newest first. Overrides model.' },
                 transport: { type: 'string', enum: ['api', 'web', 'auto'], description: '"api" (default): Gemini through the API key. "web": Google AI Studio writes the story in a real Chrome window instead - no key, no per-project quota. "auto": try the API, fall back to the browser. The browser needs its profile signed in once; the tool says so if it is not. The story folder is identical either way.' },
@@ -866,6 +902,7 @@ const TOOLS = [
                 watch: { type: 'integer', description: 'Seconds to watch after submit. Default 240.' },
                 model: { type: 'string', description: 'Model hint, e.g. "veo3.1 low priority".' },
                 video_model: { type: 'string', description: 'Video model this project must generate with, e.g. "Veo 3.1 - Fast" or "Omni 1.1 Flash". Set in Flow just before Generate. "Flow" (default) leaves the project on its own setting.' },
+                video_resolution: { type: "string", enum: ["Flow", "360p", "720p"], description: "Agent video resolution; verified and repeated in every clip prompt." },
                 aspect: { type: 'string', enum: ['Flow', '16:9', '1:1', '9:16'], description: 'Video generation default ratio. Flow leaves it unchanged.' },
                 voices: { type: 'array', items: { type: 'string' }, description: 'Flow voice names to attach, one per speaker (e.g. ["Orus"] or ["Orus","Achernar"]).' },
                 no_upload_refs: { type: 'boolean', description: 'Do not upload sheets; only use an Image tile already present.' },
@@ -993,6 +1030,7 @@ const TOOLS = [
                 models: { type: 'array', items: { type: 'string' }, description: 'Gemini fallback chain, newest first.' },
                 veo_model: { type: 'string', description: 'Veo model hint for Flow, e.g. "veo3.1 low priority".' },
                 video_model: { type: 'string', description: 'Video model this project must generate with, e.g. "Veo 3.1 - Fast" or "Omni 1.1 Flash". "Flow" (default) leaves it alone.' },
+                video_resolution: { type: "string", enum: ["Flow", "360p", "720p"], description: "Agent video resolution; verified and repeated in every clip prompt." },
                 no_house_cast: { type: 'boolean' },
                 new_project: { type: 'boolean', description: 'Create a fresh Flow project for this film before generating.' },
                 project_url: { type: 'string', description: 'Generate into this existing project instead of the open tab.' },
@@ -1085,12 +1123,12 @@ const TOOLS = [
                 if (!g.ok) return fail(parts.join('\n\n'));
                 noUpload = true;
             }
-            const r = await doRunAgent({ story: storyArg, cdp: a.cdp, watch: a.watch, model: a.veo_model, submit: a.submit, auto_approve: a.auto_approve, project_url: projectUrl, no_upload_refs: noUpload, video_model: a.video_model, aspect: a.aspect, flow_characters: a.flow_characters, voices: presetVoices(a.preset || (contentMap && contentMap.preset_suggestion)) });
+            const r = await doRunAgent({ story: storyArg, cdp: a.cdp, watch: a.watch, model: a.veo_model, submit: a.submit, auto_approve: a.auto_approve, project_url: projectUrl, no_upload_refs: noUpload, video_model: a.video_model, video_resolution: a.video_resolution, scene_seconds: a.seconds || a.scene_seconds, aspect: a.aspect, flow_characters: a.flow_characters, voices: presetVoices(a.preset || (contentMap && contentMap.preset_suggestion)) });
             parts.push('## run_agent\n' + r.text);
             if (!r.ok || !a.submit) return r.ok ? text(parts.join('\n\n')) : fail(parts.join('\n\n'));
 
             if (a.download) {
-                const dl = await doDownloadClips({ story: storyArg, project_url: projectUrl, cdp: a.cdp });
+                const dl = await doDownloadClips({ story: storyArg, project_url: projectUrl, cdp: a.cdp, video_model: a.video_model, video_resolution: a.video_resolution });
                 parts.push('## download_clips\n' + dl.text);
                 if (!dl.ok) return fail(parts.join('\n\n'));
             }
@@ -1145,6 +1183,7 @@ const TOOLS = [
                 transport: { type: 'string', enum: ['api', 'web', 'auto'], description: '"api" (default): Gemini through the API key. "web": Google AI Studio in a real Chrome window writes and analyses everything instead - no key, no per-project quota, one film per chat. "auto": try the API, fall back to the browser. Every link in the batch uses it. The browser needs its profile signed in once; the tool says so if it is not.' },
                 veo_model: { type: 'string', description: 'Veo model hint for Flow, e.g. "veo3.1 low priority".' },
                 video_model: { type: 'string', description: 'Video model this project must generate with, e.g. "Veo 3.1 - Fast" or "Omni 1.1 Flash". "Flow" (default) leaves it alone.' },
+                video_resolution: { type: "string", enum: ["Flow", "360p", "720p"], description: "Agent video resolution; verified and repeated in every clip prompt." },
                 generate: { type: 'boolean', description: 'Drive Flow for each item. Off = write the stories only.' },
                 submit: { type: 'boolean', description: 'true = actually spend credits.' },
                 auto_approve: { type: 'boolean' },
@@ -1340,12 +1379,13 @@ const TOOLS = [
                         noUpload = true;
                     }
                     log(`[batch ${i}] driving Flow (this can take a while)...`);
-                    const r = await doRunAgent({ story: storyArg, cdp: a.cdp, watch: a.watch, model: a.veo_model, submit: true, auto_approve: a.auto_approve, project_url: projectUrl, no_upload_refs: noUpload, video_model: a.video_model, aspect: a.aspect, flow_characters: a.flow_characters, voices: presetVoices(preset) });
+                    const r = await doRunAgent({ story: storyArg, cdp: a.cdp, watch: a.watch, model: a.veo_model, submit: true, auto_approve: a.auto_approve, project_url: projectUrl, no_upload_refs: noUpload, video_model: a.video_model, video_resolution: a.video_resolution, scene_seconds: a.seconds || a.scene_seconds, aspect: a.aspect, flow_characters: a.flow_characters, voices: presetVoices(preset) });
                     if (!r.ok) { bad('run_agent', r); continue; }
                     out.push('  generated.');
                     log(`[batch ${i}] generated`);
                     if (a.download) {
-                        const dl = await doDownloadClips({ story: storyArg, project_url: projectUrl, cdp: a.cdp });
+                        log(`[batch ${i}] all generation complete; starting automatic download`);
+                        const dl = await doDownloadClips({ story: storyArg, project_url: projectUrl, cdp: a.cdp, video_model: a.video_model, video_resolution: a.video_resolution });
                         if (!dl.ok) { bad('download_clips', dl); continue; }
                         // The authoritative completion check: clips on disk. A
                         // project full of "usage limit"/failed tiles downloads
@@ -1378,6 +1418,7 @@ const TOOLS = [
                         // back to the old reversal guess - and say so loudly.
                         let orderedByEar = false;
                         if (a.join && a.order_clips !== false) {
+                            log(`[batch ${i}] downloads complete; verifying scene order before joining`);
                             const ord = await doOrderClips({ story: storyArg });
                             if (ord.ok) {
                                 orderedByEar = true;
@@ -1396,6 +1437,7 @@ const TOOLS = [
                             }
                         }
                         if (a.join) {
+                            log(`[batch ${i}] starting automatic ffmpeg join`);
                             // Only reach for --reverse when the order was NOT
                             // resolved by ear: then the files are still in the
                             // downloader's grid numbering, where scene-01.mp4 is
@@ -1532,6 +1574,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+    refDuration, storyDuration,
     finishedStoryDuration,
     referenceKey, storyForReference, cachedMapsForReference, cachedMapForReference,
     contentMapForReference, contentMapHasSourceDialogue,

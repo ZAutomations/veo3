@@ -323,11 +323,13 @@ fs.writeFileSync(listPath, listBody, 'utf8');
 
 const outPath = OUT_FLAG || path.join(path.dirname(path.resolve(DIR)),
     path.basename(path.resolve(DIR)) + (partialExport ? '_partial.mp4' : '_final.mp4'));
+// Keep the last complete export playable while the replacement is encoding.
+const workingPath = outPath.replace(/\.mp4$/i, '') + `.building_${process.pid}.mp4`;
 
 banner('JOINING WITH FFMPEG');
 log(`Output: ${outPath}`);
 
-const copyArgs = ['-y', '-f', 'concat', '-safe', '0', '-i', listPath, '-c', 'copy', outPath];
+const copyArgs = ['-y', '-f', 'concat', '-safe', '0', '-i', listPath, '-c', 'copy', workingPath];
 const audioFilters = normalizeAudio ? ordered.map(f => {
     if (!probes.get(f).acodec) return '';
     const { measureLoudness, loudnessFilter } = require('./audio_loudness');
@@ -336,7 +338,7 @@ const audioFilters = normalizeAudio ? ordered.map(f => {
     return loudnessFilter(measured);
 }) : [];
 const encArgs = require('./join_normalized').normalizedJoinArgs(
-    ordered.map(f => path.resolve(DIR, f)), ordered.map(f => probes.get(f)), outPath, { audioFilters });
+    ordered.map(f => path.resolve(DIR, f)), ordered.map(f => probes.get(f)), workingPath, { audioFilters });
 
 function runFfmpeg(args, label) {
     log(`${label}: ffmpeg ${args.slice(0, 6).join(' ')} ...`);
@@ -376,12 +378,30 @@ if (!result.ok) {
     process.exit(1);
 }
 
-if (!fs.existsSync(outPath)) {
+if (!fs.existsSync(workingPath)) {
     console.error('ffmpeg reported success but produced no file.');
     process.exit(1);
 }
 
-const finalDur = (probe(outPath) || {}).duration ?? null;
+const outputProbe = probe(workingPath);
+const finalDur = outputProbe?.duration ?? null;
+if (!outputProbe?.vcodec || !(finalDur > 0) || total && Math.abs(finalDur - total) > 1.5) {
+    console.error(`JOIN FAILED: encoded output failed duration/video validation. Previous final file was preserved. Recovery file: ${workingPath}`);
+    process.exit(1);
+}
+try { fs.renameSync(workingPath, outPath); }
+catch (e) {
+    console.error(`The joined video is complete, but the final filename is open or unavailable. Close it in your player and use ${workingPath}. ${e.message}`);
+    process.exit(1);
+}
+let start = 0;
+const orderReport = ordered.map((file, i) => {
+    const row = `${String(i + 1).padStart(2, '0')} | ${start.toFixed(2)}s | ${file}`;
+    start += probes.get(file)?.videoDuration || probes.get(file)?.duration || 0;
+    return row;
+});
+fs.writeFileSync(path.join(path.dirname(outPath), 'JOINED_CLIP_ORDER.txt'),
+    `Completed video: ${outPath}\nOrder from: ${orderSource}\nStory position | Starts at | Source filename\n` + orderReport.join('\n') + '\n', 'utf8');
 
 banner('DONE');
 log(`File    : ${outPath}`);

@@ -17,7 +17,7 @@ function workflowArgs(argv) {
         stories: [story], start_phase: phase, generate: submit, submit,
         aspect: value('--aspect', 'Flow'), seconds: Number(value('--seconds', '8')),
         cdp: Number(value('--cdp', '9222')), watch: Number(value('--watch', '300')),
-        video_model: value('--video-model', 'Flow'), veo_model: value('--model'),
+        video_model: value('--video-model', 'Flow'), video_resolution: value('--video-resolution', 'Flow'), veo_model: value('--model'),
         new_project: !argv.includes('--no-new-project'),
         generate_refs: !argv.includes('--no-generate-refs'),
         download: argv.includes('--download'), join: argv.includes('--join'),

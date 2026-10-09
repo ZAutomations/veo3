@@ -171,7 +171,10 @@ const PROMPT_TEXT = (PROMPT_BASE && MODEL_HINT)
 // Belt-and-braces policy pass: strip wording the video model refuses outright
 // before it ever reaches the box. The writer already carries the rule; this
 // catches a slip. Long prompts still paste, so the text is otherwise untouched.
-const SEND_TEXT = PROMPT_TEXT == null ? null : W.sanitizeForPolicy(PROMPT_TEXT);
+const VIDEO_RESOLUTION = String(flag('--video-resolution', 'Flow') || 'Flow');
+const SEND_TEXT = PROMPT_TEXT == null ? null : require('./agent_video_contract').withSettings(W.sanitizeForPolicy(PROMPT_TEXT),{
+    model:VIDEO_MODEL,resolution:VIDEO_RESOLUTION,seconds:Number(flag('--scene-seconds',8))||8,aspect:String(flag('--aspect','Flow')),
+});
 if (SEND_TEXT !== PROMPT_TEXT) log('Policy sanitizer adjusted the prompt before sending.');
 
 // A long prompt must NOT be typed key by key - a 3000-character story at 45ms a
@@ -197,12 +200,14 @@ const RETRY_ROUNDS = Math.max(0, parseInt(flag('--retry-rounds', '6'), 10));
 const RETRY_WATCH = parseInt(flag('--retry-watch', '90'), 10);
 // Expected clip count, read from the prompt ("Create N separate clips"). Used as
 // a gate: a partial film must not be downloaded and joined as if it were whole.
-const EXPECTED_CLIPS = (() => {
+let EXPECTED_CLIPS = (() => {
     const explicit = parseInt(flag('--expected', '0'), 10);
     if (Number.isInteger(explicit) && explicit > 0) return explicit;
     const m = String(PROMPT_TEXT || '').match(/create\s+(\d+)\s+separate\s+clips/i);
     return m ? parseInt(m[1], 10) : 0;
 })();
+const MANUAL_ADD_COUNT = Math.max(0, parseInt(flag('--manual-add-count', '0'), 10) || 0);
+let manualBaselineFailures = 0;
 // Flow voice asset name(s) to attach via the "+" (Add ingredients) menu.
 // Repeatable: --voice Orus --voice Achernar. One for a narrator, two for a
 // two-hander so each character gets their own.
@@ -309,13 +314,22 @@ function snapshotFn() {
     const BUSY = /generating|generation in progress|queued|processing|creating|(?:^|\n)\s*\d{1,2}%\s*(?:\n|$)/i;
     const failedVideos = videoEls.filter(t => FAIL.test(t.innerText || t.textContent || '')
         || !!t.querySelector('[class*=error-tile], button[aria-label="Retry"]'));
+    // Empty scheduled tiles are not finished videos. Virtualized finished
+    // tiles retain a thumbnail even while their video player is unmounted.
+    const hasCompletedMedia = t => [...t.querySelectorAll('video, video source, img')].some(el => {
+        const src = el.currentSrc || el.getAttribute('src') || el.getAttribute('poster') || '';
+        return /^(?:https?:|blob:)/i.test(src) && !/\.svg(?:[?#]|$)|placeholder|loading/i.test(src);
+    });
     const generatingVideos = videoEls.filter(t => !failedVideos.includes(t)
-        && (BUSY.test(t.innerText || t.textContent || '') || !!t.querySelector('mat-progress-spinner, [role="progressbar"], [class*=spinner]')));
+        && (BUSY.test(t.innerText || t.textContent || '') || !!t.querySelector('mat-progress-spinner, [role="progressbar"], [class*=spinner]')
+            || !hasCompletedMedia(t)));
     const mediaTiles = {
         flow_video_tile: videoEls.length,
         ready_video_tile: Math.max(0, videoEls.length - failedVideos.length - generatingVideos.length),
         failed_video_tile: failedVideos.length,
         generating_video_tile: generatingVideos.length,
+        agent_busy: buttons.some(b => !b.disabled && (/^stop(?: generation| generating)?$/i.test(b.aria || '')
+            || /stop-button|stop-icon-button/.test(b.cls))),
         flow_image_tile: document.querySelectorAll('flow-image-tile').length,
         any_tile: [...document.querySelectorAll('*')].filter(el => /tile/i.test(cls(el)) && vis(el)).length,
     };
@@ -349,6 +363,24 @@ function snapshotFn() {
 }
 
 // ---- failure affordances ---------------------------------------------------
+let lastProjectScan = '';
+async function readProjectSnapshot(page, full = true) {
+    let snapshot = await page.evaluate(snapshotFn);
+    // The DOM stops representing the full asset list once Flow virtualizes
+    // older rows. Never interpret that viewport count as a missing clip.
+    // Even a five/ten-clip batch is virtualized in Flow's single-column list.
+    // Resume/completion decisions require the whole project, not viewport tiles.
+    if (full && EXPECTED_CLIPS > 0 && !snapshot.mediaTiles.agent_busy) {
+        const viewportCount = snapshot.mediaTiles.flow_video_tile;
+        const project = await require('./agent_project_media').scanProjectMedia(page);
+        snapshot = await page.evaluate(snapshotFn);
+        snapshot.mediaTiles = { ...snapshot.mediaTiles, ...project, viewport_video_tile: viewportCount };
+        const summary = `Full project scan: ready=${project.ready_video_tile}, failed=${project.failed_video_tile}, generating=${project.generating_video_tile}, total=${project.flow_video_tile} (viewport had ${viewportCount}).`;
+        if (summary !== lastProjectScan) { log(summary); lastProjectScan = summary; }
+    }
+    if (MANUAL_ADD_COUNT && manualBaselineFailures) snapshot.mediaTiles.failed_video_tile = Math.max(0, snapshot.mediaTiles.failed_video_tile - manualBaselineFailures);
+    return snapshot;
+}
 // A failed clip surfaces twice. In the agent conversation it is a card with a
 // "Retry" button. In the media grid it is a tile that offers only "Reuse
 // prompt". This reads both, without clicking anything.
@@ -468,7 +500,7 @@ async function sweepFor(page, secs, tag) {
     let lastTail = '';
     while ((Date.now() - t0) / 1000 < secs) {
         await wait(4000);
-        const cur = await page.evaluate(snapshotFn);
+        const cur = await readProjectSnapshot(page);
         if (cur.tail !== lastTail) {
             lastTail = cur.tail;
             const fresh = cur.tail.split('\n').map(x => x.trim()).filter(Boolean).slice(-3);
@@ -490,13 +522,13 @@ async function sweepFor(page, secs, tag) {
     }
     // No snapshot here: `snap` lives in the run scope, not at module level, and
     // calling it from here crashed the retry pass with "snap is not defined".
-    return await page.evaluate(snapshotFn);
+    return await readProjectSnapshot(page);
 }
 
 async function retryFailedMediaOnly(page, snap, label = 'retry') {
     let retried = 0;
     for (let round = 1; round <= RETRY_ROUNDS; round++) {
-        const cur = await page.evaluate(snapshotFn);
+        const cur = await readProjectSnapshot(page);
         const mt = cur.mediaTiles;
         const tally = EXPECTED_CLIPS > 0
             ? `ready=${mt.ready_video_tile}/${EXPECTED_CLIPS}, failed=${mt.failed_video_tile}, generating=${mt.generating_video_tile}`
@@ -506,14 +538,14 @@ async function retryFailedMediaOnly(page, snap, label = 'retry') {
         // Once the project already has the requested number of completed
         // videos, retrying an additional failed attempt can only increase the
         // excess count. Let download + dialogue ordering choose one per scene.
-        if (EXPECTED_CLIPS > 0 && mt.ready_video_tile >= EXPECTED_CLIPS) {
+        if (EXPECTED_CLIPS > 0 && mt.ready_video_tile >= EXPECTED_CLIPS && !mt.agent_busy && mt.generating_video_tile === 0) {
             log(`Round ${round}: ${tally}; enough completed clips already exist, so failed attempts are left untouched.`);
             if (mt.ready_video_tile > EXPECTED_CLIPS) log('  Duplicate count detected; retrying would create more clutter.');
             break;
         }
 
         if (!st.retryButtons && !st.reuseInError) {
-            if (mt.generating_video_tile > 0) {
+            if (mt.generating_video_tile > 0 || mt.agent_busy) {
                 log(`Round ${round}: ${tally}; waiting for active generations.`);
                 await sweepFor(page, RETRY_WATCH, `${label}-${round}-waiting`);
                 continue;
@@ -733,7 +765,7 @@ async function uploadRefThroughPicker(page, box, file) {
     }
 
     async function snap(label) {
-        const data = await page.evaluate(snapshotFn);
+        const data = await readProjectSnapshot(page, /^(baseline|final|safe-retry-final|recovery-no-media-confirmed|batch-completed)$/.test(label));
         const f = path.join(RUN_DIR, `${String(++snapN).padStart(2, '0')}_${label}.json`);
         fs.writeFileSync(f, JSON.stringify(data, null, 2));
         return data;
@@ -767,6 +799,15 @@ async function uploadRefThroughPicker(page, box, file) {
     // ---- 2. Settle, then take a baseline -----------------------------------
     await wait(3000);
     let s = await snap('baseline');
+    if (MANUAL_ADD_COUNT) {
+        if (s.mediaTiles.agent_busy || s.mediaTiles.generating_video_tile > 0 || s.mediaTiles.project_scan_complete === false) {
+            throw Error('Manual selection waits for the current project generation to finish. No selected prompt was submitted.');
+        }
+        manualBaselineFailures = s.mediaTiles.failed_video_tile;
+        EXPECTED_CLIPS = s.mediaTiles.ready_video_tile + MANUAL_ADD_COUNT;
+        s.mediaTiles.failed_video_tile = 0;
+        log(`MANUAL SELECTION: adding ${MANUAL_ADD_COUNT} new clip(s) to ${s.mediaTiles.ready_video_tile} completed clips; original batch checkpoint ignored.`);
+    }
     log(`Agent Mode is ${s.agentOn ? 'ON' : 'OFF'}`);
     log(`Prompt box   : ${s.promptText !== null ? 'found' : 'NOT FOUND'}`);
     log(`Submit button: ${s.generateBtn.exists ? (s.generateBtn.disabled ? 'present (disabled)' : 'present (ready)') : 'NOT FOUND'}`);
@@ -797,6 +838,29 @@ async function uploadRefThroughPicker(page, box, file) {
 
     if (!s.agentOn) throw Error('Agent Mode did not turn on. No generation submitted.');
 
+    // Reconcile batches supplied manually while the local checkpoint was stale.
+    // This returns to the orchestrator WITHOUT typing or clicking Generate.
+    const submissionCheckpoint = flag('--submission-file', null);
+    const requiredCheckpoint = flag('--require-ready', null);
+    if (submissionCheckpoint && requiredCheckpoint !== null
+        && s.mediaTiles.ready_video_tile > Number(requiredCheckpoint)) {
+        const planFile = path.join(submissionCheckpoint.replace(/\.json\.submission\.json$/, ''), 'batches.json');
+        if (fs.existsSync(planFile)) {
+            const plan = JSON.parse(fs.readFileSync(planFile, 'utf8'));
+            const intent = JSON.parse(fs.readFileSync(submissionCheckpoint, 'utf8'));
+            if (plan.context.fingerprint === intent.fingerprint) {
+                const verified = require('./agent_batch_reconcile').reconcileCompleted(s, plan,
+                    Number(requiredCheckpoint), W.sanitizeForPolicy);
+                if (verified) {
+                    log(`Verified saved scene instructions in Flow for batches ${verified.verified.map(b => `${b.from}-${b.to}`).join(', ')}.`);
+                    log(`BATCH_RECONCILED_READY:${verified.completed}`);
+                    await browser.disconnect();
+                    return;
+                }
+            }
+        }
+    }
+
     if (RETRY_FAILED_ONLY) {
         // An Agent request error is different from a failed video tile. Only
         // replay the exact pending request after two empty-media observations.
@@ -820,7 +884,7 @@ async function uploadRefThroughPicker(page, box, file) {
         log(`Clip state   : ready=${mt.ready_video_tile}, failed=${mt.failed_video_tile}, generating=${mt.generating_video_tile}, total=${mt.flow_video_tile}`);
         const duplicate = EXPECTED_CLIPS > 0 && mt.ready_video_tile > EXPECTED_CLIPS;
         const incomplete = mt.failed_video_tile > 0 || mt.generating_video_tile > 0
-            || (EXPECTED_CLIPS > 0 && mt.ready_video_tile !== EXPECTED_CLIPS);
+            || mt.agent_busy || mt.project_scan_complete === false || (EXPECTED_CLIPS > 0 && mt.ready_video_tile !== EXPECTED_CLIPS);
         if (duplicate) log('DUPLICATES DETECTED: ready clips exceed the story count. Download can map one clip per scene; automatic join stays blocked until the manifest is exact.');
         await browser.disconnect();
         if (incomplete) process.exit(2);
@@ -832,9 +896,22 @@ async function uploadRefThroughPicker(page, box, file) {
     // must never receive the same scene batch a second time.
     const requiredReady = flag('--require-ready', null);
     if (requiredReady !== null) {
+        const needed = Number(requiredReady);
+        const deadline = Date.now() + Math.max(900, WATCH_SECS) * 1000;
+        let confirmed = 0;
+        while (Date.now() < deadline) {
+            const mt = s.mediaTiles;
+            if (mt.failed_video_tile > 0 || mt.ready_video_tile > needed || mt.flow_video_tile > needed) break;
+            const complete = mt.ready_video_tile === needed && mt.generating_video_tile === 0 && !mt.agent_busy && mt.project_scan_complete !== false;
+            confirmed = complete ? confirmed + 1 : 0;
+            if (confirmed >= 2) break;
+            if (!complete) log(`Waiting for previous batch: ready=${mt.ready_video_tile}/${needed}, generating=${mt.generating_video_tile}, Agent busy=${!!mt.agent_busy}. No new prompt submitted.`);
+            await wait(4000);
+            s = await readProjectSnapshot(page);
+        }
         const mt = s.mediaTiles;
-        if (mt.ready_video_tile !== Number(requiredReady)
-            || mt.generating_video_tile > 0 || mt.failed_video_tile > 0) {
+        if (confirmed < 2 || mt.ready_video_tile !== needed
+            || mt.generating_video_tile > 0 || mt.failed_video_tile > 0 || mt.agent_busy || mt.project_scan_complete === false) {
             log(`BATCH STOP: expected ${requiredReady} completed clips and no pending failures; found ready=${mt.ready_video_tile}, failed=${mt.failed_video_tile}, generating=${mt.generating_video_tile}. No prompt submitted.`);
             await browser.disconnect();
             process.exit(2);
@@ -845,6 +922,7 @@ async function uploadRefThroughPicker(page, box, file) {
     // The "never ask for confirmation" toggle lives behind this button. We open
     // it only when asked, because it is a real state change.
     if (DO_SETTINGS) {
+        if (MANUAL_ADD_COUNT > 0) throw Error('--settings only inspects settings and cannot generate a manual selection. Remove --settings; normal generation saves settings automatically.');
         log('Opening Agent settings menu...');
         await page.evaluate(() => {
             const b = [...document.querySelectorAll('button')]
@@ -997,6 +1075,13 @@ async function uploadRefThroughPicker(page, box, file) {
             await wait(2000);
             await snap(`mention${mi + 1}-open`);
 
+            const requiredKind = FLOW_CHARACTERS && /^(Sarah|George)$/i.test(name) ? 'character' : null;
+            if (requiredKind) {
+                await require('./reference_picker_images').selectCategory(page, 'Characters', {log});
+            } else {
+                await require('./reference_picker_images').selectImages(page, {log});
+            }
+            await require('./reference_picker_images').focusReferenceSearch(page);
             // Type ONLY the name, so the picker filters on the name and nothing else.
             await page.keyboard.type(name, { delay: 130 });
             await wait(2600);
@@ -1018,8 +1103,8 @@ async function uploadRefThroughPicker(page, box, file) {
             // name", which is blind to the tile's TYPE - and type is the whole
             // story: an Image tile keeps the cast stable, a Character tile does
             // not. chooseMentionTile ranks by type first, depth second.
-            const requiredKind = FLOW_CHARACTERS && /^(Sarah|George)$/i.test(name) ? 'character' : null;
             const choice = MT.chooseMentionTile(pk.clickable || [], name, {requiredKind});
+            if (!requiredKind && choice.kind && choice.kind !== 'image') throw Error(`Reference ${name} matched a ${choice.kind}, not an image. No generation submitted.`);
             if(requiredKind && !choice.inner) throw Error(`Named Flow Character ${name} was not found. Create ${name} in Characters, add its reference image and assign its voice before running. No generation submitted.`);
             fs.writeFileSync(
                 path.join(RUN_DIR, `${String(snapN).padStart(2, '0')}_mention${mi + 1}-choice.json`),
@@ -1043,10 +1128,11 @@ async function uploadRefThroughPicker(page, box, file) {
                 });
                 log(`   chips in the editor now: ${chipsNow} (expected ${mi + 1})`);
                 if (chipsNow >= 0 && chipsNow < mi + 1) {
-                    if(FLOW_CHARACTERS)throw Error(`Attachment ${name} failed. No generation submitted.`);
+                    if(FLOW_CHARACTERS || MANUAL_ADD_COUNT > 0)throw Error(`Attachment ${name} failed. No generation submitted.`);
                     log('   the click did NOT attach a chip - the mention is missing from the prompt.');
                 }
             } else {
+                if (MANUAL_ADD_COUNT > 0) throw Error(`Required reference ${name} was not found in this project. No generation submitted.`);
                 log(`   NO picker entry matched "${name}" - skipped. Tree saved for inspection.`);
             }
         }
@@ -1061,7 +1147,7 @@ async function uploadRefThroughPicker(page, box, file) {
         });
         log(`Mention chips in the prompt: ${chips} (expected ${MENTIONS.length})`);
         if (chips >= 0 && chips < MENTIONS.length) {
-            if(FLOW_CHARACTERS)throw Error('Required character/location chips are missing. No generation submitted.');
+            if(FLOW_CHARACTERS || MANUAL_ADD_COUNT > 0)throw Error('Required character/location chips are missing. No generation submitted.');
             log('Fewer chips than characters - at least one attachment FAILED. Do not submit blind.');
         }
     } else {
@@ -1084,6 +1170,7 @@ async function uploadRefThroughPicker(page, box, file) {
     if(FLOW_CHARACTERS && !/omni/i.test(VIDEO_MODEL || '')) throw Error('Flow Character voice mode requires an Omni Flash video model. Choose it in the GUI. No generation submitted.');
     await applyAgentSettings(page, {
         videoModel: VIDEO_MODEL,
+        resolution: VIDEO_RESOLUTION,
         aspect: typeof flag('--aspect') === 'string' ? flag('--aspect') : 'Flow',
         log,
     });
@@ -1163,7 +1250,7 @@ async function uploadRefThroughPicker(page, box, file) {
 
     while ((Date.now() - t0) / 1000 < WATCH_SECS) {
         await wait(4000);
-        const cur = await page.evaluate(snapshotFn);
+        const cur = await readProjectSnapshot(page);
         const elapsed = Math.round((Date.now() - t0) / 1000);
         if (completedBatch(cur.mediaTiles)) {
             log(`[${elapsed}s] All ${EXPECTED_CLIPS} clips are completed, with no failed or active generations. Releasing the next batch automatically.`);
@@ -1265,7 +1352,7 @@ async function uploadRefThroughPicker(page, box, file) {
         const have = final.mediaTiles.ready_video_tile;
         const failed = final.mediaTiles.failed_video_tile;
         const generating = final.mediaTiles.generating_video_tile;
-        incomplete = have !== EXPECTED_CLIPS || failed > 0 || generating > 0;
+        incomplete = have !== EXPECTED_CLIPS || failed > 0 || generating > 0 || final.mediaTiles.agent_busy || final.mediaTiles.project_scan_complete === false;
         const state = have > EXPECTED_CLIPS ? 'DUPLICATES' : (incomplete ? 'INCOMPLETE' : 'OK');
         log(`Clips ready  : ${have}/${EXPECTED_CLIPS}, failed=${failed}, generating=${generating}  [${state}]`);
         if (incomplete) {

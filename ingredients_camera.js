@@ -1,6 +1,7 @@
 // Runtime instructions for the Ingredients engine only. Shared story/preset
 // files remain untouched so the Agent route retains its own camera direction.
 function ingredientsCameraPrompt(story, scene, prompt) {
+    if (story?.single_speaker_advice || story?.niche === 'Fantasy Princess — Relationship Advice') return String(prompt || '');
     const turns = scene?.dialogue || [];
     if (!turns.length) return String(prompt || '');
     const speakers = [...new Set(turns.map(d => String(d.speaker || '').trim()).filter(Boolean))];

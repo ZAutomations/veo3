@@ -1,0 +1,18 @@
+const assert=require('assert');
+const W=require('../write_story');
+const p=require('../fantasy_advice_preset').preset;
+const cast=[{name:'Liora',type:'human',description:'Adult woman aged 25 in a pink gown',sheet_prompt:'Adult reference'},{name:'Pip',type:'animal',description:'Small crowned green frog',sheet_prompt:'Frog reference'}];
+const outline=[{title:'Hook',beat:'Liora starts walking and shares a trust lesson'}];
+const castText=W.castPrompt(p,[]);
+const clipText=W.scenesPrompt(p,cast,outline,0,1,[],p.setting,'');
+assert(castText.includes('ONE ON-SCREEN ADULT SPEAKER'));
+assert(clipText.includes('Her animal companion remains silent'));
+assert(!clipText.includes('HOW THIS FILM SPEAKS - the two of them'));
+assert(!clipText.includes('THEIR POSITIONS ARE FIXED TOO'));
+assert(clipText.includes('14-18'));
+const s=W.buildStory(p,cast,{description:'Advice about trust',moral:'Respect and care',target_audience:'Adults'},[{scene_title:'Hook',dialogue:[{speaker:'Liora',line:'Trust grows when we listen with care and show respect in everyday choices.'}],narrative_context:'She walks with the frog.',characters:['Liora','Pip']}]);
+assert(s.scenes[0].dialogue[0].speaker==='Liora');assert.equal(s.narrated,false);
+s.scenes[0].dialogue[0].speaker='Pip';
+assert(W.validate(s,cast,p).some(e=>e.includes('animal companion is silent')));
+assert(require('../styles.json').styles.some(x=>x.id===p.id));
+console.log('PASS: registered fantasy advice preset, one adult speaker, silent animal, walking allowed, spoken dialogue retained and animal speech rejected.');

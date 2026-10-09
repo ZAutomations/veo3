@@ -1,0 +1,11 @@
+const assert=require('assert');
+const W=require('../write_story');
+const p=require('../fantasy_advice_preset').preset;
+const cast=W.normaliseCast(p,[{name:'Aurora',type:'human',description:'Adult woman aged 20'},{name:'Hopper',type:'animal',description:'Small green frog'}]);
+assert.deepEqual(cast.map(c=>c.name),['Lilly','Pip']);
+const story=W.buildStory(p,cast,{description:'Advice',moral:'Respect',place_name:'Forest'},[{dialogue:[{speaker:'Aurora',line:'Kindness matters.'}],narrative_context:'Aurora sits beside Hopper.',characters:['Aurora','Hopper']}]);
+assert.equal(story.place.name,'garden');
+assert.equal(story.scenes[0].dialogue[0].speaker,'Lilly');
+assert(story.scenes[0].narrative_context.includes('Lilly sits beside Pip'));
+assert(p.direction.includes('woman is always Lilly'));
+console.log('PASS: generated aliases become Lilly and Pip, dialogue/visual labels agree and location is garden.');

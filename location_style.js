@@ -1,6 +1,6 @@
 const BRIGHT_LOCATION = 'LOCATION LIGHTING: Bright, clean, airy clear-day setting, with luminous white and ivory surfaces, soft natural daylight and gentle shadows. Faces and the entire background remain clearly visible. Use restrained polished highlights, without blown-out skin or harsh glare. Interiors have bright white walls and light furnishings with daylight through windows. Gardens stay recognizably outdoors with healthy natural greenery, a clear daytime sky and light or white paths, seating or architectural accents. No gloomy lighting, murky shadows, night, dusk, horror atmosphere, clutter or dirty surfaces. Keep this same daylight throughout the film.';
 function isRelationship(value) {
-    return /^relationship-dialogue(?:-(?:real|ghibli))?$/.test(value?.id || '') || /^Relationship Dialogue\b/i.test(value?.niche || '');
+    return /^relationship-dialogue(?:-(?:real|ghibli|3d))?$/.test(value?.id || '') || /^Relationship Dialogue\b/i.test(value?.niche || '');
 }
 function brightVisualText(text) {
     return String(text || '')
@@ -22,6 +22,9 @@ function withBrightLocation(story, prompt) {
 function locationPrompt(preset, place) {
     const original = String(place.prompt || '').trim();
     if (!isRelationship(preset)) return original;
+    if (preset.id === 'relationship-dialogue-3d' || preset.niche === 'Relationship Dialogue — Stylized 3D') {
+        return `${require('./relationship_3d_style').LOCATION} ${brightVisualText(place.description)} One empty location reference image, wide composition showing the full setting. No people or animals, text, labels or watermark. ${BRIGHT_LOCATION}`;
+    }
     if (preset.id !== 'relationship-dialogue-real' && preset.niche !== 'Relationship Dialogue (Realistic)') return brightVisualText(original) + (original.includes('LOCATION LIGHTING:') ? '' : ' ' + BRIGHT_LOCATION);
     // Character reference artwork must never choose the location's medium.
     const details = brightVisualText(place.description).trim();

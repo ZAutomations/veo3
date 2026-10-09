@@ -70,7 +70,11 @@ const { downloadFlowAsset } = require('./flow_asset_download');
 
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
 function ts() { return new Date().toTimeString().slice(0, 8); }
-function log(msg) { console.log(`[${ts()}] ${msg}`); }
+function log(msg) {
+    const line = `[${ts()}] ${msg}`;
+    console.log(line);
+    if (fs.existsSync(RUN_DIR)) fs.appendFileSync(path.join(RUN_DIR, 'download.log'), line + '\n');
+}
 function banner(msg) { console.log(`\n${'='.repeat(70)}\n${msg}\n${'='.repeat(70)}`); }
 
 const argv = process.argv.slice(2);
@@ -118,7 +122,7 @@ function inventoryFn() {
             .filter((el, i, a) => el && a.indexOf(el) === i);
     }
 
-    const scroller = document.querySelector('.cdk-virtual-scrollable.page-container, .page-container');
+    const scroller = window.__veoGridScroller?.() || null;
     const sr = scroller ? scroller.getBoundingClientRect() : { x: 0, y: 0 };
     const sy = scroller ? scroller.scrollTop : window.scrollY;
     const sx = scroller ? scroller.scrollLeft : window.scrollX;
@@ -190,7 +194,9 @@ function srcFn(idx) {
             .map(b => { let p = b; for (let i = 0; i < 8 && p.parentElement; i++) { p = p.parentElement; if (p.querySelector('video, img')) break; } return p; })
             .filter((el, i, a) => el && a.indexOf(el) === i);
     }
-    const t = tiles[idx];
+    const t = typeof idx === 'object' ? tiles.find(tile =>
+        tile.tagName.toLowerCase() === 'flow-video-tile' && [...tile.querySelectorAll('video, source, img')]
+            .some(media => ((media.currentSrc || media.getAttribute('src') || '').match(/\/(?:video|image|asb)\/([^=?/#]+)/) || [])[1] === idx.assetId)) : tiles[idx];
     if (!t) return { ok: false, why: 'tile missing' };
     const v = t.querySelector('video');
     if (!v) return { ok: false, why: 'no <video> in tile' };
@@ -265,7 +271,9 @@ function openMenuFn(idx) {
             .map(b => { let p = b; for (let i = 0; i < 8 && p.parentElement; i++) { p = p.parentElement; if (p.querySelector('video, img')) break; } return p; })
             .filter((el, i, a) => el && a.indexOf(el) === i);
     }
-    const t = tiles[idx];
+    const t = typeof idx === 'object' ? tiles.find(tile =>
+        tile.tagName.toLowerCase() === 'flow-video-tile' && [...tile.querySelectorAll('video, source, img')]
+            .some(media => ((media.currentSrc || media.getAttribute('src') || '').match(/\/(?:video|image|asb)\/([^=?/#]+)/) || [])[1] === idx.assetId)) : tiles[idx];
     if (!t) return { ok: false, why: 'tile missing' };
     // Scoped to THIS tile - a global nth match would click a neighbour's menu.
     let btn = t.querySelector('button[aria-label="More options"]');
@@ -469,10 +477,14 @@ async function fetchAsset(page, url, cookieHeader, userAgent) {
 // keeps only the current viewport's custom elements mounted, so one DOM
 // inventory can never represent a long project reliably.
 async function scanVirtualGrid(page, log) {
-    const metrics = await page.evaluate(() => {
-        const s = document.querySelector('.cdk-virtual-scrollable.page-container, .page-container');
-        return s ? { client: s.clientHeight, scroll: s.scrollHeight } : null;
-    });
+    log('Scanning the full project grid for clips...');
+    const { installGridScroller, gridMetrics, scrollGrid, retryVideoLoadErrors } = require('./flow_grid_scroll');
+    const wheelGrid = require('./download_grid_scroll').scrollDownloadGrid;
+    await page.bringToFront();
+    log('Download grid uses checked container scrolling; no mouse-wheel input required.');
+    await page.evaluate(installGridScroller);
+    const metrics = await page.evaluate(gridMetrics);
+    log(`Grid scroll area: ${metrics.tag}; viewport=${metrics.client}px, content=${metrics.scroll}px.`);
     if (!metrics || !metrics.client) {
         await hoverPass(page, log);
         return await page.evaluate(inventoryFn);
@@ -492,33 +504,51 @@ async function scanVirtualGrid(page, log) {
     // viewport. Its page-container has a large prompt/editor tail, so scrolling
     // to scrollHeight skips the loading sentinel. Move to the end of the actual
     // tile list and wait for its DOM count to grow instead.
-    await page.evaluate(() => {
-        const s = document.querySelector('.cdk-virtual-scrollable.page-container, .page-container');
-        if (s) s.scrollTop = 0;
-    });
+    await page.evaluate(scrollGrid, 0);
+    await wheelGrid(page, -100000);
     await wait(700);
     let rounds = 0;
     let stalled = 0;
-    while (rounds++ < 20) {
+    let loadRetries = 0;
+    let walked = false;
+    let clamped = 0;
+    while (rounds++ < 300) {
+        if (loadRetries < 3) {
+            const retried = await page.evaluate(retryVideoLoadErrors);
+            if (retried) { loadRetries++; log(`Reloading ${retried} existing video(s) whose playback failed to load; no generation requested.`); await wait(1200); }
+        }
         let snap = await page.evaluate(inventoryFn);
         merge(snap);
-        const lastBottom = snap.tiles.reduce((m, t) => Math.max(m, t.gridY + t.rect.h), 0);
-        const target = Math.max(0, lastBottom - Math.floor(metrics.client * 0.72));
-        await page.evaluate(y => {
-            const s = document.querySelector('.cdk-virtual-scrollable.page-container, .page-container');
-            if (s) { s.scrollTop = y; s.dispatchEvent(new Event('scroll', { bubbles: true })); }
-        }, target);
+        log(`Grid scan ${rounds}: ${[...records.values()].filter(isVideoRecord).length}/${EXPECTED || '?'} video tile(s) found.`);
+        const current = await page.evaluate(gridMetrics);
+        const bottom = Math.max(0, current.scroll - current.client);
+        const target = Math.min(bottom, current.top + Math.max(100, Math.floor(current.client * 0.75)));
+        await wheelGrid(page, Math.max(100, Math.floor(current.client * 0.75)));
         const before = records.size;
         // First load of an older batch can take several seconds. Poll from
         // Node so Chrome background-tab timer throttling cannot shorten waits.
-        for (let poll = 0; poll < 12; poll++) {
+        for (let poll = 0; poll < (target >= bottom - 2 ? 12 : 1); poll++) {
             await wait(750);
             snap = await page.evaluate(inventoryFn);
             merge(snap);
             if (records.size > before) break;
         }
-        if (records.size > before) stalled = 0;
+        const after = await page.evaluate(gridMetrics);
+        if (after.top > current.top + 2) walked = true;
+        const atEnd = after.top >= after.scroll - after.client - 2;
+        if (records.size > before || !atEnd) stalled = 0;
         else if (++stalled >= 2) break;
+        if (!atEnd && target > current.top + 2 && after.top <= current.top + 2) {
+            // Flow can reserve a sticky composer tail that inflates scrollHeight
+            // beyond the browser's reachable scroll position.
+            if (walked) {
+                if (++clamped >= 2) { log('Reached the browser-clamped end of the clip list.'); break; }
+                await wait(1000);
+                continue;
+            }
+            throw Error(`Flow grid did not scroll in ${after.tag}; scan is incomplete. Existing downloads were preserved.`);
+        }
+        clamped = 0;
     }
     const tiles = [...records.values()].sort((a, b) =>
         Math.abs(a.gridY - b.gridY) > 20 ? a.gridY - b.gridY : a.gridX - b.gridX);
@@ -538,22 +568,11 @@ async function scanVirtualGrid(page, log) {
             tile.downloadSrc = candidate;
             continue;
         }
-        const mounted = await activateVideoTile(page, tile);
-        if (mounted.ok) tile.downloadSrc = mounted.src;
-        const snap = await page.evaluate(inventoryFn);
-        const current = snap.tiles.find(t => tile.assetId && t.assetId === tile.assetId)
-            || snap.tiles.find(t => Math.abs(t.gridY - tile.gridY) < 30 && Math.abs(t.gridX - tile.gridX) < 30);
-        if (current) {
-            tile.prompt = current.prompt || tile.prompt;
-            tile.assetId = current.assetId || tile.assetId;
-            tile.caption = current.caption || tile.caption;
-            tile.hasMoreOptions = current.hasMoreOptions;
-        }
+        // Do not mount every off-screen player before the first download.
+        // activateVideoTile is called in the logged per-clip download loop.
     }
-    await page.evaluate(() => {
-        const s = document.querySelector('.cdk-virtual-scrollable.page-container, .page-container');
-        if (s) s.scrollTop = 0;
-    });
+    await page.evaluate(scrollGrid, 0);
+    await wheelGrid(page, -100000);
     await wait(500);
     log(`Scanned ${rounds} loaded grid batch(es); ${tiles.length} unique tile(s) discovered.`);
     return { url: page.url(), tileCount: tiles.length, tiles, visualOrder: tiles.map(t => t.index) };
@@ -566,8 +585,9 @@ async function scanVirtualGrid(page, log) {
 async function activateVideoTile(page, tile, needSource = true) {
     const TILE_SEL = 'flow-video-tile, flow-image-tile, [class*="video-tile"], [class*="media-tile"]';
     await page.evaluate(gridY => {
-        const s = document.querySelector('.cdk-virtual-scrollable.page-container, .page-container');
+        const s = window.__veoGridScroller?.() || null;
         if (s) s.scrollTop = Math.max(0, gridY - s.clientHeight / 2);
+        else window.scrollTo(0, Math.max(0, gridY - window.innerHeight / 2));
     }, tile.gridY);
     let located = null;
     for (let mountTry = 0; mountTry < 12 && !located; mountTry++) {
@@ -576,7 +596,7 @@ async function activateVideoTile(page, tile, needSource = true) {
         const tiles = [...document.querySelectorAll(sel)].filter(el => {
             const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0;
         });
-        const s = document.querySelector('.cdk-virtual-scrollable.page-container, .page-container');
+        const s = window.__veoGridScroller?.() || null;
         const sr = s ? s.getBoundingClientRect() : { x: 0, y: 0 };
         const sy = s ? s.scrollTop : window.scrollY, sx = s ? s.scrollLeft : window.scrollX;
         const ranked = tiles.map((el, idx) => {
@@ -597,12 +617,24 @@ async function activateVideoTile(page, tile, needSource = true) {
     }
     if (!located) return { ok: false, why: 'tile missing while activating', domIndex: null };
     await wait(500);
+    if (tile.assetId) {
+        const position = await page.evaluate(id => {
+            const hit = [...document.querySelectorAll('flow-video-tile')].find(el =>
+                [...el.querySelectorAll('video, source, img')].some(media =>
+                    ((media.currentSrc || media.getAttribute('src') || '').match(/\/(?:video|image|asb)\/([^=?/#]+)/) || [])[1] === id));
+            if (!hit) return null;
+            const r = hit.getBoundingClientRect();
+            return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+        }, tile.assetId);
+        if (!position) return { ok: false, why: 'target asset unmounted after scrolling', domIndex: null };
+        located = { ...located, ...position };
+    }
     try { await page.mouse.move(located.x, located.y); } catch { /* menu fallback remains */ }
     if (!needSource) return { ok: true, domIndex: located.idx };
     let info = { ok: false, why: 'video source did not mount' };
     for (let attempt = 0; attempt < 12; attempt++) {
         await wait(attempt ? 500 : 900);
-        info = await page.evaluate(srcFn, located.idx);
+        info = await page.evaluate(srcFn, tile.assetId ? { assetId: tile.assetId } : located.idx);
         if (info.ok) return { ...info, domIndex: located.idx };
     }
     return { ...info, domIndex: located.idx };
@@ -625,6 +657,7 @@ async function activateVideoTile(page, tile, needSource = true) {
         await wait(5000);
     }
     log(`Flow tab: ${page.url()}`);
+    log('Preparing automatic clip download; all completed clips will be collected.');
     await page.bringToFront();
 
     // Agent Mode clips live on the project home, not in the scene editor.
@@ -678,6 +711,11 @@ async function activateVideoTile(page, tile, needSource = true) {
 
     log('');
     log(`Ready video tiles: ${videoTiles.length}    failed video tiles (skipped): ${failedVideoTiles.length}    image tiles (skipped): ${imageTiles.length}`);
+    if (flag('--upscaled')) {
+        await require('./agent_upscaled_download').download(browser,page,{storyFile:STORY_FILE,outDir:OUT_DIR,project:homeUrl,tiles:videoTiles,log});
+        await browser.disconnect();
+        return;
+    }
     if (failedVideoTiles.length) {
         log('  Failed generations are excluded. Use Agent Mode > Retry failed clips.');
     }
@@ -696,6 +734,10 @@ async function activateVideoTile(page, tile, needSource = true) {
         log('No video tiles in this project - nothing to download.');
         await browser.disconnect();
         return;
+    }
+
+    if (!PROBE && EXPECTED > 0 && videoTiles.length < EXPECTED) {
+        throw new Error(`Full-grid scan found only ${videoTiles.length}/${EXPECTED} completed video tiles. Existing downloads were preserved; no partial manifest will replace them.`);
     }
 
     if (PROBE) {
@@ -790,13 +832,23 @@ async function activateVideoTile(page, tile, needSource = true) {
     // their manifest. Never use those unverified bytes to declare success.
     const cacheDir = path.join(OUT_DIR, '.download-cache', m[1]);
     fs.mkdirSync(cacheDir, { recursive: true });
+    const existing = flag('--redownload') ? new Map() : require('./download_resume').existingDownloads(
+        OUT_DIR, homeUrl, targets.map(idx => byIndex.get(idx)), playableVideo, log);
+    log(`Resume downloads: ${existing.size} verified clip(s) already saved; ${targets.length - existing.size} need downloading.`);
+    if (targets.length && targets.every(idx => existing.get(byIndex.get(idx).assetId)?.outputFile)) {
+        log('All project clips already have verified local files. No network download, file rewrite or manifest reorder needed.');
+        await browser.disconnect();
+        return;
+    }
     // Transfer a few independent signed assets concurrently. Browser navigation
     // has finished, and failures stay local to each clip.
     let nextTransfer = 0;
-    const transfers = targets.map(idx => byIndex.get(idx)).filter(t => t.downloadSrc && !t.downloadSrc.startsWith('blob:'));
+    const transfers = targets.map(idx => byIndex.get(idx)).filter(t => !existing.has(t.assetId) && t.downloadSrc && !t.downloadSrc.startsWith('blob:'));
+    log(`Downloading ${targets.length} clips; ${transfers.length} direct sources available for parallel transfer.`);
     await Promise.all(Array.from({length:Math.min(3, transfers.length)}, async () => {
         while (nextTransfer < transfers.length) {
             const t = transfers[nextTransfer++];
+            log(`Transferring clip asset ${t.index + 1}/${inv.tileCount}...`);
             const u = new URL(t.downloadSrc);
             const key = createHash('sha256').update(u.origin + u.pathname).digest('hex');
             const file = path.join(cacheDir, key + '.mp4');
@@ -814,6 +866,11 @@ async function activateVideoTile(page, tile, needSource = true) {
         }
     }));
     const clips = [];
+    const reservedFiles = new Set();
+    for (const saved of existing.values()) {
+        if (saved.outputFile) reservedFiles.add(saved.outputFile);
+        if (saved.metadata) require('./download_resume').saveReceipt(OUT_DIR, homeUrl, saved.metadata);
+    }
     let ok = 0, failed = 0;
     function checkpoint() {
         const temp = path.join(OUT_DIR, 'manifest.json.tmp');
@@ -829,14 +886,22 @@ async function activateVideoTile(page, tile, needSource = true) {
     for (let n = 0; n < targets.length; n++) {
         const tileIdx = targets[n];
         const t = byIndex.get(tileIdx);
-        const name = `scene-${String(n + 1).padStart(2, '0')}.mp4`;
+        const savedClip = existing.get(t.assetId);
+        const name = savedClip?.outputFile || require('./download_resume').nextFilename(OUT_DIR, reservedFiles);
         const dest = path.join(OUT_DIR, name);
         log('');
         log(`[${n + 1}/${targets.length}] tile#${tileIdx} -> ${name}`);
 
         let wrote = false;
+        if (savedClip) {
+            if (!savedClip.outputFile) fs.copyFileSync(savedClip.file, dest);
+            t.caption = savedClip.caption || t.caption;
+            t.prompt = savedClip.prompt || t.prompt;
+            log('   SKIPPED download: verified playable clip already exists (same Flow asset).');
+            wrote = true;
+        }
 
-        if (method !== 'menu') {
+        if (!wrote && method !== 'menu') {
             const info = t.downloadSrc ? {ok:true,src:t.downloadSrc,kind:t.downloadSrc.startsWith('blob:')?'blob':'url'}
                 : await activateVideoTile(page, t);
             if (!info.ok) {
@@ -894,15 +959,14 @@ async function activateVideoTile(page, tile, needSource = true) {
 
         // Auto uses the menu for a tile whose source never mounted. Explicit
         // src keeps the historical safety fallback when a menu is available.
-        if (!wrote && method !== 'menu' && !t.hasMoreOptions) {
-            log('   no Download menu is available for this tile.');
-        }
-        if (!wrote && (method === 'menu' || t.hasMoreOptions)) {
+        // Off-screen tiles have no hover controls during inventory. Mount and
+        // hover this tile before deciding whether its Download menu exists.
+        if (!wrote) {
             const before = fs.existsSync(dlDir) ? fs.readdirSync(dlDir) : [];
             const active = await activateVideoTile(page, t, false);
             const opened = active.domIndex === null
                 ? { ok: false, why: 'tile could not be mounted for its menu' }
-                : await page.evaluate(openMenuFn, active.domIndex);
+                : await page.evaluate(openMenuFn, t.assetId ? { assetId: t.assetId } : active.domIndex);
             if (!opened.ok) {
                 log(`   cannot open menu: ${opened.why}`);
             } else {
@@ -919,6 +983,16 @@ async function activateVideoTile(page, tile, needSource = true) {
                     } else {
                         log(`   clicking "${hit.text || hit.aria}"`);
                         await page.mouse.click(hit.cx, hit.cy);
+                        // Download now opens a resolution submenu instead of
+                        // immediately saving a file. Choose the original video,
+                        // avoiding GIF and paid/upscaled options.
+                        await wait(800);
+                        const sizes = await page.evaluate(menuFn);
+                        const original = sizes.items?.find(i => /720p|original size/i.test(i.text || i.aria || ''));
+                        if (original) {
+                            log(`   selecting "${original.text || original.aria}"`);
+                            await page.mouse.click(original.cx, original.cy);
+                        }
                         // Wait for a settled file to appear.
                         const deadline = Date.now() + 90000;
                         let fresh = null;
@@ -952,7 +1026,12 @@ async function activateVideoTile(page, tile, needSource = true) {
         }
 
         if (wrote) ok++; else failed++;
+        if (wrote && t.assetId && !existing.has(t.assetId)) {
+            const assetCache = path.join(cacheDir, `asset_${createHash('sha256').update(t.assetId).digest('hex')}.mp4`);
+            fs.copyFileSync(dest, assetCache);
+        }
         clips.push({
+            ...(savedClip?.metadata || {}),
             file: name,
             tileIndex: tileIdx,
             order: n + 1,
@@ -963,7 +1042,9 @@ async function activateVideoTile(page, tile, needSource = true) {
             prompt: t.prompt || '',
             assetId: t.assetId || null,
             got: wrote,
+            ...(wrote ? {sha256:createHash('sha256').update(fs.readFileSync(dest)).digest('hex')} : {}),
         });
+        require('./download_resume').saveReceipt(OUT_DIR, homeUrl, clips[clips.length - 1]);
         checkpoint();
     }
 

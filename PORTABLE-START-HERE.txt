@@ -1,0 +1,7 @@
+On your other laptop:
+1. Extract/copy this entire folder to a writable location.
+2. Run SETUP.bat. Wait for SETUP COMPLETE.
+3. Run START_GUI.bat and sign into Flow using the Accounts tab.
+
+Full instructions and recovery help: Setup\README.txt
+This personal package contains your settings/API keys. Keep it private.

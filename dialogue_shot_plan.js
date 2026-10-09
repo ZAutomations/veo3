@@ -37,6 +37,7 @@ function shotPlan(story, scene, { extend = false } = {}) {
     const visual = withBrightLocation(story, [
         extend ? 'Continue from the preceding final frame with the same people, clothing, setting and physical positions.' : 'Establish the same two reference characters in their fixed location.',
         place, blocking,
+        require('./relationship_composition').COMPOSITION,
         'Both characters are present. They pause other activities and face each other for this conversation. Preserve the 180-degree axis and their physical screen sides.',
         `Before the first word, frame ${anchor(story, first)} in a clear medium close-up. ${first} delivers the first line.`,
         'Use shot/reverse-shot coverage in the exact order below. During each line only the active speaker has a clearly visible mouth; the listener is outside the frame or seen from behind. Do not show the listener speaking or delivering an off-screen reply.',

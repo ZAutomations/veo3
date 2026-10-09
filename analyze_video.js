@@ -58,6 +58,7 @@ function num(name, def) {
 const URL = argv.find((a) => !a.startsWith('--')) || '';
 const PRESET = typeof flag('--preset') === 'string' ? flag('--preset').trim() : '';
 const SECONDS = num('--seconds', 8);
+const SOURCE_DURATION = num('--source-duration', 0);
 const CLIPS = num('--clips', 0);
 const MODEL_FLAG = typeof flag('--model') === 'string' ? flag('--model') : '';
 // Same fallback chain as write_story.js: newest flash first, then the next, so a
@@ -101,6 +102,7 @@ function buildPrompt(presetId = PRESET) {
     } catch (e) { /* the suggestion is optional anyway */ }
     const selected = presetId ? W.loadPreset(presetId) : null;
     const preserveDialogue = !!(selected && selected.grounded_dialogue === true);
+    const preserveNarration = !!selected?.preserve_source_narration;
     const presetInstructions = selected
         ? `SELECTED PRESET: ${selected.id} - ${selected.label}
 Use this preset only. Set preset_suggestion to "${selected.id}". Do not compare,
@@ -114,14 +116,17 @@ timestamps and source-style observations faithful to the reference video;
 do not claim the source has an effect merely because the selected preset asks
 for it. Return the analysis JSON requested above, not the finished story yet.`
         : `PRESETS (choose the best id):\n${ids.map(x => '  ' + x).join('\n')}`;
-    const clipsLine = CLIPS > 0
+    const clipsLine = SOURCE_DURATION > 0
+        ? `The source is verified as ${SOURCE_DURATION} seconds. Use only timestamps within that source length. Do not stretch it to a production clip budget.` : CLIPS > 0
         ? `Produce AT LEAST ${CLIPS} clips. Spread the facts out, one or two per clip, rather than cramming them.`
         : 'The number of clips is decided by COVERAGE: as many as it takes. Do not shorten the film to fit a round number.';
     return `You are analysing a short-form video so a production pipeline can make a NEW film.
 ${preserveDialogue
     ? 'This is a dialogue reference. Transcribe every spoken turn accurately so the new film keeps the same conversation, speaker order, intent and sentence structure.'
+    : preserveNarration ? 'This is a narrated documentary reference. Capture the complete spoken narration with timestamps, alongside the facts and corresponding visuals. The new film must preserve the events, source sequence, viewpoint and meaning with light, plain-English rewording.'
     : 'It must cover THE SAME FACTS, in the same order, with NEW wording. You extract the shape and the facts, never the script.'}
 
+${SOURCE_DURATION ? `VERIFIED SOURCE LENGTH: ${SOURCE_DURATION} seconds. Set format.source_duration_s to ${SOURCE_DURATION}. The GUI's planned story length or clip count is NOT the video's duration. Transcribe only actual speech in this video; do not invent extra turns to fill time.` : ''}
 SOURCE SCOPE: Analyse only the supplied video. Do not search for other videos,
 related articles or background research. Reuse observations already obtained;
 do not repeatedly retrieve the same source. If the video cannot be accessed,
@@ -161,7 +166,7 @@ Reply with ONE JSON object and nothing else:
       "t_end": "M:SS",
       "places": ["the places this clip covers"],
       "points": ["one line per fact covered in this clip, in your own words"],
-${preserveDialogue ? '      "source_dialogue": [{"speaker":"stable source speaker ID", "gender":"female or male or unknown", "t":"M:SS", "speaker_evidence":"visible lip movement and matching voice, or explain uncertainty", "line":"the exact spoken line in this time range"}],\n' : ''}      "visual": "what the map or shot does here: camera move, highlight, zoom"
+${preserveDialogue ? '      "source_dialogue": [{"speaker":"stable source speaker ID", "gender":"female or male or unknown", "t":"M:SS", "speaker_evidence":"visible lip movement and matching voice, or explain uncertainty", "line":"the exact spoken line in this time range"}],\n' : ''}${preserveNarration ? '      "source_narration": [{"t":"M:SS", "line":"the spoken narration in this time range, transcribed accurately"}],\n' : ''}      "visual": "what the map or shot does here: camera move, highlight, zoom"
     }
   ],
   "coverage": "one sentence confirming every fact above appears in exactly one clip",
@@ -169,6 +174,14 @@ ${preserveDialogue ? '      "source_dialogue": [{"speaker":"stable source speake
 }
 
 RULES
+${preserveNarration ? `- SOURCE NARRATION IS GROUND TRUTH. Transcribe every narrator sentence in order,
+  including the opening and ending. Never substitute a summary for the transcript.
+  Include all spoken content exactly once across source_narration arrays. Strip
+  [music] markers. Flag unclear words in notes; do not invent missing speech.
+- Record the source's corresponding shots, transitions and diagrams in visual.
+  Preserve the narration's subject and tense. An event about passengers or pilots
+  remains about those people, not an imagined situation involving the viewer.
+` : ''}
 ${preserveDialogue ? `- DIALOGUE TRANSCRIPTION IS GROUND TRUTH. In every clip, source_dialogue must contain
   every spoken turn in exact order, assigned consistently to Person A and Person B.
   Preserve the actual words as closely as the audio permits. Do not summarise, improve,
@@ -195,12 +208,12 @@ ${preserveDialogue ? `- DIALOGUE TRANSCRIPTION IS GROUND TRUTH. In every clip, s
   whenever several places share a clip.
 - "clips" groups those facts into clips of about ${SECONDS} seconds. A clip may hold
   one to three related facts. ${clipsLine} NEVER drop a fact to make the film shorter.
-- "detail" and "points" MUST be in your own words. ${preserveDialogue
-    ? 'This rule does not apply to source_dialogue: that field preserves the spoken conversation.'
+- "detail" and "points" MUST be in your own words. ${preserveDialogue || preserveNarration
+    ? 'This rule does not apply to source_dialogue or source_narration: those fields transcribe the actual spoken source.'
     : 'Never reproduce the narrator\'s sentences. Reuse the facts; rewrite every line.'}
 - Use the REAL place names, spelled as they are said or shown. Flag a guessed name
   in "notes".
-- No real people, channels, brands, studios, national flags or trademarks anywhere.
+- ${preserveNarration ? 'Keep factual names, dates, locations, flight identifiers and entities when the source states them. Do not invent them or turn factual identification into branding. Render people as faceless mannequins in the new film.' : 'No real people, channels, brands, studios, national flags or trademarks anywhere.'}
 - If there is no map, describe the place, body or environment instead.
 
 ${presetInstructions}`.trim();
@@ -284,7 +297,7 @@ async function askVideoWeb(promptText, opts = {}) {
     // the API path uses), so parsing it a second time here reads
     // JSON.parse("[object Object]") and fails on an answer that was perfectly
     // good - which is exactly how a 9678-character content map was thrown away.
-    const cm = await W.askWebFor(`${promptText}\n\nThe video to analyse: ${url}`, null);
+    const cm = await W.askWebFor(`${promptText}\n\nCURRENT SOURCE VIDEO: ${url}\nAnalyse only this URL. Previous videos and conversations must not supply facts or dialogue.\nThe video to analyse: ${url}`, null, { newChat: true });
     if (!cm || typeof cm !== 'object' || Array.isArray(cm)) {
         throw new Error('the reply was not a JSON content map');
     }
@@ -545,6 +558,19 @@ if (require.main === module) (async () => {
         }
     }
 
+    if (require('./reference_duration').sourceUnavailable(cm)) {
+        die2('Gemini reports that the source video was unavailable. Refusing to save its dialogue as a verified transcript. Upload the source video or provide the actual labelled transcript.');
+    }
+    if (SOURCE_DURATION) {
+        if (require('./reference_duration').timingMismatch(cm, SOURCE_DURATION, SECONDS)) {
+            die2(`Analysis duration/timestamps do not match the verified ${SOURCE_DURATION}s source. Refusing to cache an expanded script. Retry source analysis; no story was written.`);
+        }
+        cm.source_metadata = { duration_s: SOURCE_DURATION, verified_by: 'yt-dlp video metadata', url: URL };
+        cm.format = { ...(cm.format || {}), source_duration_s: SOURCE_DURATION };
+    }
+    if (PRESET && W.loadPreset(PRESET).preserve_source_narration && !require('./source_narration').hasNarration(cm)) {
+        die2('Source analysis is missing the complete source_narration fields. Nothing was cached as a faithful transcription. Supply the video transcript or retry analysis.');
+    }
     if (PRESET && W.loadPreset(PRESET).require_source_speaker_gender) {
         require('./dialogue_speakers').sourceSpeakerMap(clipItems(cm), [], W.loadPreset(PRESET));
     }
@@ -571,6 +597,6 @@ if (require.main === module) (async () => {
     if (cm.notes) console.log(`  notes           : ${cm.notes}`);
     console.log(`\ndetail      : ${detailPath}`);
     console.log(`content_map : ${mapPath}`);
-})().catch((e) => { console.error('FAILED: ' + (e && e.message)); process.exit(1); });
+})().then(() => { require('./ask_web').close(); }).catch((e) => { require('./ask_web').close(); console.error('FAILED: ' + (e && e.message)); process.exit(1); });
 
 module.exports = { buildDetail, buildPrompt, slugOf, clipItems, askVideo, backoffMs, modelChain };

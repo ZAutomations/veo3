@@ -69,6 +69,13 @@ class MCPClient:
         self.proc = None
 
     # ── transport ──────────────────────────────────────────────
+        # Release pending GUI requests immediately on cancellation.
+        with self._lock:
+            waiters = list(self._waiters.values())
+            self._waiters.clear()
+        for waiter in waiters:
+            waiter({"error": {"message": "MCP request stopped by the user."}})
+
     def _read_stdout(self):
         try:
             for line in self.proc.stdout:

@@ -339,9 +339,12 @@ def load_style_presets(group="Classic"):
 
 
 class Veo3LauncherGUI:
-    def __init__(self, root):
+    def __init__(self, root, script_only=False):
         self.root = root
-        self.root.title("VEO3 Flow Launcher")
+        self.script_only = script_only
+        self.settings_file = os.path.join(BASE_DIR, "story_writer_settings.json") if script_only else SETTINGS_FILE
+        self.writer_job_file = os.path.join(BASE_DIR, "story_writer_last_job.json" if script_only else "script_last_job.json")
+        self.root.title("VEO3 Story Writer" if script_only else "VEO3 Flow Launcher")
         self.root.configure(bg=BG)
 
         self.settings = self.load_settings()
@@ -362,7 +365,10 @@ class Veo3LauncherGUI:
     # ── settings ──────────────────────────────────────────────
     def load_settings(self):
         try:
-            with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
+            source = self.settings_file
+            if self.script_only and not os.path.exists(source):
+                source = SETTINGS_FILE
+            with open(source, "r", encoding="utf-8") as f:
                 s = json.load(f)
             # Existing workflow preferences win; fill only keys absent in older files.
             for target, legacy in (("mcp_video_model", "video_model"), ("mcp_aspect", "aspect_ratio"),
@@ -378,7 +384,7 @@ class Veo3LauncherGUI:
     def save_settings(self):
         self.collect_inputs()
         try:
-            with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
+            with open(self.settings_file, "w", encoding="utf-8") as f:
                 json.dump(self.settings, f, indent=2)
         except Exception:
             pass
@@ -498,9 +504,9 @@ class Veo3LauncherGUI:
         # dim text, over a hairline - everything below is working surface.
         head = tk.Frame(self.root, bg=BG)
         head.grid(row=0, column=0, columnspan=2, sticky="ew", padx=16, pady=(12, 0))
-        tk.Label(head, text="VEO3 Flow Launcher", bg=BG, fg=ACCENT,
+        tk.Label(head, text="VEO3 Story Writer" if self.script_only else "VEO3 Flow Launcher", bg=BG, fg=ACCENT,
                  font=("Segoe UI", 15, "bold")).pack(side="left")
-        tk.Label(head, text="script · ingredients · agent mode", bg=BG, fg=TEXT_DIM,
+        tk.Label(head, text="write stories while Flow is running" if self.script_only else "script · ingredients · agent mode", bg=BG, fg=TEXT_DIM,
                  font=("Segoe UI", 10)).pack(side="left", padx=(12, 0), pady=(7, 0))
         ttk.Separator(self.root, orient="horizontal").grid(
             row=1, column=0, columnspan=2, sticky="ew", padx=14, pady=(10, 0))
@@ -596,10 +602,12 @@ class Veo3LauncherGUI:
         self._tab_canvases = []
         scr_tab, scr = self.make_scrollable_tab()
         ing_tab, ing = self.make_scrollable_tab()
+        omni_tab, omni = self.make_scrollable_tab()
         agt_tab, agt = self.make_scrollable_tab()
         # Accounts sits after Script; generation tabs follow.
         self.nb.add(scr_tab, text="Script")
         self.nb.add(ing_tab, text="Ingredients (extend)")
+        self.nb.add(omni_tab, text="Single Clip Omni")
         self.nb.add(agt_tab, text="Agent Mode")
         self.agent_tab = agt_tab
         acc_tab, acc = self.make_scrollable_tab()
@@ -609,10 +617,16 @@ class Veo3LauncherGUI:
 
         self.build_script_tab(scr)
         self.build_ingredients_tab(ing)
+        self.build_single_clip_omni_tab(omni)
         self.build_agent_tab(agt)
         self.build_accounts_tab(acc)
         self.mcp_tab = mcp_tab
         self.build_mcp_integration_tab(mcp)
+        if self.script_only:
+            for tab in tuple(self.nb.tabs()):
+                if tab != str(scr_tab):
+                    self.nb.hide(tab)
+            self.nb.select(scr_tab)
         # One binding for all three tabs - see _on_tab_wheel for why it is a
         # single bind_all rather than one binding per canvas.
         self.root.bind_all("<MouseWheel>", self._on_tab_wheel)
@@ -796,6 +810,11 @@ class Veo3LauncherGUI:
                        "Open Agent Mode to generate references, clips and the final video.")
                  ).grid(row=r, column=0, columnspan=3, sticky="ew", padx=10, pady=(10, 8), ipady=6)
         r += 1
+
+        if not self.script_only:
+            ttk.Button(f, text="Open separate Story Writer", command=self.open_story_writer).grid(
+                row=r, column=0, columnspan=3, sticky="ew", padx=14, pady=(0, 8))
+            r += 1
 
         ttk.Label(f, text="Story source:").grid(row=r, column=0, sticky="e", **pad)
         self.script_source_var = tk.StringVar(value=self.settings.get("script_source", "Title & details"))
@@ -993,6 +1012,16 @@ class Veo3LauncherGUI:
         self.script_preview_button.pack(side="left", padx=(10, 0))
         ttk.Button(btns, text="Open stories folder",
                    command=lambda: self._open_dir(STORIES_DIR)).pack(side="left", padx=(10, 0))
+        r += 1
+
+        ttk.Button(f, text="Retry / continue writing", command=self.retry_story_writing).grid(
+            row=r, column=1, columnspan=2, sticky="w", padx=14, pady=(2, 4))
+        r += 1
+        ttk.Button(f, text="Stop writing", command=self.stop_story_writing).grid(
+            row=r, column=1, columnspan=2, sticky="w", padx=14, pady=(2, 4))
+        r += 1
+        ttk.Button(f, text="Finalize saved analysis", command=self.finalize_saved_analysis).grid(
+            row=r, column=1, columnspan=2, sticky="w", padx=14, pady=(2, 4))
         r += 1
 
         self.script_preview_hint = ttk.Label(f, text="", style="Hint.TLabel", justify="left")
@@ -1204,7 +1233,7 @@ class Veo3LauncherGUI:
                 for field in ("file", "description"):
                     key = f"couple_{name}_{field}"
                     setattr(self, key + "_var", tk.StringVar(value=self.settings.get(key, "")))
-        key = "ing_saved_couple" if mode == "ingredients" else "agent_saved_couple"
+        key = {"ingredients": "ing_saved_couple", "omni": "omni_saved_couple"}.get(mode, "agent_saved_couple")
         var = tk.BooleanVar(value=self.settings.get(key, False))
         setattr(self, mode + "_saved_couple_var", var)
         frame = ttk.LabelFrame(parent, text="Saved couple reference sheets")
@@ -1254,6 +1283,240 @@ class Veo3LauncherGUI:
             self.settings.pop("ingredients_manual_reference_options", None)
         for widget in (self.skip_refs_check, self.gen_refs_check, self.refs_on_clip1_check):
             widget.state(["disabled"] if enabled else ["!disabled"])
+
+    def build_single_clip_omni_tab(self, f):
+        pad = dict(padx=14, pady=6)
+        f.columnconfigure(1, weight=1)
+
+        ttk.Label(f, text="Story JSON:").grid(row=1, column=0, sticky="e", **pad)
+        self.omni_story_var = tk.StringVar(value=self.settings.get("omni_story_json", ""))
+        ttk.Entry(f, textvariable=self.omni_story_var, width=58).grid(row=1, column=1, sticky="ew", **pad)
+        ttk.Button(f, text="Browse…", command=self.browse_omni_story).grid(row=1, column=2, **pad)
+        # A story JSON is fine for the engine and hard to read for a person.
+        # This writes the same story out as an .xlsx (Scenes / Dialogue / Cast)
+        # for reviewing or fixing by hand - it only reads the JSON.
+        ttk.Button(f, text="Export Excel", command=self.export_omni_story_excel).grid(row=1, column=3, **pad)
+
+        self.omni_story_info = tk.StringVar(value="No story loaded")
+        ttk.Label(f, textvariable=self.omni_story_info, style="Hint.TLabel").grid(
+            row=2, column=1, columnspan=2, sticky="w", padx=14)
+
+        ttk.Label(f, text="Scene range:").grid(row=3, column=0, sticky="e", **pad)
+        rng = tk.Frame(f, bg=SURFACE)
+        rng.grid(row=3, column=1, sticky="w", **pad)
+        self.omni_from_var = tk.IntVar(value=self.settings.get("omni_from_scene", 1))
+        self.omni_to_var = tk.IntVar(value=self.settings.get("omni_to_scene", 0))
+        tk.Label(rng, text="From", bg=SURFACE, fg=TEXT).pack(side="left")
+        ttk.Spinbox(rng, from_=1, to=99, textvariable=self.omni_from_var, width=4).pack(side="left", padx=6)
+        tk.Label(rng, text="To", bg=SURFACE, fg=TEXT).pack(side="left", padx=(14, 0))
+        ttk.Spinbox(rng, from_=1, to=99, textvariable=self.omni_to_var, width=4).pack(side="left", padx=6)
+
+        ttk.Label(f, text="Project URL:").grid(row=4, column=0, sticky="e", **pad)
+        self.omni_url_var = tk.StringVar(value=self.settings.get("omni_project_url", ""))
+        ttk.Entry(f, textvariable=self.omni_url_var, width=58).grid(row=4, column=1, columnspan=2, sticky="ew", **pad)
+
+        ttk.Label(f, text="Chrome CDP port:").grid(row=5, column=0, sticky="e", **pad)
+        self.omni_cdp_var = tk.IntVar(value=self.settings.get("omni_cdp_port", 9222))
+        ttk.Spinbox(f, from_=1024, to=65535, textvariable=self.omni_cdp_var, width=8).grid(
+            row=5, column=1, sticky="w", **pad)
+        ttk.Label(f, text="(your logged-in Chrome - Profile 3)", style="Hint.TLabel").grid(
+            row=5, column=1, sticky="w", padx=(120, 14), pady=6)
+
+        self.omni_skip_refs_var = tk.BooleanVar(value=self.settings.get("omni_skip_refs", False))
+        self.omni_skip_refs_check = ttk.Checkbutton(f, text="References already in this project (skip preparation; attach to every clip)",
+                        variable=self.omni_skip_refs_var)
+        self.omni_skip_refs_check.grid(row=6, column=1, sticky="w", **pad)
+
+        # The manual step this removes: generating each character sheet and the
+        # place plate by hand and saving it into character_refs/. Tick this and
+        # the engine makes them inside the project first, renames the tiles, and
+        # attaches them - both characters AND the place.
+        self.omni_gen_refs_var = tk.BooleanVar(value=self.settings.get("omni_gen_refs", True))
+        self.omni_gen_refs_check = ttk.Checkbutton(f, text="Make reference images in the project first (no manual sheets)",
+                        variable=self.omni_gen_refs_var)
+        self.omni_gen_refs_check.grid(row=7, column=1, sticky="w", **pad)
+        ttk.Label(f, text="reads refs.json - the cast AND the place", style="Hint.TLabel").grid(
+            row=7, column=1, sticky="w", padx=(430, 14), pady=6)
+
+        self.omni_refs_on_clip1_var = tk.BooleanVar(value=self.settings.get("omni_refs_on_clip1", True))
+        self.omni_refs_on_clip1_check = ttk.Checkbutton(f, text="Attach references to every clip (required)",
+                        variable=self.omni_refs_on_clip1_var)
+        self.omni_refs_on_clip1_check.configure(state="disabled")
+        self.omni_refs_on_clip1_var.set(True)
+        self.omni_refs_on_clip1_check.grid(row=8, column=1, sticky="w", **pad)
+
+        controls = ttk.LabelFrame(f, text="Single Clip Omni video and output settings")
+        controls.grid(row=9, column=0, columnspan=4, sticky="ew", padx=14, pady=10)
+        controls.columnconfigure(1, weight=1)
+        self.omni_ing_video_model_var = tk.StringVar(value=self.settings.get("omni_ing_video_model", "Omni 1.1 Flash"))
+        self.omni_ing_aspect_var = tk.StringVar(value=self.settings.get("omni_ing_aspect", "9:16"))
+        self.omni_ing_new_project_var = tk.BooleanVar(value=self.settings.get("omni_ing_new_project", False))
+        self.omni_ing_download_var = tk.BooleanVar(value=self.settings.get("omni_ing_download", True))
+        self.omni_ing_join_var = tk.BooleanVar(value=self.settings.get("omni_ing_join", False))
+        ttk.Label(controls, text="Video model:").grid(row=0, column=0, padx=10, pady=8)
+        ttk.Combobox(controls, textvariable=self.omni_ing_video_model_var, values=VIDEO_MODELS,
+                     state="readonly").grid(row=0, column=1, sticky="ew", padx=10, pady=8)
+        ttk.Label(controls, text="Ratio:").grid(row=1, column=0, padx=10, pady=8)
+        ttk.Combobox(controls, textvariable=self.omni_ing_aspect_var, values=["Flow", "16:9", "9:16", "1:1"],
+                     state="readonly").grid(row=1, column=1, sticky="ew", padx=10, pady=8)
+        ttk.Checkbutton(controls, text="Create a new project", variable=self.omni_ing_new_project_var).grid(row=2, column=0, columnspan=2, sticky="w", padx=10, pady=6)
+        ttk.Checkbutton(controls, text="Download Upscaled 720p between batches", variable=self.omni_ing_download_var).grid(row=3, column=0, sticky="w", padx=10, pady=6)
+        ttk.Checkbutton(controls, text="Join downloaded clips", variable=self.omni_ing_join_var).grid(row=3, column=1, sticky="w", padx=10, pady=6)
+        self.saved_couple_controls(controls, "omni").grid(row=4, column=0, columnspan=2, sticky="ew", padx=10, pady=8)
+        self.omni_resolution_var = tk.StringVar(value=self.settings.get("omni_resolution", "720p"))
+        ttk.Label(controls, text="Resolution:").grid(row=5, column=0, padx=10, pady=8)
+        ttk.Combobox(controls, textvariable=self.omni_resolution_var, values=["360p", "720p"],
+                     state="readonly").grid(row=5, column=1, sticky="ew", padx=10, pady=8)
+        self.omni_simple_var = tk.BooleanVar(value=self.settings.get("omni_simple", True))
+        ttk.Checkbutton(controls, text="Use simple test prompts when available", variable=self.omni_simple_var).grid(
+            row=6, column=0, columnspan=2, sticky="w", padx=10, pady=6)
+        actions = ttk.Frame(f)
+        actions.grid(row=10, column=0, columnspan=4, sticky="w", padx=14, pady=8)
+        for index, (label, command) in enumerate([
+                ("Create references only", lambda: self.run_single_clip_omni(refs_only=True)),
+                ("Generate clips", self.run_single_clip_omni),
+                ("Download clips (Upscaled 720p)", lambda: self.download_omni_clips()),
+                ("Delete all video clips", lambda: self.delete_project_video_clips(self.omni_url_var, self.omni_story_var)),
+                ("Join clips", self.join_omni_clips), ("Stop", self.kill_engine)]):
+            ttk.Button(actions, text=label, command=command, style="Accent.TButton").grid(
+                row=index // 3, column=index % 3, sticky="ew", padx=(0, 8), pady=5)
+        ttk.Label(f, text="Same reference preparation as Ingredients. Each video is a standalone clip with references attached.\n"
+                  "Submit 5 prompts individually, with a 5-second pause between submissions; wait for all 5 before continuing.\n"
+                  "Generation uses the selected model/aspect/resolution. Downloads use verified Upscaled 720p.\n"
+                  "Previous completed groups download in a background tab while the current group generates.\n"
+                  "From/To selects the scene range. Restarting the same saved run waits for submitted clips and skips completed clips.",
+                  style="Hint.TLabel", wraplength=650).grid(row=11, column=0, columnspan=4, sticky="w", padx=14, pady=8)
+
+    def browse_omni_story(self):
+        chosen = filedialog.askopenfilename(title="Choose Single Clip Omni story", initialdir=os.path.join(BASE_DIR, "stories"),
+                                          filetypes=[("Story JSON", "*.json")])
+        if chosen:
+            self.omni_story_var.set(chosen)
+            try:
+                with open(chosen, encoding="utf-8-sig") as fh:
+                    data = json.load(fh)
+                count = len(data["scenes"])
+                self.omni_to_var.set(count)
+                self.omni_story_info.set(f"{count} scenes | standalone Omni clips")
+            except Exception as e:
+                messagebox.showerror("Invalid story", str(e))
+
+    def export_omni_story_excel(self):
+        self._launch(["python", os.path.join(BASE_DIR, "story_to_excel.py"), self.omni_story_var.get().strip()],
+                     "Exporting the selected Omni story to Excel...")
+
+    def omni_request(self, refs_only=False):
+        story = self.omni_story_var.get().strip()
+        if not os.path.isfile(story):
+            raise ValueError("Select a valid story JSON first.")
+        with open(story, encoding="utf-8-sig") as fh:
+            count = len(json.load(fh)["scenes"])
+        first = self.read_int(self.omni_from_var, 1)
+        last = self.read_int(self.omni_to_var, 0) or count
+        if first < 1 or last < first or last > count:
+            raise ValueError("Select a scene range within this story.")
+        model = self.omni_ing_video_model_var.get()
+        if not re.search(r"Omni.*Flash", model, re.I):
+            raise ValueError("Select Omni Flash for Single Clip Omni.")
+        new_project = bool(self.omni_ing_new_project_var.get())
+        reuse = bool(self.omni_skip_refs_var.get()) and not new_project
+        return {"story": os.path.abspath(story), "from": first, "to": last,
+                "project": self.omni_url_var.get().strip(), "newProject": new_project,
+                "model": model, "aspect": self.omni_ing_aspect_var.get(), "resolution": self.omni_resolution_var.get(),
+                "cdp": self.read_int(self.omni_cdp_var, 9222), "reuseRefs": reuse,
+                "genRefs": bool(self.omni_gen_refs_var.get()) and not reuse,
+                "savedCouple": bool(self.omni_saved_couple_var.get()), "simple": bool(self.omni_simple_var.get()),
+                "refsOnly": refs_only, "download": bool(self.omni_ing_download_var.get()),
+                "join": bool(self.omni_ing_join_var.get())}
+
+    def run_single_clip_omni(self, refs_only=False):
+        if self._work_busy():
+            messagebox.showwarning("Busy", "Stop or finish the current generation first.")
+            return
+        try:
+            request = self.omni_request(refs_only)
+        except Exception as e:
+            messagebox.showerror("Single Clip Omni", str(e))
+            return
+        self.collect_inputs()
+        self.save_settings()
+        if not self._ensure_active_browser():
+            return
+        store = self._account_store()
+        if store:
+            request["account"] = store["accounts"][store.get("current", 0)]["label"]
+        request["cdp"] = self.settings["cdp_port"]
+        folder = os.path.join(BASE_DIR, "logs")
+        os.makedirs(folder, exist_ok=True)
+        filename = os.path.join(folder, "single_clip_omni_request_" + str(time.time_ns()) + ".json")
+        with open(filename, "w", encoding="utf-8") as fh:
+            json.dump(request, fh, indent=2)
+        self._launch(["node", os.path.join(BASE_DIR, "single_clip_omni.js"), filename],
+                     "Single Clip Omni: preparing references, then generating 5 standalone clips per group...")
+
+    def download_omni_clips(self):
+        if self._work_busy():
+            messagebox.showwarning("Busy", "The running Omni job handles its background downloads. Wait or stop it first.")
+            return
+        try:
+            request = self.omni_request()
+        except Exception as e:
+            messagebox.showerror("Single Clip Omni", str(e))
+            return
+        if not request["project"]:
+            messagebox.showerror("Project required", "Enter the Omni project URL first.")
+            return
+        self.collect_inputs()
+        self.save_settings()
+        if not self._ensure_active_browser():
+            return
+        request.update({"downloadOnly": True, "newProject": False, "genRefs": False, "reuseRefs": True,
+                        "cdp": self.settings["cdp_port"]})
+        folder = os.path.join(BASE_DIR, "logs")
+        os.makedirs(folder, exist_ok=True)
+        filename = os.path.join(folder, "omni_upscaled_request_" + str(time.time_ns()) + ".json")
+        with open(filename, "w", encoding="utf-8") as fh:
+            json.dump(request, fh, indent=2)
+        self._launch(["node", os.path.join(BASE_DIR, "single_clip_omni.js"), filename],
+                     "Downloading all story Omni scenes through Download > Upscaled 720p; verified files are skipped...")
+
+    def delete_project_video_clips(self, project_var, story_var):
+        if self._work_busy():
+            messagebox.showerror("Project busy", "Stop the current generation before deleting clips.")
+            return
+        try:
+            project = normalize_flow_project_url(project_var.get().strip())
+            if not project:
+                raise ValueError("Enter the Flow project URL first.")
+        except Exception as e:
+            messagebox.showerror("Project required", str(e))
+            return
+        if not messagebox.askyesno("Delete all video clips", "Move ALL video clips in this Flow project to Trash?\n\n" + project + "\n\nImages and characters are retained. Local video files are retained. Generation checkpoints for this project will be archived."):
+            return
+        self.collect_inputs()
+        self.save_settings()
+        if not self._ensure_active_browser():
+            return
+        request = {"project": project, "story": os.path.abspath(story_var.get()) if story_var.get().strip() else "",
+                   "cdp": self.settings["cdp_port"], "confirmed": True}
+        folder = os.path.join(BASE_DIR, "logs")
+        os.makedirs(folder, exist_ok=True)
+        filename = os.path.join(folder, "delete_project_clips_" + str(time.time_ns()) + ".json")
+        with open(filename, "w", encoding="utf-8") as fh:
+            json.dump(request, fh, indent=2)
+        self._launch(["node", os.path.join(BASE_DIR, "delete_project_video_clips.js"), filename],
+                     "Moving project video clips to Flow Trash; keeping images, characters and local files...")
+
+    def join_omni_clips(self):
+        folder = os.path.join(os.path.dirname(os.path.abspath(self.omni_story_var.get())), "clips")
+        partial = os.path.join(folder, "omni_manifest.partial.json")
+        if os.path.isfile(partial):
+            with open(partial, encoding="utf-8-sig") as fh:
+                progress = json.load(fh)
+            if not progress.get("complete"):
+                messagebox.showerror("Downloads incomplete", "Finish the verified Upscaled downloads for all story scenes before joining.")
+                return
+        self._launch(["node", os.path.join(BASE_DIR, "join_clips.js"), folder], "Joining Omni clips in resolved manifest order...")
 
     def build_ingredients_tab(self, f):
         pad = dict(padx=14, pady=6)
@@ -1338,6 +1601,7 @@ class Veo3LauncherGUI:
                 ("Create references only", lambda: self.run_engine(refs_only=True)),
                 ("Run engine", self.run_engine),
                 ("Download clips", lambda: self.run_engine(export_only=True)),
+                ("Delete all video clips", lambda: self.delete_project_video_clips(self.url_var, self.story_var)),
                 ("Join clips", self.join_ingredients_clips), ("Stop", self.kill_engine)]):
             ttk.Button(actions, text=label, command=command, style="Accent.TButton").grid(
                 row=index // 3, column=index % 3, sticky="ew", padx=(0, 8), pady=5)
@@ -1473,6 +1737,7 @@ class Veo3LauncherGUI:
         self.build_workflow_tab(self.agent_auto_panel)
         self.aspect_var = self.mcp_aspect_var
         self.video_model_var = self.mcp_video_model_var
+        self.agent_resolution_var = self.mcp_resolution_var
         self.seconds_var = self.mcp_seconds_var
         self.style_var = self.mcp_preset_var
         self.style_box = self.mcp_preset_box
@@ -1511,7 +1776,8 @@ class Veo3LauncherGUI:
         actions.grid(row=4, column=0, columnspan=3, sticky="w", padx=8, pady=8)
         for i, (title, action) in enumerate([
                 ("Generate clips", self.run_agent), ("Retry failed clips", self.retry_failed_clips),
-                ("Download clips", self.download_clips),
+                ("Download clips (Omni 720p)", self.download_clips),
+                ("Delete all video clips", lambda: self.delete_project_video_clips(self.agent_url_var, self.agent_story_var)),
                 ("Join clips", self.join_clips), ("Stop", self.stop_all) ]):
             ttk.Button(actions, text=title, command=lambda fn=action: self.manual_action(fn)).grid(
                 row=i // 4, column=i % 4, sticky="ew", padx=(0, 8), pady=4)
@@ -1519,6 +1785,28 @@ class Veo3LauncherGUI:
         ttk.Entry(box, textvariable=self.clips_var).grid(row=5, column=1, sticky="ew", padx=8)
         ttk.Button(box, text="Browse", command=self.browse_clips).grid(row=5, column=2, padx=8)
         ttk.Button(box, text="Open clips folder", command=self.open_clips).grid(row=6, column=1, sticky="w", padx=8, pady=6)
+        recovery = ttk.LabelFrame(box, text="Generate specific batches / clips")
+        recovery.grid(row=7, column=0, columnspan=3, sticky="ew", padx=8, pady=8)
+        recovery.columnconfigure(1, weight=1)
+        self.manual_batch_number = tk.StringVar(value="1")
+        self.manual_clip_number = tk.StringVar(value="1")
+        self.manual_clip_numbers = tk.StringVar(value="")
+        ttk.Label(recovery, text="Start at batch (5 clips each):").grid(row=0, column=0, padx=8, pady=5)
+        self.manual_batch_spin = ttk.Spinbox(recovery, from_=1, to=999, textvariable=self.manual_batch_number, width=8)
+        self.manual_batch_spin.grid(row=0, column=1, sticky="w", padx=8)
+        ttk.Button(recovery, text="Generate from batch", command=lambda: self.generate_manual_selection("batch")).grid(row=0, column=2, padx=8)
+        ttk.Label(recovery, text="One clip number:").grid(row=1, column=0, padx=8, pady=5)
+        self.manual_clip_spin = ttk.Spinbox(recovery, from_=1, to=9999, textvariable=self.manual_clip_number, width=8)
+        self.manual_clip_spin.grid(row=1, column=1, sticky="w", padx=8)
+        ttk.Button(recovery, text="Generate clip", command=lambda: self.generate_manual_selection("single")).grid(row=1, column=2, padx=8)
+        ttk.Label(recovery, text="Multiple clips (e.g. 2,8,6):").grid(row=2, column=0, padx=8, pady=5)
+        ttk.Entry(recovery, textvariable=self.manual_clip_numbers).grid(row=2, column=1, sticky="ew", padx=8)
+        ttk.Button(recovery, text="Generate selected clips", command=lambda: self.generate_manual_selection("multiple")).grid(row=2, column=2, padx=8)
+        ttk.Label(recovery, text="Uses this story and project. Ignores saved completion checkpoints; selected clips generate again and spend credits. Waits for each request before the next.", style="Hint.TLabel", wraplength=620).grid(row=3, column=0, columnspan=3, sticky="w", padx=8, pady=6)
+        self.manual_selection_hint = ttk.Label(recovery, text="", style="Hint.TLabel")
+        self.manual_selection_hint.grid(row=4, column=0, columnspan=3, sticky="w", padx=8, pady=4)
+        self.agent_story_var.trace_add("write", self.update_manual_selection_limits)
+        self.update_manual_selection_limits()
         settings = ttk.LabelFrame(self.agent_manual_panel, text="Generation settings")
         settings.grid(row=1, column=0, sticky="ew", padx=2, pady=8)
         for col in range(3):
@@ -1765,6 +2053,17 @@ class Veo3LauncherGUI:
 
     def collect_inputs(self):
         self.update_ingredients_reference_mode()
+        if hasattr(self, "omni_story_var"):
+            for key, var in (("story_json", self.omni_story_var), ("from_scene", self.omni_from_var),
+                             ("to_scene", self.omni_to_var), ("project_url", self.omni_url_var),
+                             ("cdp_port", self.omni_cdp_var), ("skip_refs", self.omni_skip_refs_var),
+                             ("gen_refs", self.omni_gen_refs_var), ("ing_video_model", self.omni_ing_video_model_var),
+                             ("ing_aspect", self.omni_ing_aspect_var), ("ing_new_project", self.omni_ing_new_project_var),
+                             ("ing_download", self.omni_ing_download_var), ("ing_join", self.omni_ing_join_var)):
+                self.settings["omni_" + key] = var.get()
+            self.settings["omni_saved_couple"] = self.omni_saved_couple_var.get()
+            self.settings["omni_resolution"] = self.omni_resolution_var.get()
+            self.settings["omni_simple"] = self.omni_simple_var.get()
         self.settings.update({
             "story_json": self.story_var.get().strip(),
             "from_scene": self.read_int(self.from_var, 1),
@@ -1848,6 +2147,7 @@ class Veo3LauncherGUI:
             "mcp_match_ref": bool(self.mcp_match_ref_var.get()) if hasattr(self, "mcp_match_ref_var") else self.settings.get("mcp_match_ref", True),
             "mcp_aspect": (self.mcp_aspect_var.get().strip() or "Flow") if hasattr(self, "mcp_aspect_var") else self.settings.get("mcp_aspect", "Flow"),
             "mcp_video_model": (self.mcp_video_model_var.get().strip() or "Flow") if hasattr(self, "mcp_video_model_var") else self.settings.get("mcp_video_model", "Flow"),
+            "mcp_video_resolution": self.mcp_resolution_var.get() if hasattr(self, "mcp_resolution_var") else self.settings.get("mcp_video_resolution", "Flow"),
             "mcp_generate": bool(self.mcp_generate_var.get()) if hasattr(self, "mcp_generate_var") else self.settings.get("mcp_generate", False),
             "mcp_download": bool(self.mcp_download_var.get()) if hasattr(self, "mcp_download_var") else self.settings.get("mcp_download", True),
             "mcp_join": bool(self.mcp_join_var.get()) if hasattr(self, "mcp_join_var") else self.settings.get("mcp_join", True),
@@ -2285,6 +2585,7 @@ class Veo3LauncherGUI:
         # chcp 65001 makes the new console render UTF-8 (emojis) correctly;
         # encoding="utf-8" fixes decoding of the engine's output into this panel.
         shell_cmd = "chcp 65001 >nul && " + subprocess.list2cmdline(cmd)
+        self._active_command = list(cmd)
         try:
             self.proc = subprocess.Popen(
                 shell_cmd, cwd=BASE_DIR,
@@ -2295,7 +2596,7 @@ class Veo3LauncherGUI:
         except Exception as e:
             messagebox.showerror("Failed to start", str(e))
             return False
-        threading.Thread(target=self.stream_output, daemon=True).start()
+        threading.Thread(target=self.stream_output, args=(self.proc,), daemon=True).start()
         return True
 
     def join_ingredients_clips(self):
@@ -2387,6 +2688,85 @@ class Veo3LauncherGUI:
         }
 
     # ── script tab actions ────────────────────────────────────
+    def remember_writer_job(self, job):
+        temp = self.writer_job_file + ".tmp"
+        with open(temp, "w", encoding="utf-8") as fh:
+            json.dump(job, fh, indent=2)
+        os.replace(temp, self.writer_job_file)
+
+    def retry_story_writing(self):
+        if self._work_busy():
+            messagebox.showinfo("Story Writer", "Click Stop writing first, then Retry / continue writing. During video generation, use the separate Story Writer.")
+            return
+        try:
+            with open(self.writer_job_file, encoding="utf-8") as fh:
+                job = json.load(fh)
+        except (OSError, ValueError):
+            messagebox.showinfo("Continue writing", "No saved writing request yet. Start Write stories once; interrupted requests will then be available here.")
+            return
+        if job.get("kind") == "batch":
+            try:
+                current = self.script_batch_request()
+            except ValueError as e:
+                messagebox.showerror("Story inputs", str(e))
+                return
+            previous = job.get("args", {})
+            if (current.get("references") != previous.get("references")
+                    or current.get("ideas") != previous.get("ideas")):
+                self._console("\nThe current story input differs from the saved retry job. Starting the CURRENT input; the previous story will not be resumed.\n")
+                self.write_script_batch()
+                return
+        if job.get("transport") in ("web", "auto") and not self._aistudio_ready():
+            return
+        self._console("\nContinuing the saved writing request. Completed writing calls are restored from disk; unfinished calls continue.\n")
+        if job.get("kind") == "batch":
+            args = dict(job["args"])
+            args.update(generate=False, submit=False, download=False, join=False,
+                        generate_refs=False, new_project=False)
+            self.stop_mcp()
+            self.start_workflow_worker(args)
+        elif job.get("kind") == "single":
+            self._launch(job["command"], "Continuing interrupted story writing...")
+
+    def stop_story_writing(self):
+        if getattr(self, "_workflow_running", False):
+            args = getattr(self, "_workflow_args", {})
+            if any(args.get(key) for key in ("generate", "submit", "download", "join", "generate_refs", "new_project")):
+                messagebox.showinfo("Video job running", "Use Stop in the generation tab for this video job, or use the separate Story Writer.")
+                return
+            self.stop_mcp()
+        elif getattr(self, "proc", None) and self.proc.poll() is None:
+            cmd = getattr(self, "_active_command", [])
+            if not any(os.path.basename(str(part)) in ("write_story.js", "finalize_saved_analysis.js", "analyze_video.js") for part in cmd):
+                messagebox.showinfo("Video job running", "Use Stop in the generation tab for this job.")
+                return
+            self._rotate_ctx = None
+            self.kill_engine()
+        self._reset_progress("stopped")
+        self._console("\nStory writing stopped. Saved requests and completed writing calls were preserved. Use Retry / continue writing to resume, or Finalize saved analysis if analysis is already complete.\n")
+
+    def finalize_saved_analysis(self):
+        if self._work_busy():
+            messagebox.showinfo("Finalize analysis", "Stop the current writing job first, or use the separate Story Writer.")
+            return
+        file = filedialog.askopenfilename(title="Choose completed analysis / content-map JSON",
+                                         initialdir=os.path.join(STORIES_DIR, "_reference"),
+                                         filetypes=[("Analysis JSON", "*.json*"), ("All files", "*.*")])
+        if not file:
+            return
+        cmd = ["node", os.path.join(BASE_DIR, "finalize_saved_analysis.js"), file]
+        self.remember_writer_job({"kind": "single", "command": cmd, "transport": "local"})
+        self._launch(cmd, "Finalizing the selected saved analysis into its story folder and clip prompts...")
+
+    def open_story_writer(self):
+        """A separate process owns its jobs; never share the video's busy flag."""
+        try:
+            subprocess.Popen([sys.executable, os.path.join(BASE_DIR, "story_writer_gui.py")],
+                             cwd=BASE_DIR,
+                             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        except OSError as error:
+            messagebox.showerror("Story Writer", str(error))
+
     def update_script_source(self):
         for source, widgets in self.script_input_widgets.items():
             for widget in widgets:
@@ -2458,7 +2838,10 @@ class Veo3LauncherGUI:
             return
         self.stop_mcp()
         self._console(f"\nWriting story batch: {len(args.get('references', args.get('ideas', [])))} item(s).\n")
+        for link in args.get("references", []):
+            self._console(f"Requested source video: {link}\n")
         self._reset_progress("story batch")
+        self.remember_writer_job({"kind": "batch", "args": args, "transport": args["transport"]})
         self.start_workflow_worker(args)
 
     def write_story(self, dry=False):
@@ -2493,7 +2876,7 @@ class Veo3LauncherGUI:
         # Free text, and Windows mangles long multi-line arguments through cmd.
         detail = self.gen_detail.get("1.0", "end").strip()
         if detail:
-            staged = os.path.join(BASE_DIR, "logs", "_gen_detail.txt")
+            staged = os.path.join(BASE_DIR, "logs", "_story_writer_detail.txt" if self.script_only else "_gen_detail.txt")
             try:
                 os.makedirs(os.path.dirname(staged), exist_ok=True)
                 with open(staged, "w", encoding="utf-8") as fh:
@@ -2525,6 +2908,7 @@ class Veo3LauncherGUI:
                 return
             who = ("Google AI Studio in the browser" if transport == "web"
                    else self.settings["gemini_model"])
+            self.remember_writer_job({"kind": "single", "command": cmd, "transport": transport})
             self._launch(cmd, f"Writing '{title}' with {who}...")
 
     def use_flash_chain(self):
@@ -2643,6 +3027,58 @@ class Veo3LauncherGUI:
             return False
         return True
 
+    def update_manual_selection_limits(self, *unused):
+        try:
+            with open(self.agent_story_var.get(), encoding="utf-8") as fh:
+                total = len(json.load(fh).get("scenes", []))
+            batches = max(1, (total + 4) // 5)
+            self.manual_batch_spin.configure(to=batches)
+            self.manual_clip_spin.configure(to=max(1, total))
+            self.manual_selection_hint.configure(text=f"Selected story: {total} clips; {batches} batches of up to 5 clips.")
+        except (OSError, ValueError, AttributeError):
+            pass
+
+    def generate_manual_selection(self, mode):
+        if self._work_busy():
+            messagebox.showinfo("Job running", "Stop the current job before starting a manual selection.")
+            return
+        self.collect_inputs()
+        story = self.agent_story_var.get().strip()
+        try:
+            with open(story, encoding="utf-8") as fh:
+                total = len(json.load(fh).get("scenes", []))
+            if not total:
+                raise ValueError("Choose a story with scenes first.")
+            project = normalize_flow_project_url(self.agent_url_var.get().strip())
+            if not project:
+                raise ValueError("Enter the existing project URL.")
+            selection = self.manual_batch_number.get() if mode == "batch" else self.manual_clip_number.get() if mode == "single" else self.manual_clip_numbers.get()
+            if mode == "batch":
+                if not selection.isdigit() or not 1 <= int(selection) <= (total + 4) // 5:
+                    raise ValueError(f"Batch must be between 1 and {(total + 4) // 5}.")
+            else:
+                parts = re.split(r"[\s,]+", selection.strip())
+                if not parts or not parts[0]:
+                    raise ValueError("Enter clip numbers, such as 2,8,6.")
+                for part in parts:
+                    if not re.fullmatch(r"\d+(?:-\d+)?", part):
+                        raise ValueError("Use numbers such as 2,8,6 or a range such as 3-5.")
+                    limits = [int(n) for n in part.split("-")]
+                    if not 1 <= limits[0] <= limits[-1] <= total:
+                        raise ValueError(f"Clip numbers must be between 1 and {total}.")
+        except (OSError, ValueError, TypeError) as e:
+            messagebox.showerror("Invalid selection", str(e))
+            return
+        if not self._ensure_active_browser(self.settings["agent_cdp_port"]):
+            return
+        self.save_settings()
+        cmd = ["node", os.path.join(BASE_DIR, "agent_manual_generation.js"), "--story", story,
+               "--project-url", project, "--batch" if mode == "batch" else "--clips", selection,
+               "--cdp", str(self.settings["agent_cdp_port"]), "--watch", str(max(900, int(self.settings["watch_secs"]))),
+               "--aspect", self.settings["aspect_ratio"], "--video-model", self.video_model_var.get()]
+        cmd += ["--video-resolution", self.agent_resolution_var.get(), "--scene-seconds", str(self.read_seconds())]
+        self._launch(cmd, "Generating explicit manual selection; saved batch checkpoints are ignored...")
+
     def run_agent(self):
         self.collect_inputs()
         story = self.agent_story_var.get().strip()
@@ -2683,6 +3119,7 @@ class Veo3LauncherGUI:
         # "Flow" is the sentinel for "leave the project alone" - passing it as a
         # model name would look for a model called Flow and fail the run.
         video_model = self.settings.get("video_model", "Flow")
+        cmd += ["--video-resolution", self.agent_resolution_var.get(), "--scene-seconds", str(self.read_seconds())]
         if video_model and video_model.lower() != "flow":
             cmd += ["--video-model", video_model]
         if self.settings["auto_approve"]:
@@ -2746,6 +3183,8 @@ class Veo3LauncherGUI:
         if not self._ensure_active_browser(self.settings["agent_cdp_port"]):
             return
         cmd = ["node", DOWNLOADER, "--out", out, "--cdp", str(self.settings["agent_cdp_port"])]
+        if "omni" in self.video_model_var.get().lower() or self.agent_resolution_var.get() == "360p":
+            cmd.append("--upscaled")
         try:
             with open(self.agent_story_var.get(), "r", encoding="utf-8") as fh:
                 expected = len(json.load(fh).get("scenes", []))
@@ -2799,15 +3238,13 @@ class Veo3LauncherGUI:
                 cmd += ["--allow-partial", "--order", ",".join(present)]
             if (manifest.get("complete") is False and expected > 0
                     and set(actual) == set(numbered)):
-                if not messagebox.askyesno(
-                        "Confirm clip order",
-                        f"All {expected} numbered clips are present, but the saved scene mapping is unresolved or outdated.\n\n"
-                        "Have you checked that scene-01.mp4 through "
-                        f"scene-{expected:02d}.mp4 are in the correct story order?\n\n"
-                        "Yes: validate the clips and join in that filename order, saving the corrected manifest.\n"
-                        "No: stop so you can check or resolve the order first."):
-                    return
-                cmd += ["--order", ",".join(numbered)]
+                messagebox.showerror(
+                    "Clip order needs checking",
+                    "The story mapping still contains an unresolved clip. Resolve clip order "
+                    "and check the unmatched scene before joining.\n\n"
+                    "Downloaded filenames are download numbers, not story scene numbers. "
+                    "The join will preserve the resolved manifest order.")
+                return
         except (OSError, ValueError, TypeError):
             pass  # The joiner reports invalid or missing manifest data.
         # No --reencode: join_clips.js checks the stream signatures and only
@@ -2831,15 +3268,26 @@ class Veo3LauncherGUI:
         self._launch(["node", DOWNLOADER, "--sheet-only", d],
                      "Rebuilding the contact sheet from the clips on disk...")
 
-    def stream_output(self):
+    def stream_output(self, proc=None):
+        proc = proc or self.proc
         self._credits_scene = 0
         try:
-            for line in self.proc.stdout:
+            for line in proc.stdout:
+                if self.proc is not proc:
+                    break
                 job = getattr(self, "_ingredients_job", None)
                 if job:
                     match = re.search(r"project_url:\s*(https://flow\.google\.com/project/[a-zA-Z0-9_-]+)", line)
                     if match:
                         job["project"] = match.group(1)
+                omni_project = re.search(r"OMNI_PROJECT_URL:\s*(https://flow\.google\.com/project/[a-zA-Z0-9_-]+)", line)
+                if omni_project and hasattr(self, "omni_url_var"):
+                    url = omni_project.group(1)
+                    self.root.after(0, lambda value=url: self.omni_url_var.set(value))
+                    self.root.after(0, lambda: self.omni_ing_new_project_var.set(False))
+                    self.root.after(0, lambda: self.omni_skip_refs_var.set(True))
+                if "References ready. No video submitted." in line and hasattr(self, "omni_skip_refs_var"):
+                    self.root.after(0, lambda: self.omni_skip_refs_var.set(True))
                 self.output.insert("end", line)
                 self.output.see("end")
                 # The engine's drain sentinel: how far the story got
@@ -2853,12 +3301,14 @@ class Veo3LauncherGUI:
                     self._on_progress(line)
         except Exception:
             pass
-        code = self.proc.wait()
+        code = proc.wait()
+        if self.proc is not proc:
+            return
         self.output.insert("end", f"\n[exited with code {code}]\n")
         self.output.see("end")
         try:
             # reader thread -> hop to the Tk thread before touching widgets
-            self.root.after(0, lambda: self._handle_proc_exit(code))
+            self.root.after(0, lambda: self._handle_proc_exit(code) if self.proc is proc else None)
         except Exception:
             pass
 
@@ -3054,6 +3504,9 @@ class Veo3LauncherGUI:
         self.mcp_video_model_var = tk.StringVar(value=self.settings.get("mcp_video_model", "Flow"))
         ttk.Combobox(line1c, textvariable=self.mcp_video_model_var, width=30,
                      values=VIDEO_MODELS).pack(side="left", padx=(6, 4))
+        ttk.Label(line1c, text="Omni resolution:").pack(side="left", padx=(8, 0))
+        self.mcp_resolution_var = tk.StringVar(value=self.settings.get("mcp_video_resolution", "Flow"))
+        ttk.Combobox(line1c, textvariable=self.mcp_resolution_var, values=["Flow", "360p", "720p"], width=7, state="readonly").pack(side="left", padx=6)
         ttk.Label(line1c, text='"Flow" leaves every project on its own setting',
                   style="Hint.TLabel").pack(side="left", padx=(6, 0))
         r += 1
@@ -3563,6 +4016,7 @@ class Veo3LauncherGUI:
         args = {
             "aspect": self.mcp_aspect_var.get().strip() or "Flow",
             "video_model": self.mcp_video_model_var.get().strip() or "Flow",
+            "video_resolution": self.mcp_resolution_var.get(),
             "seconds": self.read_int(self.mcp_seconds_var, 8),
             # api / web / auto - every link in the batch is analysed and written
             # by this one. "web" needs no key and no per-project quota, which is
@@ -3686,45 +4140,54 @@ class Veo3LauncherGUI:
         self.start_workflow_worker(args)
 
     def start_workflow_worker(self, args):
+        self._workflow_epoch = getattr(self, "_workflow_epoch", 0) + 1
+        epoch = self._workflow_epoch
+        self._workflow_args = dict(args)
         self._workflow_running = True
 
         def worker():
+            client = None
             try:
                 from mcp_client import MCPClient
-            except Exception as e:
-                self._ui(lambda: messagebox.showerror("MCP client missing",
-                                                      f"mcp_client.py could not load:\n{e}"))
-                self._workflow_running = False
-                return
-            client = MCPClient(MCP_SERVER, cwd=BASE_DIR,
-                               log=lambda ln: self._ui(lambda l=ln: self._console(l)))
-            self._mcp_client = client
-            try:
+                if self._workflow_epoch != epoch:
+                    return
+                client = MCPClient(MCP_SERVER, cwd=BASE_DIR,
+                    log=lambda ln: self._ui(lambda l=ln: self._console(l) if self._workflow_epoch == epoch else None))
+                self._mcp_client = client
                 client.start()
+                if self._workflow_epoch != epoch:
+                    return
                 res = client.call_tool("batch_pipeline", args)
+                if self._workflow_epoch != epoch:
+                    return
                 if res["text"]:
-                    self._ui(lambda: self._console("\n" + res["text"]))
+                    self._ui(lambda: self._console("\n" + res["text"]) if self._workflow_epoch == epoch else None)
                 tail = "\n✅ batch finished" + (" (with errors)" if res["isError"] else "")
-                self._ui(lambda: self._console(tail))
+                self._ui(lambda: self._console(tail) if self._workflow_epoch == epoch else None)
             except Exception as e:
-                self._ui(lambda: self._console(f"\n❌ MCP error: {e}"))
+                if self._workflow_epoch == epoch:
+                    self._ui(lambda message=str(e): self._console(f"\n❌ MCP error: {message}") if self._workflow_epoch == epoch else None)
             finally:
-                client.stop()
-                self._mcp_client = None
-                self._workflow_running = False
-                self._ui(lambda: self._reset_progress("idle"))
-                self._ui(self.load_story_info)
+                if client:
+                    client.stop()
+                if self._workflow_epoch == epoch:
+                    self._mcp_client = None
+                    self._workflow_running = False
+                    self._ui(lambda: self._reset_progress("idle") if self._workflow_epoch == epoch else None)
+                    self._ui(self.load_story_info)
 
         threading.Thread(target=worker, daemon=True).start()
 
     def stop_mcp(self):
+        self._workflow_epoch = getattr(self, "_workflow_epoch", 0) + 1
         c = getattr(self, "_mcp_client", None)
+        self._mcp_client = None
+        self._workflow_running = False
         if c:
             try:
                 c.stop()
             except Exception:
                 pass
-            self._mcp_client = None
             self._console("\n🛑 Stopped the MCP batch.")
 
     def copy_mcp_config(self):

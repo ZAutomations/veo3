@@ -1,22 +1,22 @@
 @echo off
-title VEO3 Flow New-UI Launcher
-REM Portable copy of the launcher: finds Python whichever way it was
-REM installed - the py launcher (python.org / winget) or a python.exe
-REM already on PATH. The original in the repo assumes `python` works.
-set "PYCMD="
-py -3 -c "import sys" >nul 2>&1
-if not errorlevel 1 set "PYCMD=py -3"
-if not defined PYCMD (
-    python -c "import sys" >nul 2>&1
-    if not errorlevel 1 set "PYCMD=python"
+setlocal
+title VEO3 Flow Launcher
+cd /d "%~dp0"
+call "%~dp0Setup\environment.bat"
+if exist "%~dp0.venv\Scripts\python.exe" (
+    "%~dp0.venv\Scripts\python.exe" "%~dp0veo3_gui.py"
+    goto :done
 )
-if not defined PYCMD (
-    echo.
-    echo Python 3 was not found on this PC.
-    echo Run SETUP.bat first, then close this window and try again.
-    echo.
-    pause
-    exit /b 1
+py -3 -c "import tkinter" >nul 2>&1
+if not errorlevel 1 (
+    py -3 "%~dp0veo3_gui.py"
+    goto :done
 )
-%PYCMD% "%~dp0veo3_gui.py"
+python -c "import tkinter" >nul 2>&1
+if not errorlevel 1 (
+    python "%~dp0veo3_gui.py"
+    goto :done
+)
+echo Python with tkinter was not found. Run SETUP.bat first.
+:done
 if errorlevel 1 pause

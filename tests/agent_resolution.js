@@ -1,0 +1,25 @@
+const assert=require('assert'),fs=require('fs'),vm=require('vm');
+const {withSettings}=require('../agent_video_contract');
+const text='Scene 1 - Hook\nLilly: "Listen carefully."\nScene 2 - Advice\nLilly: "Trust takes time."';
+const converted=withSettings(text,{model:'Omni 1.1 Flash',resolution:'360p',seconds:10,aspect:'9:16'});
+assert.equal((converted.match(/VIDEO GENERATION SETTINGS/g)||[]).length,3);
+assert(converted.includes('duration 10 seconds'));assert(converted.includes('resolution 360p'));assert(converted.includes('Lilly: "Trust takes time."'));
+assert.equal(withSettings(text,{resolution:'Flow'}),text);
+const selected={ratio:'16:9',resolution:'720p',confirm:false};let saved=0,open=true;
+const button=(label,key,value)=>({getBoundingClientRect:()=>({width:100,height:40}),querySelector:s=>s==='.toggle-text'?{textContent:label}:null,getAttribute:()=>String(selected[key]===value),textContent:label,click:()=>selected[key]=value});
+const video={innerText:'Video generation default',getBoundingClientRect:()=>({width:100,height:100}),querySelectorAll:()=>[button('9:16','ratio','9:16')]};
+const confirm={innerText:'Confirm before generating',getBoundingClientRect:video.getBoundingClientRect,querySelectorAll:()=>[button('Never','confirm',true)]};
+const moduleStub={exports:{}};
+vm.runInNewContext(fs.readFileSync('agent_settings.js','utf8'),{module:moduleStub,document:{querySelectorAll:()=>[confirm,video]},setTimeout,require:()=>({openSettingsPanel:async()=>{open=true;return true;},setSectionModel:async()=>({ok:true,model:'Omni'}),clickSave:async()=>{saved++;open=false;return true;},settingsPanelOpen:async()=>open})});
+const page={evaluate:async(fn,arg)=>fn(arg),waitForFunction:async(fn,opts,arg)=>{if(!fn(arg))throw Error('not selected');}};
+(async()=>{
+ await moduleStub.exports.applyAgentSettings(page,{videoModel:'Omni 1.1 Flash',aspect:'9:16',resolution:'360p'});
+ assert.equal(selected.resolution,'720p');assert.equal(selected.ratio,'9:16');assert.equal(saved,1);
+ await moduleStub.exports.applyAgentSettings(page,{videoModel:'Omni 1.1 Flash',resolution:'360p'});assert.equal(saved,2);
+ await assert.rejects(moduleStub.exports.applyAgentSettings(page,{resolution:'1080p'}),/Choose Flow/);assert.equal(saved,2);
+ const {plan}=require('../agent_upscaled_download');
+ const story={scenes:[{dialogue:[{line:'A meaningful sentence about trust.'}],veo3_prompt:'exact prompt'}]};
+ assert.equal(plan([{assetId:'wanted',index:0,prompt:'A meaningful sentence about trust.'}],story)[0].receipt.assetId,'wanted');
+ assert.throws(()=>plan([{assetId:'wrong',index:0,prompt:'An unrelated conversation.'}],story),/not found/);
+ console.log('PASS: per-clip GUI model/resolution/duration contract, prompt-only 360p instruction, settings save without a resolution control, and exact-source Upscaled mapping.');
+})().catch(e=>{console.error(e);process.exitCode=1;});

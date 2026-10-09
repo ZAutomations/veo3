@@ -151,6 +151,11 @@ if (CONTENT_MAP_FILE) {
     }
     if (!TITLE && CONTENT_MAP.title_suggestion) TITLE = String(CONTENT_MAP.title_suggestion).trim();
     if (!PRESET_ID && CONTENT_MAP.preset_suggestion) PRESET_ID = String(CONTENT_MAP.preset_suggestion).trim();
+    if (/^relationship-dialogue/.test(PRESET_ID) && hasSourceDialogue(CONTENT_MAP)) {
+        const seconds = num('--seconds', 8);
+        const duration = num('--duration', 0) || Number(CONTENT_MAP.format?.source_duration_s) || contentMapClips(CONTENT_MAP).length * seconds;
+        CONTENT_MAP = require('./source_dialogue_clips').regroup(CONTENT_MAP, Math.ceil(duration / seconds), seconds);
+    }
     DETAIL = [DETAIL, contentMapBlock(CONTENT_MAP)].filter(Boolean).join('\n\n');
 }
 // 0 means "not given". A preset may declare `default_duration` - an animal
@@ -191,7 +196,6 @@ const DEFAULT_MODELS = 'gemini-3.8-flash,gemini-3.7-flash,gemini-3.6-flash,gemin
 const MODEL_FLAG = typeof flag('--model') === 'string' ? flag('--model') : '';
 const MODELS = modelChain(MODEL_FLAG, DEFAULT_MODELS);
 const MODEL = MODELS[0];
-const BATCH = num('--scenes-per-call', 6);
 const DRY = !!flag('--dry-run', false);
 const FORCE = !!flag('--force', false);
 const OUT_DIR = typeof flag('--out') === 'string' ? flag('--out') : null;
@@ -223,6 +227,9 @@ const TRANSPORT = (() => {
     }
     return t;
 })();
+// Browser writing requests all prompts up to 20 at once. Flow generation's
+// five-clip queue is a separate workflow and does not use this limit.
+const BATCH = TRANSPORT === 'web' ? 20 : num('--scenes-per-call', 6);
 
 // ── api keys -----------------------------------------------------------------
 // Never printed in full. A key on a command line also lands in the shell history,
@@ -544,11 +551,25 @@ function webMod() {
  * the wrong SHAPE, because a JSON object that is not a content map is worse than
  * a failure - it writes a story with every field blank.
  */
-async function askWebFor(prompt, meta) {
-    const text = await webMod().askWeb(prompt);
-    const parsed = parseJson(text);
-    if (meta) meta.model = 'aistudio-web';
-    return parsed;
+async function askWebFor(prompt, meta, webOptions = {}) {
+    let lastError;
+    for (let attempt = 0; attempt < 3; attempt++) {
+        const request = attempt === 0 ? prompt : prompt + '\n\nJSON RECOVERY: Your previous response was not valid JSON. Return ONLY the complete JSON object or array requested above. No markdown, explanation or thinking text. Preserve the requested clip range and all required fields. Do not repeat video retrieval or searches.';
+        const text = await webMod().askWeb(request, webOptions);
+        const answers = path.join(HERE, 'logs', 'aistudio_answers');
+        fs.mkdirSync(answers, { recursive: true });
+        const answerFile = path.join(answers, `${Date.now()}_${process.pid}_${attempt}.txt`);
+        fs.writeFileSync(answerFile, text, 'utf8');
+        try {
+            const parsed = parseJson(text);
+            if (meta) meta.model = 'aistudio-web';
+            return parsed;
+        } catch (e) {
+            lastError = new Error(`${e.message}; raw answer saved at ${answerFile}`);
+            if (attempt < 2) console.log(`  AI Studio returned invalid JSON; requesting a corrected answer (${attempt + 1}/2).`);
+        }
+    }
+    throw lastError;
 }
 
 // One call, walked over a CHAIN of models and a ring of keys:
@@ -698,7 +719,8 @@ function contentMapBlock(cm) {
         const sourceDialogue = Array.isArray(s.source_dialogue) && s.source_dialogue.length
             ? ` SOURCE DIALOGUE: ${s.source_dialogue.map(d => `${d.speaker || 'Person'} (${d.gender || d.speaker_gender || 'unknown gender'}): "${d.line || ''}"`).join(' / ')}`
             : '';
-        return `  ${i + 1}. ${when}${places ? places + ' - ' : ''}${point}${sourceDialogue}${visual}`;
+        const narration = Array.isArray(s.source_narration) ? s.source_narration.map(d => d.line || '').join(' ') : String(s.source_narration || '');
+        return `  ${i + 1}. ${when}${places ? places + ' - ' : ''}${point}${sourceDialogue}${narration ? ' SOURCE NARRATION: ' + narration : ''}${visual}`;
     });
     // The exhaustive fact list is repeated here on purpose. A fast reference
     // video names many places; the clip plan groups them, and without the full
@@ -719,7 +741,7 @@ function contentMapBlock(cm) {
         'fact, never merge two reference clips into one scene, and never drop or reorder a',
         'fact. Match the reference point for point.',
         'Keep every place name exactly as written.',
-        ...(/^relationship-dialogue(?:-(?:real|ghibli))?$/.test(PRESET_ID) ? [
+        ...(/^relationship-dialogue(?:-(?:real|ghibli|3d))?$/.test(PRESET_ID) ? [
             'SOURCE DIALOGUE FIDELITY (highest priority): the SOURCE DIALOGUE under each',
             'reference clip is the actual conversation. Keep the same turns, speakers, order,',
             'sentence meaning, questions, answers and emotional progression. Do not invent a',
@@ -728,7 +750,11 @@ function contentMapBlock(cm) {
             'three words, using easier English with the same meaning. Preserve at least seventy',
             'percent of the source words and virtually all of its dialogue structure.',
         ] : []),
-        ...(PRESET_ID === '3d-zack-style' ? [
+        ...(PRESET_ID === 'fern-documentary' ? [
+            'DOCUMENTARY FIDELITY: preserve the source opening, presentation order and ending.',
+            'Report the actual event and its people; do not put the viewer into a hypothetical scenario.',
+            'Lightly reword the narration in easy English. No new plot, advice, metaphor or extra CTA.',
+        ] : PRESET_ID === '3d-zack-style' ? [
             'SOURCE FIDELITY: preserve the source subject, tense, cause and outcome.',
             'The hook makes the FIRST source event interesting without changing or reordering it.',
             'Finish every source event and the original ending BEFORE the separate extra CTA clip.',
@@ -912,7 +938,7 @@ function lookBlock(p, place) {
         // told that the animal behaves like an animal; nothing in LOOK or CAMERA
         // says that, and left unsaid the model writes it as a small person.
         ...(p.direction ? [`DIRECTION: ${p.direction}`] : []),
-        ...(p.source_faithful ? ['SOURCE PRIORITY: The supplied source events and ending override generic instructions below about escalation, new shocks, present tense or addressing the viewer. Make the first event the hook; retell the events in order; finish the ending; then write the separate extra CTA. Visual treatment must not contradict the source.'] : []),
+        ...(p.source_faithful ? ['SOURCE PRIORITY: The supplied source events and ending override generic instructions below about escalation, new shocks, present tense or addressing the viewer. Preserve the source opening and retell the events in order; finish the complete ending. ' + (p.extra_cta_clip ? 'Then write the one separate extra CTA.' : 'Do not append a CTA.') + ' Visual treatment must not contradict the source.'] : []),
         ...(dialogue
             ? ['SPEAKING: two people talk to each other on screen, in their own voices. There is no narrator, no voice-over, and nobody describes the scene out loud.']
             : intro
@@ -1185,7 +1211,11 @@ ${sheetField}
     const groundedDialogue = dialogue && p.grounded_dialogue === true;
     const pastedTranscript = groundedDialogue && require('./relationship_transcript').hasPastedTranscript(DETAIL);
     const sourceDialogue = groundedDialogue && (hasSourceDialogue(CONTENT_MAP) || pastedTranscript);
-    const beatRules = sourceDialogue ? `
+    const beatRules = p.single_speaker_advice ? `
+   Make each beat one useful step in the adult woman's advice. Start with a one-sentence hook.
+   Develop the issue with a concrete example and respectful practical guidance, not invented danger or dramatic escalation.
+   Finish with a related audience question and short CTA within the requested total scene count.
+   The pet is silent, and walking then resting is the visual journey, not a separate dialogue.` : sourceDialogue ? `
    WHAT A BEAT HAS TO BE - SOURCE DIALOGUE OVERRIDES ORIGINAL WRITING:
      - ${hasSourceDialogue(CONTENT_MAP) ? 'Build one beat from each matching REFERENCE CONTENT MAP clip.' : 'Group the supplied transcript turns into consecutive clips, preserving the entire conversation in order. Treat >> as turn separators, remove [music], and never invent a new plot or symbolic action.'}
      - Preserve the same dialogue turns, speaker order, questions, answers,
@@ -1218,7 +1248,7 @@ ${sheetField}
        uncertain, but it leaves the issue clearer and gives the pair a believable
        next step.
      - Describe WHAT SHIFTS IN THE CONVERSATION, never the camera. A beat that
-       is only a picture has nothing for either person to say.` : `
+       is only a picture has nothing for either person to say.` : p.preserve_source_narration ? require('./source_narration').instructions(p, CONTENT_MAP) : `
    WHAT A BEAT HAS TO BE - this is where these scripts go flat, so it is a rule
    and not a preference:
      - Every beat delivers ONE NEW surprise the viewer did not have before. Ask
@@ -1240,7 +1270,12 @@ ${sheetField}
        "is still studied". The film ends on the strongest thing the viewer can
        be told, not on the fact that nobody knows it.
      - A viewer who half-watches has to be pulled back by every single beat.`;
-    const dialogueOutline = dialogue && !groundedDialogue ? `
+    const dialogueOutline = p.single_speaker_advice ? `
+   Each beat advances the adult woman's spoken advice, not a conversation with the animal.
+   Begin with one intriguing hook sentence, then a concrete relationship lesson and practical advice.
+   She starts walking with her silent pet, then pauses or sits within the same garden to continue.
+   End with a topic-related audience question and brief comment/like/follow invitation.
+   The woman alone speaks throughout. No exchange, rebuttal or fixed seating.` : dialogue && !groundedDialogue ? `
    This film is a CONVERSATION, not a montage. Every beat is something one of the
    two says to the other. Write each beat as the turn it turns
    on - the hook that stops the viewer, a rule, the doubt that pushes back, the
@@ -1257,6 +1292,7 @@ DETAIL FROM THE CREATOR: ${DETAIL || '(none given - infer a simple, specific sto
 TOTAL LENGTH: ${DURATION} seconds across ${SCENES} clips of ${SECONDS} seconds.
 
 ${lookBlock(p, choosePlace ? '' : undefined)}
+${require('./source_narration').instructions(p, CONTENT_MAP)}
 
 TASK
 Also design "thumbnail": {"headline":"maximum five simple words","visual_concept":"one specific striking composition highlighting this story's main topic"}. Use the same character designs and visual style. Make the topic and emotional hook clear at phone size with simple composition and strong contrast. Do not invent events or misleading claims. This is thumbnail metadata, not an extra scene.
@@ -1428,7 +1464,9 @@ English. If a line is already simple, copy it exactly. Do not add dialogue.
     // so are the seats, because the whole film is those two people in that one
     // frame. A preset that simply has a chosen place still gets the place lock
     // and is left free to frame it however the beat wants.
-    const settingRule = !fixed
+    const settingRule = p.single_speaker_advice
+        ? `  "narrative_context" - Describe a simple visual beat in the established garden: the woman walks with her pet in the opening, then stops, stands or sits naturally to continue speaking. Keep her reference face, gown, tiara and chosen pet. Gentle tracking or medium close-up, no fixed seating or mandatory shot/reverse-shot.`
+        : !fixed
         ? `  "narrative_context" - 80 to 130 words describing what is ON SCREEN: the setting,
                         who is present, what they do, the light, the mood, and the
                         camera.`
@@ -1466,7 +1504,9 @@ CAMERA ANGLE - pick it by who is speaking, and NAME it in the last sentence
     // Sound-led genres get a different audio job per clip. A narrated travelogue
     // over what should be a visual film is the failure this prevents: the model
     // narrates every beat by default, because every other preset does.
-    const audioBlock = groundedDialogue && sourceDialogue
+    const audioBlock = p.single_speaker_advice
+        ? require('./fantasy_advice_preset').SPEECH
+        : groundedDialogue && sourceDialogue
         ? `
 HOW THIS SOURCE-BASED FILM SPEAKS:
   There is no narrator. Use only the SOURCE DIALOGUE supplied below. Keep every
@@ -1524,7 +1564,7 @@ AUDIO MODEL - this film is SOUND-LED, not narrated:
                         as an array of objects:
                           {"speaker": "<a cast name, spelled exactly as above>",
                            "line": "what they say, out loud"}
-                        ${groundedDialogue && sourceDialogue ? `Use exactly the source clip's turns in the same order. Keep at least\n                        seventy percent of its words; change no more than about three words per ten,\n                        only to easier English with identical meaning. Never invent or pad a line.` : groundedDialogue ? `Use two or three turns per clip and make BOTH people speak at least\n                        once. Across the clip, write ${D_WORDS_MIN}-${D_WORDS_MAX} spoken words: enough to\n                        fill six to seven seconds naturally, with no long silent tail.` : 'Two to four turns per clip.'} At least one line is required - this film
+                        ${p.single_speaker_advice ? 'One or two lines spoken only by the adult woman. The pet never speaks; no exchange. Approximately 14-18 words total per 8-second clip.' : groundedDialogue && sourceDialogue ? `Use exactly the source clip's turns in the same order. Keep at least\n                        seventy percent of its words; change no more than about three words per ten,\n                        only to easier English with identical meaning. Never invent or pad a line.` : groundedDialogue ? `Use two or three turns per clip and make BOTH people speak at least\n                        once. Across the clip, write ${D_WORDS_MIN}-${D_WORDS_MAX} spoken words: enough to\n                        fill six to seven seconds naturally, with no long silent tail.` : 'Two to four turns per clip.'} At least one line is required - this film
                         is a conversation, so a clip with nobody speaking has nothing
                         in it. Keep each line ${Math.round(D_WORDS_MAX / 2)} words or fewer;
                         across ALL the lines in one clip the total is ${D_WORDS_MAX} words
@@ -1545,7 +1585,7 @@ AUDIO MODEL - this film is SOUND-LED, not narrated:
                         breathing, an animal settling. Not a score description, and
                         never a line of narration in disguise.`
         : `  "scene_title"       - the beat's title
-  "script_line"       - the NARRATION, spoken by the narrator. ONE sentence,
+  "script_line"       - the NARRATION, spoken by the narrator. ${p.preserve_source_narration ? 'One to three short, natural sentences following the source passage,' : 'ONE sentence,'}
                         ${WORDS_MAX} words or fewer, hard limit ${WORDS_HARD}. It is read
                         verbatim as voice-over, so it must sound natural spoken
                         aloud and must fit inside ${SECONDS} seconds. ${p.source_faithful ? 'Preserve the source tense and viewpoint.' : 'Present tense.'}
@@ -1559,7 +1599,7 @@ AUDIO MODEL - this film is SOUND-LED, not narrated:
     // to encircle the entire Earth multiple times" - and then restates the same
     // fact for four clips with a bigger map each time. Measured on
     // stories/the_endless_network_inside_you, and the reason this block exists.
-    const lineCraft = dialogue ? '' : p.source_faithful ? `
+    const lineCraft = dialogue ? '' : p.preserve_source_narration ? require('./source_narration').instructions(p, CONTENT_MAP) : p.source_faithful ? `
 SOURCE-FAITHFUL NARRATION - overrides generic escalation and retention advice:
 - Understand the source before rewriting. Preserve who did what, chronology,
   objects, quantities, cause, uncertainty and the complete outcome.
@@ -1640,6 +1680,7 @@ ${skeleton}`;
 // ambiguity - and left blank when it does, because guessing "human" for the dog
 // would hand an animal a person's wardrobe rules.
 function normaliseCast(p, cast) {
+    cast = require('./fantasy_advice_identity').cast(p, cast || []);
     const types = Array.isArray(p.cast_types)
         ? p.cast_types.map(t => String(t).trim().toLowerCase()).filter(Boolean)
         : [];
@@ -1723,6 +1764,9 @@ function enforceSourceDialogueFidelity(scenes, cast, cm, p = {}) {
                 const a = dialogueTokens(d.line), b = dialogueTokens(got[j] && got[j].line);
                 if (String(got[j]?.speaker || '').toLowerCase() !== String(d.speaker).toLowerCase()) return false;
                 if (!a.length || !b.length) return false;
+                // Keep a deliberate non-explicit boundary paraphrase instead of
+                // restoring the source's intimate wording after authoring.
+                if (p.adult_relationship_context && require('./adult_relationship_context').safeSourceEdit(d.line, got[j].line)) return true;
                 const kept = lcsLength(a, b);
                 return kept >= Math.ceil(a.length * 0.70)
                     && b.length >= Math.ceil(a.length * 0.70)
@@ -1740,6 +1784,7 @@ function enforceSourceDialogueFidelity(scenes, cast, cm, p = {}) {
 }
 
 function buildStory(p, cast, meta, scenes) {
+    ({ meta, scenes } = require('./fantasy_advice_identity').inputs(p, cast, meta, scenes));
     ({ meta, scenes } = require('./couple_names').renameStoryInputs(p, cast, meta, scenes));
     // Apply the same speaker contract to API output and imported browser answers.
     if (p.grounded_dialogue && !hasSourceDialogue(CONTENT_MAP)) {
@@ -1815,6 +1860,7 @@ function buildStory(p, cast, meta, scenes) {
         niche: p.label,
         style: p.style,
         ...(p.id === 'fern-documentary' ? { visual_shot_format: 'documentary-internal-cuts' } : {}),
+        ...(p.id === '3d-zack-style' ? { visual_shot_format: 'zack-internal-cuts', visual_direction: require('./zack_shot_contract').DIRECTION } : {}),
         // The one place the whole film happens in, so the agent prompt builder
         // can @-mention its reference image and the sheet writer can print its
         // prompt. `name` is the asset name the image must be given in Flow -
@@ -1828,6 +1874,7 @@ function buildStory(p, cast, meta, scenes) {
         // asked for one, which leaves those files byte-identical.
         ...(metaBlocking ? { blocking: metaBlocking } : {}),
         aspect_ratio: ASPECT,
+        ...(p.id === 'relationship-dialogue-3d' ? { camera_direction: p.camera, performance_direction: p.performance_direction, gaze_direction: p.gaze_direction } : {}),
         ...(p.dialogue_prompt_format ? {dialogue_prompt_format:p.dialogue_prompt_format} : {}),
         scene_seconds: SECONDS,
         // Explicit, so the prompt builder never has to guess from prose whether
@@ -1908,6 +1955,7 @@ function validate(story, cast, p = {}) {
             bad.push(`"${c.name}" is typed "${t}", which ${p.label || 'this preset'} does not allow (${types.join(', ')})`);
         }
     });
+    if (p.single_speaker_advice && (cast.filter(c=>c.type==='human').length!==1 || cast.filter(c=>c.type==='animal').length!==1)) bad.push('Fantasy advice requires one adult human woman and one silent animal companion.');
     if (!story.description) bad.push('description is empty');
     if (!story.moral) bad.push('moral is empty');
     if (!story.scenes.length) bad.push('no scenes');
@@ -1942,6 +1990,7 @@ function validate(story, cast, p = {}) {
                     bad.push(`clip ${n}: "${who}" speaks but is not in the cast (${names.join(', ')})`);
                 }
                 if (!text) bad.push(`clip ${n}: dialogue line ${j + 1} has no words in it`);
+                if (p.single_speaker_advice && cast.find(c => c.name.toLowerCase() === who.toLowerCase())?.type !== 'human') bad.push(`clip ${n}: only the adult woman may speak; the animal companion is silent`);
                 words += text ? text.split(/\s+/).length : 0;
             });
             if (p.grounded_dialogue === true && !sourceDialogueStory && lines.length && lines.length < 2) {
@@ -1981,6 +2030,9 @@ function validate(story, cast, p = {}) {
         } else {
             const w = s.script_line.trim().split(/\s+/).length;
             if (w > WORDS_HARD) bad.push(`clip ${n}: narration is ${w} words, over the ${WORDS_HARD}-word limit for ${SECONDS}s`);
+            if (p.preserve_source_narration && !(p.extra_cta_clip && n === story.scenes.length) && require('./source_narration').viewerScenario(s.script_line)) {
+                bad.push(`clip ${n}: documentary narration addresses the viewer as you/your; report the source event and its people instead`);
+            }
         }
         if (!String(s.narrative_context || '').trim()) bad.push(`clip ${n}: no narrative_context`);
         // A story with one place has to have that place actually appear in every
@@ -2011,6 +2063,9 @@ function validate(story, cast, p = {}) {
 
 // ── writers ------------------------------------------------------------------
 function writePackage(dir, p, story, cast) {
+    const minimal = require('./relationship_minimal_package');
+    if (minimal.applies(p, story)) minimal.apply(story);
+    if (p.id === 'fantasy-princess-relationship-advice') require('./fantasy_advice_camera').apply(story);
     for (const scene of story.scenes || []) {
         const directed = require('./dialogue_shot_plan').shotPlan(story, scene);
         if (directed) { scene.veo3_prompt = directed.prompt; scene.narrative_context = directed.visual; }
@@ -2307,6 +2362,9 @@ function writePackage(dir, p, story, cast) {
     ].join('\n');
     fs.writeFileSync(path.join(dir, 'style_bible.md'), bible, 'utf8');
 
+    require('./single_scene_prompts').writeSingleScenePrompts(dir, story);
+    minimal.write(dir, story);
+    if (p.id === 'fantasy-princess-relationship-advice') require('./fantasy_advice_camera').writeExtend(dir, story);
     return storyPath;
 }
 
@@ -2556,7 +2614,7 @@ if (require.main === module) (async () => {
     // these characters exist is a choice the channel made once, so it is not
     // re-rolled per story - and when it applies, the model is never asked to
     // design a cast at all.
-    const savedCouple = /^relationship-dialogue(?:-(?:real|ghibli))?$/.test(p.id)
+    const savedCouple = /^relationship-dialogue(?:-(?:real|ghibli|3d))?$/.test(p.id)
         ? require('./saved_couple').loadSavedCouple('writer') : null;
     const house = savedCouple || loadHouseCast(CAST_FILE);
     const houseCast = (!NO_HOUSE_CAST && house.length && (CAST_FILE || houseCastApplies(p)))
@@ -2661,7 +2719,12 @@ if (require.main === module) (async () => {
     try {
         // 1. cast + outline
         process.stdout.write(manual ? '' : '\n  [1/2] writing the cast and outline ... ');
-        const meta = manual ? manualMeta : await ask(ring, MODELS, castPrompt(p, houseCast), 8192);
+        const writing = require('./writing_progress').writingCall;
+        const outlinePrompt = castPrompt(p, houseCast);
+        const meta = manual ? manualMeta : await writing(dir, outlinePrompt,
+            () => ask(ring, MODELS, outlinePrompt, 8192),
+            answer => !!answer && Array.isArray(answer.outline) && answer.outline.length === SCENES,
+            message => console.log(`\n  ${message}`));
         // The standing cast is not the model's to design: those faces are
         // attached after this call and are never re-described. Whatever it DID
         // design is additive - the person a standing character is talking to, in
@@ -2784,16 +2847,20 @@ if (require.main === module) (async () => {
                 const chain = tried.length ? MODELS.filter(m => !tried.includes(m)) : MODELS;
                 if (!chain.length) break;
                 const said = {};
-                r = await ask(ring, chain, scenesPrompt(p, cast, outline, from, to, scenes, place, blocking), 16384, said);
+                const clipPrompt = scenesPrompt(p, cast, outline, from, to, scenes, place, blocking);
+                r = await writing(dir, clipPrompt,
+                    () => ask(ring, chain, clipPrompt, 16384, said),
+                    answer => scenesFrom(answer).length === to - from,
+                    message => console.log(`\n  ${message}`));
                 got = scenesFrom(r);
-                if (got.length) break;
+                if (got.length === to - from) break;
                 tried.push(said.model || '(unknown model)');
                 if (go < 2) {
                     console.log(`\n  ${tried[tried.length - 1]} answered with ${shapeOf(r)} ` +
                                 `instead of {"scenes":[...]} - asking another model`);
                 }
             }
-            if (!got.length) {
+            if (got.length !== to - from) {
                 throw new Error(`clip batch ${from + 1}-${to} came back empty: ` +
                     `${tried.join(', ')} answered with ${shapeOf(r)} instead of {"scenes":[...]}`);
             }
@@ -2801,6 +2868,26 @@ if (require.main === module) (async () => {
             console.log(`ok (${got.length})`);
         }
 
+        if (!manual && p.preserve_source_narration) {
+            const wrong = scenes.map((s, i) => ({ s, i })).filter(x => !(p.extra_cta_clip && x.i === scenes.length - 1) && require('./source_narration').viewerScenario(x.s.script_line));
+            for (let offset = 0; offset < wrong.length; offset += BATCH) {
+                const group = wrong.slice(offset, offset + BATCH);
+                console.log(`  documentary viewpoint repair: clip(s) ${group.map(x => x.i + 1).join(', ')}`);
+                const prompt = `${require('./source_narration').instructions(p, CONTENT_MAP)}
+CORRECT NARRATION VIEWPOINT ONLY for these existing clips:
+${JSON.stringify(group.map(x => ({ clip: x.i + 1, script_line: x.s.script_line })))}
+Replace viewer scenarios with a factual account of the actual people and events.
+Keep the same facts, meaning and sequence. Do not change or add events, visuals
+or clips. Each line must fit ${SECONDS}s, maximum ${wordBudget(p).hard} words.
+Return ONLY {"scenes":[{"script_line":"corrected factual narration"},...]} in the supplied order.`;
+                const answer = await writing(dir, prompt, () => ask(ring, MODELS, prompt, 8192, {}),
+                    value => scenesFrom(value).length === group.length,
+                    message => console.log(`\n  ${message}`));
+                const repaired = scenesFrom(answer);
+                if (repaired.length !== group.length) throw Error('Documentary narration repair did not return every requested line.');
+                group.forEach((x, j) => { scenes[x.i] = { ...x.s, script_line: String(repaired[j].script_line || '').trim() }; });
+            }
+        }
         if (p.grounded_dialogue === true && hasSourceDialogue(CONTENT_MAP)) {
             const fidelity = enforceSourceDialogueFidelity(scenes, cast, CONTENT_MAP, p);
             scenes.splice(0, scenes.length, ...fidelity.scenes);
