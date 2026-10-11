@@ -3,7 +3,9 @@ const {execFileSync}=require('child_process');
 const {UpscaledDownloader}=require('../single_clip_omni_upscaled');
 const folder=fs.mkdtempSync(path.join(os.tmpdir(),'omni-browser-download-test-'));
 const fixture=path.join(folder,'fixture.mp4');
+const fixture1080=path.join(folder,'fixture1080.mp4');
 execFileSync('ffmpeg',['-v','error','-y','-f','lavfi','-i','color=c=black:s=1280x720:r=10','-t','0.2','-c:v','libx264','-preset','ultrafast',fixture],{windowsHide:true,timeout:30000});
+execFileSync('ffmpeg',['-v','error','-y','-f','lavfi','-i','color=c=black:s=1920x1080:r=10','-t','0.2','-c:v','libx264','-preset','ultrafast',fixture1080],{windowsHide:true,timeout:30000});
 let mode='',newPages=0,backgroundNavigations=0,menuClicks=0,downloads=0,downloadPath='',generationChecks=0,nativeOptions=false;
 const callbacks={};
 const cdp={on:(event,fn)=>callbacks[event]=fn,send:async(method,args)=>{if(args?.downloadPath)downloadPath=args.downloadPath;},detach:async()=>{}};
@@ -16,8 +18,8 @@ const page={bringToFront:async()=>{},goto:async()=>backgroundNavigations++,waitF
   if(fn.name==='openClipMenu'){mode='download';menuClicks++;return {ok:true,direct:false};}
   if(fn.name==='clickMenuText'){
    if(args==='Download')mode='sizes';
-   else if(args==='720p Upscaled'||args==='720p Original'){
-    const guid=`guid-${++downloads}`;fs.copyFileSync(fixture,path.join(downloadPath,guid));
+   else if(args==='720p Upscaled'||args==='720p Original'||args==='1080p Upscaled'){
+    const guid=`guid-${++downloads}`;fs.copyFileSync(args==='1080p Upscaled'?fixture1080:fixture,path.join(downloadPath,guid));
     callbacks['Browser.downloadWillBegin']({guid});callbacks['Browser.downloadProgress']({guid,state:'completed'});
    }
    return true;
@@ -53,5 +55,11 @@ const engine={projectUrl:'https://flow.google.com/project/test-pipeline',page:{b
  await native.download({number:1,prompt:'Prompt 1'},{assetId:'asset-1',native720:true});assert.equal(downloads,4);
  await assert.rejects(native.download({number:2,prompt:'Prompt 2'},{native720:false}),/Upscaled 720p/);
  await native.close();
+ const upgraded=new UpscaledDownloader(engine,{folder:path.join(folder,'native'),total:1,storyHash:'native-source',upscaleFromSource:true,ledgerPrefix:'agent_upscaled'});
+ const high=await upgraded.download({number:1,prompt:'Prompt 1'},{assetId:'asset-1',native720:true});
+ assert.equal(high.route,'upscaled-1080p');assert.equal(high.width,1920);assert.equal(high.height,1080);assert.equal(downloads,5);
+ await upgraded.download({number:1,prompt:'Prompt 1'},{assetId:'asset-1',native720:true});assert.equal(downloads,5,'verified 1080p must be skipped');
+ assert(fs.existsSync(path.join(folder,'native','clips','_replaced')),'prior 720p file preserved during upgrade');
+ await upgraded.close();
  console.log('PASS: scoped Upscaled menu clicks, CDP completion, real saved 720p files, skip on resume, scene-order manifest, no partial overwrite, one background tab.');
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>fs.rmSync(folder,{recursive:true,force:true}));

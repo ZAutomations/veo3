@@ -102,8 +102,8 @@ async function run(request){
    if(failed)await retryFailed(failed);
   };
   const wantDownloads=!!((request.download||request.join||request.downloadOnly)&&!request.inspectOnly);
-  if(wantDownloads)downloader=new UpscaledDownloader(engine,{folder,total:story.scenes.length,storyHash:crypto.createHash('sha256').update(JSON.stringify(allJobs.map(j=>j.prompt))).digest('hex'),log,checkGeneration});
-  if(request.downloadOnly){await downloader.group(allJobs,state.receipts);log('All story Upscaled 720p downloads finished.');return;}
+  if(wantDownloads)downloader=new UpscaledDownloader(engine,{folder,total:story.scenes.length,targetResolution:request.resolution==='720p'?1080:720,storyHash:crypto.createHash('sha256').update(JSON.stringify(allJobs.map(j=>j.prompt))).digest('hex'),log,checkGeneration});
+  if(request.downloadOnly){await downloader.group(allJobs,state.receipts);log('All story Upscaled downloads finished.');return;}
   const waitAll=async receipts=>{
    const batch=receipts.map(r=>allJobs.find(j=>j.number===(r.scene||r))).filter(Boolean);
    activeJobs=batch;
@@ -235,7 +235,7 @@ async function run(request){
    whileGenerating:async(prior,current)=>{
     activeJobs=current;await checkGeneration();
     const savedPrevious=[...new Map([...previous,...prior].map(j=>[j.number,j])).values()];
-    if(downloader&&savedPrevious.length){log('Current group is generating; downloading the preceding completed group as Upscaled 720p.');await downloader.group(savedPrevious,state.receipts);}
+    if(downloader&&savedPrevious.length){log('Current group is generating; downloading the preceding completed group as Upscaled.');await downloader.group(savedPrevious,state.receipts);}
     previous=[];
    },
    waitForCompletion:waitAll,
@@ -248,13 +248,13 @@ async function run(request){
    afterAll:async final=>{activeJobs=[];if(downloader)await downloader.group(final,state.receipts);}
   });
   else if(downloader){activeJobs=[];await downloader.group(previous,state.receipts);}
-  log('All selected Omni clips completed'+(downloader?' and downloaded as verified Upscaled 720p.':'.'));
+  log('All selected Omni clips completed'+(downloader?' and downloaded as verified Upscaled.':'.'));
   if(request.join){
    if(!downloader.ledger.clips.length||!downloader.ledger.clips.every(e=>fs.existsSync(path.join(folder,'clips',e.file))))throw Error('Upscaled downloads are incomplete; join stopped.');
    if(downloader.ledger.clips.length!==story.scenes.length){log('Partial story downloaded. Joining waits for all story scenes.');return;}
    const manifestPath=path.join(folder,'clips','manifest.json');
    const manifest=fs.existsSync(manifestPath)?JSON.parse(fs.readFileSync(manifestPath,'utf8')):null;
-   if(!manifest?.complete||manifest.projectUrl!==engine.projectUrl||manifest.route!=='Omni Upscaled 720p'
+   if(!manifest?.complete||manifest.projectUrl!==engine.projectUrl||manifest.route!==`Omni Upscaled ${request.resolution==='720p'?1080:720}p`
      ||downloader.ledger.clips.some(c=>crypto.createHash('sha256').update(fs.readFileSync(path.join(folder,'clips',c.file))).digest('hex')!==c.sha256)){
     throw Error('Verified Omni Upscaled manifest is incomplete or stale; joining stopped.');
    }

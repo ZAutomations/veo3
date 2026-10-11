@@ -38,8 +38,14 @@ async function scanProjectMedia(page, options = {}) {
     };
     const scroll = async top => page.evaluate(scrollGrid, top);
     merge(first);
-    let exhaustive = !first.scrollable;
-    if (first.scrollable) {
+    // Offscreen mounted rows still have document positions. If they cover the
+    // whole list, inventory is already complete and scrolling adds nothing.
+    const positions=first.tiles.filter(t=>t.h>0).sort((a,b)=>a.y-b.y);
+    const covered=positions.length>0&&positions[0].y<=160
+        &&positions.at(-1).y+positions.at(-1).h>=first.height-160
+        &&positions.every((t,i)=>!i||t.y-(positions[i-1].y+positions[i-1].h)<=160);
+    let exhaustive = !first.scrollable || covered;
+    if (!exhaustive) {
         try {
             await scroll(0);
             await wheelGrid(page, -100000);
@@ -55,7 +61,7 @@ async function scanProjectMedia(page, options = {}) {
                 const bottom = Math.max(0, frame.height - frame.client);
                 const target = Math.min(bottom, frame.top + Math.max(100, frame.client * 0.75));
                 await wheelGrid(page, Math.max(100, Math.floor(frame.client * 0.75)));
-                for (let poll = 0; poll < (target >= bottom - 2 ? 12 : 1); poll++) {
+                for (let poll = 0; poll < (target >= bottom - 2 ? 2 : 1); poll++) {
                     await wait(750);
                     merge(await page.evaluate(projectFrame));
                     if (records.length > before) break;

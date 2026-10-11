@@ -73,3 +73,6 @@ script_last_job.json
 story_writer_last_job.json
 story_writer_settings.json
 Setup/setup.log
+
+# New desktop interface personal preferences
+desktop_settings.json

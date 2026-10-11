@@ -5,7 +5,7 @@ function categoryState(category){
  if(labels.length!==1)return {found:false,why:labels.length?'multiple visible category rails':'category not visible'};
  const label=labels[0],item=label.closest('mat-list-item,button,[role="tab"],[role="option"],[role="listitem"],a')||label.parentElement;
  let selected=false,signals=false;
- for(let e=label,n=0;e&&n<4;e=e.parentElement,n++){
+ for(let e=label,n=0;e&&n<10;e=e.parentElement,n++){
   for(const attr of ['aria-selected','aria-current','aria-pressed','aria-checked']){
    if(e.hasAttribute(attr)){signals=true;const v=e.getAttribute(attr);if(v==='true'||v==='page')selected=true;}
   }
@@ -29,12 +29,17 @@ function categoryStateSelected(category){
  const labels=[...document.querySelectorAll('.side-nav-list-item-title')].filter(e=>visible(e)&&(e.textContent||'').trim()===category);
  if(labels.length!==1)return false;
  let signals=false;
- for(let e=labels[0],n=0;e&&n<4;e=e.parentElement,n++){
+ for(let e=labels[0],n=0;e&&n<10;e=e.parentElement,n++){
   for(const a of ['aria-selected','aria-current','aria-pressed','aria-checked'])if(e.hasAttribute(a)){
    signals=true;const v=e.getAttribute(a);if(v==='true'||v==='page')return true;
   }
   if(/(?:^|[\s_-])(?:active|selected|activated)(?:$|[\s_-])/i.test(String(e.className||'')))return true;
  }
+ // The category rail can carry aria-selected=false on wrapper elements even
+ // after filtering succeeds. Verify the actual asset list inside this picker.
+ const picker=labels[0].closest('.cdk-overlay-pane');
+ const assets=picker?.querySelectorAll?[...picker.querySelectorAll('button.asset-item,[class*="asset-card"]')].filter(visible):[];
+ if(category==='Images'&&assets.length&&assets.every(e=>/\bImage\s*$/i.test(String(e.innerText||e.textContent||'').trim())))return true;
  let scope=labels[0].closest('mat-list-item,button,[role="tab"],[role="option"],[role="listitem"],a')||labels[0].parentElement;
  while(scope&&!scope.querySelector('button.asset-item,[role="option"],[class*="asset-card"]'))scope=scope.parentElement;
  const rows=scope?[...scope.querySelectorAll('button.asset-item,[role="option"],[class*="asset-card"]')].filter(visible):[];

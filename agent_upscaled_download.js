@@ -17,7 +17,7 @@ async function download(browser,page,{storyFile,outDir,project,tiles,log=()=>{}}
  const story=JSON.parse(fs.readFileSync(storyFile,'utf8'));
  const entries=plan(tiles,story);
  const jobs=entries.map(e=>e.job),receipts=Object.fromEntries(entries.map(e=>[e.job.number,e.receipt]));
- const d=new UpscaledDownloader({browser,page,projectUrl:project},{folder:path.dirname(path.resolve(storyFile)),outDir,total:jobs.length,ledgerPrefix:'agent_upscaled',allowNative720:true,storyHash:crypto.createHash('sha256').update(JSON.stringify(jobs.map(j=>j.prompt))).digest('hex'),log});
- try{await d.group(jobs,receipts);log('Agent clips saved as verified Upscaled 720p in story order.');}finally{await d.close();}
+ const d=new UpscaledDownloader({browser,page,projectUrl:project},{folder:path.dirname(path.resolve(storyFile)),outDir,total:jobs.length,ledgerPrefix:'agent_upscaled',upscaleFromSource:true,storyHash:crypto.createHash('sha256').update(JSON.stringify(jobs.map(j=>j.prompt))).digest('hex'),log});
+ try{await d.group(jobs,receipts);log('Agent clips saved in story order: 360p sources upscaled to 720p; 720p sources upscaled to 1080p.');}finally{await d.close();}
 }
 module.exports={plan,download};

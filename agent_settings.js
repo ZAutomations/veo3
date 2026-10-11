@@ -1,5 +1,29 @@
 const GR = require('./generate_refs');
 
+// Angular may retain hidden copies of the settings drawer. Only interact with
+// the visible, enabled Save button; a click on a hidden copy does nothing.
+function agentDrawerState() {
+    const visible = el => {
+        const r = el.getBoundingClientRect(), s = getComputedStyle(el);
+        return r.width > 0 && r.height > 0 && s.display !== 'none'
+            && s.visibility !== 'hidden' && s.visibility !== 'collapse';
+    };
+    const panels = [...document.querySelectorAll('.settings-content, .settings-section')].filter(visible);
+    const saves = [...document.querySelectorAll('button')].filter(b => {
+        if (!visible(b) || b.disabled || b.getAttribute('aria-disabled') === 'true') return false;
+        return b.classList.contains('settings-save-button')
+            || /^save$/i.test((b.querySelector('.mdc-button__label')?.textContent || b.textContent || '').trim());
+    });
+    const button = saves.find(b => b.closest('.settings-content')) || saves[0];
+    if (!panels.length) return { open: false };
+    if (!button) return { open: true, save: null };
+    button.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    const r = button.getBoundingClientRect();
+    const x = r.x + r.width / 2, y = r.y + r.height / 2;
+    const hit = document.elementFromPoint(x, y);
+    return { open: true, save: { x, y, clickable: !!hit && (hit === button || button.contains(hit)) } };
+}
+
 // Runs in the page. Scope ratios to VIDEO so the reference-sheet ratio stays put.
 function settingChoice({ kind, ratio, click }) {
     const visible = el => !!(el && el.getBoundingClientRect().width && el.getBoundingClientRect().height);
@@ -42,14 +66,16 @@ async function applyAgentSettings(page, { videoModel = '', aspect = 'Flow', reso
             throw Error(`Could not verify ${kind==='confirm'?'confirmation Never':'video ratio '+ratio}. Generation stopped.`);
         }
     }
-    if (!await GR.clickSave(page)) throw Error('Agent settings Save button was not found. Generation stopped.');
+    const drawer = await page.evaluate(agentDrawerState);
+    if (!drawer.save?.clickable) throw Error('Visible Agent settings Save button is unavailable or covered. Generation stopped.');
+    await page.mouse.click(drawer.save.x, drawer.save.y);
     // Wait for Save to close the drawer; do not use Escape to discard changes.
     const deadline = Date.now() + 10000;
-    while (await GR.settingsPanelOpen(page)) {
+    while ((await page.evaluate(agentDrawerState)).open) {
         if (Date.now() > deadline) throw Error('Agent settings did not close after Save. Generation stopped.');
         await new Promise(resolve => setTimeout(resolve, 250));
     }
     log(`Agent settings saved: confirmation Never; video ratio ${ratio}; resolution instruction ${resolution} (prompt only).`);
 }
 
-module.exports = { applyAgentSettings, settingChoice };
+module.exports = { applyAgentSettings, settingChoice, agentDrawerState };

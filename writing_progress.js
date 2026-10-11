@@ -16,7 +16,22 @@ async function writingCall(dir, prompt, request, accept, report = () => {}) {
             }
         } catch { /* Corrupt/incompatible progress is not a usable answer. */ }
     }
-    const answer = await request();
+    // Preserve the actual request for diagnosing an interrupted/blocked call.
+    // Failed calls are never cached as answers and are never retried here.
+    fs.mkdirSync(folder, { recursive: true });
+    const requestFile = path.join(folder, key + '.request.txt');
+    fs.writeFileSync(requestFile, prompt, 'utf8');
+    let answer;
+    try {
+        answer = await request();
+    } catch (error) {
+        fs.writeFileSync(path.join(folder, key + '.failure.json'), JSON.stringify({
+            promptHash: key, failedAt: new Date().toISOString(), requestFile,
+            message: error.message, blockReason: error.blockReason || null,
+        }, null, 2) + '\n');
+        report(`writing request failed; diagnostics saved in ${folder}`);
+        throw error;
+    }
     if (accept(answer)) {
         fs.mkdirSync(folder, { recursive: true });
         const temp = file + '.' + process.pid + '.tmp';

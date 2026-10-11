@@ -94,6 +94,7 @@ function contains(node, rect) {
 //   'no-match'      nothing matched at all
 function chooseMentionTile(candidates, name, {requiredKind=null} = {}) {
     const re = new RegExp(escapeRe(name), 'i');
+    const kindOf = c => c.kind || tileKind(c.text || c.aria);
 
     const matched = (candidates || []).filter(c => {
         const t = normText(c.text || c.aria);
@@ -105,7 +106,7 @@ function chooseMentionTile(candidates, name, {requiredKind=null} = {}) {
     if (!matched.length) return { tile: null, inner: null, kind: null, reason: 'no-match' };
 
     const typed = matched.filter(c => {
-        const kind=tileKind(c.text||c.aria);
+        const kind=kindOf(c);
         if(!requiredKind)return !!kind;
         if(kind!==requiredKind)return false;
         const base=normText(c.text||c.aria).replace(/\s+(image|character|avatar|video|voice)$/i,'').replace(/\.(jpg|jpeg|png|webp)$/i,'').trim();
@@ -120,8 +121,8 @@ function chooseMentionTile(candidates, name, {requiredKind=null} = {}) {
     }
 
     typed.sort((a, b) => {
-        const ka = KIND_RANK[tileKind(a.text || a.aria)];
-        const kb = KIND_RANK[tileKind(b.text || b.aria)];
+        const ka = KIND_RANK[kindOf(a)];
+        const kb = KIND_RANK[kindOf(b)];
         if (ka !== kb) return ka - kb;          // an Image beats a Character
         return b.depth - a.depth;               // same kind: tightest node wins
     });
@@ -134,7 +135,7 @@ function chooseMentionTile(candidates, name, {requiredKind=null} = {}) {
         .filter(c => c !== tile && contains(c, tile.rect))
         .sort((a, b) => b.depth - a.depth)[0] || tile;
 
-    return { tile, inner, kind: tileKind(tile.text || tile.aria), reason: 'ok' };
+    return { tile, inner, kind: kindOf(tile), reason: 'ok' };
 }
 
 // A one-line summary for the run log, so a bad attachment is obvious in the
@@ -175,7 +176,7 @@ function distinctMentions(names) {
     const seen = new Set();
     const out = [];
     for (const raw of (names || [])) {
-        const name = normText(raw);
+        const name = normText(raw).replace(/[.,:;!?]+$/, '');
         if (!name) continue;
         const key = name.toLowerCase();
         if (seen.has(key)) continue;

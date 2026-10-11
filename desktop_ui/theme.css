@@ -1,0 +1,71 @@
+/* Palette matched to OMNITUBE. Studio's own layout and components are retained. */
+:root,[data-theme="crimson"]{
+ --bg:#09090b;--bg2:#121215;--accent:#ff2d40;--accent2:#ff6a3d;--on-accent:#fff;
+ --text:#f6f3f3;--muted:rgba(246,243,243,.56);--faint:rgba(246,243,243,.34);
+ --glass:rgba(255,255,255,.045);--glass2:rgba(255,255,255,.08);--line:rgba(255,255,255,.085);--line2:rgba(255,255,255,.16);
+ --field:rgba(0,0,0,.34);--hot:rgba(255,45,64,.14);--glow:#4d0810;--ok:#3ee08f;--bad:#ff4d5e;
+ color-scheme:dark;
+}
+[data-theme="ember"]{
+ --bg:#0b0806;--bg2:#15100c;--accent:#ff6a2b;--accent2:#ffae3c;--on-accent:#1b0a02;
+ --text:#fff5ec;--muted:rgba(255,245,236,.58);--faint:rgba(255,245,236,.34);
+ --glass:rgba(255,236,220,.045);--glass2:rgba(255,236,220,.08);--line:rgba(255,225,200,.09);--line2:rgba(255,225,200,.17);
+ --field:rgba(0,0,0,.34);--hot:rgba(255,106,43,.14);--glow:#6b1a07;
+}
+[data-theme="matte"]{
+ --bg:#e6e7eb;--bg2:#f3f4f6;--accent:#e3152b;--accent2:#ff4b3a;--on-accent:#fff;
+ --text:#121216;--muted:rgba(18,18,22,.58);--faint:rgba(18,18,22,.36);
+ --glass:rgba(255,255,255,.55);--glass2:rgba(255,255,255,.78);--line:rgba(18,18,30,.08);--line2:rgba(18,18,30,.16);
+ --field:rgba(255,255,255,.75);--hot:rgba(227,21,43,.14);--glow:#c9ccd3;
+ color-scheme:light;
+}
+body{background:radial-gradient(ellipse at 90% 0%,var(--hot),transparent 40%),var(--bg);color:var(--text)}
+::selection{background:var(--accent);color:var(--on-accent)}
+::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--line2);border-radius:8px}
+.sidebar{background:linear-gradient(165deg,var(--glass2),transparent 70%),var(--bg2);border-right:1px solid var(--line);color:var(--muted)}
+.brand,.breadcrumb b,h1,h2,h3,.workflow-card,.story-table td:first-child{color:var(--text)}
+.brand small,.sidebar-version{color:var(--faint)}
+.brand-mark{background:linear-gradient(140deg,var(--accent),var(--accent2));color:var(--on-accent);box-shadow:0 6px 25px var(--hot)}
+.nav-item{color:var(--muted)}.nav-item:hover{background:var(--glass2);color:var(--text)}
+.nav-item.active{background:var(--hot);color:var(--text);box-shadow:inset 3px 0 var(--accent)}
+.nav-item .nav-count{background:var(--accent);color:var(--on-accent)}
+.local-card{border-color:var(--line);color:var(--text)}.local-card small,.legacy{color:var(--muted)}
+.status-dot{background:var(--ok)}
+header{background:var(--bg2);border-color:var(--line)}
+.breadcrumb,.breadcrumb span,.page-heading p,p,.caption,.field small,.footer-note,.settings-note,.stat small,.workflow-card p,.panel-title small,.field label,.field-label,.toggle-row span,.toggle-row small,.activity-heading #activity-status,.story-table td,.story-table td small,.empty{color:var(--muted)}
+.avatar,.tag,.step,.stat-icon{background:var(--hot);color:var(--accent)}
+.pill{background:var(--glass);border-color:var(--line);color:var(--ok)}.pill.busy{background:var(--hot);color:var(--accent);border-color:var(--line2)}
+.eyebrow,.section-head button{color:var(--accent)}
+.icon-button{color:var(--muted)}.icon-button:hover{background:var(--glass2);color:var(--text)}
+.hero{background:radial-gradient(ellipse at 80% 10%,var(--hot),transparent 65%),linear-gradient(145deg,var(--glass2),var(--glass));border-color:var(--line);box-shadow:inset 0 1px 0 var(--line)}
+.hero p{color:var(--muted)}.spark,.workflow-card .go{color:var(--accent)}
+.art-card{background:var(--bg2);border-color:var(--line2);box-shadow:0 10px 30px #0003}
+.art-card.front{background:var(--bg2);border-color:var(--line2)}
+.art-screen,.front .art-screen{background:linear-gradient(145deg,var(--accent),var(--accent2));color:var(--on-accent)}
+.art-line,.front .art-line{background:var(--line2)}
+.stat,.panel,.workflow-card,.table-wrap{background:linear-gradient(150deg,var(--glass2),var(--glass));border-color:var(--line);box-shadow:inset 0 1px 0 var(--line)}
+.workflow-card:hover{border-color:var(--accent)}
+.button{background:var(--glass);color:var(--text);border-color:var(--line2)}
+.button:hover{background:var(--glass2);border-color:var(--accent)}
+.button.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent;color:var(--on-accent);box-shadow:0 6px 20px var(--hot)}
+.button.primary:hover{background:linear-gradient(135deg,var(--accent),var(--accent2));filter:brightness(1.08)}
+.button.dark{background:var(--glass2);border-color:var(--line2);color:var(--text)}
+.button.danger{background:color-mix(in srgb,var(--bad) 8%,transparent);border-color:color-mix(in srgb,var(--bad) 30%,transparent);color:var(--bad)}
+input,select,textarea{background:var(--field);color:var(--text);border-color:var(--line)}
+select option{background:var(--bg2);color:var(--text)}
+input:focus,select:focus,textarea:focus{background:var(--field);border-color:var(--accent);box-shadow:0 0 0 3px var(--hot)}
+input::placeholder,textarea::placeholder{color:var(--faint)}
+.segmented{background:var(--field)}.segmented button{color:var(--muted)}.segmented button.selected{background:var(--glass2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line)}
+.toggle-row{border-color:var(--line)}.toggle-row input{background:var(--line2)}.toggle-row input:checked{background:var(--accent)}
+.hint{background:var(--hot);border-color:var(--line2);color:var(--muted)}.hint b{color:var(--text)}
+.manual-section,.section-divider{border-color:var(--line)}.section-divider{background:var(--line)}details summary{color:var(--muted)}
+.story-table th{color:var(--faint);border-color:var(--line)}.story-table td{border-color:var(--line)}
+.prompt-row{background:var(--glass);border-color:var(--line)}.prompt-number{background:var(--hot);color:var(--accent)}
+.activity{background:var(--bg2);border-color:var(--line);box-shadow:0 -4px 20px #0001}
+.activity.busy .live-indicator{background:var(--accent)}.activity-tools select{background:var(--field)}
+#log{background:var(--field);color:var(--text)}
+#toast{background:var(--bg2);color:var(--text);border:1px solid var(--line2)}#toast.error{border-color:var(--bad);color:var(--bad)}
+dialog{background:var(--bg2);color:var(--text);border-color:var(--line2);box-shadow:0 20px 70px #0006}
+dialog::backdrop{background:#0008}.dialog-icon{background:var(--hot);color:var(--accent)}#prompt-text{background:var(--field);color:var(--text)}
+.theme-control{width:108px;padding:7px 10px;font-size:11px;background:var(--glass);color:var(--text);border:1px solid var(--line2)}
+.status-success{color:var(--ok)}

@@ -1360,7 +1360,7 @@ class Veo3LauncherGUI:
         ttk.Combobox(controls, textvariable=self.omni_ing_aspect_var, values=["Flow", "16:9", "9:16", "1:1"],
                      state="readonly").grid(row=1, column=1, sticky="ew", padx=10, pady=8)
         ttk.Checkbutton(controls, text="Create a new project", variable=self.omni_ing_new_project_var).grid(row=2, column=0, columnspan=2, sticky="w", padx=10, pady=6)
-        ttk.Checkbutton(controls, text="Download Upscaled 720p between batches", variable=self.omni_ing_download_var).grid(row=3, column=0, sticky="w", padx=10, pady=6)
+        ttk.Checkbutton(controls, text="Download Upscaled between batches", variable=self.omni_ing_download_var).grid(row=3, column=0, sticky="w", padx=10, pady=6)
         ttk.Checkbutton(controls, text="Join downloaded clips", variable=self.omni_ing_join_var).grid(row=3, column=1, sticky="w", padx=10, pady=6)
         self.saved_couple_controls(controls, "omni").grid(row=4, column=0, columnspan=2, sticky="ew", padx=10, pady=8)
         self.omni_resolution_var = tk.StringVar(value=self.settings.get("omni_resolution", "720p"))
@@ -1375,14 +1375,14 @@ class Veo3LauncherGUI:
         for index, (label, command) in enumerate([
                 ("Create references only", lambda: self.run_single_clip_omni(refs_only=True)),
                 ("Generate clips", self.run_single_clip_omni),
-                ("Download clips (Upscaled 720p)", lambda: self.download_omni_clips()),
+                ("Download Upscaled", lambda: self.download_omni_clips()),
                 ("Delete all video clips", lambda: self.delete_project_video_clips(self.omni_url_var, self.omni_story_var)),
                 ("Join clips", self.join_omni_clips), ("Stop", self.kill_engine)]):
             ttk.Button(actions, text=label, command=command, style="Accent.TButton").grid(
                 row=index // 3, column=index % 3, sticky="ew", padx=(0, 8), pady=5)
         ttk.Label(f, text="Same reference preparation as Ingredients. Each video is a standalone clip with references attached.\n"
                   "Submit 5 prompts individually, with a 5-second pause between submissions; wait for all 5 before continuing.\n"
-                  "Generation uses the selected model/aspect/resolution. Downloads use verified Upscaled 720p.\n"
+                  "Generation uses the selected model/aspect/resolution. Downloads use 720p Upscaled for 360p sources, or 1080p Upscaled for 720p sources.\n"
                   "Previous completed groups download in a background tab while the current group generates.\n"
                   "From/To selects the scene range. Restarting the same saved run waits for submitted clips and skips completed clips.",
                   style="Hint.TLabel", wraplength=650).grid(row=11, column=0, columnspan=4, sticky="w", padx=14, pady=8)
@@ -1478,7 +1478,7 @@ class Veo3LauncherGUI:
         with open(filename, "w", encoding="utf-8") as fh:
             json.dump(request, fh, indent=2)
         self._launch(["node", os.path.join(BASE_DIR, "single_clip_omni.js"), filename],
-                     "Downloading all story Omni scenes through Download > Upscaled 720p; verified files are skipped...")
+                     "Downloading all story Omni scenes through Download > Upscaled; verified files are skipped...")
 
     def delete_project_video_clips(self, project_var, story_var):
         if self._work_busy():

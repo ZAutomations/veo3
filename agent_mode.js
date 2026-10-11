@@ -345,6 +345,7 @@ function snapshotFn() {
         instructionsBtn: !!document.querySelector('button[aria-label="Agent instructions"]'),
         settingsBtn: !!document.querySelector('button[aria-label="Settings"]'),
         promptText: pm ? (pm.innerText || '').slice(0, 1200) : null,
+        promptTextLength: pm ? (pm.innerText || '').length : 0,
         promptHTML: pm ? (pm.innerHTML || '').slice(0, 3000) : null,
         generateBtn: gen ? {
             exists: true,
@@ -585,7 +586,7 @@ async function retryFailedMediaOnly(page, snap, label = 'retry') {
 // pane with no children, so the asset items were invisible to us. This goes all
 // the way down and pulls out every clickable thing, so we can find the entry by
 // name even when the markup is unfamiliar.
-function pickerFn() {
+function pickerFn(category = null) {
     const cls = (el) => (el.className && el.className.toString) ? el.className.toString() : '';
     const vis = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
     const depthOf = (el) => { let d = 0; for (let p = el; p; p = p.parentElement) d++; return d; };
@@ -622,6 +623,8 @@ function pickerFn() {
                 tag: el.tagName.toLowerCase(),
                 cls: cls(el).slice(0, 140),
                 aria: el.getAttribute('aria-label'),
+                kind: el.closest('button.asset-item') && category === 'Images' ? 'image'
+                    : el.closest('button.asset-item') && category === 'Characters' ? 'character' : null,
                 text: (el.innerText || el.textContent || '').trim().slice(0, 100),
                 rect: { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) },
                 depth: depthOf(el),
@@ -985,7 +988,8 @@ async function uploadRefThroughPicker(page, box, file) {
         for (const r of REFS) {
             if (!r.file) {
                 missing++;
-                log(`   MISSING  ${r.name}: no image found${r.asked ? ' (' + r.asked + ')' : ''}`);
+                log(!UPLOAD_REFS ? `   PROJECT IMAGE  ${r.name}: will verify the existing tile in the picker`
+                    : `   MISSING LOCAL FILE  ${r.name}${r.asked ? ' (' + r.asked + ')' : ''}`);
                 continue;
             }
             log(`   ${r.name}: ${path.basename(r.file)}`);
@@ -1002,8 +1006,8 @@ async function uploadRefThroughPicker(page, box, file) {
             const okUpload = await uploadRefThroughPicker(page, box, r.file);
             if (okUpload) ready++; else missing++;
         }
-        log(`Uploaded/available: ${ready}   Missing: ${missing}`);
-        if (missing) {
+        log(`Local sheets/uploaded: ${ready}   Without local files: ${missing}`);
+        if (missing && UPLOAD_REFS) {
             log('A missing sheet means the picker can only offer that character as a');
             log('saved Character, which is the kind that drifts. Expect drift for it.');
         }
@@ -1046,10 +1050,11 @@ async function uploadRefThroughPicker(page, box, file) {
     s = await snap('prompt-text-typed');
     const got = (s.promptText || '');
     log(`Prompt text now: "${got.slice(0, 110)}${got.length > 110 ? ' ...' : ''}"`);
-    log(`Editor reports ${got.length} characters (sent ${SEND_TEXT.length}).`);
+    const gotLength = s.promptTextLength ?? got.length;
+    log(`Editor reports ${gotLength} characters (sent ${SEND_TEXT.length}).`);
     // ProseMirror can quietly swallow parts of a multi-line paste. If the counts
     // diverge badly, stop rather than submit a story the agent never received.
-    if (Math.abs(got.length - SEND_TEXT.length) > Math.max(40, SEND_TEXT.length * 0.05)) {
+    if (Math.abs(gotLength - SEND_TEXT.length) > Math.max(40, SEND_TEXT.length * 0.05)) {
         log('WARNING: the editor holds a different amount of text than was sent.');
         log('         Multi-line paste may have been mangled. Inspect the snapshot');
         log(`         ${RUN_DIR}\\*_prompt-text-typed.json before trusting this run.`);
@@ -1071,23 +1076,30 @@ async function uploadRefThroughPicker(page, box, file) {
             log(`[${mi + 1}/${MENTIONS.length}] attaching @${name}`);
 
             // A chip leaves a trailing space, so only the first mention needs one.
-            await page.keyboard.type(mi === 0 ? ' @' : '@', { delay: 130 });
-            await wait(2000);
+            await page.keyboard.type(mi === 0 ? ' @' : '@', { delay: 10 });
+            await page.waitForFunction(() => [...document.querySelectorAll('.side-nav-list-item-title')].some(e=>e.getBoundingClientRect().width>0),{timeout:12000,polling:100});
             await snap(`mention${mi + 1}-open`);
 
-            const requiredKind = FLOW_CHARACTERS && /^(Sarah|George)$/i.test(name) ? 'character' : null;
-            if (requiredKind) {
+            const requiredKind = FLOW_CHARACTERS && /^(Sarah|George)$/i.test(name) ? 'character' : 'image';
+            if (requiredKind === 'character') {
                 await require('./reference_picker_images').selectCategory(page, 'Characters', {log});
             } else {
                 await require('./reference_picker_images').selectImages(page, {log});
             }
             await require('./reference_picker_images').focusReferenceSearch(page);
             // Type ONLY the name, so the picker filters on the name and nothing else.
-            await page.keyboard.type(name, { delay: 130 });
-            await wait(2600);
+            await page.keyboard.type(name, { delay: 10 });
+            await page.waitForFunction((name)=>{
+                const key=s=>String(s||'').toLowerCase().replace(/\.[a-z0-9]+$/i,'').replace(/[^a-z0-9]/g,'');
+                return [...document.querySelectorAll('.cdk-overlay-pane button.asset-item')].some(e=>e.getBoundingClientRect().width>0&&[...e.querySelectorAll('span,div')].some(n=>key(n.textContent)===key(name)));
+            },{timeout:12000,polling:100},name);
 
             s = await snap(`mention${mi + 1}-filtered`);
-            const pk = await page.evaluate(pickerFn);
+            const category = requiredKind === 'character' ? 'Characters' : 'Images';
+            if (!await page.evaluate(require('./reference_picker_images').categoryStateSelected, category)) {
+                throw Error(`Reference picker left the ${category} category during search. No asset selected.`);
+            }
+            const pk = await page.evaluate(pickerFn, category);
             fs.writeFileSync(
                 path.join(RUN_DIR, `${String(snapN).padStart(2, '0')}_picker${mi + 1}-tree.json`),
                 JSON.stringify(pk, null, 2));
@@ -1115,7 +1127,10 @@ async function uploadRefThroughPicker(page, box, file) {
             if (hit) {
                 log(`   clicking: ${hit.tag} "${(hit.text || hit.aria || '').slice(0, 50)}" at ${hit.cx},${hit.cy}`);
                 await page.mouse.click(hit.cx, hit.cy);
-                await wait(2500);
+                await page.waitForFunction(expected=>{
+                    const pm=document.querySelector('flow-base-prompt-box .ProseMirror')||document.querySelector('.ProseMirror');
+                    return pm&&pm.querySelectorAll('.mention-chip').length>=expected;
+                },{timeout:8000,polling:100},mi+1);
                 s = await snap(`mention${mi + 1}-picked`);
 
                 // The snapshot's promptHTML is sliced to 3000 chars from the HEAD,

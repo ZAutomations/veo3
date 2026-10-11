@@ -73,7 +73,7 @@ function Relocate-Data {
         } elseif ($value -is [array]) { return ,@($value | ForEach-Object { Convert-Value $_ }) }
         return $value
     }
-    $files = @((Join-Path $toolRoot 'gui_settings.json'))
+    $files = @((Join-Path $toolRoot 'gui_settings.json'), (Join-Path $toolRoot 'desktop_settings.json'))
     $stories = Join-Path $toolRoot 'stories'
     if (Test-Path -LiteralPath $stories) { $files += @(Get-ChildItem -LiteralPath $stories -Recurse -Filter '*.json' -File | Select-Object -ExpandProperty FullName) }
     foreach ($file in $files) {
@@ -194,7 +194,7 @@ try {
     Run-Checked $node @('--check','agent_mode.js')
     Run-Checked $node @('--check','mcp_server.js')
     Write-Host ''
-    Write-Host 'SETUP COMPLETE. Double-click START_GUI.bat.' -ForegroundColor Green
+    Write-Host 'SETUP COMPLETE. Use START_STUDIO.bat for the new desktop interface, or START_GUI.bat for classic.' -ForegroundColor Green
     Write-Host 'On the new laptop, use Accounts to open the browser and sign into Flow once for each account.'
 } catch {
     Write-Host "SETUP FAILED: $($_.Exception.Message)" -ForegroundColor Red

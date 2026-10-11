@@ -10,6 +10,9 @@ assert.equal(locateJob([...tiles,{key:'c',text:'Prompt 1'}],job,{excluded:['b']}
 assert.equal(chooseUpscaled([{text:'360p Original'},{text:'720p Upscaled'}]).text,'720p Upscaled');
 assert.throws(()=>chooseUpscaled([{text:'720p Original'}]),/not found/);
 assert.throws(()=>chooseUpscaled([{text:'720p Original'},{text:'1080p Upscaled'}]),/not found/);
+assert.equal(chooseUpscaled([{text:'720p Original'},{text:'1080p Upscaled'}],1080).text,'1080p Upscaled');
+assert.equal(chooseUpscaled([{text:'720p Original'},{text:'1080p'}],1080).text,'1080p');
+assert.throws(()=>chooseUpscaled([{text:'720p Upscaled'}],1080),/not found/);
 const folder=fs.mkdtempSync(path.join(os.tmpdir(),'omni-upscale-test-'));
 try{
  for(const size of ['1280x720','640x360']){

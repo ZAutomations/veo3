@@ -476,7 +476,14 @@ function geminiText(resp) {
     const cand = (resp.candidates || [])[0];
     if (!cand) {
         const blocked = resp.promptFeedback?.blockReason;
-        throw new Error(blocked ? `blocked by the API: ${blocked}` : 'no candidates returned');
+        const error = new Error(blocked ? `blocked by the API: ${blocked}` : 'no candidates returned');
+        if (blocked) error.blockReason = blocked;
+        throw error;
+    }
+    if (['SAFETY', 'PROHIBITED_CONTENT', 'RECITATION', 'SPII'].includes(cand.finishReason)) {
+        const error = new Error(`blocked by the API: ${cand.finishReason}`);
+        error.blockReason = cand.finishReason;
+        throw error;
     }
     const parts = cand.content?.parts || [];
     const txt = parts.map(p => p.text || '').join('');
@@ -586,6 +593,7 @@ async function ask(ring, models, prompt, maxTokens, meta) {
     try {
         return await askApi(ring, models, prompt, maxTokens, meta);
     } catch (e) {
+        if (e.blockReason) throw e;
         if (TRANSPORT !== 'auto') throw e;
         console.log(`\n  the API gave up (${e.status || e.message}) - handing this call to ` +
                     `Google AI Studio in the browser instead`);
@@ -957,6 +965,9 @@ function lookBlock(p, place) {
 }
 
 function castPrompt(p, houseCast) {
+    const brief = require('./relationship_writing_brief');
+    if (brief.applies(p)) return brief.cast(p, {title:TITLE,detail:DETAIL,count:SCENES,
+        seconds:SECONDS,aspect:ASPECT,source:CONTENT_MAP,houseCast});
     // The standing cast, when this run uses one. It replaces the whole cast task:
     // the model is not asked to design anybody, it is handed the people the
     // channel already has and told to write a story they could be in. Everything
@@ -1321,6 +1332,10 @@ Return ONLY this JSON, no other text:
 }
 
 function scenesPrompt(p, cast, outline, from, to, soFar, place, blocking) {
+    const brief = require('./relationship_writing_brief');
+    if (brief.applies(p)) return brief.scenes(p, {title:TITLE,detail:DETAIL,count:SCENES,
+        seconds:SECONDS,aspect:ASPECT,source:CONTENT_MAP,cast,outline,from,to,
+        previous:soFar,place:place||p.setting||'one bright domestic room',blocking});
     const { max: WORDS_MAX, hard: WORDS_HARD } = wordBudget(p);
     // The one place for the film, from the preset or from call 1. Absent only
     // for a preset that fixes no place and a caller that passed none, which is
@@ -2555,6 +2570,11 @@ function howToText(p, title, opts = {}) {
 // Guarded so the internals can be required by a test. Everything above is pure -
 // build a story, validate it, write it - and only this block touches the network.
 if (require.main === module) (async () => {
+    if (SECONDS < 4) {
+        console.error('Clip duration is too short for this video workflow. Choose at least 4 seconds; 8 seconds is the normal default. Nothing was sent.');
+        process.exitCode = 1;
+        return;
+    }
     const ring = new KeyRing(apiKeys());
 
     if (LIST_MODELS) {
@@ -2968,6 +2988,9 @@ Return ONLY {"scenes":[{"script_line":"corrected factual narration"},...]} in th
         if (_web) _web.close();
     } catch (e) {
         console.error(`\n  FAILED: ${e.message}`);
+        if (e.blockReason) {
+            console.error('  The provider blocked this writing request. The exact request and error are saved in writing_progress/. No story was finalized.');
+        }
         if (isQuotaError(e)) {
             console.error(`  Every one of the ${ring.size} configured key(s) is out of quota.`);
             console.error('  Add another key on the Script tab, or wait for the quota to reset.');
@@ -2978,7 +3001,10 @@ Return ONLY {"scenes":[{"script_line":"corrected factual narration"},...]} in th
             } catch (e2) { console.error('    (could not list them either: ' + e2.message + ')'); }
             console.error('  Pass one of those with --model.');
         }
-        process.exit(1);
+        if (_web) _web.close();
+        // Forced exit while fetch/Undici handles are closing can crash libuv
+        // on Windows. Let outstanding handles drain and return a normal error.
+        process.exitCode = 1;
     }
 })();
 
