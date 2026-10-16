@@ -34,6 +34,8 @@ async function run(request){
  if(!Number.isInteger(from)||!Number.isInteger(to)||from<1||to<from||to>story.scenes.length)throw Error('Invalid scene range.');
  if(!/Omni.*Flash/i.test(request.model||''))throw Error('Select Omni Flash in the Single Clip Omni tab.');
  if(!['360p','720p'].includes(request.resolution))throw Error('Select 360p or 720p.');
+ request.downloadVersion=request.downloadVersion||'upscaled';
+ if(!['original','upscaled'].includes(request.downloadVersion))throw Error('Select Original or Upscaled downloads.');
  const allJobs=promptsFor(story,folder,request.simple!==false);
  const jobs=allJobs.slice(from-1,to);
  const engine=new Veo3FlowNewUI(file,{fromScene:1,toScene:to,cdp:`http://127.0.0.1:${request.cdp||9222}`,
@@ -41,7 +43,7 @@ async function run(request){
  engine.story=story;engine.scenes=story.scenes;engine.characterReferences=story.character_references||{};
  engine.storyRefs=loadStoryRefs(file,story).refs;
  const gui=fs.existsSync(path.join(__dirname,'gui_settings.json'))?JSON.parse(fs.readFileSync(path.join(__dirname,'gui_settings.json'),'utf8')):{};
- engine.savedCouple=saved.loadSavedCouple('ingredients',{...gui,ing_saved_couple:!!request.savedCouple});
+ engine.savedCouple=require('./dog_couple').savedForStory(file,'ingredients',{...gui,ing_saved_couple:!!request.savedCouple});
  engine.storyRefs=saved.applySavedRefs(engine.storyRefs,engine.savedCouple);engine.skipRefs=false;
  if(engine.savedCouple&&!request.reuseRefs)engine.genRefs=true;
  if(request.reuseRefs||request.downloadOnly)engine.genRefs=false;
@@ -102,16 +104,42 @@ async function run(request){
    if(failed)await retryFailed(failed);
   };
   const wantDownloads=!!((request.download||request.join||request.downloadOnly)&&!request.inspectOnly);
-  if(wantDownloads)downloader=new UpscaledDownloader(engine,{folder,total:story.scenes.length,targetResolution:request.resolution==='720p'?1080:720,storyHash:crypto.createHash('sha256').update(JSON.stringify(allJobs.map(j=>j.prompt))).digest('hex'),log,checkGeneration});
-  if(request.downloadOnly){await downloader.group(allJobs,state.receipts);log('All story Upscaled downloads finished.');return;}
+  if(wantDownloads)downloader=new UpscaledDownloader(engine,{folder,total:story.scenes.length,downloadVersion:request.downloadVersion,ledgerPrefix:`omni_${request.downloadVersion}`,targetResolution:request.downloadVersion==='original'?parseInt(request.resolution,10):(request.resolution==='720p'?1080:720),storyHash:crypto.createHash('sha256').update(JSON.stringify(allJobs.map(j=>j.prompt))).digest('hex'),log,checkGeneration});
+  if(request.downloadOnly){await downloader.group(allJobs,state.receipts);log(`All story ${request.downloadVersion} downloads finished.`);return;}
   const waitAll=async receipts=>{
    const batch=receipts.map(r=>allJobs.find(j=>j.number===(r.scene||r))).filter(Boolean);
    activeJobs=batch;
-   const deadline=Date.now()+12*60*1000;let last='';
+   const deadline=Date.now()+12*60*1000;let last='',lastBackground=0;
+   const confirmed=new Map();
    while(Date.now()<deadline){
-    const current=await states(batch);
+    let current=await states(batch);
+    // Mounted rows are not the whole project. Preserve confirmed completion,
+    // and check missing sources in a separate tab without touching the composer.
+    const missing=batch.filter(j=>!confirmed.has(j.number)&&!current.find(s=>s.number===j.number)?.tile);
+    if(missing.length&&Date.now()-lastBackground>=30000){
+     lastBackground=Date.now();
+     log(`Checking ${missing.length} offscreen scene(s) in a background tab; no prompts repeated.`);
+     const result=await recovery.inspectProject(engine,missing,state.receipts,{log,keepOpen:true});
+     try{
+      for(const job of missing){
+       const tile=result.found[job.number];
+       if(tile?.failed){
+        const generationPage=engine.page;
+        try{engine.page=result.page;await retryFailed({number:job.number,tile});}finally{engine.page=generationPage;}
+       }else if(tile)current=current.map(s=>s.number===job.number?{...s,tile,background:true}:s);
+      }
+     }finally{await engine.page.bringToFront?.();await result.page.close();}
+    }
     const failed=current.find(s=>s.tile?.failed);
     if(failed){await retryFailed(failed);continue;}
+    for(const item of current.filter(s=>s.tile?.ready)){
+     confirmed.set(item.number,item);
+     state.receipts[item.number]={...state.receipts[item.number],
+      ...(item.tile.assetId?{assetId:item.tile.assetId}:{}),
+      ...(!item.background?{key:item.tile.key}:{}),completedAt:new Date().toISOString()};
+    }
+    persist();
+    current=current.map(s=>confirmed.get(s.number)||s);
     const ready=current.filter(s=>s.tile?.ready).length;
     const status=`Current group: ${ready}/${batch.length} completed (no grid scrolling).`;
     if(status!==last){
@@ -122,7 +150,7 @@ async function run(request){
      last=status;
     }
     if(ready===batch.length){
-     for(const s of current){state.receipts[s.number]={...state.receipts[s.number],key:s.tile.key,assetId:s.tile.assetId};}persist();
+     persist();
      return {ready,failed:0,generating:0};
     }
     await sleep(5000);
@@ -195,9 +223,9 @@ async function run(request){
   // process exited. Verify those once; a new range must not lose that backlog.
   const olderPending=allJobs.filter(j=>j.number<from&&history.submitted.includes(j.number)&&!history.completed.includes(j.number));
   if(downloader&&olderPending.length){
-   log('Checking earlier submitted scenes once for the Upscaled download backlog.');
+   log(`Checking earlier submitted scenes once for the ${request.downloadVersion} download backlog.`);
    const older=await recovery.inspectProject(engine,olderPending,state.receipts,{log});
-   if(!older.exhaustive)throw Error('Earlier source check was incomplete; no scene guessed.');
+   if(!older.exhaustive&&!older.targetsVerified)throw Error('Earlier source check was incomplete; no scene guessed.');
    for(const job of olderPending){
     const tile=older.found[job.number];
     if(tile?.ready){history.completed.push(job.number);state.receipts[job.number]={...state.receipts[job.number],key:'',assetId:tile.assetId};}
@@ -235,7 +263,7 @@ async function run(request){
    whileGenerating:async(prior,current)=>{
     activeJobs=current;await checkGeneration();
     const savedPrevious=[...new Map([...previous,...prior].map(j=>[j.number,j])).values()];
-    if(downloader&&savedPrevious.length){log('Current group is generating; downloading the preceding completed group as Upscaled.');await downloader.group(savedPrevious,state.receipts);}
+    if(downloader&&savedPrevious.length){log(`Current group is generating; downloading the preceding completed group as ${request.downloadVersion}.`);await downloader.group(savedPrevious,state.receipts);}
     previous=[];
    },
    waitForCompletion:waitAll,
@@ -248,13 +276,13 @@ async function run(request){
    afterAll:async final=>{activeJobs=[];if(downloader)await downloader.group(final,state.receipts);}
   });
   else if(downloader){activeJobs=[];await downloader.group(previous,state.receipts);}
-  log('All selected Omni clips completed'+(downloader?' and downloaded as verified Upscaled.':'.'));
+  log('All selected Omni clips completed'+(downloader?` and downloaded as verified ${request.downloadVersion}.`:'.'));
   if(request.join){
-   if(!downloader.ledger.clips.length||!downloader.ledger.clips.every(e=>fs.existsSync(path.join(folder,'clips',e.file))))throw Error('Upscaled downloads are incomplete; join stopped.');
+   if(!downloader.ledger.clips.length||!downloader.ledger.clips.every(e=>fs.existsSync(path.join(folder,'clips',e.file))))throw Error('Selected downloads are incomplete; join stopped.');
    if(downloader.ledger.clips.length!==story.scenes.length){log('Partial story downloaded. Joining waits for all story scenes.');return;}
    const manifestPath=path.join(folder,'clips','manifest.json');
    const manifest=fs.existsSync(manifestPath)?JSON.parse(fs.readFileSync(manifestPath,'utf8')):null;
-   if(!manifest?.complete||manifest.projectUrl!==engine.projectUrl||manifest.route!==`Omni Upscaled ${request.resolution==='720p'?1080:720}p`
+   if(!manifest?.complete||manifest.projectUrl!==engine.projectUrl||manifest.route!==`Omni ${request.downloadVersion==='original'?'Original':'Upscaled'} ${request.downloadVersion==='original'?parseInt(request.resolution,10):(request.resolution==='720p'?1080:720)}p`
      ||downloader.ledger.clips.some(c=>crypto.createHash('sha256').update(fs.readFileSync(path.join(folder,'clips',c.file))).digest('hex')!==c.sha256)){
     throw Error('Verified Omni Upscaled manifest is incomplete or stale; joining stopped.');
    }

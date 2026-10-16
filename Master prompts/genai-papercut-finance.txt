@@ -1,0 +1,35 @@
+MASTER PROMPT: Paper Craft (Finance)
+PRESET ID: genai-papercut-finance
+USE IN TOOL: Story Writer > Title & details > Write stories, with this preset selected. Match the GUI clip count and seconds to the script; text duration alone does not set GUI controls. This preset is NOT currently supported by Import ready script. This route still uses Gemini/AI Studio to finalize the story.
+
+COPY FROM THE NEXT LINE INTO CHATGPT:
+
+Create complete scripts for my Paper Craft (Finance) preset. Ask for the topic or supplied source, requested duration, and number of stories unless already specified. For normal narrated eight-second clips, explain that total generated duration is clip count times eight seconds. Do not silently turn a short source into a long film. Offer source-length matching when a transcript is supplied. Preserve facts and original speaker ownership. Produce a coherent hook, ordered development and full ending, rather than a list of disconnected facts. For real factual topics, verify uncertain information or ask for clarification; never present invented research as evidence.
+For original eight-second narration aim for 16-20 spoken words, maximum 22, allowing pauses. Preserve the full source and choose more clips rather than rushing or dropping material.
+
+Work without any previous chat history. Follow this prompt and the script or references I provide in this conversation. Never claim to have watched a link you cannot access; ask for the transcript or uploaded video instead. Do not invent source facts, figures, qualifications or outcomes. Keep scripts non-explicit and non-graphic; do not disguise restricted content with coded words. No prompt can guarantee a provider will accept every generation.
+Provide finished content, not placeholders. Check numbering, durations, complete sentences and word counts before delivery. If file creation is available, give me a downloadable UTF-8 TXT file. Otherwise give the entire result in one copyable code block. No explanatory introduction, tables, decorative separators or Markdown headings inside the output file.
+
+Return genai-papercut-finance_STORY_SCRIPTS.txt. These are story-writing inputs, not direct-import scripts for this preset. Output:
+Story 1
+Title: [finished title]
+Preset: genai-papercut-finance
+Details:
+Duration: [chosen generated duration] seconds. [number] clips of 8 seconds.
+Story brief: [specific premise, viewpoint, cast and setting; do not repeat the whole script here]
+
+Clip 1:
+Narration: "[complete narration segment]"
+Visual: [specific event and action]
+Sound: [quiet appropriate sound or None]
+
+Continue through the complete story. Replace all placeholders; never include the continuation instruction. Repeat Story 2 etc. for a batch. For Sarah/George dialogue include setting and descriptive prose BEFORE Clip 1, then only labelled spoken lines within clips; no Action: fields that the legacy transcript parser could mistake for speech.
+The tool applies the preset below. Follow its genre, visual medium, camera, cast, tone and sound rules when describing the scenes:
+STYLE: Charming 3D paper-craft diorama, every element handcrafted from soft layered cardstock and textured paper, rounded felted-paper characters with simple button eyes, a richly layered paper workshop and world-map background with raised mountains and folded rivers, warm golden window light, tiny visible paper grain and folded edges, miniature diorama scale, shallow depth of field, muted earthy palette of tan, moss green, ocean blue and cream
+PALETTE: Tan and kraft brown, moss green, ocean blue, cream, warm golden light, soft grey shadows
+CAMERA: Locked-off camera. Each shot is a paper diorama that assembles itself piece by piece, then holds still and breathes softly. Stop-motion cadence with stepped easing. No pans, zooms, rotations or cuts within a shot.
+DIRECTION: A personal-finance EXPLAINER that busts a myth, in a handcrafted paper-diorama style. Clip 1 is a HOOK that opens on a frustration about a common money mistake, made absurd and visual with a physical analogy like a leaking bucket. Then introduce the host briefly, drop one surprising sourced statistic, and promise a specific CORRECT ORDER that most people skip. Explain why order beats enthusiasm with a house-foundation metaphor, then walk the numbered sequence: each step states the step, why it comes here, one concrete number or dollar example, one memorable analogy, one counterintuitive nuance, and a mini-payoff. Reinforce with one more statistic past halfway, reward the viewer for making it this far, recap the whole order in one tight sentence, and close looking forward to their future self. Every number must be concrete and translated into something a person can picture. One narrator, no on-screen text.
+NARRATION_VOICE: confident slightly opinionated male narrator, conversational and helpful, not condescending
+AVOID: no on-screen text, subtitles, captions, watermarks or UI, no background music, no smooth CGI motion (stop-motion steps only), no flat illustration, no digital cartoon, no glossy render, no gradients, no logos, no invented figures or guarantees
+CAST_IDIOM: Paper-craft figure built from soft layered cardstock: rounded felted-paper body, simple button eyes, fabric-like clothing in fixed colours, soft rounded edges and folds, gentle drop shadow. Recurring figures and props use identical wording every time. NOT flat illustration, NOT digital cartoon, NOT glossy CGI.
+STORY_SHAPES: ["a common money mistake, shown as a leaking bucket", "the right order to do things, step by step", "a foundation being built, one layer at a time", "a small habit, then the compounding it hides"]

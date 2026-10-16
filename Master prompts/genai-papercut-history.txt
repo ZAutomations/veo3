@@ -1,0 +1,35 @@
+MASTER PROMPT: Paper Craft (History)
+PRESET ID: genai-papercut-history
+USE IN TOOL: Story Writer > Title & details > Write stories, with this preset selected. Match the GUI clip count and seconds to the script; text duration alone does not set GUI controls. This preset is NOT currently supported by Import ready script. This route still uses Gemini/AI Studio to finalize the story.
+
+COPY FROM THE NEXT LINE INTO CHATGPT:
+
+Create complete scripts for my Paper Craft (History) preset. Ask for the topic or supplied source, requested duration, and number of stories unless already specified. For normal narrated eight-second clips, explain that total generated duration is clip count times eight seconds. Do not silently turn a short source into a long film. Offer source-length matching when a transcript is supplied. Preserve facts and original speaker ownership. Produce a coherent hook, ordered development and full ending, rather than a list of disconnected facts. For real factual topics, verify uncertain information or ask for clarification; never present invented research as evidence.
+For original eight-second narration aim for 16-20 spoken words, maximum 22, allowing pauses. Preserve the full source and choose more clips rather than rushing or dropping material.
+
+Work without any previous chat history. Follow this prompt and the script or references I provide in this conversation. Never claim to have watched a link you cannot access; ask for the transcript or uploaded video instead. Do not invent source facts, figures, qualifications or outcomes. Keep scripts non-explicit and non-graphic; do not disguise restricted content with coded words. No prompt can guarantee a provider will accept every generation.
+Provide finished content, not placeholders. Check numbering, durations, complete sentences and word counts before delivery. If file creation is available, give me a downloadable UTF-8 TXT file. Otherwise give the entire result in one copyable code block. No explanatory introduction, tables, decorative separators or Markdown headings inside the output file.
+
+Return genai-papercut-history_STORY_SCRIPTS.txt. These are story-writing inputs, not direct-import scripts for this preset. Output:
+Story 1
+Title: [finished title]
+Preset: genai-papercut-history
+Details:
+Duration: [chosen generated duration] seconds. [number] clips of 8 seconds.
+Story brief: [specific premise, viewpoint, cast and setting; do not repeat the whole script here]
+
+Clip 1:
+Narration: "[complete narration segment]"
+Visual: [specific event and action]
+Sound: [quiet appropriate sound or None]
+
+Continue through the complete story. Replace all placeholders; never include the continuation instruction. Repeat Story 2 etc. for a batch. For Sarah/George dialogue include setting and descriptive prose BEFORE Clip 1, then only labelled spoken lines within clips; no Action: fields that the legacy transcript parser could mistake for speech.
+The tool applies the preset below. Follow its genre, visual medium, camera, cast, tone and sound rules when describing the scenes:
+STYLE: Charming 3D paper-craft diorama, every element handcrafted from soft layered cardstock and textured paper, rounded felted-paper characters with simple button eyes and fabric-like clothing, richly layered topographic paper world map background with raised mountains, folded rivers and stitched coastlines, warm golden window light, tiny visible paper grain and folded edges, miniature diorama scale, shallow depth of field, muted earthy palette of tan, moss green, ocean blue and cream
+PALETTE: Tan and kraft brown, moss green, ocean blue, cream, warm golden window light, soft grey shadows
+CAMERA: Locked-off camera. Each shot is a paper diorama that assembles itself piece by piece from the background forward, then holds still and breathes softly. Stop-motion cadence with stepped easing. No pans, zooms, rotations or cuts within a shot.
+DIRECTION: A historical DOCUMENTARY in a handcrafted paper-diorama style. Clip 1 is a COLD OPEN in medias res at the most dramatic, violent or high-stakes moment, with a specific date and one vivid sensory detail, ending on a single line naming the film's scope. Then: the root causes - who held power and what fractured; the one inciting incident that starts the chain; then the bulk, moving chronologically through phases where each phase names its key figures with a one-line characterisation, states the outcome, and seeds the cause of the NEXT phase so momentum never fully resolves. Twice or three times drop a counterintuitive fact that links the history to something modern. Include one act that subverts a simple good-versus-evil reading. End on the turning point, the decline, and a closing hook that reaches the present day. One narrator, no on-screen text.
+NARRATION_VOICE: confident authoritative male documentary narrator, third person, declarative
+AVOID: no on-screen text, subtitles, captions, watermarks or UI, no background music, no smooth CGI motion (stop-motion steps only), no flat illustration, no digital cartoon, no glossy render, no gradients, no clutter, no invented dates or battles
+CAST_IDIOM: Paper-craft character built from soft layered cardstock: a rounded felted-paper body, simple button eyes, fabric-like clothing in fixed colours, soft rounded edges, visible folds and a gentle drop shadow. Recurring figures use identical wording every time. NOT flat illustration, NOT digital cartoon, NOT glossy CGI.
+STORY_SHAPES: ["the most dramatic moment first, then how it began", "a fractured landscape, the spark, then the chain of wars", "an act of mercy from an enemy, and a betrayal from an ally", "a doomed power, then what quietly outlived it"]

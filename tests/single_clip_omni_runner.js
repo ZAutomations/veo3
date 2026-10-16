@@ -4,7 +4,7 @@ const realMedia=require('../single_clip_omni_media');
 const folder=fs.mkdtempSync(path.join(os.tmpdir(),'veo-omni-test-'));
 const storyFile=path.join(folder,'story.json');
 fs.writeFileSync(storyFile,JSON.stringify({scenes:Array.from({length:12},(_,i)=>({veo3_prompt:`Prompt ${i+1}`,characters:['sarah','george']}))}));
-let submits=0,refs=0,settingsCalls=[],promptNumbers=[],tiles=[],events=[],reloads=0;
+let submits=0,refs=0,settingsCalls=[],promptNumbers=[],tiles=[],events=[],reloads=0,virtualize=false,backgroundChecks=0;
 class Engine{
  constructor(file,opts){assert.equal(opts.referenceCategory,'Images');this.opts=opts;this.genRefs=opts.genRefs;this.projectUrl=opts.projectUrl;this._refsGenerated=false;
   this.page={url:()=>this.projectUrl,goto:async()=>{reloads++;},evaluate:async fn=>fn.name==='gridMetrics'?{top:0}:null};this.browser={pages:async()=>[this.page],disconnect:async()=>{}};}
@@ -29,16 +29,18 @@ const mockRequire=name=>{
  if(name==='./single_clip_omni_background')return {};
  if(name==='./single_clip_omni_backlog')return require('../single_clip_omni_backlog');
  if(name==='./single_clip_omni_retry')return require('../single_clip_omni_retry');
- if(name==='./single_clip_omni_media')return {...realMedia,snapshot:async()=>tiles};
+ if(name==='./single_clip_omni_media')return {...realMedia,snapshot:async()=>virtualize&&tiles.at(-1)?.text==='Prompt 5'?tiles.filter(t=>!['Prompt 1','Prompt 2'].includes(t.text)):tiles};
  if(name==='./single_clip_omni_recovery')return {
-  inspectProject:async(engine,jobs,receipts)=>({exhaustive:true,generatingSeen:false,tiles,found:Object.fromEntries(jobs.map(j=>[j.number,realMedia.locateJob(tiles,j,receipts[j.number])])),page:{close:async()=>{}}}),
+  inspectProject:async(engine,jobs,receipts)=>{backgroundChecks++;return {exhaustive:true,generatingSeen:false,tiles,found:Object.fromEntries(jobs.map(j=>[j.number,realMedia.locateJob(tiles,j,receipts[j.number])])),page:{close:async()=>{}}};},
   reconcilePending:require('../single_clip_omni_recovery').reconcilePending,
   confirmSubmission:async(page,job,receipt)=>{const tile=realMedia.locateJob(tiles,job,receipt);assert(tile);return {...receipt,key:tile.key,assetId:tile.assetId};}
  };
  if(name==='./single_clip_omni_upscaled')return {UpscaledDownloader:Downloader};
  if(name==='./flow_grid_scroll')return {installGridScroller:function installGridScroller(){},gridMetrics:function gridMetrics(){},wheelGrid:async()=>{throw Error('Unexpected grid scrolling');}};
  if(name==='./single_clip_omni_queue')return {runQueue:(jobs,deps)=>queue.runQueue(jobs,{...deps,sleep:async ms=>assert.equal(ms,5000)})};
- return require(name);
+ // Resolve the evaluated runner's relative imports from the app root.
+ // Resolving from tests/ accidentally executes tests/dog_couple.js instead.
+ return require(name.startsWith('./') ? path.resolve(__dirname,'..',name) : name);
 };
 vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../single_clip_omni.js'),'utf8'),{
  require:mockRequire,module:moduleObject,exports:moduleObject.exports,__dirname:path.join(__dirname,'..'),console:{log:()=>{}},setTimeout,process
@@ -78,5 +80,11 @@ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../single_clip_omni.js')
  await moduleObject.exports.run({...req,project:resumedProject,from:11,to:12});
  assert(events.includes('download:1,2,3,4,5,6,7,8,9,10'),'clips completed after an interrupted range must be discovered and downloaded: '+JSON.stringify(events));
  assert(events.indexOf('download:1,2,3,4,5,6,7,8,9,10')>events.indexOf('submit:12'));
- console.log('PASS: exact ranges, no reloads/scans, references/settings, downloads during the next group, final download and checkpoint resume.');
+ virtualize=true;promptNumbers=[];const beforeChecks=backgroundChecks;
+ await moduleObject.exports.run({...req,project:'https://flow.google.com/project/test-offscreen',from:1,to:5});
+ assert.deepEqual(promptNumbers,[1,2,3,4,5],'offscreen completion must not duplicate submissions');
+ assert.equal(backgroundChecks,beforeChecks+1,'one background inspection finds the two unmounted clips');
+ const offscreen=JSON.parse(fs.readFileSync(path.join(folder,'single_clip_omni_test-offscreen_1_5.json')));
+ assert.deepEqual(offscreen.completed,[1,2,3,4,5]);assert.equal(reloads,0);
+ console.log('PASS: ranges, checkpoint resume, offscreen group completion without duplicates or generation-page scrolling, and batch downloads.');
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>fs.rmSync(folder,{recursive:true,force:true}));

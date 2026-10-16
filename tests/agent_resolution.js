@@ -11,7 +11,7 @@ const video={innerText:'Video generation default',getBoundingClientRect:()=>({wi
 const confirm={innerText:'Confirm before generating',getBoundingClientRect:video.getBoundingClientRect,querySelectorAll:()=>[button('Never','confirm',true)]};
 const moduleStub={exports:{}};
 vm.runInNewContext(fs.readFileSync('agent_settings.js','utf8'),{module:moduleStub,document:{querySelectorAll:()=>[confirm,video]},setTimeout,require:()=>({openSettingsPanel:async()=>{open=true;return true;},setSectionModel:async()=>({ok:true,model:'Omni'}),clickSave:async()=>{saved++;open=false;return true;},settingsPanelOpen:async()=>open})});
-const page={evaluate:async(fn,arg)=>fn.name==='agentDrawerState'?{open,save:{x:10,y:20,clickable:true}}:fn(arg),mouse:{click:async()=>{saved++;open=false;}},waitForFunction:async(fn,opts,arg)=>{if(!fn(arg))throw Error('not selected');}};
+const page={mouse:{click:async()=>{saved++;open=false;}},evaluate:async(fn,arg)=>fn.name==='agentDrawerState'?{open,save:{x:10,y:20,clickable:true}}:fn.name==='clickAgentSave'?(saved++,open=false,true):fn.name==='agentSettingsReady'?open:fn.name==='clickAgentSettings'?(open=true):fn(arg),waitForFunction:async(fn,opts,arg)=>{if(fn.name==='agentSettingsReady'? !open : !fn(arg))throw Error('not selected');}};
 (async()=>{
  await moduleStub.exports.applyAgentSettings(page,{videoModel:'Omni 1.1 Flash',aspect:'9:16',resolution:'360p'});
  assert.equal(selected.resolution,'720p');assert.equal(selected.ratio,'9:16');assert.equal(saved,1);

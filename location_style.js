@@ -21,6 +21,7 @@ function withBrightLocation(story, prompt) {
 }
 function locationPrompt(preset, place) {
     const original = String(place.prompt || '').trim();
+    if(preset.id==='relationship-dialogue-colorful-cartoon'||preset.niche==='Colorful Cartoon – Relationship Dialogue')return `${preset.location_medium||'2D hand-drawn architecture exclusively in light grey and off-white, fine grey linework.'} ${place.description||''} One empty location reference image; preserve the room layout. All background walls, furniture and incidental objects are light grey/off-white, no coloured scenery. No characters, text, labels or watermark.`;
     if (!isRelationship(preset)) return original;
     if (preset.id === 'relationship-dialogue-3d' || preset.niche === 'Relationship Dialogue — Stylized 3D') {
         return `${require('./relationship_3d_style').LOCATION} ${brightVisualText(place.description)} One empty location reference image, wide composition showing the full setting. No people or animals, text, labels or watermark. ${BRIGHT_LOCATION}`;

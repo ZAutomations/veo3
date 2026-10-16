@@ -2,6 +2,17 @@ const media=require('./single_clip_omni_media');
 const {installGridScroller}=require('./flow_grid_scroll');
 const bg=require('./single_clip_omni_background');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function reuseForInspection({key,assetId}){
+ const store=window.__singleOmniTileKeys;
+ const tile=[...document.querySelectorAll('flow-video-tile')].find(t=>store?.keys.get(t)===key||assetId&&[...t.querySelectorAll('img,video,source')].some(e=>(e.currentSrc||e.getAttribute('src')||'').includes('/'+assetId)));
+ if(!tile)return null;
+ let scope=tile;
+ for(let p=tile.parentElement,n=0;p&&n<12;p=p.parentElement,n++){if(p.querySelectorAll('flow-video-tile').length>1)break;scope=p;}
+ const button=[...scope.querySelectorAll('button')].find(b=>!b.disabled&&/^reuse(?: prompt)?$/i.test((b.getAttribute('aria-label')||b.innerText||b.textContent||'').trim()));
+ if(!button)return null;
+ const previous=document.querySelector('.ProseMirror')?.innerText||'';
+ button.click();return {previous};
+}
 async function inspectProject(engine,jobs,receipts={},options={}){
  const log=options.log||(()=>{}),wait=options.sleep||sleep;
  const page=await engine.browser.newPage();let retained=false;
@@ -11,9 +22,31 @@ async function inspectProject(engine,jobs,receipts={},options={}){
   await page.waitForSelector('flow-video-tile',{timeout:30000});
   await page.evaluate(installGridScroller);
   const start=await page.evaluate(bg.metrics);if(start.top>10)await page.evaluate(bg.scrollToPosition,0);
-  const records=new Map();let exhaustive=false,quiet=0;
+  const records=new Map();let exhaustive=false,quiet=0,targetsVerified=false;
+  const findSources=()=>Object.fromEntries(jobs.map(job=>{
+   const receipt=receipts[job.number];
+   return [job.number,media.locateJob([...records.values()],job,receipt?{assetId:receipt.assetId,key:'',excluded:(receipt.excluded||[]).filter(v=>!String(v).startsWith('omni-'))}:null)];
+  }));
   for(let round=0;round<100;round++){
-   for(const tile of await media.snapshot(page))records.set(tile.assetId||tile.key,tile);
+   for(const tile of await media.snapshot(page)){
+    const id=tile.assetId||tile.key,old=records.get(id);
+    if(old?.sourcePrompt)tile.text+='\n'+old.sourcePrompt;
+    else if(!jobs.some(job=>media.promptMatches(tile,job))){
+     // Completed cards may expose only a generated caption. Reuse copies the
+     // original prompt into THIS inspection tab; never press Generate here.
+     const copied=await page.evaluate(reuseForInspection,tile);
+     if(copied){
+      await page.waitForFunction(previous=>{const text=document.querySelector('.ProseMirror')?.innerText||'';return text.trim()&&text!==previous;},{timeout:10000},copied.previous);
+      tile.sourcePrompt=await page.evaluate(()=>document.querySelector('.ProseMirror')?.innerText||'');
+      tile.text+='\n'+tile.sourcePrompt;
+     }
+    }
+    if(old?.sourcePrompt)tile.sourcePrompt=old.sourcePrompt;
+    records.set(id,tile);
+   }
+   // Finding every requested source proves its existence without requiring a
+   // full-project scan. This never authorizes clearing a missing checkpoint.
+   if(jobs.length&&Object.values(findSources()).every(Boolean)){targetsVerified=true;break;}
    const frame=await page.evaluate(bg.metrics);
    if(round%5===0)log(`Resume inspection: ${records.size} rows, position ${Math.round(frame.top)}/${Math.max(0,frame.scroll-frame.client)}.`);
    if(frame.top>=frame.scroll-frame.client-2){
@@ -37,20 +70,20 @@ async function inspectProject(engine,jobs,receipts={},options={}){
    found[job.number]=media.locateJob(tiles,job,receipt?{assetId:receipt.assetId,key:'',excluded:(receipt.excluded||[]).filter(v=>!String(v).startsWith('omni-'))}:null);
   }
   log(`Resume source check: ${tiles.length} video rows inspected; full project=${exhaustive}; active generations=${tiles.filter(t=>t.busy).length}.`);
-  const result={found,exhaustive,generatingSeen:tiles.some(t=>t.busy),tiles};
+  const result={found,exhaustive,targetsVerified,unidentifiedSources:tiles.some(t=>!t.sourcePrompt&&!jobs.some(j=>media.promptMatches(t,j))),generatingSeen:tiles.some(t=>t.busy),tiles};
   if(options.keepOpen){retained=true;result.page=page;}
   return result;
  }finally{if(!retained){await engine.page.bringToFront();await page.close();}}
 }
 function reconcilePending(state,pending,result){
- if(!result.exhaustive)throw Error('Resume project check was incomplete. No scene resubmitted.');
+ if(!result.exhaustive&&!(pending.length&&pending.every(n=>result.found[n])))throw Error('Resume project check was incomplete. No scene resubmitted.');
  const completed=[],missing=[],waiting=[];
  for(const number of pending){
   const tile=result.found[number];
   if(tile?.failed)throw Error(`Scene ${number} has a failed tile; it is not resubmitted automatically.`);
   if(tile?.ready)completed.push(number);
   else if(tile)waiting.push(number);
-  else if(!result.generatingSeen)missing.push(number);
+  else if(!result.generatingSeen&&!result.unidentifiedSources)missing.push(number);
   else throw Error(`Scene ${number} has no matching source while another generation is active; stopped without guessing.`);
  }
  return {completed,missing,waiting};
@@ -73,4 +106,10 @@ async function confirmSubmission(page,job,receipt,{timeout=60000,sleep:wait=slee
  }
  throw Error(`Scene ${job.number}: no new matching clip tile appeared after Generate. Submission is unconfirmed; no later prompt submitted.`);
 }
-module.exports={inspectProject,reconcilePending,confirmSubmission};
+async function readSourcePrompt(page,tile){
+ const copied=await page.evaluate(reuseForInspection,tile);
+ if(!copied)return '';
+ await page.waitForFunction(previous=>{const text=document.querySelector('.ProseMirror')?.innerText||'';return text.trim()&&text!==previous;},{timeout:10000},copied.previous);
+ return page.evaluate(()=>document.querySelector('.ProseMirror')?.innerText||'');
+}
+module.exports={inspectProject,reconcilePending,confirmSubmission,readSourcePrompt};

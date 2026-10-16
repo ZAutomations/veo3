@@ -245,6 +245,7 @@ L.push(AUTO_RATIO
 if (!AUTO_RATIO) L.push(`OUTPUT SHAPE IS MANDATORY: generate every video on a ${ASPECT || aspectRaw} canvas. Reference images may have a different shape; use them for identity and appearance only. Their dimensions must not override the video format. Compose the full frame for this video ratio, without letterboxing or placing a landscape video inside it.`);
 L.push('');
 L.push(`STORY: "${story.title || 'Untitled'}"`);
+if (documentaryCuts) L.push(require('./fern_topic_visuals').forStory(story));
 if (story.single_speaker_advice && story.voice_direction) L.push(`VOICE DELIVERY: ${story.voice_direction}`);
 if (story.description) L.push(story.description);
 if (story.moral) L.push(`Message of the story: ${story.moral}`);
@@ -304,6 +305,10 @@ if (DIALOGUE) {
 
 if (story.style) {
     L.push(`STYLE: ${story.style}`);
+    if(require('./motivational_metaphor').applies(story)) {
+        L.push(require('./motivational_metaphor').LOCK);
+        L.push('TEXT EXCEPTION: only the two short floating archetype labels and the short payoff footer are allowed. Keep each label over its own subject, change the footer only at the payoff. No MINDSET 101 or other branding. Keep the fixed frame and carry task progress forward across clips.');
+    }
     L.push('');
 }
 
@@ -469,7 +474,7 @@ for (const sc of scenes) {
     }
     if (visual && !directed) {
         withVisual++;
-        L.push(`VISUAL: ${require('./location_style').withBrightLocation(story, visual)}`);
+        L.push(`VISUAL: ${documentaryCuts ? require('./fern_topic_visuals').forStory(story)+'\n' : ''}${require('./location_style').withBrightLocation(story, visual)}`);
     }
     L.push('');
 }
@@ -510,7 +515,7 @@ if (DIALOGUE) {
     L.push('Do not add any character dialogue anywhere - narration only.');
 }
 
-const body = require('./simple_dialogue_prompt').agent(story, {
+const body = require('./motivational_ready_script').agent(story,{from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS}) || require('./zack_ready_script').agent(story,{from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS}) || require('./cartoon_narration_prompt').agent(story,{from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS}) || require('./simple_dialogue_prompt').agent(story, {
     from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS,
     native:!!flag('--flow-characters',false),
 }) || (zackCuts ? require('./zack_shot_contract').DIRECTION + '\n\n' : '') + L.join('\n');

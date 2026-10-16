@@ -8,6 +8,9 @@ function promptForScene(story, index, options = {}) {
     const aspect = /^(flow|auto)$/i.test(ratio || '') ? null : ratio;
     const seconds = Number(options.seconds || story.scene_seconds) || 8;
     const request = `Generate ONE standalone clip for story scene ${index + 1} only. Do not generate other scenes or repeat the full story. Use the existing named references in this project.\n`;
+    if(require('./motivational_ready_script').applies(story))return require('./motivational_ready_script').scene(story,index,{aspect:aspect||'Flow',seconds});
+    if(require('./zack_ready_script').applies(story))return require('./zack_ready_script').scene(story,index,{aspect:aspect||'Flow',seconds});
+    if(require('./cartoon_narration_prompt').applies(story))return request+'\n'+require('./cartoon_narration_prompt').scene(story,index,{aspect,seconds})+'\n';
     const simple = require('./simple_dialogue_prompt').agent(story, { from: index + 1, to: index + 1, aspect, seconds, native: !!options.native });
     if (simple) return request + '\n' + simple;
     const keys = scene.characters?.length ? scene.characters : Object.keys(story.character_descriptions || {});
@@ -23,14 +26,15 @@ function promptForScene(story, index, options = {}) {
     return [request, `Scene ${index + 1} - ${scene._scene_title || 'Untitled'}`,
         `FORMAT: ${aspect || 'Use the aspect ratio selected in Flow settings.'}; ${seconds} seconds; ONE output clip.`,
         `STYLE: ${story.style || ''}`,
+        require('./fern_topic_visuals').applies(story) ? require('./fern_topic_visuals').forStory(story) : '',
         /Zack D/i.test(story.niche || '') ? require('./zack_shot_contract').DIRECTION : '',
         `REFERENCES: ${refs.map(n => '@' + n).join(', ') || '(none)'}`,
         story.single_speaker_advice && story.voice_direction ? `VOICE DELIVERY: ${story.voice_direction}` : '',
         ...names.map(n => `IDENTITY ${n}: ${story.character_descriptions?.[n.toLowerCase()] || story.character_descriptions?.[n] || 'Match the named reference.'}`),
-        story.place ? `LOCATION: ${story.place.name}. ${story.place.description || ''}` : '',
+        story.place ? `${require('./fern_topic_visuals').applies(story) ? 'REFERENCE SETTING (matching shots only)' : 'LOCATION'}: ${story.place.name}. ${story.place.description || ''}` : '',
         story.blocking ? `POSITIONS: ${story.blocking}` : '',
         `VISUAL: ${scene.narrative_context || ''}`, `AUDIO: ${audio}`,
-        'Do not rewrite the spoken lines, add narration, captions or additional clips. Keep character identity, clothing and location consistent.'
+        require('./fern_topic_visuals').applies(story) ? 'Do not rewrite the spoken lines, add narration, captions or additional clips. Keep mannequin identity, clothing and location design consistent; use the setting required by each supplied shot.' : 'Do not rewrite the spoken lines, add narration, captions or additional clips. Keep character identity, clothing and location consistent.'
     ].filter(Boolean).join('\n\n') + '\n';
 }
 

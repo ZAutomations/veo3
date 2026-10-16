@@ -12,7 +12,7 @@ import threading
 import time
 import uuid
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Header
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from mcp_client import MCPClient
@@ -20,9 +20,11 @@ from mcp_client import MCPClient
 ROOT = Path(__file__).resolve().parent
 UI = ROOT / 'desktop_ui'
 STATE = ROOT / 'desktop_settings.json'
+WRITER_STATE = ROOT / 'desktop_writer_settings.json'
 TOKEN = secrets.token_urlsafe(32)
 MODELS = ['Flow', 'Omni 1.1 Flash', 'Veo 3.1 - Lite', 'Veo 3.1 - Fast', 'Veo 3.1 - Quality', 'Veo 3.1 - Lite [Lower Priority]']
 lock = threading.RLock()
+_json_write_lock = threading.RLock()
 
 
 def read_json(path, default=None):
@@ -35,9 +37,22 @@ def read_json(path, default=None):
 def save_json(path, data):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    temp = path.with_suffix(path.suffix + '.tmp')
-    temp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding='utf-8')
-    temp.replace(path)
+    # Job output and status updates can save the same checkpoint concurrently.
+    # Unique staging files also protect separate Studio processes on Windows.
+    temp = path.with_name(path.name + '.' + uuid.uuid4().hex + '.tmp')
+    with _json_write_lock:
+        try:
+            temp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding='utf-8')
+            for attempt in range(10):
+                try:
+                    temp.replace(path)
+                    break
+                except PermissionError:
+                    if attempt == 9:
+                        raise
+                    time.sleep(0.05 * (attempt + 1))
+        finally:
+            temp.unlink(missing_ok=True)
 
 
 def story_path(value):
@@ -95,7 +110,34 @@ def command(filename, *args):
 
 
 def plan_action(action, p):
+    if action == 'generate_queue':
+        if p.get('view') not in ('agent', 'ingredients', 'omni'):
+            raise ValueError('Choose a video workflow.')
+        selected = p.get('queue', [])
+        if not isinstance(selected, list) or not selected or len(selected) > 50:
+            raise ValueError('Select one to fifty saved stories for the batch.')
+        paths = [str(story_path(item)[0]) for item in selected]
+        if len(set(paths)) != len(paths):
+            raise ValueError('The queue contains duplicate stories.')
+        operations = []
+        for path in paths:
+            inputs = dict(p, story=path, project='', newProject=True, reuseRefs=False,
+                          genRefs=bool(p.get('batchGenRefs', True)), **{'from':1, 'to':''})
+            _, steps = plan_action('generate', inputs)
+            operations.extend(steps)
+        return 'flow', operations
     """Validate UI input and create allowlisted operations, never arbitrary commands."""
+    if action == 'import_script':
+        text = str(p.get('readyScript', '')).strip()
+        if not text:
+            raise ValueError('Paste a complete ready script with Title:, Preset:, Clip N: and the selected preset’s dialogue or narration/visual fields.')
+        if p.get('preset') not in {x['id'] for x in presets()}:
+            raise ValueError('Select a preset.')
+        aspect = p.get('aspect', '9:16')
+        if aspect not in ('Flow', '9:16', '16:9', '1:1'):
+            raise ValueError('Invalid aspect ratio.')
+        return 'writer', [('request', ('import_ready_script.js', dict(text=text, preset=p['preset'], aspect=aspect,
+            seconds=integer(p.get('seconds', 8), 4, 10, 'Clip duration'))))]
     if action in ('write', 'finalize', 'aistudio'):
         if action == 'aistudio':
             return 'writer', [('cli', command('ask_web.js', '--status', '--launch'))]
@@ -125,14 +167,9 @@ def plan_action(action, p):
                 raise ValueError('Add video links, one per line.')
             args['references'] = links
         else:
-            blocks = re.split(r'(?im)^\s*STORY\s+\d+\s*[:.-]?\s*$', str(p.get('ideas', '')))
-            ideas = []
-            for block in blocks:
-                lines = block.strip().splitlines()
-                if not lines:
-                    continue
-                title = re.sub(r'(?i)^title\s*:\s*', '', lines[0]).strip()
-                ideas.append(dict(title=title, detail='\n'.join(lines[1:]).strip(), preset=preset, duration=clips * seconds))
+            from story_ideas import parse_ideas
+            ideas = [dict(item, preset=item.get('preset') or preset, duration=clips * seconds)
+                     for item in parse_ideas(p.get('ideas', ''))]
             if not ideas:
                 raise ValueError('Add a title and story details.')
             args['ideas'] = ideas
@@ -167,6 +204,9 @@ def plan_action(action, p):
     if model not in MODELS:
         raise ValueError('Select a supported video model.')
     resolution = p.get('resolution', '360p')
+    download_version = p.get('downloadVersion', 'upscaled')
+    if download_version not in ('upscaled', 'original'):
+        raise ValueError('Choose Upscaled or Original downloads.')
     if resolution not in ('Flow', '360p', '720p'):
         raise ValueError('Invalid resolution.')
     seconds = integer(p.get('seconds', story.get('scene_seconds', 8)), 1, 15, 'Clip duration')
@@ -214,7 +254,7 @@ def plan_action(action, p):
         if not re.search(r'Omni.*Flash', model, re.I):
             raise ValueError('Single Clip Omni requires Omni Flash.')
         req = dict(story=str(path), project=project, cdp=port, model=model, aspect=aspect,
-                   resolution=resolution, **{'from': first, 'to': last},
+                   resolution=resolution, downloadVersion=download_version, **{'from': first, 'to': last},
                    newProject=bool(p.get('newProject')), reuseRefs=bool(p.get('reuseRefs')),
                    genRefs=bool(p.get('genRefs')) and not p.get('reuseRefs'),
                    savedCouple=bool(p.get('savedCouple', read_json(ROOT / 'gui_settings.json').get('omni_saved_couple', False))), simple=bool(p.get('simple', True)),
@@ -231,8 +271,7 @@ def plan_action(action, p):
     if action == 'download':
         cmd = command('agent_download.js', '--out', path.parent / 'clips', '--story', path,
                       '--expected', total, '--reverse', *base)
-        if 'omni' in model.lower() or resolution == '360p':
-            cmd.append('--upscaled')
+        cmd.append('--original' if download_version == 'original' else '--upscaled')
         return 'flow', [('cli', cmd)]
     if view == 'ingredients':
         cmd = command('veo3_flow_new_ui.js', path, '--from', first, '--to', last,
@@ -278,7 +317,7 @@ def plan_action(action, p):
         return 'flow', operations
     args = dict(stories=[str(path)], start_phase='clips' if p.get('reuseRefs') and project else 'start',
                 project_url=project, generate=True, submit=True, auto_approve=True,
-                video_model=model, video_resolution=resolution, aspect=aspect, seconds=seconds,
+                video_model=model, video_resolution=resolution, download_version=download_version, aspect=aspect, seconds=seconds,
                 cdp=port, watch=1800, new_project=bool(p.get('newProject')),
                 generate_refs=bool(p.get('genRefs')), no_upload_refs=bool(p.get('reuseRefs')),
                 download=bool(p.get('download', True) or p.get('join')), join=bool(p.get('join')))
@@ -297,6 +336,19 @@ class Job:
         self.stopped = False
         self.logs = deque(maxlen=4000)
         self.sequence = 0
+        self.operation_index = 0
+        self.phase = 'starting'
+        self.operation_projects = {}
+        self.operation_phases = {}
+
+    def save_progress(self):
+        view = self.payload.get('view', 'writer' if self.lane == 'writer' else '')
+        if view in ('writer', 'agent', 'ingredients', 'omni') and self.action in RETRY_ACTIONS:
+            save_json(ROOT / 'logs' / 'desktop' / f'last_{view}_job.json',
+                      dict(id=self.id, action=self.action, payload=self.payload, lane=self.lane,
+                           operations=self.operations, operation_index=self.operation_index,
+                           operation_projects=self.operation_projects, operation_phases=self.operation_phases,
+                           phase=self.phase, status=self.status))
 
     def log(self, line):
         # Driver output may contain keys. Never display complete tokens in the UI.
@@ -304,6 +356,23 @@ class Job:
         for key in read_json(ROOT / 'gui_settings.json').get('gemini_api_keys', []):
             if isinstance(key, str) and len(key) > 10:
                 line = line.replace(key, '[API key hidden]')
+        match = re.search(r'https://flow\.google\.com/project/([\w-]+)', line)
+        changed = False
+        if re.search(r'generating the reference images|FAILED at generate_refs', line, re.I):
+            self.operation_phases[str(self.operation_index)] = 'refs'
+            changed = True
+        elif re.search(r'reference images done|driving Flow|Agent clip batch|FAILED at run_agent', line, re.I):
+            self.operation_phases[str(self.operation_index)] = 'clips'
+            changed = True
+        if match and ('PROJECT_URL:' in line or re.search(r'\bproject\s*(?:->|:)', line, re.I)):
+            self.payload['project'] = 'https://flow.google.com/project/' + match[1]
+            self.operation_projects[str(self.operation_index)] = self.payload['project']
+            changed = True
+        if re.search(r'Download >|Downloading|downloads? finished|upscaled download', line, re.I) and self.phase != 'download':
+            self.phase = 'download'
+            changed = True
+        if changed:
+            self.save_progress()
         with lock:
             self.sequence += 1
             self.logs.append(dict(id=self.sequence, text=line, time=time.time()))
@@ -314,7 +383,8 @@ class Job:
 
     def summary(self):
         return dict(id=self.id, action=self.action, lane=self.lane, status=self.status,
-                    created=self.created, finished=self.finished, latest=self.logs[-1]['text'] if self.logs else '')
+                    created=self.created, finished=self.finished, phase=self.phase,
+                    operation=self.operation_index+1, latest=self.logs[-1]['text'] if self.logs else '')
 
     def stop(self):
         with lock:
@@ -332,7 +402,13 @@ class Job:
 
     def run(self):
         try:
-            for kind, spec in self.operations:
+            for index, (kind, spec) in enumerate(self.operations):
+                self.operation_index = index
+                self.phase = 'running operation ' + str(index + 1)
+                self.save_progress()
+                if self.action == 'generate_queue':
+                    story = spec[1].get('story') if kind == 'request' else spec[1].get('stories', [''])[0] if kind == 'mcp' else next((str(x) for x in spec if str(x).endswith('.json')), '')
+                    self.log('STORY QUEUE: starting ' + str(story))
                 if self.stopped:
                     break
                 if kind == 'request':
@@ -379,10 +455,86 @@ class Job:
                 self.client.stop()
             self.finished = time.time()
             save_json(ROOT / 'logs' / 'desktop' / (self.id + '.result.json'), self.summary())
+            self.save_progress()
 
 
 jobs = {}
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+RETRY_ACTIONS = {'write', 'import_script', 'finalize', 'generate', 'generate_queue', 'refs', 'download', 'order', 'join', 'build', 'export_excel', 'retry_failed'}
+
+
+def retry_plan(record):
+    if record.get('action') not in RETRY_ACTIONS:
+        raise ValueError('This operation cannot be repeated safely. Use its dedicated control.')
+    if record.get('status') == 'completed':
+        raise ValueError('The last workflow already completed; nothing to retry.')
+    operations = record.get('operations', [])
+    cursor = record.get('operation_index', 0)
+    if not isinstance(cursor, int) or cursor < 0 or cursor >= len(operations):
+        raise ValueError('Saved workflow step is unavailable.')
+    remaining = json.loads(json.dumps(operations[cursor:]))
+    for offset, (kind, spec) in enumerate(remaining):
+        project = record.get('operation_projects', {}).get(str(cursor+offset), '') if record.get('action') == 'generate_queue' else record.get('payload', {}).get('project', '')
+        reference_failed = record.get('operation_phases', {}).get(str(cursor+offset)) == 'refs'
+        if offset == 0 and not reference_failed and re.fullmatch(r'[0-9a-f]{32}', record.get('id', '')):
+            logfile = ROOT / 'logs' / 'desktop' / (record['id'] + '.log')
+            if logfile.is_file():
+                current_log = logfile.read_text(encoding='utf-8', errors='replace').rsplit('STORY QUEUE: starting', 1)[-1]
+                reference_failed = bool(re.search(r'FAILED at generate_refs', current_log))
+        if kind == 'mcp' and spec[1].get('generate') and (project or record.get('action') != 'generate_queue'):
+            if len(spec[1].get('stories', [])) != 1 or not project:
+                raise ValueError('This pipeline needs its saved single-story project to resume safely; no generation repeated.')
+            spec[1].update(project_url=project, new_project=False,
+                           start_phase='start' if reference_failed else 'clips',
+                           generate_refs=reference_failed, no_upload_refs=True)
+        if kind == 'request' and project:
+            spec[1]['project'] = project
+            spec[1]['newProject'] = False
+        elif kind == 'cli' and project and '--new-project' in spec:
+            spec.remove('--new-project')
+            if '--project-url' not in spec:
+                spec += ['--project-url', project]
+        if kind == 'cli' and any(str(x).endswith('veo3_flow_new_ui.js') for x in spec) and '--refs-only' not in spec and '--export-only' not in spec and (project or record.get('action') != 'generate_queue'):
+            if not project:
+                raise ValueError('The Ingredients retry needs the saved project URL; no generation was repeated.')
+            if '--project-url' not in spec:
+                spec += ['--project-url', project]
+            for flag in ('--new-project', '--gen-refs'):
+                if flag in spec:
+                    spec.remove(flag)
+            spec.append('--resume-auto')
+    return remaining
+
+
+@app.post('/api/retry')
+def retry_workflow(body: dict):
+    view = body.get('view')
+    if view not in ('writer', 'agent', 'ingredients', 'omni'):
+        raise HTTPException(400, 'Choose a workflow tab.')
+    record = read_json(ROOT / 'logs' / 'desktop' / f'last_{view}_job.json')
+    if not record:
+        # Runs made before retry progress existed still have the original inputs.
+        old = read_json(ROOT / 'logs' / 'desktop' / f"last_{'writer' if view == 'writer' else 'flow'}_request.json")
+        if old.get('payload', {}).get('view') != view or old.get('action') not in RETRY_ACTIONS:
+            raise HTTPException(400, 'No saved retry checkpoint for this tab yet. Start a run first.')
+        try:
+            lane, operations = plan_action(old['action'], old['payload'])
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
+        record = dict(**old, lane=lane, operations=operations, operation_index=0,
+                      phase='saved driver checkpoint', status='stopped')
+    try:
+        operations = retry_plan(record)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    with lock:
+        if any(j.status == 'running' and j.lane == record['lane'] for j in jobs.values()):
+            raise HTTPException(409, 'Stop the current job first, then Retry / Continue.')
+        job = Job(record['action'], record['payload'], record['lane'], operations)
+        jobs[job.id] = job
+        job.log(f"Retry / Continue: resuming {record.get('phase', 'failed step')} with the original inputs. Successful earlier operations are skipped; driver checkpoints preserve completed clips and downloads.")
+        threading.Thread(target=job.run, daemon=True).start()
+        return job.summary()
 app.mount('/assets', StaticFiles(directory=UI), name='assets')
 
 
@@ -410,7 +562,7 @@ def index():
 
 
 @app.get('/api/bootstrap')
-def bootstrap():
+def bootstrap(studio_surface: str = Header(default='studio', alias='X-Studio-Surface')):
     legacy = read_json(ROOT / 'gui_settings.json')
     initial = dict(story=legacy.get('agent_story_json', ''), project=legacy.get('agent_project_url', ''),
                    cdp=legacy.get('agent_cdp_port', 9222), model=legacy.get('video_model', 'Omni 1.1 Flash'),
@@ -423,8 +575,24 @@ def bootstrap():
             project=legacy.get(f'{prefix}_project_url' if prefix else 'project_url', ''),
             cdp=legacy.get(f'{prefix}_cdp_port' if prefix else 'cdp_port', 9222))
     return dict(root=str(ROOT), models=MODELS, presets=presets(), defaults=initial, workflowDefaults=workflow_defaults,
-                preferences=read_json(STATE), hasApiKeys=bool(legacy.get('gemini_api_keys') or legacy.get('gemini_api_key')),
+                preferences=surface_preferences(studio_surface), hasApiKeys=bool(legacy.get('gemini_api_keys') or legacy.get('gemini_api_key')),
                 savedCouple={k: legacy.get(k, '') for k in ('couple_sarah_file', 'couple_george_file', 'couple_sarah_description', 'couple_george_description', 'agent_saved_couple', 'ing_saved_couple', 'omni_saved_couple')})
+
+
+def story_completion(path, story, manifest):
+    """Classify local completed work without opening Flow or scanning the browser."""
+    clips = path.parent / 'clips'
+    downloaded = set()
+    for item in manifest.get('clips', []):
+        file = clips / str(item.get('file', ''))
+        if item.get('got') is not False and file.suffix.lower() == '.mp4' and file.is_file() and file.stat().st_size > 0:
+            downloaded.add(str(file.resolve()))
+    total = len(story.get('scenes', []))
+    complete_clips = total > 0 and len(downloaded) == total
+    final = path.parent / 'clips_final.mp4'
+    completed_final = final.is_file() and final.stat().st_size > 0 and final.stat().st_mtime >= path.stat().st_mtime
+    return dict(downloaded=len(downloaded), done=bool(complete_clips or completed_final),
+                completion='Final video saved' if completed_final else 'All clips downloaded' if complete_clips else 'Available')
 
 
 @app.get('/api/library')
@@ -440,7 +608,7 @@ def library():
         result.append(dict(path=str(path), title=story.get('title', path.stem), scenes=len(story['scenes']),
                           duration=len(story['scenes']) * story.get('scene_seconds', 8),
                           preset=story.get('niche', ''), modified=path.stat().st_mtime,
-                          downloaded=sum(1 for x in manifest.get('clips', []) if x.get('got') is not False and (path.parent / 'clips' / x.get('file', '')).is_file())))
+                          **story_completion(path, story, manifest)))
     return sorted(result, key=lambda x: x['modified'], reverse=True)
 
 
@@ -465,10 +633,21 @@ def account_list():
     return dict(current=data.get('current', 0), accounts=[{k: a.get(k) for k in ('label', 'email', 'max_clips', 'clips_used', 'clips_month', 'paused')} for a in data.get('accounts', [])])
 
 
+def surface_preferences(surface):
+    base = read_json(STATE)
+    if surface != 'writer':
+        return base
+    saved = read_json(WRITER_STATE)
+    saved.setdefault('theme', base.get('theme', 'crimson'))
+    saved.setdefault('forms', {'writer': base.get('forms', {}).get('writer', {})})
+    saved.setdefault('current', 'writer')
+    return saved
+
+
 @app.post('/api/preferences')
-def preferences(data: dict):
+def preferences(data: dict, studio_surface: str = Header(default='studio', alias='X-Studio-Surface')):
     with lock:
-        save_json(STATE, data)
+        save_json(WRITER_STATE if studio_surface == 'writer' else STATE, data)
     return {'ok': True}
 
 
@@ -548,10 +727,15 @@ def full_job_log(job_id: str):
 
 
 class DesktopBridge:
+    def __init__(self, base_url=None):
+        self._base_url = base_url
+        self._window = None
+        self._writer_window = None
+
     def choose_file(self, kind='story'):
         import webview
         types = ('Images (*.png;*.jpg;*.jpeg;*.webp)',) if kind == 'image' else ('JSON files (*.json)',)
-        result = webview.windows[0].create_file_dialog(webview.FileDialog.OPEN, directory=str(ROOT / 'stories'), file_types=types)
+        result = (self._window or webview.windows[0]).create_file_dialog(webview.FileDialog.OPEN, directory=str(ROOT / 'stories'), file_types=types)
         return str(result[0]) if result else ''
 
     def open_story_folder(self, path):
@@ -562,6 +746,25 @@ class DesktopBridge:
     def open_legacy(self):
         subprocess.Popen([sys.executable, str(ROOT / 'veo3_gui.py')], cwd=ROOT,
                          creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+        return True
+
+    def open_story_writer(self):
+        """A dedicated window shares the server's separate writer/Flow job lanes."""
+        import webview
+        if not self._base_url:
+            raise RuntimeError('The Studio server URL is not available.')
+        if self._writer_window is not None:
+            self._writer_window.show()
+            self._writer_window.restore()
+            return True
+        bridge = DesktopBridge(self._base_url)
+        theme = surface_preferences('writer').get('theme', 'crimson')
+        background = {'crimson': '#09090b', 'ember': '#0b0806', 'matte': '#e6e7eb'}.get(theme, '#09090b')
+        window = webview.create_window('VEO3 Story Writer', self._base_url + '/?writer=1', js_api=bridge,
+            width=1120, height=850, min_size=(980, 620), background_color=background, confirm_close=True)
+        bridge._window = window
+        self._writer_window = window
+        window.events.closed += lambda: setattr(self, '_writer_window', None)
         return True
 
 
@@ -584,7 +787,8 @@ def main():
     width, height = min(1380, screen.width - 40), min(920, screen.height - 80)
     theme = read_json(STATE).get('theme', 'crimson')
     background = {'crimson': '#09090b', 'ember': '#0b0806', 'matte': '#e6e7eb'}.get(theme, '#09090b')
-    webview.create_window('VEO3 Studio', f'http://127.0.0.1:{port}', js_api=DesktopBridge(),
+    bridge = DesktopBridge(f'http://127.0.0.1:{port}')
+    bridge._window = webview.create_window('VEO3 Studio', bridge._base_url, js_api=bridge,
                           width=width, height=height, min_size=(980, 620), background_color=background, confirm_close=True)
     try:
         webview.start(gui='edgechromium')

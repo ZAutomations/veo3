@@ -1,0 +1,11 @@
+const assert=require('assert'),fs=require('fs'),vm=require('vm');
+const source=fs.readFileSync(require.resolve('../agent_mode'),'utf8');
+const functionText=source.slice(source.indexOf('function installAgentEditor(){'),source.indexOf('\nfunction ts()'));
+const make=(visible,agent=false)=>({getBoundingClientRect:()=>({width:visible?500:0,height:visible?50:0}),closest:s=>s==='.agent-panel-prompt-box'&&agent?{}:null});
+const hidden=make(false),base=make(true),agent=make(true,true);
+const context={window:{},document:{activeElement:null,querySelectorAll:()=>[hidden,base,agent]},getComputedStyle:()=>({display:'block',visibility:'visible'})};
+vm.runInNewContext(functionText+'\ninstallAgentEditor();',context);
+assert.equal(context.window.__veoAgentEditor(),agent);
+context.document.activeElement={closest:()=>base};assert.equal(context.window.__veoAgentEditor(),base);
+context.document.querySelectorAll=()=>[hidden];assert.equal(context.window.__veoAgentEditor(),null);
+console.log('PASS: hidden editors are excluded; visible Agent editor and actual focused composer are used.');

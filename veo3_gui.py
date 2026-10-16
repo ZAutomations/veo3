@@ -348,6 +348,7 @@ class Veo3LauncherGUI:
         self.root.configure(bg=BG)
 
         self.settings = self.load_settings()
+        self.download_version_var = tk.StringVar(value=self.settings.get("download_version", "upscaled"))
         self.build_style()
         self.build_ui()
 
@@ -619,6 +620,9 @@ class Veo3LauncherGUI:
         self.build_ingredients_tab(ing)
         self.build_single_clip_omni_tab(omni)
         self.build_agent_tab(agt)
+        for frame, view in ((ing, 'ingredients'), (omni, 'omni'), (agt, 'agent')):
+            ttk.Button(frame, text='Retry / Continue', command=lambda v=view: self.retry_last_workflow(v)).grid(
+                row=frame.grid_size()[1], column=0, columnspan=max(1, frame.grid_size()[0]), sticky='w', padx=14, pady=10)
         self.build_accounts_tab(acc)
         self.mcp_tab = mcp_tab
         self.build_mcp_integration_tab(mcp)
@@ -1360,13 +1364,15 @@ class Veo3LauncherGUI:
         ttk.Combobox(controls, textvariable=self.omni_ing_aspect_var, values=["Flow", "16:9", "9:16", "1:1"],
                      state="readonly").grid(row=1, column=1, sticky="ew", padx=10, pady=8)
         ttk.Checkbutton(controls, text="Create a new project", variable=self.omni_ing_new_project_var).grid(row=2, column=0, columnspan=2, sticky="w", padx=10, pady=6)
-        ttk.Checkbutton(controls, text="Download Upscaled between batches", variable=self.omni_ing_download_var).grid(row=3, column=0, sticky="w", padx=10, pady=6)
+        ttk.Checkbutton(controls, text="Download clips between batches", variable=self.omni_ing_download_var).grid(row=3, column=0, sticky="w", padx=10, pady=6)
         ttk.Checkbutton(controls, text="Join downloaded clips", variable=self.omni_ing_join_var).grid(row=3, column=1, sticky="w", padx=10, pady=6)
         self.saved_couple_controls(controls, "omni").grid(row=4, column=0, columnspan=2, sticky="ew", padx=10, pady=8)
         self.omni_resolution_var = tk.StringVar(value=self.settings.get("omni_resolution", "720p"))
         ttk.Label(controls, text="Resolution:").grid(row=5, column=0, padx=10, pady=8)
         ttk.Combobox(controls, textvariable=self.omni_resolution_var, values=["360p", "720p"],
                      state="readonly").grid(row=5, column=1, sticky="ew", padx=10, pady=8)
+        ttk.Label(controls, text="Download version:").grid(row=7, column=0, padx=10, pady=8)
+        ttk.Combobox(controls, textvariable=self.download_version_var, values=["upscaled", "original"], state="readonly").grid(row=7, column=1, sticky="ew", padx=10, pady=8)
         self.omni_simple_var = tk.BooleanVar(value=self.settings.get("omni_simple", True))
         ttk.Checkbutton(controls, text="Use simple test prompts when available", variable=self.omni_simple_var).grid(
             row=6, column=0, columnspan=2, sticky="w", padx=10, pady=6)
@@ -1375,7 +1381,7 @@ class Veo3LauncherGUI:
         for index, (label, command) in enumerate([
                 ("Create references only", lambda: self.run_single_clip_omni(refs_only=True)),
                 ("Generate clips", self.run_single_clip_omni),
-                ("Download Upscaled", lambda: self.download_omni_clips()),
+                ("Download clips", lambda: self.download_omni_clips()),
                 ("Delete all video clips", lambda: self.delete_project_video_clips(self.omni_url_var, self.omni_story_var)),
                 ("Join clips", self.join_omni_clips), ("Stop", self.kill_engine)]):
             ttk.Button(actions, text=label, command=command, style="Accent.TButton").grid(
@@ -1422,7 +1428,7 @@ class Veo3LauncherGUI:
         reuse = bool(self.omni_skip_refs_var.get()) and not new_project
         return {"story": os.path.abspath(story), "from": first, "to": last,
                 "project": self.omni_url_var.get().strip(), "newProject": new_project,
-                "model": model, "aspect": self.omni_ing_aspect_var.get(), "resolution": self.omni_resolution_var.get(),
+                "model": model, "aspect": self.omni_ing_aspect_var.get(), "resolution": self.omni_resolution_var.get(), "downloadVersion": self.download_version_var.get(),
                 "cdp": self.read_int(self.omni_cdp_var, 9222), "reuseRefs": reuse,
                 "genRefs": bool(self.omni_gen_refs_var.get()) and not reuse,
                 "savedCouple": bool(self.omni_saved_couple_var.get()), "simple": bool(self.omni_simple_var.get()),
@@ -2063,6 +2069,7 @@ class Veo3LauncherGUI:
                 self.settings["omni_" + key] = var.get()
             self.settings["omni_saved_couple"] = self.omni_saved_couple_var.get()
             self.settings["omni_resolution"] = self.omni_resolution_var.get()
+            self.settings["download_version"] = self.download_version_var.get()
             self.settings["omni_simple"] = self.omni_simple_var.get()
         self.settings.update({
             "story_json": self.story_var.get().strip(),
@@ -2520,6 +2527,11 @@ class Veo3LauncherGUI:
                       values=(a.get("label", ""), a.get("email", ""), f"{used}/{mx}", state))
 
     def _handle_proc_exit(self, code):
+        if getattr(self, '_retry_view', None):
+            records = getattr(self, '_workflow_retries', {})
+            if self._retry_view in records:
+                records[self._retry_view]['status'] = 'completed' if code == 0 else 'failed'
+                self._save_workflow_retries()
         """Engine finished. Code 3 = the account's Veo credits are spent."""
         job = getattr(self, "_ingredients_job", None)
         self._ingredients_job = None
@@ -2577,6 +2589,20 @@ class Veo3LauncherGUI:
         if self._work_busy():
             messagebox.showwarning("Busy", "A stage is already running. Wait, or kill it first.")
             return False
+        title = self.nb.tab(self.nb.select(), 'text') if hasattr(self, 'nb') else ''
+        view = 'omni' if 'Single Clip' in title else 'ingredients' if 'Ingredients' in title else 'agent' if 'Agent Mode' in title else None
+        self._retry_view = view
+        if view:
+            if not hasattr(self, '_workflow_retries'):
+                filename=os.path.join(BASE_DIR,'logs','classic_workflow_retries.json')
+                if os.path.isfile(filename):
+                    with open(filename,encoding='utf-8') as stream:
+                        self._workflow_retries=json.load(stream)
+                else:
+                    self._workflow_retries={}
+            self._workflow_retries = getattr(self, '_workflow_retries', {})
+            self._workflow_retries[view] = {'command': list(cmd), 'description': what, 'status': 'running'}
+            self._save_workflow_retries()
         self._ingredients_job = ({"refs_only": "--refs-only" in cmd, "story": cmd[2], "project": ""}
                                  if len(cmd) > 2 and cmd[1] == ENGINE else None)
         self.output.delete("1.0", "end")
@@ -2598,6 +2624,50 @@ class Veo3LauncherGUI:
             return False
         threading.Thread(target=self.stream_output, args=(self.proc,), daemon=True).start()
         return True
+
+    def _save_workflow_retries(self):
+        folder = os.path.join(BASE_DIR, 'logs')
+        os.makedirs(folder, exist_ok=True)
+        with open(os.path.join(folder, 'classic_workflow_retries.json'), 'w', encoding='utf-8') as stream:
+            json.dump(getattr(self, '_workflow_retries', {}), stream, indent=2)
+
+    def retry_last_workflow(self, view):
+        if self._work_busy():
+            messagebox.showinfo('Retry / Continue', 'Stop the current job first, then retry.')
+            return
+        records = getattr(self, '_workflow_retries', None)
+        if records is None:
+            filename = os.path.join(BASE_DIR, 'logs', 'classic_workflow_retries.json')
+            records = json.load(open(filename, encoding='utf-8')) if os.path.isfile(filename) else {}
+            self._workflow_retries = records
+        record = records.get(view)
+        if not record or record.get('status') == 'completed':
+            messagebox.showinfo('Retry / Continue', 'No failed or interrupted run is saved for this tab.')
+            return
+        cmd = record['command']
+        if any('agent_manual_generate' in str(x) or 'delete_project_video' in str(x) for x in cmd):
+            messagebox.showinfo('Retry / Continue', 'Use the dedicated manual selection or cleanup controls; these operations are not repeated automatically.')
+            return
+        if view == 'omni' and len(cmd) > 2 and os.path.isfile(cmd[2]):
+            request = json.load(open(cmd[2], encoding='utf-8'))
+            project = record.get('project') or request.get('project')
+            if project:
+                request.update(project=project, newProject=False, reuseRefs=True, genRefs=False)
+                filename = os.path.join(BASE_DIR, 'logs', 'classic_omni_retry.json')
+                with open(filename, 'w', encoding='utf-8') as stream:
+                    json.dump(request, stream)
+                cmd = cmd[:2] + [filename]
+        if view == 'ingredients' and '--refs-only' not in cmd and '--export-only' not in cmd:
+            project=record.get('project') or (cmd[cmd.index('--project-url')+1] if '--project-url' in cmd else '')
+            if not project:
+                messagebox.showinfo('Retry / Continue', 'No saved project URL is available; no generation repeated.')
+                return
+            cmd=list(cmd)
+            for flag in ('--new-project','--gen-refs'):
+                if flag in cmd: cmd.remove(flag)
+            if '--project-url' not in cmd: cmd+=['--project-url',project]
+            cmd.append('--resume-auto')
+        self._launch(cmd, 'Retry / Continue: original driver inputs and saved checkpoints...')
 
     def join_ingredients_clips(self):
         self.collect_inputs()
@@ -3183,8 +3253,7 @@ class Veo3LauncherGUI:
         if not self._ensure_active_browser(self.settings["agent_cdp_port"]):
             return
         cmd = ["node", DOWNLOADER, "--out", out, "--cdp", str(self.settings["agent_cdp_port"])]
-        if "omni" in self.video_model_var.get().lower() or self.agent_resolution_var.get() == "360p":
-            cmd.append("--upscaled")
+        cmd.append("--original" if self.download_version_var.get() == "original" else "--upscaled")
         try:
             with open(self.agent_story_var.get(), "r", encoding="utf-8") as fh:
                 expected = len(json.load(fh).get("scenes", []))
@@ -3280,6 +3349,12 @@ class Veo3LauncherGUI:
                     match = re.search(r"project_url:\s*(https://flow\.google\.com/project/[a-zA-Z0-9_-]+)", line)
                     if match:
                         job["project"] = match.group(1)
+                retry_project = re.search(r'(?:project_url|OMNI_PROJECT_URL):\s*(https://flow\.google\.com/project/[a-zA-Z0-9_-]+)',line)
+                if retry_project and getattr(self,'_retry_view',None):
+                    record=getattr(self,'_workflow_retries',{}).get(self._retry_view)
+                    if record:
+                        record['project']=retry_project.group(1)
+                        self._save_workflow_retries()
                 omni_project = re.search(r"OMNI_PROJECT_URL:\s*(https://flow\.google\.com/project/[a-zA-Z0-9_-]+)", line)
                 if omni_project and hasattr(self, "omni_url_var"):
                     url = omni_project.group(1)
@@ -3551,6 +3626,7 @@ class Veo3LauncherGUI:
         self.mcp_generate_var = tk.BooleanVar(value=bool(self.settings.get("mcp_generate", False)))
         self.mcp_download_var = tk.BooleanVar(value=bool(self.settings.get("mcp_download", True)))
         ttk.Checkbutton(line2, text="Download", variable=self.mcp_download_var).pack(side="left", padx=(12, 0))
+        ttk.Combobox(line2, textvariable=self.download_version_var, values=["upscaled", "original"], width=10, state="readonly").pack(side="left", padx=6)
         self.mcp_join_var = tk.BooleanVar(value=bool(self.settings.get("mcp_join", True)))
         ttk.Checkbutton(line2, text="Join", variable=self.mcp_join_var).pack(side="left", padx=(12, 0))
         self.mcp_new_project_var = tk.BooleanVar(value=bool(self.settings.get("mcp_new_project", True)))
@@ -3893,86 +3969,8 @@ class Veo3LauncherGUI:
 
     @staticmethod
     def _parse_ideas_text(raw):
-        """Turn the Ideas box into films without shredding a pasted brief.
-
-        The explicit multiline format is:
-          STORY 1
-          TITLE: First title
-          any number of detail lines
-
-          STORY 2
-          TITLE: Second title
-          any number of detail lines
-
-        Without STORY markers, the entire box is ONE film. This is the safe
-        default: headings such as THE QUESTION and THE HOOK are details, not
-        surprise new films. The compact format remains available when EVERY
-        non-empty line contains a pipe:
-          Title | optional preset | optional detail
-        """
-        lines = [ln.strip() for ln in str(raw or "").splitlines()
-                 if ln.strip() and not ln.lstrip().startswith("#")]
-        if not lines:
-            return []
-
-        story_marker = re.compile(r"^story\s+(\d+)\s*(?::|-)?\s*(.*)$", re.IGNORECASE)
-        marker_at = [(i, story_marker.match(ln)) for i, ln in enumerate(lines)
-                     if story_marker.match(ln)]
-
-        def parse_block(block, marker_title=""):
-            title = marker_title.strip()
-            preset, detail_lines = "", []
-            for line in block:
-                m_title = re.match(r"^title\s*:\s*(.+)$", line, flags=re.IGNORECASE)
-                m_preset = re.match(r"^preset\s*:\s*(.+)$", line, flags=re.IGNORECASE)
-                if m_title:
-                    title = m_title.group(1).strip()
-                elif m_preset:
-                    preset = m_preset.group(1).strip()
-                else:
-                    detail_lines.append(line)
-            if not title and detail_lines:
-                title = detail_lines.pop(0).strip()
-            if not title:
-                return None
-            idea = {"title": title}
-            if preset:
-                idea["preset"] = preset
-            if detail_lines:
-                idea["detail"] = "\n".join(detail_lines)
-            return idea
-
-        # Explicit markers are the only way plain multiline text becomes more
-        # than one film. Text before STORY 1 is deliberately ignored as a note.
-        if marker_at:
-            ideas = []
-            for pos, (start, match) in enumerate(marker_at):
-                end = marker_at[pos + 1][0] if pos + 1 < len(marker_at) else len(lines)
-                idea = parse_block(lines[start + 1:end], match.group(2) or "")
-                if idea:
-                    ideas.append(idea)
-            return ideas
-
-        # Compact batches are unambiguous only when each line uses the separator.
-        if all("|" in ln for ln in lines):
-            ideas = []
-            for ln in lines:
-                parts = [p.strip() for p in ln.split("|")]
-                if not parts[0]:
-                    continue
-                idea = {"title": parts[0]}
-                if len(parts) >= 3:
-                    if parts[1]:
-                        idea["preset"] = parts[1]
-                    if any(parts[2:]):
-                        idea["detail"] = " | ".join(parts[2:])
-                elif len(parts) == 2 and parts[1]:
-                    idea["detail"] = parts[1]
-                ideas.append(idea)
-            return ideas
-
-        single = parse_block(lines)
-        return [single] if single else []
+        from story_ideas import parse_ideas
+        return parse_ideas(raw)
 
     def _parse_idea_lines(self):
         return self._parse_ideas_text(self.mcp_ideas.get("1.0", "end"))
@@ -4017,6 +4015,7 @@ class Veo3LauncherGUI:
             "aspect": self.mcp_aspect_var.get().strip() or "Flow",
             "video_model": self.mcp_video_model_var.get().strip() or "Flow",
             "video_resolution": self.mcp_resolution_var.get(),
+            "download_version": self.download_version_var.get(),
             "seconds": self.read_int(self.mcp_seconds_var, 8),
             # api / web / auto - every link in the batch is analysed and written
             # by this one. "web" needs no key and no per-project quota, which is

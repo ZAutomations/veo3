@@ -1,0 +1,80 @@
+MASTER PROMPTS — PORTABLE CHATGPT INSTRUCTIONS
+Created 13 October 2026. No chat history or account-specific context is required.
+
+1. Open the TXT for your preset.
+2. Read USE IN TOOL at the top.
+3. Copy the text after COPY FROM THE NEXT LINE INTO CHATGPT into any ChatGPT account.
+4. Supply a topic/source and answer the duration question if asked.
+5. Download the completed script or copy the full code block, then use the indicated tool route.
+
+DIRECT IMPORT (no Gemini writing): realistic, Ghibli, stylized 3D, colorful cartoon relationship dialogue, dog-couple dialogue, and Zack D narrated timed-shot scripts.
+OTHER PRESETS, INCLUDING FERN: use Title & details > Write stories. Their masters prepare full writing inputs, but direct-import support has not been implemented for them. Do not paste them into Import ready script. Set GUI duration/clip count to match the script before writing.
+
+DOG/HUMAN DIALOGUE LENGTHS: 30 seconds = five 6-second clips. Approximately 60 seconds = eight 8-second clips (64 seconds). Actual generated lengths depend on the selected video model; use supported settings.
+ZACK D: eight-second clips, count derived from narration, two to four timed shots. Improve the supplied hook in ChatGPT BEFORE import; import preserves spoken text.
+SOURCE LINKS: when ChatGPT cannot access a link, supply the transcript/video. Do not let it invent source analysis.
+These files preserve prompt instructions, not API keys, accounts or private stories. They can be copied to another laptop.
+
+FILE INDEX
+ww2-history.txt | World War 2 History | STORY WRITER
+fern-documentary.txt | Fern Documentary Style | STORY WRITER
+mafia.txt | World Mafia Stories | STORY WRITER
+true-crime.txt | True Crime Stories | STORY WRITER
+health-wellness.txt | Health & Wellness | STORY WRITER
+personal-finance.txt | Personal Finance | STORY WRITER
+relationship.txt | Relationship Advice | STORY WRITER
+fall-asleep.txt | Fall Asleep Stories | STORY WRITER
+travel-adventure.txt | Travel & Adventure | STORY WRITER
+cooking.txt | Cooking & Recipes | STORY WRITER
+gaming-esports.txt | Gaming & Esports | STORY WRITER
+technology-ai.txt | Technology & AI | STORY WRITER
+ghibli.txt | Studio Ghibli Style | STORY WRITER
+pixar-3d.txt | Pixar 3D Animation | STORY WRITER
+anime-cinematic.txt | Anime Cinematic | STORY WRITER
+disney-classic.txt | Disney Classic | STORY WRITER
+shinkai.txt | Makoto Shinkai Style | STORY WRITER
+lofi-anime.txt | Lofi Anime | STORY WRITER
+cartoon-network.txt | Cartoon Network Style | STORY WRITER
+realistic-cgi.txt | Realistic CGI | STORY WRITER
+vintage-anime-90s.txt | Vintage Anime 90s | STORY WRITER
+chibi-cute.txt | Chibi Cute Style | STORY WRITER
+avatar-korra.txt | Avatar/Korra Style | STORY WRITER
+science-what-if.txt | Science What-If | STORY WRITER
+animal-kindness.txt | Animal Kindness | STORY WRITER
+geography-map.txt | Geography Map (2.5D relief) | STORY WRITER
+3d-zack-style.txt | 3D Shorts (Zack D. style) | DIRECT IMPORT
+3d-moral-story.txt | 3D Moral Story (Afrimax style) | STORY WRITER
+3d-explainer.txt | 3D Explainer | STORY WRITER
+3d-map.txt | 3D Map | STORY WRITER
+relationship-dialogue.txt | Relationship Dialogue | STORY WRITER
+relationship-dialogue-ghibli.txt | Relationship Dialogue Ghibli | DIRECT IMPORT
+relationship-dialogue-real.txt | Relationship Dialogue (Realistic) | DIRECT IMPORT
+relationship-dialogue-3d.txt | Relationship Dialogue — Stylized 3D | DIRECT IMPORT
+fantasy-princess-relationship-advice.txt | Fantasy Princess — Relationship Advice | STORY WRITER
+relationship-narration-colorful-cartoon.txt | Colorful Cartoon – Relationship Narration | STORY WRITER
+relationship-dialogue-colorful-cartoon.txt | Colorful Cartoon – Relationship Dialogue | DIRECT IMPORT
+3d-motivational-red-green.txt | 3D Motivational — Red vs Green | STORY WRITER
+relationship-dialogue-dog-couple.txt | Relationship Dialogue — Dog Couple (Realistic Comedy) | DIRECT IMPORT
+genai-stone-age.txt | Stone Age (Stick) | STORY WRITER
+genai-anime-recap.txt | Anime Recap | STORY WRITER
+genai-crime-2d.txt | Crime Story (2D) | STORY WRITER
+genai-horror-2d.txt | Horror Story (2D) | STORY WRITER
+genai-history-graphic.txt | History (Graphic Novel) | STORY WRITER
+genai-history-cel.txt | History (Cel Doc) | STORY WRITER
+genai-history-painterly.txt | History (Painterly) | STORY WRITER
+genai-dark-conspiracy.txt | Dark Documentary | STORY WRITER
+genai-stick-battle.txt | Stick Battle (History) | STORY WRITER
+genai-stick-realface.txt | Stick Rise & Fall | STORY WRITER
+genai-stick-whiteface.txt | Stick Whitefaces | STORY WRITER
+genai-stick-flat.txt | Stick Vector (Flag Colours) | STORY WRITER
+genai-3d-render.txt | 3D Render Story | STORY WRITER
+genai-vox-collage-history.txt | Paper Collage (History) | STORY WRITER
+genai-vox-collage-crime.txt | Paper Collage (Crime) | STORY WRITER
+genai-vox-collage-business.txt | Paper Collage (Business) | STORY WRITER
+genai-vector-health.txt | Vector Health | STORY WRITER
+genai-papercut-history.txt | Paper Craft (History) | STORY WRITER
+genai-papercut-finance.txt | Paper Craft (Finance) | STORY WRITER
+genai-oil-finance.txt | Oil Painting (Finance) | STORY WRITER
+genai-space-cel.txt | Space Documentary | STORY WRITER
+
+FERN DOCUMENTARY MASTER: dedicated factual/chronological narration, source-supported hook and silent faceless mannequins. It must not turn a real incident into a viewer-facing what-if scenario. See fern-documentary.txt.

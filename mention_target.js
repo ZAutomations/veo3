@@ -185,6 +185,12 @@ function distinctMentions(names) {
     }
     return out;
 }
+function extractMentions(prompt, knownNames=[]){
+    const names=knownNames.filter(Boolean).map(String).sort((a,b)=>b.length-a.length);
+    const escape=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const re=new RegExp('@('+names.map(escape).concat('[A-Za-z0-9_.\\-]+').join('|')+')(?=$|[^A-Za-z0-9_])','gi');
+    return [...String(prompt||'').matchAll(re)].map(m=>m[1]);
+}
 
 // ---- reference-sheet lookup -------------------------------------------------
 // The story JSON records refs as `./character_refs/<key>.jpg`, but a sheet can
@@ -249,5 +255,5 @@ function resolveCharacterRef(refs, name, storyDir, fsMod) {
 
 module.exports = {
     chooseMentionTile, describeChoice, tileKind, isNavCategory, isAction,
-    resolveCharacterRef, distinctMentions, KIND_RANK, normText,
+    resolveCharacterRef, distinctMentions, extractMentions, KIND_RANK, normText,
 };

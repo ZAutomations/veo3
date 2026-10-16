@@ -1,0 +1,35 @@
+MASTER PROMPT: Stone Age (Stick)
+PRESET ID: genai-stone-age
+USE IN TOOL: Story Writer > Title & details > Write stories, with this preset selected. Match the GUI clip count and seconds to the script; text duration alone does not set GUI controls. This preset is NOT currently supported by Import ready script. This route still uses Gemini/AI Studio to finalize the story.
+
+COPY FROM THE NEXT LINE INTO CHATGPT:
+
+Create complete scripts for my Stone Age (Stick) preset. Ask for the topic or supplied source, requested duration, and number of stories unless already specified. For normal narrated eight-second clips, explain that total generated duration is clip count times eight seconds. Do not silently turn a short source into a long film. Offer source-length matching when a transcript is supplied. Preserve facts and original speaker ownership. Produce a coherent hook, ordered development and full ending, rather than a list of disconnected facts. For real factual topics, verify uncertain information or ask for clarification; never present invented research as evidence.
+For original eight-second narration aim for 16-20 spoken words, maximum 22, allowing pauses. Preserve the full source and choose more clips rather than rushing or dropping material.
+
+Work without any previous chat history. Follow this prompt and the script or references I provide in this conversation. Never claim to have watched a link you cannot access; ask for the transcript or uploaded video instead. Do not invent source facts, figures, qualifications or outcomes. Keep scripts non-explicit and non-graphic; do not disguise restricted content with coded words. No prompt can guarantee a provider will accept every generation.
+Provide finished content, not placeholders. Check numbering, durations, complete sentences and word counts before delivery. If file creation is available, give me a downloadable UTF-8 TXT file. Otherwise give the entire result in one copyable code block. No explanatory introduction, tables, decorative separators or Markdown headings inside the output file.
+
+Return genai-stone-age_STORY_SCRIPTS.txt. These are story-writing inputs, not direct-import scripts for this preset. Output:
+Story 1
+Title: [finished title]
+Preset: genai-stone-age
+Details:
+Duration: [chosen generated duration] seconds. [number] clips of 8 seconds.
+Story brief: [specific premise, viewpoint, cast and setting; do not repeat the whole script here]
+
+Clip 1:
+Narration: "[complete narration segment]"
+Visual: [specific event and action]
+Sound: [quiet appropriate sound or None]
+
+Continue through the complete story. Replace all placeholders; never include the continuation instruction. Repeat Story 2 etc. for a batch. For Sarah/George dialogue include setting and descriptive prose BEFORE Clip 1, then only labelled spoken lines within clips; no Action: fields that the legacy transcript parser could mistake for speech.
+The tool applies the preset below. Follow its genre, visual medium, camera, cast, tone and sound rules when describing the scenes:
+STYLE: Flat 2D cartoon animation, stick-figure characters with light-brown faces and black stick arms and legs, messy long hair, primitive fur and animal-hide clothing, a Stone Age village of primitive huts, campfires and trees, bold clean outlines, flat colour fills, simple flat 2D animation style
+PALETTE: Earthy ochre and clay brown, stone grey, forest green, campfire orange, pale sky blue, charcoal black outlines, light-brown skin
+CAMERA: Simple 2D animation camera: held medium shots, gentle push-ins, side-on staging for hunting, digging and gathering, one clear action per beat. No 3D, no photoreal, no shaky motion.
+DIRECTION: A narrated prehistory documentary in flat 2D. Clip 1 is a HOOK, never background: a direct second-person address that connects a modern everyday action to the ancient topic, or one specific archaeological find with a strange, concrete detail. Then collapse time or scale to shock the viewer, flip the common assumption at least twice, walk the real evidence in date order (site, what was physically found, why it mattered), include one human-scale story about a specific person or group, and end by returning to the opening image with a quotable line about humans today. One narrator, no on-screen text. Keep the stick-figure style and the village identical in every clip.
+NARRATION_VOICE: clear curious male voice, documentary but warm and conversational, short punchy sentences
+AVOID: no on-screen text, subtitles, captions, watermarks or UI, no photoreal footage, no 3D CGI, no anime, no modern clothing or modern objects, no graphic gore, no fake statistics or invented sources
+CAST_IDIOM: Flat 2D cartoon stick-figure human: a rounded head with a light-brown face, black stick arms and legs, messy long hair, and a thick beard on men ONLY (never on a woman). Primitive fur or animal-hide clothing in fixed colours, flat fills, bold outlines. NOT anime, NOT 3D CGI, NOT photoreal.
+STORY_SHAPES: ["a modern everyday action, then that same thing tens of thousands of years ago", "one unbelievable archaeological find, then the people behind it", "most people think it happened one way, but the evidence says the opposite", "a single tribe's ordinary day, and what it says about being human"]

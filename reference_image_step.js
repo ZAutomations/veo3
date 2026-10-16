@@ -10,6 +10,8 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 // Runs inside the page. Match the stable labels supplied by Flow, not Angular's
 // numbered IDs. Ignore hidden copies and icon ligatures such as crop_16_9.
 function compactControls(action) {
+    const activate=typeof action==='object' && action.activate;
+    action=typeof action==='object'?action.action:action;
     const visible = el => {
         if (!el) return false;
         const r = el.getBoundingClientRect(), s = getComputedStyle(el);
@@ -53,6 +55,7 @@ function compactControls(action) {
     }
     if (!visible(target) || target.disabled || target.getAttribute('aria-disabled') === 'true') return null;
     const r = target.getBoundingClientRect();
+    if(activate)target.click();
     return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
 }
 
@@ -67,14 +70,13 @@ async function configureReferenceImages(page, say = () => {}) {
     };
     const click = async action => {
         let point;
-        await until(async () => !!(point = await page.evaluate(compactControls, action)), `cannot find ${action} control`);
-        await page.mouse.click(point.x, point.y);
+        await until(async () => !!(point = await page.evaluate(compactControls, {action,activate:true})), `cannot find ${action} control`);
     };
     // A fresh project's composer can remount just after Agent is turned off.
     // Re-open if that remount discarded the first click, before touching Image.
-    for (let attempt = 0; attempt < 3 && !(await state()).open; attempt++) {
+    if(!(await state()).open) {
         await click('open');
-        await sleep(1000);
+        await until(async () => (await state()).open, 'compact settings did not open after clicking the composer summary');
     }
     await click('image');
     await until(async () => (await state()).image, 'Image mode did not become selected');

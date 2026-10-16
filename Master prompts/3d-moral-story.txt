@@ -1,0 +1,36 @@
+MASTER PROMPT: 3D Moral Story (Afrimax style)
+PRESET ID: 3d-moral-story
+USE IN TOOL: Story Writer > Title & details > Write stories, with this preset selected. Match the GUI clip count and seconds to the script; text duration alone does not set GUI controls. This preset is NOT currently supported by Import ready script. This route still uses Gemini/AI Studio to finalize the story.
+
+COPY FROM THE NEXT LINE INTO CHATGPT:
+
+Create complete scripts for my 3D Moral Story (Afrimax style) preset. Ask for the topic or supplied source, requested duration, and number of stories unless already specified. For normal narrated eight-second clips, explain that total generated duration is clip count times eight seconds. Do not silently turn a short source into a long film. Offer source-length matching when a transcript is supplied. Preserve facts and original speaker ownership. Produce a coherent hook, ordered development and full ending, rather than a list of disconnected facts. For real factual topics, verify uncertain information or ask for clarification; never present invented research as evidence.
+For original eight-second narration aim for 16-20 spoken words, maximum 22, allowing pauses. Preserve the full source and choose more clips rather than rushing or dropping material.
+
+Work without any previous chat history. Follow this prompt and the script or references I provide in this conversation. Never claim to have watched a link you cannot access; ask for the transcript or uploaded video instead. Do not invent source facts, figures, qualifications or outcomes. Keep scripts non-explicit and non-graphic; do not disguise restricted content with coded words. No prompt can guarantee a provider will accept every generation.
+Provide finished content, not placeholders. Check numbering, durations, complete sentences and word counts before delivery. If file creation is available, give me a downloadable UTF-8 TXT file. Otherwise give the entire result in one copyable code block. No explanatory introduction, tables, decorative separators or Markdown headings inside the output file.
+
+Return 3d-moral-story_STORY_SCRIPTS.txt. These are story-writing inputs, not direct-import scripts for this preset. Output:
+Story 1
+Title: [finished title]
+Preset: 3d-moral-story
+Details:
+Duration: [chosen generated duration] seconds. [number] clips of 8 seconds.
+Story brief: [specific premise, viewpoint, cast and setting; do not repeat the whole script here]
+
+Clip 1:
+Narration: "[complete narration segment]"
+Visual: [specific event and action]
+Sound: [quiet appropriate sound or None]
+
+Continue through the complete story. Replace all placeholders; never include the continuation instruction. Repeat Story 2 etc. for a batch. For Sarah/George dialogue include setting and descriptive prose BEFORE Clip 1, then only labelled spoken lines within clips; no Action: fields that the legacy transcript parser could mistake for speech.
+The tool applies the preset below. Follow its genre, visual medium, camera, cast, tone and sound rules when describing the scenes:
+STYLE: Blender Cycles 3D narrative animation, Zack D. Films character aesthetic, stylised realistic PBR human characters, cinematic volumetric lighting, warm golden rim light, shallow depth of field, atmospheric fog, crisp detail, zero on-screen text, NOT flat 2D, NOT toy-like
+PALETTE: Dark Slate-Teal #1A242F, Warm Golden Rim #FFAA33, Weathered Umber #4A3525, River Mist Blue-Grey #C8D6E5, Garment Indigo #2B4C7E, Accent Crimson #E63946, Warm Peach Skin #E8B898
+CAMERA: 9:16 vertical, eye-level cinematic framing, slow dramatic dolly-ins, over-the-shoulder tracking, extreme close-ups on micro-expressions (eyes, jaw, hands), snap-zooms on shock, rack focus from foreground tension to a background reveal. Continuous kinetic motion, zero static locked-off shots.
+DIRECTION: A moral PARABLE told in four moves: DISRUPTION (a sudden physical shock in media res - frame one already has the collision or disruption, never a build-up), then ASSUMPTION OF MALICE (the protagonist flares with anger or pride), then THE REVEAL (the obstacle had no malicious actor; focus racks to the truth), then MORAL PAYOFF (the face softens and the narrator delivers one universal life aphorism, and the final frame echoes the first so the film loops). Exactly ONE narrative action plus ONE emotional shift per clip. Keep the protagonist's psychology in focus and keep the single location and era consistent. Exaggerate every instruction - the model treats 'moves' as 'barely moves': fast, aggressive, big dramatic framing change, never static. Numbers are spoken as words. No on-screen text.
+NARRATION_VOICE: single warm, deep male European-English storyteller - reflective, measured wisdom cadence, compassionate and calm, an elder documentary voice
+SOUND_STYLE: reflective fingerstyle acoustic guitar and warm low cello pads with a soft ambient synth at 75-85 BPM, ducked well under the voice; heavy organic diegetic SFX (wood impacts, water splashes, wool rustling, breath)
+AVOID: no on-screen text, captions, subtitles or watermarks, no flat 2D, whiteboard or low-poly stick figures, no modern neon UI or sci-fi HUD, no cartographic vector arrows, no deformed hands, melted faces or non-human anatomy, no speech bubbles, no character addressing the camera, no fast chaotic cuts, no real living or historical people and no likeness of one (use a generic role), no weeping, sobbing, blood, gore, wounds or weapons aimed at a person, no real brand logos
+CAST_IDIOM: Stylised expressive 3D human protagonist with realistic PBR skin and warm subsurface scattering, fair to warm peach tone, blue or green eyes, brown or dark blonde hair, lifelike micro-expressions, rustic knit wool garments in fixed colours. NOT anime, NOT cel-shaded, NOT photoreal footage.
+STORY_SHAPES: ["a sudden collision with no visible culprit, and the lesson it leaves", "the protagonist is certain someone wronged him, then the truth humbles him", "a small everyday moment that turns into a life lesson", "pride flares, then breaks, then settles into calm wisdom"]

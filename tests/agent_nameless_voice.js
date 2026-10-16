@@ -1,0 +1,20 @@
+const assert=require('assert'),vm=require('vm');
+const {agentVoiceChipState}=require('../agent_voice_chip');
+let audio=[];
+const rect=()=>({width:30,height:30});
+const scope={querySelectorAll:selector=>{assert.equal(selector,'flow-audio-ingredient-chip');return audio;}};
+const editor={closest:()=>scope};
+const window={__veoAgentEditor:()=>editor};
+function chip(){const c={getBoundingClientRect:rect,closest:()=>null};c.querySelector=selector=>selector==='button[aria-label="Ingredient"]'?{disabled:false,getAttribute:()=>false,classList:{contains:()=>false}}:selector==='.hover-icon-overlay'?{click:()=>{audio=audio.filter(x=>x!==c);}}:null;return c;}
+const run=arg=>vm.runInNewContext('('+agentVoiceChipState.toString()+')(arg)',{arg,window,document:{},WeakMap,Set});
+assert.equal(run({name:'Alnilam'}).verified,false);
+run({phase:'capture',name:'Alnilam'});
+audio=[chip()];
+assert.equal(run({name:'Alnilam'}).verified,false,'nameless pre-existing audio does not prove selected voice');
+assert.equal(run({phase:'mark',name:'Alnilam'}).verified,true,'new nameless audio after exact library click proves attachment');
+assert.equal(run({name:'Alnilam'}).verified,true,'known same chip is idempotently verified');
+assert.equal(run({name:'Orus'}).verified,false);
+audio=[chip(),chip()];
+assert.equal(run({phase:'mark',name:'Alnilam'}).verified,false,'ambiguous multiple audio chips rejected');
+run({phase:'clear',name:'Alnilam'});assert.equal(audio.length,0);
+console.log('PASS: actual nameless audio-chip shape, exact-selection/new-chip association, no name-text assumption, retry cleanup and duplicate rejection.');

@@ -94,6 +94,14 @@ const { applyAgentSettings } = require('./agent_settings.js');
 const { attachVoice: attachVoiceShared } = require('./flow_voice.js');
 
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
+function installAgentEditor(){
+    window.__veoAgentEditor=()=>{
+        const visible=e=>{const r=e.getBoundingClientRect();const s=getComputedStyle(e);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden';};
+        const editors=[...document.querySelectorAll('.ProseMirror[contenteditable="true"]')].filter(visible);
+        const focused=document.activeElement?.closest?.('.ProseMirror');
+        return editors.includes(focused)?focused:editors.find(e=>e.closest('.agent-panel-prompt-box'))||editors.at(-1)||null;
+    };
+}
 
 function ts() { return new Date().toTimeString().slice(0, 8); }
 function log(msg) { console.log(`[${ts()}] ${msg}`); }
@@ -139,6 +147,16 @@ const PROMPT     = (typeof PROMPT_RAW === 'string')
 // stayed open, and the prompt box was left truncated at "using @".
 // So: split the mention out, type the plain text, then type "@Name" on its own.
 const MENTION_RAW = flag('--mention');
+const KNOWN_REF_NAMES=(()=>{
+    const input=flag('--refs');if(typeof input!=='string')return [];
+    const names=[];
+    for(const file of input.split(','))try{
+        if(!/\.json$/i.test(file.trim()))continue;
+        const story=JSON.parse(fs.readFileSync(file.trim(),'utf8'));
+        names.push(...Object.keys(story.character_references||{}),...Object.keys(story.character_descriptions||{}),story.place?.name);
+    }catch{}
+    return names.filter(Boolean);
+})();
 // EVERY mention, not just the first. A scene with two or three characters needs
 // one chip per character, and each has to be picked from the picker separately.
 // DISTINCT, though: the prompt names the place in its own section, in the
@@ -146,7 +164,7 @@ const MENTION_RAW = flag('--mention');
 // and the same image was attached three times over. See MT.distinctMentions.
 const MENTION_LIST = (typeof MENTION_RAW === 'string')
     ? MENTION_RAW.split(',').map(s => s.replace(/^@/, '').trim()).filter(Boolean)
-    : (PROMPT ? [...PROMPT.matchAll(/@([A-Za-z0-9_.\-]+)/g)].map(m => m[1]) : []);
+    : MT.extractMentions(PROMPT,KNOWN_REF_NAMES);
 const MENTIONS = MT.distinctMentions(MENTION_LIST);
 
 // Model choice in Agent Mode is PLAIN ENGLISH in the prompt - there is no menu.
@@ -208,16 +226,9 @@ let EXPECTED_CLIPS = (() => {
 })();
 const MANUAL_ADD_COUNT = Math.max(0, parseInt(flag('--manual-add-count', '0'), 10) || 0);
 let manualBaselineFailures = 0;
-// Flow voice asset name(s) to attach via the "+" (Add ingredients) menu.
-// Repeatable: --voice Orus --voice Achernar. One for a narrator, two for a
-// two-hander so each character gets their own.
-const VOICES = (() => {
-    const out = [];
-    for (let i = 0; i < argv.length; i++) {
-        if (argv[i] === '--voice' && argv[i + 1] && !argv[i + 1].startsWith('--')) out.push(String(argv[i + 1]).trim());
-    }
-    return out.filter(Boolean);
-})();
+// Agent batches use the user's fixed narrator asset, including manual and
+// resumed runs whose saved commands do not contain a --voice argument.
+const VOICES = (() => { return ['Alnilam']; })();
 
 // ---- character reference sheets --------------------------------------------
 // A raw Image tile is what keeps the cast stable, and Flow only offers one if
@@ -290,8 +301,7 @@ function snapshotFn() {
 
     const chip = document.querySelector('flow-agent-mode-toggle-chip');
     const gen  = document.querySelector('button[aria-label="Start generation"]');
-    const pm   = document.querySelector('flow-base-prompt-box .ProseMirror')
-              || document.querySelector('.ProseMirror');
+    const pm   = window.__veoAgentEditor?.();
 
     const buttons = [...document.querySelectorAll('button')]
         .filter(vis)
@@ -365,15 +375,16 @@ function snapshotFn() {
 
 // ---- failure affordances ---------------------------------------------------
 let lastProjectScan = '';
-async function readProjectSnapshot(page, full = true) {
+const monitorProject = require('./agent_project_media').projectMonitor();
+async function readProjectSnapshot(page, full = false) {
     let snapshot = await page.evaluate(snapshotFn);
     // The DOM stops representing the full asset list once Flow virtualizes
     // older rows. Never interpret that viewport count as a missing clip.
     // Even a five/ten-clip batch is virtualized in Flow's single-column list.
     // Resume/completion decisions require the whole project, not viewport tiles.
-    if (full && EXPECTED_CLIPS > 0 && !snapshot.mediaTiles.agent_busy) {
+    if (EXPECTED_CLIPS > 0 && !snapshot.mediaTiles.agent_busy) {
         const viewportCount = snapshot.mediaTiles.flow_video_tile;
-        const project = await require('./agent_project_media').scanProjectMedia(page);
+        const project = await monitorProject(page, full);
         snapshot = await page.evaluate(snapshotFn);
         snapshot.mediaTiles = { ...snapshot.mediaTiles, ...project, viewport_video_tile: viewportCount };
         const summary = `Full project scan: ready=${project.ready_video_tile}, failed=${project.failed_video_tile}, generating=${project.generating_video_tile}, total=${project.flow_video_tile} (viewport had ${viewportCount}).`;
@@ -450,7 +461,7 @@ async function clickStart(page) {
 // also the sanitizer's job on the story side.
 async function policyNudge(page) {
     const box = await page.evaluate(() => {
-        const pm = document.querySelector('flow-base-prompt-box .ProseMirror') || document.querySelector('.ProseMirror');
+        const pm = window.__veoAgentEditor?.();
         if (!pm) return null;
         pm.focus();
         const r = pm.getBoundingClientRect();
@@ -469,7 +480,7 @@ async function policyNudge(page) {
 }
 
 async function nudgeAgent(page) {    const box = await page.evaluate(() => {
-        const pm = document.querySelector('flow-base-prompt-box .ProseMirror') || document.querySelector('.ProseMirror');
+        const pm = window.__veoAgentEditor?.();
         if (!pm) return null;
         pm.focus();
         const r = pm.getBoundingClientRect();
@@ -491,7 +502,7 @@ async function nudgeAgent(page) {    const box = await page.evaluate(() => {
 // the same voice to every clip and two copies of this sequence would drift.
 // Kept as a function with this exact name so every call site is unchanged.
 async function attachVoice(page, name) {
-    return attachVoiceShared(page, name, { log, wait });
+    return attachVoiceShared(page, name, { log, wait, agentMode:true });
 }
 
 // A short watch that also auto-approves, used between retry rounds.
@@ -658,8 +669,7 @@ async function clearPromptBox(page, box) {
     await page.mouse.click(box.x, box.y);
     await wait(250);
     const left = await page.evaluate(() => {
-        const pm = document.querySelector('flow-base-prompt-box .ProseMirror')
-                || document.querySelector('.ProseMirror');
+        const pm = window.__veoAgentEditor?.();
         if (!pm) return -1;
         pm.focus();
         const sel = window.getSelection();
@@ -801,6 +811,7 @@ async function uploadRefThroughPicker(page, box, file) {
 
     // ---- 2. Settle, then take a baseline -----------------------------------
     await wait(3000);
+    await page.evaluate(installAgentEditor);
     let s = await snap('baseline');
     if (MANUAL_ADD_COUNT) {
         if (s.mediaTiles.agent_busy || s.mediaTiles.generating_video_tile > 0 || s.mediaTiles.project_scan_complete === false) {
@@ -852,10 +863,19 @@ async function uploadRefThroughPicker(page, box, file) {
             const plan = JSON.parse(fs.readFileSync(planFile, 'utf8'));
             const intent = JSON.parse(fs.readFileSync(submissionCheckpoint, 'utf8'));
             if (plan.context.fingerprint === intent.fingerprint) {
-                const verified = require('./agent_batch_reconcile').reconcileCompleted(s, plan,
+                const reconcile = require('./agent_batch_reconcile');
+                let verified = reconcile.reconcileCompleted(s, plan,
                     Number(requiredCheckpoint), W.sanitizeForPolicy);
+                if (!verified) {
+                    const storyFile = flag('--refs');
+                    if (typeof storyFile === 'string' && fs.existsSync(storyFile) && /\.json$/i.test(storyFile)) {
+                        log('Flow is ahead of the saved checkpoint; verifying existing clip source prompts without resubmitting.');
+                        verified = await reconcile.reconcileSources({browser, page, projectUrl:page.url()},
+                            s, plan, Number(requiredCheckpoint), storyFile, {log});
+                    }
+                }
                 if (verified) {
-                    log(`Verified saved scene instructions in Flow for batches ${verified.verified.map(b => `${b.from}-${b.to}`).join(', ')}.`);
+                    log(`Verified existing Flow scene instructions for batches ${verified.verified.map(b => `${b.from}-${b.to}`).join(', ')}.`);
                     log(`BATCH_RECONCILED_READY:${verified.completed}`);
                     await browser.disconnect();
                     return;
@@ -959,23 +979,16 @@ async function uploadRefThroughPicker(page, box, file) {
         process.exit(1);
     }
 
-    log('Focusing the prompt box...');
-    const box = await page.evaluate(() => {
-        const pm = document.querySelector('flow-base-prompt-box .ProseMirror')
-                || document.querySelector('.ProseMirror');
-        if (!pm) return null;
-        pm.scrollIntoView({ block: 'center' });
-        const r = pm.getBoundingClientRect();
-        return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+    // Settings can replace the composer. Save them before entering any text or
+    // attachments, and never reopen the drawer after preparing the batch.
+    if(FLOW_CHARACTERS && !/omni/i.test(VIDEO_MODEL || '')) throw Error('Flow Character voice mode requires an Omni Flash video model. Choose it in the GUI. No generation submitted.');
+    await applyAgentSettings(page, {
+        videoModel: VIDEO_MODEL, resolution: VIDEO_RESOLUTION,
+        aspect: typeof flag('--aspect') === 'string' ? flag('--aspect') : 'Flow', log,
     });
-    if (!box) { console.error('Prompt box not found.'); await browser.disconnect(); process.exit(1); }
-
-    await page.mouse.click(box.x, box.y);
-    await wait(600);
-    await page.keyboard.down('Control');
-    await page.keyboard.press('KeyA');
-    await page.keyboard.up('Control');
-    await wait(200);
+    await page.evaluate(installAgentEditor);
+    log('Focusing the prompt box...');
+    const box = await require('./agent_composer').focusAgentComposer(page, installAgentEditor, {log});
 
     // ---- 4c. Reference sheets in, BEFORE anything is typed ----------------
     // Must happen first: it types a bare "@" to open the picker, and there is
@@ -1023,18 +1036,10 @@ async function uploadRefThroughPicker(page, box, file) {
         // One blob, one shot. Newlines are preserved so story structure reaches
         // the agent. This does NOT fire the "@" autocomplete, which is fine: the
         // mention is typed separately in step 5b, after this.
-        const inserted = await page.evaluate((t) => {
-            const pm = document.querySelector('flow-base-prompt-box .ProseMirror')
-                    || document.querySelector('.ProseMirror');
-            if (!pm) return 'no-editor';
-            pm.focus();
-            document.execCommand('selectAll', false, null);
-            document.execCommand('insertText', false, t);
-            return (pm.innerText || '').length;
-        }, SEND_TEXT);
-        if (inserted === 'no-editor') { console.error('Prompt box vanished before paste.'); await browser.disconnect(); process.exit(1); }
+        const inserted = await require('./agent_composer').pasteAgentPrompt(page, installAgentEditor, SEND_TEXT, {log});
         log(`Pasted. Editor now holds ~${inserted} characters.`);
     } else {
+        await require('./agent_composer').focusAgentComposer(page, installAgentEditor, {log});
         // Real keystrokes. Slower, but ProseMirror's input rules see every
         // character, so typing "@Mia" opens the mention picker like a human.
         // Typing is real keystrokes, and Flow's prompt box treats Enter as SEND.
@@ -1125,10 +1130,12 @@ async function uploadRefThroughPicker(page, box, file) {
 
             const hit = choice.inner;
             if (hit) {
-                log(`   clicking: ${hit.tag} "${(hit.text || hit.aria || '').slice(0, 50)}" at ${hit.cx},${hit.cy}`);
-                await page.mouse.click(hit.cx, hit.cy);
+                log(`   selecting exact ${requiredKind} asset button: ${name}`);
+                const selected=await page.evaluate(require('./reference_picker_images').clickNamedAsset,name);
+                if(!selected)throw Error(`Reference ${name}: one exact visible asset button was not found. No prompt submitted.`);
+                await require('./reference_picker_images').confirmSelection(page,{expected:mi+1,log});
                 await page.waitForFunction(expected=>{
-                    const pm=document.querySelector('flow-base-prompt-box .ProseMirror')||document.querySelector('.ProseMirror');
+                    const pm=window.__veoAgentEditor?.();
                     return pm&&pm.querySelectorAll('.mention-chip').length>=expected;
                 },{timeout:8000,polling:100},mi+1);
                 s = await snap(`mention${mi + 1}-picked`);
@@ -1137,8 +1144,7 @@ async function uploadRefThroughPicker(page, box, file) {
                 // and mention chips are appended at the END - so counting chips in
                 // it always reads 0 and proves nothing. Ask the live editor.
                 const chipsNow = await page.evaluate(() => {
-                    const pm = document.querySelector('flow-base-prompt-box .ProseMirror')
-                            || document.querySelector('.ProseMirror');
+                    const pm = window.__veoAgentEditor?.();
                     return pm ? pm.querySelectorAll('.mention-chip').length : -1;
                 });
                 log(`   chips in the editor now: ${chipsNow} (expected ${mi + 1})`);
@@ -1156,15 +1162,11 @@ async function uploadRefThroughPicker(page, box, file) {
         // Ask the live editor, not the snapshot: promptHTML is head-sliced and
         // the chips live at the tail, so a snapshot count is always 0.
         const chips = await page.evaluate(() => {
-            const pm = document.querySelector('flow-base-prompt-box .ProseMirror')
-                    || document.querySelector('.ProseMirror');
+            const pm = window.__veoAgentEditor?.();
             return pm ? pm.querySelectorAll('.mention-chip').length : -1;
         });
         log(`Mention chips in the prompt: ${chips} (expected ${MENTIONS.length})`);
-        if (chips >= 0 && chips < MENTIONS.length) {
-            if(FLOW_CHARACTERS || MANUAL_ADD_COUNT > 0)throw Error('Required character/location chips are missing. No generation submitted.');
-            log('Fewer chips than characters - at least one attachment FAILED. Do not submit blind.');
-        }
+        if (chips !== MENTIONS.length) throw Error(`Reference count is ${chips}; expected exactly ${MENTIONS.length}. No generation submitted.`);
     } else {
         log('No mention in the prompt - skipping the picker step.');
     }
@@ -1174,21 +1176,15 @@ async function uploadRefThroughPicker(page, box, file) {
     // chips sit alongside the mentions and before the final submit.
     if (VOICES.length) {
         banner(`VOICE (${VOICES.join(', ')})`);
-        for (const v of VOICES) await attachVoice(page, v);
+        for (const v of VOICES) {
+            if (!await attachVoice(page, v)) throw Error(`Required Agent voice ${v} was not attached. No batch submitted.`);
+            log(`Agent voice ${v}: attached and verified for this batch.`);
+        }
     }
 
     s = await snap('prompt-final');
     log(`Final prompt: "${(s.promptText || '').slice(0, 140)}"`);
     log(`Submit button: ${s.generateBtn.exists ? (s.generateBtn.disabled ? 'STILL DISABLED' : 'READY') : 'NOT FOUND'}`);
-
-    // Apply the GUI choices together before submitting any generation.
-    if(FLOW_CHARACTERS && !/omni/i.test(VIDEO_MODEL || '')) throw Error('Flow Character voice mode requires an Omni Flash video model. Choose it in the GUI. No generation submitted.');
-    await applyAgentSettings(page, {
-        videoModel: VIDEO_MODEL,
-        resolution: VIDEO_RESOLUTION,
-        aspect: typeof flag('--aspect') === 'string' ? flag('--aspect') : 'Flow',
-        log,
-    });
 
     if (NO_SUBMIT) {
         log(`--no-submit: stopping here. Snapshots in ${RUN_DIR}`);
@@ -1217,14 +1213,8 @@ async function uploadRefThroughPicker(page, box, file) {
     // Measured live: el.click() leaves the prompt untouched for the full wait;
     // page.mouse.click() at the same coordinates clears the box within 7s. The
     // picker rows are clicked by coordinate for this same reason.
-    const target = await page.evaluate(() => {
-        const b = document.querySelector('button[aria-label="Start generation"]');
-        if (!b) return { ok: false, why: 'missing' };
-        if (b.disabled || /mat-mdc-button-disabled/.test((b.className || '').toString())) return { ok: false, why: 'disabled' };
-        const r = b.getBoundingClientRect();
-        if (!r.width || !r.height) return { ok: false, why: 'offscreen' };
-        return { ok: true, cx: Math.round(r.x + r.width / 2), cy: Math.round(r.y + r.height / 2) };
-    });
+    const target = await page.evaluate(require('./agent_submission').verifiedSubmissionTarget,
+        {text:SEND_TEXT,references:MENTIONS.length});
     if (!target.ok) {
         console.error(`Submit failed: ${target.why}`);
         console.error(`Snapshots in ${RUN_DIR} - check 03_prompt-typed.json (was the prompt accepted?)`);
@@ -1241,7 +1231,7 @@ async function uploadRefThroughPicker(page, box, file) {
         fs.renameSync(submissionFile + '.tmp', submissionFile);
     }
     await page.mouse.click(target.cx, target.cy);
-    log('Submitted.');
+    log('Start generation clicked. Waiting for Flow to schedule video tiles; this does not yet confirm clip generation.');
 
     // ---- 7. Watch the conversation ----------------------------------------
     // This is where the unknown lives. We poll, snapshot on every visible
@@ -1262,20 +1252,28 @@ async function uploadRefThroughPicker(page, box, file) {
     let lastNudgeAt = -999;   // when we last sent a nudge
     let nudges = 0;
     const completedBatch = require('./agent_batch_completion').completionTracker(EXPECTED_CLIPS);
+    const submissionState = require('./agent_batch_recovery').submissionWatchdog(
+        Number(requiredReady === null ? s.mediaTiles.flow_video_tile : requiredReady));
 
     while ((Date.now() - t0) / 1000 < WATCH_SECS) {
         await wait(4000);
         const cur = await readProjectSnapshot(page);
         const elapsed = Math.round((Date.now() - t0) / 1000);
+        const stalled = submissionState(cur);
+        if (stalled) {
+            await snap('submission-no-progress');
+            await browser.disconnect();
+            throw Error(stalled);
+        }
         if (completedBatch(cur.mediaTiles)) {
             log(`[${elapsed}s] All ${EXPECTED_CLIPS} clips are completed, with no failed or active generations. Releasing the next batch automatically.`);
             await snap('batch-completed');
             break;
         }
 
-        if (cur.chatish.length && !sawChat) {
+        if (cur.conversationRows.some(row => row.role === 'agent') && !sawChat) {
             sawChat = true;
-            log(`[${elapsed}s] Agent conversation appeared (${cur.chatish.length} nodes).`);
+            log(`[${elapsed}s] Agent response appeared (${cur.conversationRows.length} message rows).`);
             await snap('chat-appeared');
         }
 

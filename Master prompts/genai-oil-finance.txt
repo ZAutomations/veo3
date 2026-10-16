@@ -1,0 +1,35 @@
+MASTER PROMPT: Oil Painting (Finance)
+PRESET ID: genai-oil-finance
+USE IN TOOL: Story Writer > Title & details > Write stories, with this preset selected. Match the GUI clip count and seconds to the script; text duration alone does not set GUI controls. This preset is NOT currently supported by Import ready script. This route still uses Gemini/AI Studio to finalize the story.
+
+COPY FROM THE NEXT LINE INTO CHATGPT:
+
+Create complete scripts for my Oil Painting (Finance) preset. Ask for the topic or supplied source, requested duration, and number of stories unless already specified. For normal narrated eight-second clips, explain that total generated duration is clip count times eight seconds. Do not silently turn a short source into a long film. Offer source-length matching when a transcript is supplied. Preserve facts and original speaker ownership. Produce a coherent hook, ordered development and full ending, rather than a list of disconnected facts. For real factual topics, verify uncertain information or ask for clarification; never present invented research as evidence.
+For original eight-second narration aim for 16-20 spoken words, maximum 22, allowing pauses. Preserve the full source and choose more clips rather than rushing or dropping material.
+
+Work without any previous chat history. Follow this prompt and the script or references I provide in this conversation. Never claim to have watched a link you cannot access; ask for the transcript or uploaded video instead. Do not invent source facts, figures, qualifications or outcomes. Keep scripts non-explicit and non-graphic; do not disguise restricted content with coded words. No prompt can guarantee a provider will accept every generation.
+Provide finished content, not placeholders. Check numbering, durations, complete sentences and word counts before delivery. If file creation is available, give me a downloadable UTF-8 TXT file. Otherwise give the entire result in one copyable code block. No explanatory introduction, tables, decorative separators or Markdown headings inside the output file.
+
+Return genai-oil-finance_STORY_SCRIPTS.txt. These are story-writing inputs, not direct-import scripts for this preset. Output:
+Story 1
+Title: [finished title]
+Preset: genai-oil-finance
+Details:
+Duration: [chosen generated duration] seconds. [number] clips of 8 seconds.
+Story brief: [specific premise, viewpoint, cast and setting; do not repeat the whole script here]
+
+Clip 1:
+Narration: "[complete narration segment]"
+Visual: [specific event and action]
+Sound: [quiet appropriate sound or None]
+
+Continue through the complete story. Replace all placeholders; never include the continuation instruction. Repeat Story 2 etc. for a batch. For Sarah/George dialogue include setting and descriptive prose BEFORE Clip 1, then only labelled spoken lines within clips; no Action: fields that the legacy transcript parser could mistake for speech.
+The tool applies the preset below. Follow its genre, visual medium, camera, cast, tone and sound rules when describing the scenes:
+STYLE: Richly textured impasto oil painting on canvas, thick paint, heavy palette-knife technique, bold black outlines, visible brushstrokes and thick paint ridges catching the light, dramatic directional window light, warm amber and deep navy colour palette
+PALETTE: Warm amber and gold, deep navy, mahogany brown, muted green, canvas cream, bold black outlines
+CAMERA: Painted staging: wide office and boardroom tableaus, close-ups on symbolic objects (a ticking clock, a bound stack of notes, a fountain pen on scattered papers), hard directional light from a window behind the subject, one clear idea per shot. No digital flatness, no 3D.
+DIRECTION: A finance and economics DOCUMENTARY, calm but building to a reveal. Clip 1 is a COLD OPEN of three to five rapid rhetorical questions most people have never had answered, framing the subject as a hidden mechanism with massive invisible power, plus one striking claim that sounds unbelievable but is true. Then explain the real mechanics plainly with an everyday analogy and debunk one common misconception about how the system works; trace its origin through two to four turning points with short connecting lines; name clearly who benefits and who pays, with one callous-sounding insider line; zoom out to the systemic stakes and a past crisis as a cautionary parallel; present one or two genuine reform ideas attributed to real thinkers, acknowledging the political difficulty honestly; and close on one line that reframes the whole topic. Translate every big number into something relatable. One narrator, no on-screen text.
+NARRATION_VOICE: calm explanatory male documentary narrator, varies sentence length, building to a reveal
+AVOID: no on-screen text, subtitles, captions, watermarks or UI, no real company logos, no photoreal footage, no 3D render, no glossy flat digital look, no invented statistics or unsourced quotes
+CAST_IDIOM: Painted human figure in thick impasto oil: bold black outline, visible brush and palette-knife texture, warm amber key light and deep navy shadow, plain business or period clothing in fixed colours, a thoughtful expression. NOT photoreal, NOT 3D, NOT flat digital illustration.
+STORY_SHAPES: ["three questions nobody ever answered about the system", "the mechanism explained, then the misconception broken", "who wins, who pays, and the quote that gives it away", "a past crisis as a warning, then what could be done"]

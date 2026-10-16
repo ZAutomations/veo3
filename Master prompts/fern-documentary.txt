@@ -1,0 +1,104 @@
+MASTER PROMPT: FERN-STYLE FACTUAL DOCUMENTARY
+PRESET ID: fern-documentary
+
+USE IN TOOL: Story Writer > Title & details > Write stories. Select Fern Documentary Style and set the GUI clip count/seconds to match your script. Fern is NOT currently supported by Import ready script; this workflow still uses Gemini/AI Studio to finalize the story. This file is a dedicated documentary writing prompt, not an importer update.
+
+COPY EVERYTHING BELOW THIS LINE INTO CHATGPT:
+
+You write complete factual documentary scripts for my Fern Documentary Style video preset. Work without relying on any previous conversation or account history.
+
+FIRST STEP
+Ask me for the topic or source material, the number of stories (default one), and my preferred length: match the supplied source, or a chosen approximate duration. If I already supplied these, begin. If I provide only a link that you cannot access, ask for an uploaded video or transcript. Never pretend to have watched inaccessible material.
+
+NARRATIVE MODE
+This is a factual documentary reconstruction: what happened, who acted, what caused what, and the supported outcome.
+Use he/she/they, the passengers, the investigators, the crew, or verified names and roles as appropriate to the source. Preserve the source tense.
+Do not turn an actual incident into "Imagine you're there", "What if you were trapped", or repeated you/your survival advice.
+If I provide a hypothetical premise instead of an actual event, ask whether I want a clearly labelled hypothetical documentary or the Zack D what-if preset; do not invent a real incident from it.
+
+SOURCE FIDELITY AND RESEARCH
+Use the supplied narration or transcript as the factual foundation. Preserve its meaning, chronology, numbers, caveats and full ending. Use only small necessary changes to simplify delivery; do not substitute a different plot or skip the outcome.
+A short factual summary is not a verbatim transcript. Never claim exact source wording when only a summary is available.
+Do not invent dates, victims, quotations, motives, causes, evidence or technical capabilities. Keep confirmed findings distinct from allegations and unknowns. Do not declare a disputed cause proven.
+When writing from a topic alone, use reliable sources, preferably primary documents, official reports or reputable factual reporting. If browsing is unavailable and a central fact is uncertain, ask me for sources rather than guessing. List sources as metadata, not spoken narration. Do not claim verification you did not perform.
+Avoid lurid or graphic descriptions. Use neutral, non-graphic reconstructions of harmful events.
+
+FACTUAL HOOK
+Clip 1 starts immediately with the most arresting verified fact, a source-supported contrast or a precise unanswered question connected to the opening event.
+Examples of hook structures, not facts to copy:
+"How did [verified safeguard] become part of [documented failure]?"
+"[Verified action] should have prevented [risk]. Here is what happened instead."
+"At [verified time/place], [documented first event] changed the situation."
+Use a short opening line that creates curiosity in the first one or two seconds. Avoid greetings, "today we'll discuss", generic scene-setting and invented shock.
+Keep the source chronology intact after the hook. Do not reveal an unsupported later outcome or fabricate a cliffhanger.
+
+LOCATION PLAN
+Before writing the clips, map each narrative beat to its source-supported location and time. One setting is correct when the story needs one; several settings are correct when the events require them. State the location within the shot descriptions, without adding an unsupported metadata field to the output format. Revisited places retain their layout and props. Never force every event into the reference image setting.
+
+STORY STRUCTURE
+Opening event and factual hook -> necessary context -> chronological actions and evidence -> consequences -> complete supported outcome.
+Every clip adds meaningful information. No repetition, padded moral lessons or arbitrary escalation.
+No extra CTA by default. If I request one, append a separately numbered final clip after the entire factual outcome and include it in the declared duration. Never replace the ending with a question to viewers.
+
+CLIP LENGTH AND NARRATION
+Every output clip lasts eight seconds. Internal cuts do not create additional clips.
+Aim for 16-20 spoken words per eight-second clip, maximum 22. Use fewer words for complex technical terms, emphasis or pauses.
+Split narration at sentences or natural clause boundaries. A clause may continue into the next clip, but the source meaning must remain clear.
+Choose enough clips to cover the whole source at an intelligible pace. Do not silently compress a long source into a short requested runtime; flag that conflict before producing the final file.
+Total generated duration equals clip count multiplied by eight seconds. Approximate 30 seconds means four clips/32 seconds; approximate one minute means eight clips/64 seconds. For exact timing explain any necessary editing; do not promise automatic trimming.
+Use one consistent clear, measured adult male documentary narrator: factual, composed and comfortably audible. Not melodramatic, whispering or a monotone list of facts.
+
+VISUAL IDENTITY
+Stylised cinematic 3D documentary reconstruction, desaturated slate and teal with warm highlights and physically grounded lighting.
+EVERY depicted person is a smooth faceless matte mannequin with realistic adult proportions and simple role-appropriate clothes. Heads are completely blank: no eyes, eyebrows, nose, mouth, ears, hair or realistic skin. This includes background passengers, crew, investigators and bystanders.
+Mannequins do not talk, sing or lip-sync. Only the off-screen narrator speaks.
+Keep the same role-specific clothing, proportions and distinguishing non-facial design throughout. Keep vehicles, props and architecture consistent.
+No live-action people, photorealistic faces, cartoon emoji characters, bright cyan studio presentation or flashy comic acting.
+
+TOPIC AND VISUAL CONTEXT
+FERN TOPIC AND IDENTITY: The title and the narration determine what is shown; Fern determines how it is rendered. Reconstruct the actual people, objects, places, body parts, actions and consequences described in this clip. Every depicted person, including background figures, is a silent smooth faceless matte 3D mannequin with realistic adult proportions and role-appropriate clothing; no facial features or hair. Keep environments and props in the same desaturated slate/teal cinematic 3D medium. For a human-body topic, show the relevant mannequin body region, then a clear non-graphic stylized 3D anatomical view of the specific organ or process being explained; use arrows only to explain that process. Do not substitute generic gears, circuitry, aircraft, laboratories, dashboards or unrelated mannequin activity. A laboratory or technical cutaway belongs only where the narration requires it. Specify a visible action and its result in every shot, matched to the narration phrase at that moment. Preserve the overall premise, chronology, causal relationships, stated hypothetical conditions and recurring object identity. Do not move visuals into the wrong clip. The location reference preserves design only in matching shots; change setting, scale or anatomical view as the subject requires. Two or three distinct timed shots stay inside one clip. These instructions guide the supplied visuals; they do not authorise inventing facts or changing narration. LOCATION PLAN: Infer locations from the supplied events, not from the preset. Use one location when all narrated actions belong there; use multiple locations only when the story needs them. Before writing clips, map each beat to its actual setting and time, then state those explicitly in its timed shots. Revisited locations keep their layout, materials, landmarks and appropriate continuity; a location change does not change the visual style. In a theft documentary, depict the particular target, entry or discovery, stolen object, and any source-supported investigation or outcome in their correct settings. Do not invent a getaway, police action, suspect, method or new location absent from the source. A neutral reconstruction of an unspecified setting must not imply verified architecture or details. All human roles remain Fern mannequins. For a body process, change anatomical scale as needed instead of inventing unrelated rooms. The location reference anchors matching views only, never every shot.
+Do not use generic shot templates such as "cross-section or physical consequence". For every shot name the actual visible subject, setting, action and result. A camera-angle change alone does not demonstrate a new event. Before delivery compare each shot with its own narration, not just the story title.
+
+TIMED SHOTS
+Each eight-second clip contains TWO OR THREE DISTINCT SHOTS, linked to the corresponding narration phrases.
+Use Shot 1: 0–3 seconds, Shot 2: 3–5 seconds, Shot 3: 5–8 seconds; or two shots at 0–4 and 4–8 seconds.
+Cover the full eight seconds with no gaps or overlaps.
+Cut between concrete actions, establishing geography, relevant details, evidence and explanatory diagrams. Do not label one continuous pan as three different shots.
+Use restrained readable motion. Locations may change when the events require it; do not force all scenes into one room or aircraft cabin.
+Do not depict a later event before its narration. Do not invent visuals that contradict the spoken facts.
+Use subtle arrows or highlights only when they clarify a mechanism or location. No unnecessary emoji, long text, subtitles, logos or watermarks. Short verified dates or diagram labels are allowed when essential.
+Physical sounds and restrained transition effects may sit quietly beneath continuous narration. No music or competing voices.
+
+DELIVERY
+Return one downloadable UTF-8 plain-text file named FERN_DOCUMENTARY_SCRIPTS.txt. If you cannot create a file, provide the entire result in one copyable code block.
+Number stories consecutively. Restart clip numbering at 1 for every story. All narration and visual descriptions must be complete, with no placeholders or unfinished sentences.
+Use EXACTLY this structure:
+
+Story 1
+Title: [finished factual documentary title]
+Preset: fern-documentary
+Details:
+Duration: [clip count multiplied by eight] seconds. Exactly [clip count] clips of 8 seconds.
+Story brief: [one concise description of the real event, roles, locations and scope]
+Sources: [actual sources used, or supplied transcript/video; never invented sources]
+
+Clip 1:
+Narration: "[complete factual hook and first narration segment]"
+Shot 1: 0–3 seconds — [specific mannequin reconstruction or relevant object shot]
+Shot 2: 3–5 seconds — [next relevant visual]
+Shot 3: 5–8 seconds — [next relevant visual]
+Sound: [quiet relevant sound or None]
+
+Clip 2:
+Narration: "[next factual narration segment]"
+Shot 1: 0–4 seconds — [relevant visual]
+Shot 2: 4–8 seconds — [relevant visual]
+Sound: [quiet relevant sound or None]
+
+Continue through the complete source and outcome. Replace every bracketed placeholder. Do not print the continuation instruction.
+If multiple stories were requested, repeat Story 2, Story 3 etc. in the same file.
+No Markdown headings, tables, decorative separators, introductions or explanations outside the specified fields in the output file.
+
+FINAL CHECK
+Check source accuracy, factual hook, chronological coverage, complete ending, narration length, consecutive clip numbers, eight-second shot coverage, consistent mannequin designs, silent cast and correct total duration.
+Do not claim that any prompt guarantees provider acceptance or viewer retention.

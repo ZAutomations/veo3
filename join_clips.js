@@ -142,12 +142,35 @@ if (savedManifest && expectedClips) {
         log(`Selected ${resolved.clips.length} story scenes; keeping ${resolved.alternateClips.length} alternate clip(s) outside the join.`);
     }
 }
+// This also covers saved Retry commands from older Studio versions. Resolve
+// locally before joining an asset download; never infer order from filenames.
+if (savedManifest && savedManifest.complete === false && !manualOrder && !DRY_RUN
+    && !ALLOW_PARTIAL && (!savedManifest.orderResolvedBy ||
+        savedManifest.orderResolvedBy === 'dialogue' && !Array.isArray(savedManifest.missingScenes))) {
+    const storyFile = require('./order_clips_by_dialogue').resolveStoryJson(path.dirname(path.resolve(DIR)));
+    if (storyFile) {
+        log('Checking story order from clip narration before joining (local transcription).');
+        try {
+            execFileSync(process.execPath, [path.join(__dirname, 'order_clips_by_dialogue.js'), storyFile, '--clips', path.resolve(DIR), '--write'], {stdio:'inherit'});
+            savedManifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'));
+        } catch {
+            console.error('Local scene-order check failed. Existing clips were preserved.');
+            process.exit(2);
+        }
+    }
+}
 const readyInManifest = savedManifest && Array.isArray(savedManifest.clips)
     ? new Set(savedManifest.clips.filter(c => c && c.got !== false && c.file
         && fs.existsSync(path.join(DIR, c.file))).map(c => c.file)).size : files.length;
 const partialExport = ALLOW_PARTIAL && expectedClips > 0 && readyInManifest > 0 && readyInManifest < expectedClips;
 if ((savedManifest && savedManifest.complete === false || expectedClips && readyInManifest !== expectedClips) && !partialExport) {
     console.error(`REFUSING TO JOIN: story expects ${expectedClips} clips; manifest has ${readyInManifest} ready and folder has ${files.length} MP4 files.`);
+    if (savedManifest && savedManifest.missingScenes && savedManifest.missingScenes.length) {
+        console.error(`Missing verified story scenes: ${savedManifest.missingScenes.join(', ')}.`);
+        for (const c of savedManifest.unidentifiedClips || []) console.error(`${c.file}: ${c.repeats_scene ? 'repeats narration from Scene '+c.repeats_scene : 'narration not identified'}.`);
+        console.error('See clips/CLIP_ORDER.txt. Replace missing scenes, then Resolve clip order again. Repeating Join cannot restore missing content.');
+        process.exit(2);
+    }
     console.error(readyInManifest === expectedClips
         ? 'All files are present, but scene order is unresolved or the manifest is stale. Resolve clip order, or provide --order with your verified story order.'
         : readyInManifest > expectedClips

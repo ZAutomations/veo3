@@ -1,0 +1,362 @@
+[
+  {
+    "id": "ww2-history",
+    "label": "World War 2 History",
+    "file": "ww2-history.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "fern-documentary",
+    "label": "Fern Documentary Style",
+    "file": "fern-documentary.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "mafia",
+    "label": "World Mafia Stories",
+    "file": "mafia.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "true-crime",
+    "label": "True Crime Stories",
+    "file": "true-crime.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "health-wellness",
+    "label": "Health & Wellness",
+    "file": "health-wellness.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "personal-finance",
+    "label": "Personal Finance",
+    "file": "personal-finance.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "relationship",
+    "label": "Relationship Advice",
+    "file": "relationship.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "fall-asleep",
+    "label": "Fall Asleep Stories",
+    "file": "fall-asleep.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "travel-adventure",
+    "label": "Travel & Adventure",
+    "file": "travel-adventure.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "cooking",
+    "label": "Cooking & Recipes",
+    "file": "cooking.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "gaming-esports",
+    "label": "Gaming & Esports",
+    "file": "gaming-esports.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "technology-ai",
+    "label": "Technology & AI",
+    "file": "technology-ai.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "ghibli",
+    "label": "Studio Ghibli Style",
+    "file": "ghibli.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "pixar-3d",
+    "label": "Pixar 3D Animation",
+    "file": "pixar-3d.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "anime-cinematic",
+    "label": "Anime Cinematic",
+    "file": "anime-cinematic.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "disney-classic",
+    "label": "Disney Classic",
+    "file": "disney-classic.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "shinkai",
+    "label": "Makoto Shinkai Style",
+    "file": "shinkai.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "lofi-anime",
+    "label": "Lofi Anime",
+    "file": "lofi-anime.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "cartoon-network",
+    "label": "Cartoon Network Style",
+    "file": "cartoon-network.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "realistic-cgi",
+    "label": "Realistic CGI",
+    "file": "realistic-cgi.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "vintage-anime-90s",
+    "label": "Vintage Anime 90s",
+    "file": "vintage-anime-90s.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "chibi-cute",
+    "label": "Chibi Cute Style",
+    "file": "chibi-cute.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "avatar-korra",
+    "label": "Avatar/Korra Style",
+    "file": "avatar-korra.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "science-what-if",
+    "label": "Science What-If",
+    "file": "science-what-if.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "animal-kindness",
+    "label": "Animal Kindness",
+    "file": "animal-kindness.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "geography-map",
+    "label": "Geography Map (2.5D relief)",
+    "file": "geography-map.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "3d-zack-style",
+    "label": "3D Shorts (Zack D. style)",
+    "file": "3d-zack-style.txt",
+    "route": "DIRECT IMPORT"
+  },
+  {
+    "id": "3d-moral-story",
+    "label": "3D Moral Story (Afrimax style)",
+    "file": "3d-moral-story.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "3d-explainer",
+    "label": "3D Explainer",
+    "file": "3d-explainer.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "3d-map",
+    "label": "3D Map",
+    "file": "3d-map.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "relationship-dialogue",
+    "label": "Relationship Dialogue",
+    "file": "relationship-dialogue.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "relationship-dialogue-ghibli",
+    "label": "Relationship Dialogue Ghibli",
+    "file": "relationship-dialogue-ghibli.txt",
+    "route": "DIRECT IMPORT"
+  },
+  {
+    "id": "relationship-dialogue-real",
+    "label": "Relationship Dialogue (Realistic)",
+    "file": "relationship-dialogue-real.txt",
+    "route": "DIRECT IMPORT"
+  },
+  {
+    "id": "relationship-dialogue-3d",
+    "label": "Relationship Dialogue — Stylized 3D",
+    "file": "relationship-dialogue-3d.txt",
+    "route": "DIRECT IMPORT"
+  },
+  {
+    "id": "fantasy-princess-relationship-advice",
+    "label": "Fantasy Princess — Relationship Advice",
+    "file": "fantasy-princess-relationship-advice.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "relationship-narration-colorful-cartoon",
+    "label": "Colorful Cartoon – Relationship Narration",
+    "file": "relationship-narration-colorful-cartoon.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "relationship-dialogue-colorful-cartoon",
+    "label": "Colorful Cartoon – Relationship Dialogue",
+    "file": "relationship-dialogue-colorful-cartoon.txt",
+    "route": "DIRECT IMPORT"
+  },
+  {
+    "id": "3d-motivational-red-green",
+    "label": "3D Motivational — Red vs Green",
+    "file": "3d-motivational-red-green.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "relationship-dialogue-dog-couple",
+    "label": "Relationship Dialogue — Dog Couple (Realistic Comedy)",
+    "file": "relationship-dialogue-dog-couple.txt",
+    "route": "DIRECT IMPORT"
+  },
+  {
+    "id": "genai-stone-age",
+    "label": "Stone Age (Stick)",
+    "file": "genai-stone-age.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "genai-anime-recap",
+    "label": "Anime Recap",
+    "file": "genai-anime-recap.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "genai-crime-2d",
+    "label": "Crime Story (2D)",
+    "file": "genai-crime-2d.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "genai-horror-2d",
+    "label": "Horror Story (2D)",
+    "file": "genai-horror-2d.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "genai-history-graphic",
+    "label": "History (Graphic Novel)",
+    "file": "genai-history-graphic.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "genai-history-cel",
+    "label": "History (Cel Doc)",
+    "file": "genai-history-cel.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "genai-history-painterly",
+    "label": "History (Painterly)",
+    "file": "genai-history-painterly.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "genai-dark-conspiracy",
+    "label": "Dark Documentary",
+    "file": "genai-dark-conspiracy.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "genai-stick-battle",
+    "label": "Stick Battle (History)",
+    "file": "genai-stick-battle.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "genai-stick-realface",
+    "label": "Stick Rise & Fall",
+    "file": "genai-stick-realface.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "genai-stick-whiteface",
+    "label": "Stick Whitefaces",
+    "file": "genai-stick-whiteface.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "genai-stick-flat",
+    "label": "Stick Vector (Flag Colours)",
+    "file": "genai-stick-flat.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "genai-3d-render",
+    "label": "3D Render Story",
+    "file": "genai-3d-render.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "genai-vox-collage-history",
+    "label": "Paper Collage (History)",
+    "file": "genai-vox-collage-history.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "genai-vox-collage-crime",
+    "label": "Paper Collage (Crime)",
+    "file": "genai-vox-collage-crime.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "genai-vox-collage-business",
+    "label": "Paper Collage (Business)",
+    "file": "genai-vox-collage-business.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "genai-vector-health",
+    "label": "Vector Health",
+    "file": "genai-vector-health.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "genai-papercut-history",
+    "label": "Paper Craft (History)",
+    "file": "genai-papercut-history.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "genai-papercut-finance",
+    "label": "Paper Craft (Finance)",
+    "file": "genai-papercut-finance.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "genai-oil-finance",
+    "label": "Oil Painting (Finance)",
+    "file": "genai-oil-finance.txt",
+    "route": "STORY WRITER"
+  },
+  {
+    "id": "genai-space-cel",
+    "label": "Space Documentary",
+    "file": "genai-space-cel.txt",
+    "route": "STORY WRITER"
+  }
+]

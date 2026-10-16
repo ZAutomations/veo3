@@ -1,0 +1,35 @@
+MASTER PROMPT: Crime Story (2D)
+PRESET ID: genai-crime-2d
+USE IN TOOL: Story Writer > Title & details > Write stories, with this preset selected. Match the GUI clip count and seconds to the script; text duration alone does not set GUI controls. This preset is NOT currently supported by Import ready script. This route still uses Gemini/AI Studio to finalize the story.
+
+COPY FROM THE NEXT LINE INTO CHATGPT:
+
+Create complete scripts for my Crime Story (2D) preset. Ask for the topic or supplied source, requested duration, and number of stories unless already specified. For normal narrated eight-second clips, explain that total generated duration is clip count times eight seconds. Do not silently turn a short source into a long film. Offer source-length matching when a transcript is supplied. Preserve facts and original speaker ownership. Produce a coherent hook, ordered development and full ending, rather than a list of disconnected facts. For real factual topics, verify uncertain information or ask for clarification; never present invented research as evidence.
+For original eight-second narration aim for 16-20 spoken words, maximum 22, allowing pauses. Preserve the full source and choose more clips rather than rushing or dropping material.
+
+Work without any previous chat history. Follow this prompt and the script or references I provide in this conversation. Never claim to have watched a link you cannot access; ask for the transcript or uploaded video instead. Do not invent source facts, figures, qualifications or outcomes. Keep scripts non-explicit and non-graphic; do not disguise restricted content with coded words. No prompt can guarantee a provider will accept every generation.
+Provide finished content, not placeholders. Check numbering, durations, complete sentences and word counts before delivery. If file creation is available, give me a downloadable UTF-8 TXT file. Otherwise give the entire result in one copyable code block. No explanatory introduction, tables, decorative separators or Markdown headings inside the output file.
+
+Return genai-crime-2d_STORY_SCRIPTS.txt. These are story-writing inputs, not direct-import scripts for this preset. Output:
+Story 1
+Title: [finished title]
+Preset: genai-crime-2d
+Details:
+Duration: [chosen generated duration] seconds. [number] clips of 8 seconds.
+Story brief: [specific premise, viewpoint, cast and setting; do not repeat the whole script here]
+
+Clip 1:
+Narration: "[complete narration segment]"
+Visual: [specific event and action]
+Sound: [quiet appropriate sound or None]
+
+Continue through the complete story. Replace all placeholders; never include the continuation instruction. Repeat Story 2 etc. for a batch. For Sarah/George dialogue include setting and descriptive prose BEFORE Clip 1, then only labelled spoken lines within clips; no Action: fields that the legacy transcript parser could mistake for speech.
+The tool applies the preset below. Follow its genre, visual medium, camera, cast, tone and sound rules when describing the scenes:
+STYLE: 2D adult animation style, digital cartoon illustration, clean flat shapes with soft gradient shading, pale characters with wide expressive eyes, moody interior and street lighting, defined shadows, a clear digital cartoon illustration
+PALETTE: Dim warm interior amber, cold blue-grey night, sickly fluorescent green, police red and blue, muted beige daylight, charcoal shadows
+CAMERA: 2D adult-animation staging: held medium shots, tense close-ups on faces and hands, slow push-ins on a clue, wide establishing shots of house, street and kitchen. One clear beat per shot, no 3D.
+DIRECTION: A true-crime style NARRATION, never a dialogue scene, and never stating a firm guilt. Clip 1 is a COLD OPEN at the moment of discovery, mid-scene, no background, and it plants one specific anomaly that contradicts the obvious explanation. Then end the opening with two or three short rhetorical questions that frame the mystery. After that: two people built as a contrast, how their paths crossed, four to six rising warning signs, a minute-by-minute reconstruction with concrete details (timestamps, messages, camera footage), then the official explanation and its holes walked through point by point. Close where it stands today and land one short ironic line that ties back to the opening image. One narrator, no on-screen text.
+NARRATION_VOICE: calm investigative male voice, measured and precise, restrained tension
+AVOID: no on-screen text, subtitles, captions, watermarks or UI, no real people's names or faces, no real brands or cities named as fact, no photoreal footage, no 3D CGI, no anime, no graphic gore or injury detail, no inventing evidence or statistics, no stating a firm guilt
+CAST_IDIOM: 2D adult-animation human: clean flat shapes, soft gradient shading, pale skin, wide expressive eyes, plain everyday clothing in fixed colours. A nervous or guarded expression. NOT anime, NOT 3D, NOT photoreal.
+STORY_SHAPES: ["the moment of discovery, then the one detail that does not fit", "two ordinary lives, and the small decision that crossed them", "the official version, then the holes in it, one by one", "a warning sign nobody acted on, and where that led"]

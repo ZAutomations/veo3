@@ -1,5 +1,26 @@
 // Installed in the page: follow the tile ancestors rather than one Flow CSS class.
 function installGridScroller() {
+    window.__veoGridExtent = () => {
+        const tile = document.querySelector('flow-video-tile, flow-image-tile');
+        const viewport = tile?.closest('cdk-virtual-scroll-viewport');
+        const spacer = viewport?.querySelector('.cdk-virtual-scroll-spacer');
+        if (!spacer) return null;
+        const s = window.__veoGridScroller?.();
+        const bounds = s?.getBoundingClientRect() || {y:0};
+        const top = s ? s.scrollTop : window.scrollY;
+        const r = spacer.getBoundingClientRect();
+        if (r.height <= 0) return null;
+        const start = top + r.y - bounds.y, end = start + r.height;
+        const rows = [...viewport.querySelectorAll('flow-video-tile, flow-image-tile')]
+            .map(e => e.getBoundingClientRect()).filter(r => r.height > 0)
+            .map(r => ({start:top+r.y-bounds.y,end:top+r.bottom-bounds.y})).sort((a,b)=>a.start-b.start);
+        let through = start, covered = rows.length > 0;
+        for (const row of rows) {
+            if (row.start > through + 40) {covered=false;break;}
+            through = Math.max(through, row.end);
+        }
+        return {start,end,covered:covered && through >= end-4};
+    };
     window.__veoGridScroller = () => {
         const tiles = [...document.querySelectorAll('flow-video-tile, flow-image-tile')];
         const votes = new Map();
@@ -17,8 +38,10 @@ function installGridScroller() {
 }
 function gridMetrics() {
     const s = window.__veoGridScroller?.();
+    const extent = window.__veoGridExtent?.();
     return { top: s ? s.scrollTop : window.scrollY, client: s ? s.clientHeight : window.innerHeight,
         scroll: s ? s.scrollHeight : Math.max(document.documentElement.scrollHeight, document.body.scrollHeight),
+        mediaEnd:extent?.end, mediaCovered:extent?.covered === true,
         tag: s ? `${s.tagName}.${String(s.className || '')}` : 'window' };
 }
 function scrollGrid(y) {

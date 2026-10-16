@@ -1,0 +1,13 @@
+const assert=require('assert'),C=require('../what_if_narration'),S=require('../source_narration'),W=require('../write_story');
+const base=W.loadPreset('3d-zack-style'),title='What Would Happen If an Airplane Window Broke at 35,000 Feet?';
+const p=C.resolve(base,title);
+assert.equal(p.narrative_mode,'what-if');assert(p.hook_line.includes('conditional'));
+assert(S.instructions(p,{}).includes('you/your'));assert(!S.instructions(p,{}).includes('Retell what actually happened'));
+assert.equal(C.resolve(base,'A Window Failure on Flight 123'),base);
+const fern=W.loadPreset('fern-documentary');assert.equal(C.resolve(fern,title),fern);
+assert(S.instructions(base,{}).includes('Retell what actually happened'));assert(S.viewerScenario('Your plane could lose cabin pressure.'));
+const story=W.buildStory(p,[],{place_description:'Aircraft interior',place_name:'Aircraft'},[{scene_title:'The question',script_line:'If your window failed, could the aircraft still land?',narrative_context:'Show an explanatory aircraft diagram.',characters:[]}]);
+assert.equal(story.narrative_mode,'what-if');
+const errors=W.validate(story,[],p);assert(!errors.some(e=>e.includes('addresses the viewer')));
+const historical=W.validate(story,[],{...base,extra_cta_clip:false});assert(historical.some(e=>e.includes('addresses the viewer')));
+console.log('PASS: hypothetical Zack topics allow conditional viewer narration; actual-event Zack and Fern retain documentary speaker protections.');

@@ -794,7 +794,7 @@ function loadPreset(id) {
         console.error(`Known ids: ${list.map(x => x.id).join(', ')}`);
         process.exit(1);
     }
-    return s;
+    return require('./what_if_narration').resolve(s,TITLE);
 }
 
 // ── the standing cast --------------------------------------------------------
@@ -845,6 +845,7 @@ function loadHouseCast(file) {
 // the feature. `--cast` overrides this for one run, `--no-house-cast` turns it
 // off.
 function houseCastApplies(p) {
+    if(p?.use_house_cast===false)return false;
     if (!p || p.cast === 'optional') return false;
     const t = Array.isArray(p.cast_types)
         ? p.cast_types.map(x => String(x).trim().toLowerCase()).filter(Boolean) : [];
@@ -934,7 +935,7 @@ function lookBlock(p, place) {
         // reaches every batch, and buildStory repeats it in every [SHOT] line so
         // it survives even a clip that ignores this.
         ...(fixed
-            ? [`SETTING (FIXED - the entire film happens in this one place and never leaves it): ${fixed}`]
+            ? [p.id === 'fern-documentary' ? `REFERENCE SETTING (design anchor for matching shots only; other narrated places and anatomical views must use their own setting): ${fixed}` : `SETTING (FIXED - the entire film happens in this one place and never leaves it): ${fixed}`]
             : []),
         // Fixed stage positions, the same idea one level down: the room is
         // locked, and so is who sits where. Repeated into every [SHOT] by
@@ -946,7 +947,7 @@ function lookBlock(p, place) {
         // told that the animal behaves like an animal; nothing in LOOK or CAMERA
         // says that, and left unsaid the model writes it as a small person.
         ...(p.direction ? [`DIRECTION: ${p.direction}`] : []),
-        ...(p.source_faithful ? ['SOURCE PRIORITY: The supplied source events and ending override generic instructions below about escalation, new shocks, present tense or addressing the viewer. Preserve the source opening and retell the events in order; finish the complete ending. ' + (p.extra_cta_clip ? 'Then write the one separate extra CTA.' : 'Do not append a CTA.') + ' Visual treatment must not contradict the source.'] : []),
+        ...(p.narrative_mode==='what-if' ? [require('./what_if_narration').CONTRACT] : p.source_faithful ? ['SOURCE PRIORITY: The supplied source events and ending override generic instructions below about escalation, new shocks, present tense or addressing the viewer. Preserve the source opening and retell the events in order; finish the complete ending. ' + (p.extra_cta_clip ? 'Then write the one separate extra CTA.' : 'Do not append a CTA.') + ' Visual treatment must not contradict the source.'] : []),
         ...(dialogue
             ? ['SPEAKING: two people talk to each other on screen, in their own voices. There is no narrator, no voice-over, and nobody describes the scene out loud.']
             : intro
@@ -965,6 +966,9 @@ function lookBlock(p, place) {
 }
 
 function castPrompt(p, houseCast) {
+    if(require('./dog_couple').applies(p))return require('./dog_couple').cast(p,{title:TITLE,detail:DETAIL,count:SCENES,seconds:SECONDS,aspect:ASPECT,source:CONTENT_MAP});
+    if(require('./motivational_metaphor').applies(p))return require('./motivational_metaphor').cast(p,{title:TITLE,detail:DETAIL,count:SCENES,seconds:SECONDS,aspect:ASPECT});
+    if(require('./cartoon_narration_prompt').applies(p))return require('./cartoon_narration_prompt').cast(p,{title:TITLE,detail:DETAIL,count:SCENES,seconds:SECONDS,aspect:ASPECT,source:CONTENT_MAP,houseCast});
     const brief = require('./relationship_writing_brief');
     if (brief.applies(p)) return brief.cast(p, {title:TITLE,detail:DETAIL,count:SCENES,
         seconds:SECONDS,aspect:ASPECT,source:CONTENT_MAP,houseCast});
@@ -1107,7 +1111,13 @@ ${houseCast.map(c => `     ${c.name} - ${c.description}`).join('\n')}
     // The place is NOT assumed to be a room: a park bench, a kitchen table, a
     // hotel bed and a garden are all places, and the rule is only that it is the
     // same one for the whole film.
-    const placeField = choosePlace ? `
+    const placeField = choosePlace && p.id === 'fern-documentary' ? `
+5. Choose a TOPIC-SPECIFIC reference setting for the documentary, not one mandatory location for every clip.
+   - "place_name": one short asset name, without spaces.
+   - "place_description": describe the principal actual setting and its architecture/props in 45-70 words. For a body-process topic, use a coherent neutral anatomical presentation setting; the organ/process itself is shown in the relevant clip, not as random background decoration.
+   - "place_prompt": one empty topic-appropriate 3D design reference, 40-60 words, in the preset's slate/teal documentary medium. No people, collage, text, labels or watermark. No default aircraft, machinery or laboratory unless the topic requires it.
+   - Plan the location and time for every outline beat from the actual source. Stay in one place if the story calls for it; use several when required. Revisited places retain their design. Do not invent a new location or event to fill the runtime.
+   - Explicitly allow other narrated locations and anatomical scales. The reference applies only to matching shots; never replace their context with this setting.` : choosePlace ? `
 5. Choose ONE place for this whole film, and describe it once. Every clip
    happens here and the place NEVER changes. It can be anywhere - a park bench,
    a kitchen table, a hotel bed, a garden, a stairwell, a car. What it cannot be
@@ -1332,6 +1342,9 @@ Return ONLY this JSON, no other text:
 }
 
 function scenesPrompt(p, cast, outline, from, to, soFar, place, blocking) {
+    if(require('./dog_couple').applies(p))return require('./dog_couple').scenes(p,{title:TITLE,detail:DETAIL,count:SCENES,seconds:SECONDS,aspect:ASPECT,source:CONTENT_MAP,cast,outline,from,to,previous:soFar,place,blocking});
+    if(require('./motivational_metaphor').applies(p))return require('./motivational_metaphor').scenes(p,{title:TITLE,detail:DETAIL,count:SCENES,seconds:SECONDS,cast,outline,from,to,previous:soFar,place});
+    if(require('./cartoon_narration_prompt').applies(p))return require('./cartoon_narration_prompt').scenes(p,{title:TITLE,detail:DETAIL,count:SCENES,seconds:SECONDS,source:CONTENT_MAP,cast,outline,from,to,previous:soFar,place});
     const brief = require('./relationship_writing_brief');
     if (brief.applies(p)) return brief.scenes(p, {title:TITLE,detail:DETAIL,count:SCENES,
         seconds:SECONDS,aspect:ASPECT,source:CONTENT_MAP,cast,outline,from,to,
@@ -1479,7 +1492,9 @@ English. If a line is already simple, copy it exactly. Do not add dialogue.
     // so are the seats, because the whole film is those two people in that one
     // frame. A preset that simply has a chosen place still gets the place lock
     // and is left free to frame it however the beat wants.
-    const settingRule = p.single_speaker_advice
+    const settingRule = p.id === 'fern-documentary'
+        ? `  "narrative_context" - 80 to 130 words giving TWO OR THREE timed documentary shots. First choose the actual location and time required by this beat and narration; name the location in each shot. Stay in one setting when appropriate, or cut to another only when the story requires it. Revisited places retain layout and landmarks. A source-supplied location is ground truth; do not invent locations or actions. The reference setting above is only a design anchor for matching views, not a fixed place for the film. Every person remains a smooth faceless matte mannequin, and every setting stays in the preset's cinematic 3D medium. Show a concrete subject, action and result aligned with the spoken phrase.`
+        : p.single_speaker_advice
         ? `  "narrative_context" - Describe a simple visual beat in the established garden: the woman walks with her pet in the opening, then stops, stands or sits naturally to continue speaking. Keep her reference face, gown, tiara and chosen pet. Gentle tracking or medium close-up, no fixed seating or mandatory shot/reverse-shot.`
         : !fixed
         ? `  "narrative_context" - 80 to 130 words describing what is ON SCREEN: the setting,
@@ -1695,6 +1710,9 @@ ${skeleton}`;
 // ambiguity - and left blank when it does, because guessing "human" for the dog
 // would hand an animal a person's wardrobe rules.
 function normaliseCast(p, cast) {
+    cast=require('./dog_couple').approvedCast(p,cast||[]);
+    cast=require('./motivational_metaphor').approvedCast(p,cast||[]);
+    cast=require('./cartoon_narration_prompt').approvedCast(p,cast||[]);
     cast = require('./fantasy_advice_identity').cast(p, cast || []);
     const types = Array.isArray(p.cast_types)
         ? p.cast_types.map(t => String(t).trim().toLowerCase()).filter(Boolean)
@@ -1861,7 +1879,7 @@ function buildStory(p, cast, meta, scenes) {
     // differently every clip.
     const metaBlocking = String(meta.blocking || '').trim();
     const shot = (s) => {
-        const text = [p.id === 'fern-documentary' ? '' : placeDesc, p.blocking, metaBlocking, String(s.narrative_context || '').trim()].filter(Boolean).join(' ');
+        const text = [p.id === 'fern-documentary' ? require('./fern_topic_visuals').forStory({title:TITLE}) : placeDesc, p.blocking, metaBlocking, String(s.narrative_context || '').trim()].filter(Boolean).join(' ');
         return require('./location_style').isRelationship(p) ? require('./location_style').brightVisualText(text) + '\n' + require('./location_style').BRIGHT_LOCATION : text;
     };
     return {
@@ -1874,7 +1892,10 @@ function buildStory(p, cast, meta, scenes) {
         moral: meta.moral,
         niche: p.label,
         style: p.style,
-        ...(p.id === 'fern-documentary' ? { visual_shot_format: 'documentary-internal-cuts' } : {}),
+        ...(p.narrative_mode?{narrative_mode:p.narrative_mode}:{}),
+        ...(require('./dog_couple').applies(p)?{character_species:'dog'}:{}),
+        ...(require('./motivational_metaphor').applies(p)?{visual_direction:require('./motivational_metaphor').LOCK,requested_duration_seconds:DURATION,trim_target_seconds:DURATION<=16?15:30}:{}),
+        ...(p.id === 'fern-documentary' ? { visual_shot_format: 'documentary-internal-cuts', visual_direction: require('./fern_topic_visuals').CONTRACT } : {}),
         ...(p.id === '3d-zack-style' ? { visual_shot_format: 'zack-internal-cuts', visual_direction: require('./zack_shot_contract').DIRECTION } : {}),
         // The one place the whole film happens in, so the agent prompt builder
         // can @-mention its reference image and the sheet writer can print its
@@ -1896,6 +1917,7 @@ function buildStory(p, cast, meta, scenes) {
         // this is a narrated story. Guessing is what dropped the voice-over rules
         // on stories that carry script_line but no veo3_prompt.
         narrated: !dialogue,
+        ...(p.narration_delivery?{narration_delivery:p.narration_delivery}:{}),
         ...(dialogue && p.grounded_dialogue === true
             && (hasSourceDialogue(CONTENT_MAP) || require('./relationship_transcript').hasPastedTranscript(DETAIL))
             ? { source_dialogue_fidelity: 'source turns preserved; maximum light edit about three words per ten' }
@@ -1924,18 +1946,19 @@ function buildStory(p, cast, meta, scenes) {
             scene_builder_action: 'text_to_video',
             extend_from_last_frame: false,
             script_line: dialogue ? '' : sanitizeForPolicy(s.script_line),
+            ...(require('./cartoon_narration_prompt').applies(p)?{shots:s.shots||[]}:{}),
             // What is said in this clip, by whom. The whole film is this array.
             ...(dialogue ? { dialogue: speech(s) } : {}),
             // The sound brief only exists for sound-led presets. Naming the
             // literal sounds of the place is what stops a clip with no
             // voice-over from arriving with nothing on the audio track at all.
             ...(intro ? { sound_context: s.sound_context || '' } : {}),
-            narrative_context: sanitizeForPolicy(shot(s)),
+            narrative_context: sanitizeForPolicy(require('./cartoon_narration_prompt').applies(p)?shot({...s,narrative_context:require('./cartoon_narration_prompt').visual(s)}):shot(s)),
             // A clip with no narration carries its sound brief in the AUDIO slot
             // instead of an empty narrator line, which the video model would
             // otherwise fill with invented dialogue. A dialogue clip carries the
             // lines themselves, attributed, so the model knows who says what.
-            veo3_prompt: sanitizeForPolicy(`[SHOT] ${shot(s)}\n[LOOK] ${p.style}\n[AUDIO] ` +
+            veo3_prompt: sanitizeForPolicy(`[SHOT] ${require('./cartoon_narration_prompt').applies(p)?require('./cartoon_narration_prompt').SHOTS+'\n'+shot({...s,narrative_context:require('./cartoon_narration_prompt').visual(s)}):shot(s)}\n[LOOK] ${p.style}\n[AUDIO] ` +
                 (dialogue ? require('./dialogue_speakers').speakerLock(p) : '') +
                 (dialogue
                     ? (speech(s).length
@@ -1943,7 +1966,7 @@ function buildStory(p, cast, meta, scenes) {
                         : 'No dialogue in this clip. Room tone and the ambient sound of the place only.')
                     : (intro && !String(s.script_line || '').trim())
                         ? `No voice-over in this clip. Natural sound only: ${s.sound_context}`
-                        : `Narrator (V.O., ${p.narration_voice}): "${s.script_line}"`)),
+                        : require('./cartoon_narration_prompt').applies(p) ? require('./cartoon_narration_prompt').audio(p,s) : `Narrator (V.O., ${p.narration_voice}): "${s.script_line}"`)),
             characters: (s.characters || []).map(x => String(x).toLowerCase()),
         })),
         character_descriptions: descriptions,
@@ -1954,6 +1977,7 @@ function buildStory(p, cast, meta, scenes) {
 function validate(story, cast, p = {}) {
     const { hard: WORDS_HARD } = wordBudget(p);
     const bad = [];
+    bad.push(...require('./cartoon_narration_prompt').validateShots(story));
     const names = cast.map(c => c.name.toLowerCase());
     const types = Array.isArray(p.cast_types)
         ? p.cast_types.map(t => String(t).trim().toLowerCase()).filter(Boolean)
@@ -2045,7 +2069,7 @@ function validate(story, cast, p = {}) {
         } else {
             const w = s.script_line.trim().split(/\s+/).length;
             if (w > WORDS_HARD) bad.push(`clip ${n}: narration is ${w} words, over the ${WORDS_HARD}-word limit for ${SECONDS}s`);
-            if (p.preserve_source_narration && !(p.extra_cta_clip && n === story.scenes.length) && require('./source_narration').viewerScenario(s.script_line)) {
+            if (p.preserve_source_narration && p.narrative_mode!=='what-if' && !(p.extra_cta_clip && n === story.scenes.length) && require('./source_narration').viewerScenario(s.script_line)) {
                 bad.push(`clip ${n}: documentary narration addresses the viewer as you/your; report the source event and its people instead`);
             }
         }
@@ -2161,8 +2185,7 @@ function writePackage(dir, p, story, cast) {
             `=== PLACE - ${(placeName || p.label || 'the film').toUpperCase()} ===`,
             `save as: character_refs/${placeName || 'place'}.jpg`,
             '',
-            'This is the ONE place this film happens in. Every clip is shot here,',
-            'with the same furniture and the same light. Generate it as ONE image',
+            ...(p.id === 'fern-documentary' ? ['This is a design reference for matching shots only, not the whole film.', 'Use the location and time required by each narrated event. Generate ONE image'] : ['This is the ONE place this film happens in. Every clip is shot here,', 'with the same furniture and the same light. Generate it as ONE image']),
             'of the place EMPTY - no people and no animals - seen straight on and',
             'wide, evenly lit, the whole space readable.',
             '',
@@ -2279,6 +2302,7 @@ function writePackage(dir, p, story, cast) {
                '']
             : ['## Narrator',
                p.narration_voice,
+               ...(require('./cartoon_narration_prompt').applies(p)?['Veo generates this off-screen narration with each clip. NARRATION_SCRIPT.txt is a reference copy of the spoken lines; no separate recording is required. On-screen characters stay silent.']:[]),
                // The voice ASSET, named. The description above is what the
                // narrator sounds like; this is the Flow voice to attach to every
                // clip, and without it the film is read by a different one each
@@ -2296,7 +2320,7 @@ function writePackage(dir, p, story, cast) {
         ...(p.story_shapes || []).map(s => `- ${s}`),
         '',
         ...(placeDesc
-            ? ['## The place',
+            ? p.id === 'fern-documentary' ? ['## Reference setting', 'This design anchor applies only to matching shots. Each event uses its actual location and time; revisited settings retain their design.', placeDesc, ''] : ['## The place',
                (placeName ? `**${placeName}** - the one place this film happens in.` :
                             'The one place this film happens in.') +
                ' Every clip is shot here and it',
@@ -2378,6 +2402,7 @@ function writePackage(dir, p, story, cast) {
     fs.writeFileSync(path.join(dir, 'style_bible.md'), bible, 'utf8');
 
     require('./single_scene_prompts').writeSingleScenePrompts(dir, story);
+    require('./cartoon_narration_prompt').writeNarration(dir,story);
     minimal.write(dir, story);
     if (p.id === 'fantasy-princess-relationship-advice') require('./fantasy_advice_camera').writeExtend(dir, story);
     return storyPath;
@@ -2888,7 +2913,7 @@ if (require.main === module) (async () => {
             console.log(`ok (${got.length})`);
         }
 
-        if (!manual && p.preserve_source_narration) {
+        if (!manual && p.preserve_source_narration && p.narrative_mode!=='what-if') {
             const wrong = scenes.map((s, i) => ({ s, i })).filter(x => !(p.extra_cta_clip && x.i === scenes.length - 1) && require('./source_narration').viewerScenario(x.s.script_line));
             for (let offset = 0; offset < wrong.length; offset += BATCH) {
                 const group = wrong.slice(offset, offset + BATCH);

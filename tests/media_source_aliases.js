@@ -1,0 +1,10 @@
+const assert=require('assert'),vm=require('vm'),media=require('../single_clip_omni_media');
+const raw='https://flow.google.com/asb/inventory-raw',selected='https://flow.google.com/asb/browser-responsive';
+const img={currentSrc:selected,getAttribute:name=>name==='src'?raw:null};
+const tile={parentElement:null,textContent:'play_circle',innerText:'play_circle',querySelectorAll:selector=>selector==='video,source,img'?[img]:[],querySelector:()=>null,getBoundingClientRect:()=>({x:20,y:20,width:140,height:250})};
+const context={window:{},document:{querySelectorAll:()=>[tile]},crypto:{randomUUID:()=> 'session'},WeakMap};
+vm.createContext(context);
+const tiles=vm.runInContext('('+media.tileSnapshot.toString()+')()',context);
+assert(tiles[0].assetIds.includes('inventory-raw'));assert(tiles[0].assetIds.includes('browser-responsive'));
+assert.equal(media.locateJob(tiles,{number:1,prompt:'unknown'},{assetId:'inventory-raw'}),tiles[0]);
+console.log('PASS: real snapshot code retains raw src and currentSrc identities; inventory asset remains locatable when browser picks another preview.');

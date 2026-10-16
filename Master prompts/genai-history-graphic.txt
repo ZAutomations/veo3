@@ -1,0 +1,35 @@
+MASTER PROMPT: History (Graphic Novel)
+PRESET ID: genai-history-graphic
+USE IN TOOL: Story Writer > Title & details > Write stories, with this preset selected. Match the GUI clip count and seconds to the script; text duration alone does not set GUI controls. This preset is NOT currently supported by Import ready script. This route still uses Gemini/AI Studio to finalize the story.
+
+COPY FROM THE NEXT LINE INTO CHATGPT:
+
+Create complete scripts for my History (Graphic Novel) preset. Ask for the topic or supplied source, requested duration, and number of stories unless already specified. For normal narrated eight-second clips, explain that total generated duration is clip count times eight seconds. Do not silently turn a short source into a long film. Offer source-length matching when a transcript is supplied. Preserve facts and original speaker ownership. Produce a coherent hook, ordered development and full ending, rather than a list of disconnected facts. For real factual topics, verify uncertain information or ask for clarification; never present invented research as evidence.
+For original eight-second narration aim for 16-20 spoken words, maximum 22, allowing pauses. Preserve the full source and choose more clips rather than rushing or dropping material.
+
+Work without any previous chat history. Follow this prompt and the script or references I provide in this conversation. Never claim to have watched a link you cannot access; ask for the transcript or uploaded video instead. Do not invent source facts, figures, qualifications or outcomes. Keep scripts non-explicit and non-graphic; do not disguise restricted content with coded words. No prompt can guarantee a provider will accept every generation.
+Provide finished content, not placeholders. Check numbering, durations, complete sentences and word counts before delivery. If file creation is available, give me a downloadable UTF-8 TXT file. Otherwise give the entire result in one copyable code block. No explanatory introduction, tables, decorative separators or Markdown headings inside the output file.
+
+Return genai-history-graphic_STORY_SCRIPTS.txt. These are story-writing inputs, not direct-import scripts for this preset. Output:
+Story 1
+Title: [finished title]
+Preset: genai-history-graphic
+Details:
+Duration: [chosen generated duration] seconds. [number] clips of 8 seconds.
+Story brief: [specific premise, viewpoint, cast and setting; do not repeat the whole script here]
+
+Clip 1:
+Narration: "[complete narration segment]"
+Visual: [specific event and action]
+Sound: [quiet appropriate sound or None]
+
+Continue through the complete story. Replace all placeholders; never include the continuation instruction. Repeat Story 2 etc. for a batch. For Sarah/George dialogue include setting and descriptive prose BEFORE Clip 1, then only labelled spoken lines within clips; no Action: fields that the legacy transcript parser could mistake for speech.
+The tool applies the preset below. Follow its genre, visual medium, camera, cast, tone and sound rules when describing the scenes:
+STYLE: Animated graphic-novel style illustration, bold ink line work, muted blue and brown tones, thick black outlines, hatched shadow, cinematic lighting, historical animated illustrated look
+PALETTE: Muted steel blue, sepia and umber brown, slate grey, dull olive, parchment cream, bone white, black line work
+CAMERA: Graphic-novel framing: dramatic low and high angles, tight close-ups on faces and hands, wide tableaus for battles and halls, one clear beat per panel. No 3D, no camera shake.
+DIRECTION: A sweeping history DOCUMENTARY narrated across eras, not a list of facts. Clip 1 is a HOOK that ties the topic to the present day - an anniversary, a surviving landmark, a modern consequence - and then poses ONE overarching rhetorical question the whole film answers. After that move with momentum: origins, the outside force that disrupts everything, the founding struggle, expansion and conflict, the single defining crisis, the rise to the world stage, and the modern era. Use short punchy transitions between eras ('But just as X ended, Y began'), keep 2-4 real historical figures as recurring anchors, and end a few chapters on a dramatic spike. Close by circling back to the opening line and one unifying idea. One narrator, no on-screen text.
+NARRATION_VOICE: epic sweeping male documentary narrator, confident and unhurried, momentum-driven
+AVOID: no on-screen text, subtitles, captions, watermarks or UI, no photoreal footage, no 3D CGI, no modern clothing or modern objects, no real modern brands, no gratuitous gore, no invented battles, dates or casualty figures
+CAST_IDIOM: Animated graphic-novel historical human: period-accurate clothing and armour (coats, uniforms, togas, gowns, crowns, helmets), expressive faces, flat muted colour with painterly shading behind bold black outlines, hatched shadows. NOT photoreal, NOT 3D, NOT anime.
+STORY_SHAPES: ["the earliest origins, then the outside force that changes everything", "a founding struggle, then expansion, then the crisis that nearly ends it", "one empire at its height, then the decision that brings it down", "a nation rises from weakness to the world stage, and the bill comes due"]

@@ -1,0 +1,17 @@
+const assert=require('assert'),fs=require('fs');
+const {verifiedSubmissionTarget}=require('../agent_submission');
+const button={disabled:false,getAttribute:()=>null,getBoundingClientRect:()=>({x:100,y:200,width:40,height:40}),contains:()=>false};
+const owner={querySelector:()=>button};
+const pm={innerText:'Full batch prompt\n Scene 1 - Exact words. Studio',querySelectorAll:()=>[{}],closest:()=>owner};
+global.window={__veoAgentEditor:()=>pm};global.document={elementFromPoint:()=>button};
+const input={text:'Full batch prompt Scene 1 - Exact words.',references:1};
+assert.deepEqual(verifiedSubmissionTarget(input),{ok:true,cx:120,cy:220});
+pm.innerText='';assert.match(verifiedSubmissionTarget(input).why,/missing or changed/);
+pm.innerText=input.text;pm.querySelectorAll=()=>[];assert.match(verifiedSubmissionTarget(input).why,/attachments/);
+pm.querySelectorAll=()=>[{}];owner.querySelector=()=>null;assert.match(verifiedSubmissionTarget(input).why,/active Agent composer/);
+owner.querySelector=()=>button;document.elementFromPoint=()=>({});assert.match(verifiedSubmissionTarget(input).why,/covered/);
+const code=fs.readFileSync('agent_mode.js','utf8');
+assert(code.indexOf('await applyAgentSettings(page')<code.indexOf("log('Focusing the prompt box...')"));
+assert.equal((code.match(/await applyAgentSettings\(page/g)||[]).length,1);
+delete global.window;delete global.document;
+console.log('PASS: settings precede composition; missing prompt/reference, wrong composer and covered submit are rejected.');

@@ -461,7 +461,7 @@ class Veo3FlowNewUI {
 
     // ── story loading ─────────────────────────────────────────────
     async loadScenes() {
-        const savedCouple = require('./saved_couple').loadSavedCouple('ingredients');
+        const savedCouple = require('./dog_couple').savedForStory(this.jsonFilePath,'ingredients');
         require('./saved_couple').bindSavedStory(this.jsonFilePath, savedCouple);
         require('./saved_couple').applyIngredientsReferenceMode(this, savedCouple);
         if (savedCouple && !this.resumeExisting && !this.opts.exportOnly) {
@@ -2520,6 +2520,17 @@ ${'='.repeat(70)}
 
         // allow CLI range override after load
         if (!this.opts.toScene) this.toScene = this.scenes.length;
+        if (this.opts.resumeAuto) {
+            await this.ensureEditor();
+            const completed = await this.countCompletedClips();
+            this.fromScene = completed + 1;
+            log(`Retry / Continue: verified ${completed} completed timeline clips; continuing at scene ${this.fromScene}.`);
+            if (completed >= this.toScene) {
+                this.okScenes = Array.from({length:this.toScene},(_,i)=>i+1);
+                if(this.opts.download!==false)await this.exportAndFinish();
+                await this.browser.disconnect();return;
+            }
+        }
         if (this.fromScene > 1) {
             log(`▶️  Resume mode: scenes ${this.fromScene}-${this.toScene}`);
             if (!this.freshProject) {
@@ -2596,6 +2607,7 @@ function parseArgs(argv) {
         else if (a === '--no-download') opts.download = false;
         else if (a === '--join') opts.join = true;
         else if (a === '--export-only') opts.exportOnly = true;
+        else if (a === '--resume-auto') { opts.resumeAuto=true;opts.newProject=false;opts.genRefs=false;opts.skipRefs=true; }
         else if (a === '--extend-model') opts.extendModel = argv[++i];
         else if (a === '--cdp') opts.cdp = `http://127.0.0.1:${argv[++i]}`;
         else if (a === '--account') opts.account = argv[++i];

@@ -14,6 +14,7 @@ function viewerScenario(line) {
 function instructions(p, cm) {
     if (!p.preserve_source_narration) return '';
     const transcript = lines(cm).map(d => `${d.t || ''} ${d.line || ''}`.trim()).join('\n');
+    if(p.narrative_mode==='what-if')return require('./what_if_narration').CONTRACT+'\n'+(transcript?`SUPPLIED SOURCE EXPLANATION (retain its facts and qualifications):\n${transcript}`:'Use the supplied hypothetical premise and explanation. Do not invent an actual incident.');
     return `DOCUMENTARY SOURCE CONTRACT (overrides generic retention and second-person writing):
 Retell what actually happened to the source's people, in the source's presentation
 order, with the same opening, facts, causes, uncertainty and complete ending.

@@ -521,7 +521,8 @@ async function scanVirtualGrid(page, log) {
         merge(snap);
         log(`Grid scan ${rounds}: ${[...records.values()].filter(isVideoRecord).length}/${EXPECTED || '?'} video tile(s) found.`);
         const current = await page.evaluate(gridMetrics);
-        const bottom = Math.max(0, current.scroll - current.client);
+        if (current.mediaCovered) { log('All media rows are mounted; skipping empty composer-tail scrolling.'); break; }
+        const bottom = Math.max(0, (current.mediaEnd ?? current.scroll) - current.client);
         const target = Math.min(bottom, current.top + Math.max(100, Math.floor(current.client * 0.75)));
         await wheelGrid(page, Math.max(100, Math.floor(current.client * 0.75)));
         const before = records.size;
@@ -535,7 +536,7 @@ async function scanVirtualGrid(page, log) {
         }
         const after = await page.evaluate(gridMetrics);
         if (after.top > current.top + 2) walked = true;
-        const atEnd = after.top >= after.scroll - after.client - 2;
+        const atEnd = after.mediaCovered || after.top >= (after.mediaEnd ?? after.scroll) - after.client - 2;
         if (records.size > before || !atEnd) stalled = 0;
         else if (++stalled >= 2) break;
         if (!atEnd && target > current.top + 2 && after.top <= current.top + 2) {
@@ -711,8 +712,8 @@ async function activateVideoTile(page, tile, needSource = true) {
 
     log('');
     log(`Ready video tiles: ${videoTiles.length}    failed video tiles (skipped): ${failedVideoTiles.length}    image tiles (skipped): ${imageTiles.length}`);
-    if (flag('--upscaled')) {
-        await require('./agent_upscaled_download').download(browser,page,{storyFile:STORY_FILE,outDir:OUT_DIR,project:homeUrl,tiles:videoTiles,log});
+    if ((flag('--upscaled') || flag('--original')) && !PROBE) {
+        await require('./agent_upscaled_download').download(browser,page,{storyFile:STORY_FILE,outDir:OUT_DIR,project:homeUrl,tiles:videoTiles,downloadVersion:flag('--original')?'original':'upscaled',log});
         await browser.disconnect();
         return;
     }

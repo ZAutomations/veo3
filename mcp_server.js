@@ -461,7 +461,7 @@ async function doAnalyzeVideo(a) {
 
 async function doGenerateRefs(a) {
     const sJson = resolveStoryJson(a.story);
-    if (sJson) require('./saved_couple').bindSavedStory(sJson, require('./saved_couple').loadSavedCouple('agent'));
+    if (sJson) require('./saved_couple').bindSavedStory(sJson, require('./dog_couple').savedForStory(sJson, 'agent'));
     const target = String(sJson ? storyDirOf(sJson) : (a.story || '')).trim();
     if (!target) return { ok: false, text: 'Give a story (folder or JSON) whose refs.json exists.' };
     const args = ['--story', path.resolve(HERE, target)];
@@ -564,7 +564,7 @@ async function doBuildPrompt(a) {
 async function doRunAgent(a) {
     const storyJson = resolveStoryJson(a.story);
     if (!storyJson) return { ok: false, text: `No story JSON found at "${a.story}".` };
-    const savedCouple = require('./saved_couple').loadSavedCouple('agent');
+    const savedCouple = require('./dog_couple').savedForStory(storyJson,'agent');
     require('./saved_couple').bindSavedStory(storyJson, savedCouple);
     if (a.submit && !a._single_batch) {
         if (!a.project_url) {
@@ -640,7 +640,8 @@ async function doDownloadClips(a) {
     if (!out && storyJson) out = path.join(storyDirOf(storyJson), 'clips');
     if (!out) return { ok: false, text: 'Give either story (folder or JSON) or an explicit out folder.' };
     const args = ['--out', path.resolve(HERE, String(out)), '--cdp', String(a.cdp || 9222)];
-    if (a.upscaled === true || /omni/i.test(a.video_model || '') || a.video_resolution === '360p') args.push('--upscaled');
+    if(a.download_version==='original')args.push('--original');
+    else if(a.download_version==='upscaled'||a.upscaled === true || /omni/i.test(a.video_model || '') || a.video_resolution === '360p') args.push('--upscaled');
     pushOpt(args, '--project-url', a.project_url);
     if (storyJson) {
         pushOpt(args, '--story', storyJson);
@@ -705,11 +706,19 @@ async function doOrderClips(a) {
     return { ok: r.code === 0, storyJson, text: r.out + (r.err ? '\n[stderr]\n' + r.err : '') };
 }
 
+function downloadedClipCount(clipsDir) {
+    if (!fs.existsSync(clipsDir)) return 0;
+    const manifest = readJson(path.join(clipsDir, 'manifest.json'), null);
+    if (Array.isArray(manifest?.clips)) return new Set(manifest.clips.filter(c => c.got !== false && c.file && /\.mp4$/i.test(c.file)
+        && fs.existsSync(path.join(clipsDir, c.file)) && fs.statSync(path.join(clipsDir, c.file)).isFile()
+        && fs.statSync(path.join(clipsDir, c.file)).size > 0).map(c => c.file)).size;
+    return fs.readdirSync(clipsDir).filter(f => /^scene-\d+\.mp4$/i.test(f)).length;
+}
+
 function statusOf(storyJson) {
     const dir = storyDirOf(storyJson);
     const clipsDir = path.join(dir, 'clips');
-    const clips = fs.existsSync(clipsDir)
-        ? fs.readdirSync(clipsDir).filter((f) => /^scene-\d+\.mp4$/i.test(f)).length : 0;
+    const clips = downloadedClipCount(clipsDir);
     const finalFiles = fs.existsSync(dir)
         ? fs.readdirSync(dir).filter((f) => /_final\.mp4$/i.test(f)) : [];
     const story = readJson(storyJson, {});
@@ -853,6 +862,7 @@ const TOOLS = [
                 aspect: { type: 'string', description: '"Flow" (default, set the ratio in Flow), or 16:9 / 9:16 / 1:1.' },
                 video_model: { type: 'string', description: 'Video model for this project, e.g. "Veo 3.1 - Fast". "Flow" (default) leaves it alone.' },
                 video_resolution: { type: "string", enum: ["Flow", "360p", "720p"], description: "Agent video resolution; verified and repeated in every clip prompt." },
+                download_version: { type: "string", enum: ["upscaled", "original"], description: "Download the upscaled version or preserve the original generated size." },
                 model: { type: 'string', description: 'Gemini model, e.g. gemini-3.6-flash.' },
                 models: { type: 'array', items: { type: 'string' }, description: 'Fallback chain, newest first. Overrides model.' },
                 transport: { type: 'string', enum: ['api', 'web', 'auto'], description: '"api" (default): Gemini through the API key. "web": Google AI Studio writes the story in a real Chrome window instead - no key, no per-project quota. "auto": try the API, fall back to the browser. The browser needs its profile signed in once; the tool says so if it is not. The story folder is identical either way.' },
@@ -903,6 +913,7 @@ const TOOLS = [
                 model: { type: 'string', description: 'Model hint, e.g. "veo3.1 low priority".' },
                 video_model: { type: 'string', description: 'Video model this project must generate with, e.g. "Veo 3.1 - Fast" or "Omni 1.1 Flash". Set in Flow just before Generate. "Flow" (default) leaves the project on its own setting.' },
                 video_resolution: { type: "string", enum: ["Flow", "360p", "720p"], description: "Agent video resolution; verified and repeated in every clip prompt." },
+                download_version: { type: "string", enum: ["upscaled", "original"], description: "Download the upscaled version or preserve the original generated size." },
                 aspect: { type: 'string', enum: ['Flow', '16:9', '1:1', '9:16'], description: 'Video generation default ratio. Flow leaves it unchanged.' },
                 voices: { type: 'array', items: { type: 'string' }, description: 'Flow voice names to attach, one per speaker (e.g. ["Orus"] or ["Orus","Achernar"]).' },
                 no_upload_refs: { type: 'boolean', description: 'Do not upload sheets; only use an Image tile already present.' },
@@ -940,6 +951,7 @@ const TOOLS = [
                 limit: { type: 'integer', description: 'Stop after N tiles.' },
                 probe: { type: 'boolean', description: 'Inspect and dump only; download nothing.' },
                 no_sheet: { type: 'boolean', description: 'Skip the contact sheet.' },
+                download_version: { type: "string", enum: ["upscaled", "original"], description: "Download the upscaled version or preserve the original generated size." },
             },
             additionalProperties: false,
         },
@@ -1031,6 +1043,7 @@ const TOOLS = [
                 veo_model: { type: 'string', description: 'Veo model hint for Flow, e.g. "veo3.1 low priority".' },
                 video_model: { type: 'string', description: 'Video model this project must generate with, e.g. "Veo 3.1 - Fast" or "Omni 1.1 Flash". "Flow" (default) leaves it alone.' },
                 video_resolution: { type: "string", enum: ["Flow", "360p", "720p"], description: "Agent video resolution; verified and repeated in every clip prompt." },
+                download_version: { type: "string", enum: ["upscaled", "original"], description: "Download the upscaled version or preserve the original generated size." },
                 no_house_cast: { type: 'boolean' },
                 new_project: { type: 'boolean', description: 'Create a fresh Flow project for this film before generating.' },
                 project_url: { type: 'string', description: 'Generate into this existing project instead of the open tab.' },
@@ -1128,7 +1141,7 @@ const TOOLS = [
             if (!r.ok || !a.submit) return r.ok ? text(parts.join('\n\n')) : fail(parts.join('\n\n'));
 
             if (a.download) {
-                const dl = await doDownloadClips({ story: storyArg, project_url: projectUrl, cdp: a.cdp, video_model: a.video_model, video_resolution: a.video_resolution });
+                const dl = await doDownloadClips({ story: storyArg, project_url: projectUrl, cdp: a.cdp, video_model: a.video_model, video_resolution: a.video_resolution, download_version:a.download_version });
                 parts.push('## download_clips\n' + dl.text);
                 if (!dl.ok) return fail(parts.join('\n\n'));
             }
@@ -1184,6 +1197,7 @@ const TOOLS = [
                 veo_model: { type: 'string', description: 'Veo model hint for Flow, e.g. "veo3.1 low priority".' },
                 video_model: { type: 'string', description: 'Video model this project must generate with, e.g. "Veo 3.1 - Fast" or "Omni 1.1 Flash". "Flow" (default) leaves it alone.' },
                 video_resolution: { type: "string", enum: ["Flow", "360p", "720p"], description: "Agent video resolution; verified and repeated in every clip prompt." },
+                download_version: { type: "string", enum: ["upscaled", "original"], description: "Download the upscaled version or preserve the original generated size." },
                 generate: { type: 'boolean', description: 'Drive Flow for each item. Off = write the stories only.' },
                 submit: { type: 'boolean', description: 'true = actually spend credits.' },
                 auto_approve: { type: 'boolean' },
@@ -1210,6 +1224,11 @@ const TOOLS = [
             if (a.start_phase && !['start', 'clips'].includes(a.start_phase)) return fail('start_phase must be start or clips.');
             const clipStart = a.start_phase === 'clips';
             let resumeUrl = null;
+            if(!clipStart && !a.new_project && a.project_url){
+                if((a.stories||[]).length!==1 || (a.references||[]).length || (a.ideas||[]).length)
+                    return fail('Reference-step resume needs one existing story and its saved project URL.');
+                try {resumeUrl=normalizeProjectUrl(a.project_url);}catch(e){return fail(e.message);}
+            }
             if (clipStart) {
                 if (!a.generate || !a.submit) return fail('Clip generation needs generate:true and submit:true.');
                 if (!Array.isArray(a.stories) || a.stories.length !== 1 || !String(a.stories[0] || '').trim()
@@ -1385,16 +1404,15 @@ const TOOLS = [
                     log(`[batch ${i}] generated`);
                     if (a.download) {
                         log(`[batch ${i}] all generation complete; starting automatic download`);
-                        const dl = await doDownloadClips({ story: storyArg, project_url: projectUrl, cdp: a.cdp, video_model: a.video_model, video_resolution: a.video_resolution });
+                        const dl = await doDownloadClips({ story: storyArg, project_url: projectUrl, cdp: a.cdp, video_model: a.video_model, video_resolution: a.video_resolution, download_version:a.download_version });
                         if (!dl.ok) { bad('download_clips', dl); continue; }
                         // The authoritative completion check: clips on disk. A
                         // project full of "usage limit"/failed tiles downloads
                         // nothing, and we must not join a partial or stale set.
                         const cDir = path.join(storyDirOf(storyArg), 'clips');
-                        const got = fs.existsSync(cDir)
-                            ? fs.readdirSync(cDir).filter((f) => /^scene-\d+\.mp4$/i.test(f)).length : 0;
+                        const got = downloadedClipCount(cDir);
                         if (!got) {
-                            bad('download_clips', { text: 'no scene mp4s downloaded - not joining an empty or stale set.' });
+                            bad('download_clips', { text: 'no verified story clip files downloaded - not joining an empty or stale set.' });
                             continue;
                         }
                         out.push(`  downloaded ${got} clip(s).`);
@@ -1580,5 +1598,5 @@ module.exports = {
     contentMapForReference, contentMapHasSourceDialogue,
     isRelationshipDialoguePreset, doAnalyzeVideo,
     ANALYZE_TIMEOUT_MS, TOOLS, callTool,
-    runNode, liveStream, stamp, took,
+    runNode, liveStream, stamp, took, downloadedClipCount,
 };

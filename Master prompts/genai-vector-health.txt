@@ -1,0 +1,35 @@
+MASTER PROMPT: Vector Health
+PRESET ID: genai-vector-health
+USE IN TOOL: Story Writer > Title & details > Write stories, with this preset selected. Match the GUI clip count and seconds to the script; text duration alone does not set GUI controls. This preset is NOT currently supported by Import ready script. This route still uses Gemini/AI Studio to finalize the story.
+
+COPY FROM THE NEXT LINE INTO CHATGPT:
+
+Create complete scripts for my Vector Health preset. Ask for the topic or supplied source, requested duration, and number of stories unless already specified. For normal narrated eight-second clips, explain that total generated duration is clip count times eight seconds. Do not silently turn a short source into a long film. Offer source-length matching when a transcript is supplied. Preserve facts and original speaker ownership. Produce a coherent hook, ordered development and full ending, rather than a list of disconnected facts. For real factual topics, verify uncertain information or ask for clarification; never present invented research as evidence.
+For original eight-second narration aim for 16-20 spoken words, maximum 22, allowing pauses. Preserve the full source and choose more clips rather than rushing or dropping material.
+
+Work without any previous chat history. Follow this prompt and the script or references I provide in this conversation. Never claim to have watched a link you cannot access; ask for the transcript or uploaded video instead. Do not invent source facts, figures, qualifications or outcomes. Keep scripts non-explicit and non-graphic; do not disguise restricted content with coded words. No prompt can guarantee a provider will accept every generation.
+Provide finished content, not placeholders. Check numbering, durations, complete sentences and word counts before delivery. If file creation is available, give me a downloadable UTF-8 TXT file. Otherwise give the entire result in one copyable code block. No explanatory introduction, tables, decorative separators or Markdown headings inside the output file.
+
+Return genai-vector-health_STORY_SCRIPTS.txt. These are story-writing inputs, not direct-import scripts for this preset. Output:
+Story 1
+Title: [finished title]
+Preset: genai-vector-health
+Details:
+Duration: [chosen generated duration] seconds. [number] clips of 8 seconds.
+Story brief: [specific premise, viewpoint, cast and setting; do not repeat the whole script here]
+
+Clip 1:
+Narration: "[complete narration segment]"
+Visual: [specific event and action]
+Sound: [quiet appropriate sound or None]
+
+Continue through the complete story. Replace all placeholders; never include the continuation instruction. Repeat Story 2 etc. for a batch. For Sarah/George dialogue include setting and descriptive prose BEFORE Clip 1, then only labelled spoken lines within clips; no Action: fields that the legacy transcript parser could mistake for speech.
+The tool applies the preset below. Follow its genre, visual medium, camera, cast, tone and sound rules when describing the scenes:
+STYLE: Flat vector cartoon illustration, bold black outlines, flat colour fills, simple rounded character shapes, clean solid background, before-and-after and split-screen infographic framing, a red highlight mark on the body where the point is made, colourful diagram style
+PALETTE: Bright flat red, blue and green, mustard yellow, clinical white background, bold black outlines, one red health-warning accent
+CAMERA: Flat vector staging: side-by-side before-and-after framing, single centred figure diagrams, split-screen comparisons, one clear idea per shot. No 3D, no shading, no gradients.
+DIRECTION: A health EXPLAINER that myth-busts, not a lecture. Clip 1 is a HOOK that contradicts a widely-held belief in one or two punchy sentences and immediately gives the single most surprising real statistic. Then split the audience into four to six bands they can self-identify with, ordered to the rarest last. For each band: address the viewer directly ('if this is you'), give ONE genuine science-backed advantage with a number, make the mechanism intuitive with a plain everyday metaphor, pivot on a 'but' to ONE genuine cost for that same group, close the band on a short quotable one-liner, and slide into the next band. Past halfway, drop a real scientific twist that complicates the pattern, then anchor it on one concrete human case, and close by saying no group wins outright - daily choices matter more than the trait. End on a question the viewer can answer about themselves. One narrator, no on-screen text.
+NARRATION_VOICE: confident matter-of-fact male narrator, short sentences, never sensational or clinical
+AVOID: no on-screen text, subtitles, captions, watermarks or UI, no photoreal bodies, no 3D, no glossy gradients, no shaming language, no invented studies or statistics, no medical claims stated as cures
+CAST_IDIOM: Flat vector cartoon human: simple rounded body shape, bold black outline, flat colour fills, minimal facial features, plain clothing in a single flat colour, one red highlight mark when a body part matters. NOT 3D, NOT photoreal, NOT shaded.
+STORY_SHAPES: ["a widely-believed health myth, contradicted in the first line", "four to six groups the viewer can self-identify with, each with a real advantage and a real cost", "one lifestyle choice, its real benefit, and its hidden bill", "a thin-looking person, an active-looking person, and what the numbers actually say"]

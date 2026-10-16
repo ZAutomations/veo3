@@ -69,3 +69,19 @@ dialog{background:var(--bg2);color:var(--text);border-color:var(--line2);box-sha
 dialog::backdrop{background:#0008}.dialog-icon{background:var(--hot);color:var(--accent)}#prompt-text{background:var(--field);color:var(--text)}
 .theme-control{width:108px;padding:7px 10px;font-size:11px;background:var(--glass);color:var(--text);border:1px solid var(--line2)}
 .status-success{color:var(--ok)}
+
+/* Per-card Show/Hide controls use the active palette. */
+.card-visibility-toggle{margin-left:auto;flex-shrink:0;min-width:52px;color:var(--text);background:var(--glass);border-color:var(--line2)}
+.card-heading{display:flex;align-items:center;gap:12px;margin-bottom:16px;font-size:12px;font-weight:600}
+.card-body[hidden]{display:none!important}
+.card-collapsed.panel{padding-bottom:20px}
+.card-collapsed>.panel-title,.card-collapsed>.card-heading{margin-bottom:0}
+.card-collapsible>.panel-title{align-items:center}
+.table-wrap>.card-heading{padding:12px 16px;margin-bottom:0;border-bottom:1px solid var(--line)}
+.table-wrap.card-collapsed>.card-heading{border-bottom:0}
+.hero.card-collapsible{display:block}.hero>.card-body{display:flex;align-items:center;justify-content:space-between}
+.stats.card-collapsible{display:block}.stats>.card-body{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.card-collapsible>summary{display:flex;align-items:center;gap:12px;margin-bottom:14px;min-height:32px}
+.card-collapsible:not([open])>summary{margin-bottom:8px}
+#story-detail.card-collapsible{margin-top:24px}
+@media(max-width:800px){.stats>.card-body{grid-template-columns:1fr}.hero>.card-body{flex-wrap:wrap}.card-visibility-toggle{min-width:48px}}

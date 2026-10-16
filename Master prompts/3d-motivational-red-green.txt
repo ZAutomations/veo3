@@ -1,0 +1,70 @@
+MASTER PROMPT: 3D MOTIVATIONAL — RED VS GREEN — 10 READY SCRIPTS
+PRESET ID: 3d-motivational-red-green
+USE IN TOOL: Story Writer > Import ready script. Select 3D Motivational — Red vs Green and preferably 16:9, paste or load the TXT, then import. Story JSON, references, Agent prompts and individual clip prompts are created locally without Gemini writing. Actual generation still uses Flow.
+
+COPY EVERYTHING BELOW THIS LINE INTO CHATGPT:
+
+Create exactly TEN complete ready-to-import scripts for my 3D Motivational — Red vs Green preset. Return all ten in ONE downloadable UTF-8 plain-text file named 3d-motivational-red-green_READY_SCRIPTS_10.txt. If file creation is unavailable, return the whole file in one copyable code block.
+
+FIRST ASK ONLY THIS, unless I already supplied the choice:
+"Choose the length for these 10 videos: 15 seconds or 30 seconds?"
+Then wait for my answer. After I answer, write all ten scripts in one response. Do not ask me to choose concepts or approve stories individually. If I supply ten topics, use them in their given order; otherwise choose ten distinct, concrete motivational metaphors. Suitable themes include starting small, patient foundations, consistency, focus, preparation, practice, persistence, manageable goals, applying feedback and finishing useful work. Do not repeat one physical task under ten titles.
+
+DURATION CONTRACT
+15-second choice: exactly TWO clips of eight seconds = 16 generated seconds. Use Estimated duration: 16 seconds.
+30-second choice: exactly FOUR clips of eight seconds = 32 generated seconds. Use Estimated duration: 32 seconds.
+The final clip must finish its narration and action by 6 seconds, then hold the payoff silently through 8 seconds. This leaves room for optional trimming to approximately 15/30 seconds. Do not promise automatic trimming. Never output three, five or more clips, or durations of 15/30 as the generated duration. Every clip is eight seconds.
+
+PRESET IDENTITY — KEEP IN EVERY STORY
+Clean corporate-minimalist matte 3D animation, rounded adult figures and simple tangible props. White or pale-grey infinite plane, soft even overhead light and diffused contact shadows. Exactly two recurring adults: Red on the far left in a RED shirt, Green on the far right in a GREEN shirt; both wear charcoal trousers and dark shoes. The tool supplies their exact reference descriptions; do not add Characters: or Locations: fields or redesign them.
+One LOCKED ultra-wide eye-level camera throughout the film. Keep both adults and their own separate props visible with a large empty central gap. Subjects are hundreds of virtual feet apart. No cuts, close-ups, pans, zooms or orbit, even at the payoff. No new rooms, extra cast, shared props, crossing or role swaps.
+
+ONE CONCEPT, TWO INDEPENDENT PHYSICAL TASKS
+The title, narration and visible actions must all illustrate the same chosen habit. Red represents an unhelpful approach and ends with an unfinished task or harmless setback. Green represents constructive action and ends with tangible progress. Show clear cause and effect, not general gestures or arbitrary rewards. Give the two sides distinct props and motions: for example Red arranges loose pieces horizontally while Green builds a stable vertical structure. Do not have both figures perform identical movements that could merge. Keep gravity, weight and ground contact readable. No injury, dangerous falls, humiliation or claim that all struggling people are lazy. No magical new props or unexplained completion.
+For two clips: establish the contrast in clip 1, develop and pay off in clip 2.
+For four clips: establish in clip 1, progress and escalate the contrast in clips 2–3, pay off in clip 4.
+Start with a short curiosity hook tied to the visible contrast. No greeting or generic motivational introduction. Finish with the lesson shown by the result, without a new CTA clip.
+
+CONTINUITY FIELDS — REQUIRED FOR EACH CLIP
+Start state: Describe BOTH Red's starting props/progress and Green's starting props/progress.
+Action: Describe each adult's independent visible action during this clip, including relevant timing in prose. This is ONE continuous static shot, never a Shot 1/Shot 2 montage.
+End state: Describe BOTH adults' exact resulting props/progress and posture. Account for every moved or added object.
+For clip 2 onward, copy the preceding End state WORD FOR WORD into Start state. This exact text match is required by the importer. Continue the task from that state; never rebuild or reset between clips. Do not hide changes in a camera cut. In the final clip describe the payoff by 6 seconds and a stable silent 6–8 second hold.
+
+LABELS AND FOOTER
+Before Clip 1, supply Left label:, Right label:, Footer start: and Footer end: once per story. Label values are one to three short words, identifying the habit (WAITING / DOING, SCATTERED / FOCUSED, etc.). Red's label stays over Red; Green's stays over Green. Each footer is one to five words; Footer end must differ from Footer start. Keep Footer start throughout earlier clips and change it once at the final visible payoff. The tool injects these label/footer instructions into every clip. No MINDSET 101, channel names, URLs, logos, subtitles or other captions. Do not create separate per-clip Footer fields.
+
+AUDIO
+Narration: One off-screen adult motivational narrator, warm, clear, grounded and conversational. Aim for 14–18 words in each non-final clip (maximum 22). Final narration: 12–14 words, spoken naturally before 6 seconds, then silence. Characters never speak or lip-sync. Every line must refer to the actual habit and visible progress, not disconnected slogans. No invented scientific studies, guarantees or universal claims about success. No music. Sound: None, or brief quiet task sounds below narration; no competing speech. Use neutral respectful wording.
+
+EXACT PARSER FORMAT
+Use only the fields in this template. No Markdown headings, numbered bullets, prose introduction, Details:, Story brief:, Target duration:, Visual:, Effect:, Shot N:, Characters: or Locations: fields. Do not print explanatory text inside the file. Quotes around narration are allowed. Start every story with Story N, numbered 1–10; reset clips to Clip 1 within each story. Preset: must appear before the labels and clips.
+
+Story 1
+Title: [specific finished title]
+Preset: 3d-motivational-red-green
+Clip seconds: 8
+Estimated duration: [16 or 32] seconds
+Left label: [short habit label]
+Right label: [short constructive label]
+Footer start: [short initial footer]
+Footer end: [different short payoff footer]
+
+Clip 1:
+Narration: "[finished opening narration]"
+Start state: [complete starting state for Red AND Green]
+Action: [complete independent visible actions for Red AND Green]
+End state: [complete ending state for Red AND Green]
+Sound: [quiet relevant task sounds or None]
+
+Clip 2:
+Narration: "[finished narration]"
+Start state: [exact copy of clip 1 End state]
+Action: [continue both tasks; for the two-clip format finish the payoff by 6 seconds and hold 6–8 seconds]
+End state: [complete ending state for both]
+Sound: [quiet relevant task sounds or None]
+
+For the four-clip format include Clip 3 and Clip 4 using the same fields. Only Clip 4 has the final payoff and silent hold. Replace all placeholders; never print these continuation instructions. Repeat the full structure through Story 10 without omitting any story or clip.
+
+FINAL CHECK BEFORE DELIVERY
+Exactly ten stories. Correct preset ID. Exactly two or four eight-second clips per story. Estimated duration equals clip count × eight. All required labels, footers and clip fields present. Every later Start state exactly equals the preceding End state. No dialogue or timed Shot fields. Both adults' independent actions remain visible and topic-specific. Fixed identities, wide static camera, separate props, no reset or crossing. Payoff and narration finish by 6 seconds of the final clip. All stories complete, varied and ready to import. Do not claim any prompt guarantees provider acceptance or perfect continuity from independently generated clips.

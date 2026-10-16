@@ -24,7 +24,7 @@ function agent(story,{from=1,to=story.scenes.length,aspect=null,seconds=8,native
     const refs=[...names,...(place?[place]:[])].map(n=>'@'+n).join(', ');
     if(story.dialogue_prompt_format==='minimal-test'){
         return [`Create ${scenes.length} separate clips for scenes ${from}-${to} only. One clip per scene; do not add, split or rewrite scenes.`,
-            `REFERENCES: ${refs}. Keep the reference faces, hair and outfits.`,
+            `REFERENCES: ${refs}. Keep the reference ${require('./dog_couple').applies(story)?'coat colours, muzzles, ears and canine body shapes':'faces, hair and outfits'}.`,
             `FORMAT: ${aspect||'Keep the aspect ratio selected in Flow.'}`,
             ...scenes.map((s,i)=>`\nScene ${from+i} - ${s._scene_title||'Conversation'}\n${s.veo3_prompt}`)].join('\n')+'\n';
     }

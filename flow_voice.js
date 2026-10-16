@@ -78,17 +78,26 @@ async function voiceOnPromptBox(page, name, opts = {}) {
     const wait = opts.wait || sleep;
     try {
         for (let i = 0; i < 5; i++) {
-            const held = await page.evaluate((want) => {
-                const box = document.querySelector('.ProseMirror[contenteditable="true"]')
+            if(opts.agentMode && (await page.evaluate(require('./agent_voice_chip').agentVoiceChipState,{name})).verified) return true;
+            const held = await page.evaluate(({want,strict}) => {
+                const visible = el => {const r=el.getBoundingClientRect();return r.width>0&&r.height>0;};
+                const box = window.__veoAgentEditor?.() || [...document.querySelectorAll('.ProseMirror[contenteditable="true"]')].find(visible)
                     || [...document.querySelectorAll('[contenteditable="true"]')].pop();
                 if (!box) return null;
                 const key = String(want).toLowerCase().replace(/[^a-z0-9]/g, '');
-                const chips = [...box.querySelectorAll('[class*=mention], [class*=chip], [class*=ingredient], [data-mention]')]
-                    .map((el) => (el.innerText || el.textContent || ''))
+                // Images can be inline mentions, but Voices are ingredient
+                // buttons beside the editor, inside the composer container.
+                const scope = box.closest('flow-base-prompt-box, .base-prompt-box')
+                    || box.closest('flow-edit-video-prompt-box, flow-prompt-box') || box;
+                const chips = [...scope.querySelectorAll('button[aria-label="Ingredient"], [class*=mention], [class*=chip], [class*=ingredient], [data-mention], .asset-title')]
+                    .filter(el => !el.closest('.cdk-overlay-pane') && !el.classList?.contains('chip-container-disabled')
+                        && !el.querySelector?.('.disabled-error-icon') && visible(el))
+                    .map((el) => [el.innerText || el.textContent || '',el.getAttribute?.('title'),el.getAttribute?.('aria-label'),
+                        ...[...el.querySelectorAll('[title], [aria-label], img[alt]')].map(child=>child.getAttribute('title')||child.getAttribute('aria-label')||child.getAttribute('alt'))].filter(Boolean).join(' '))
                     .join(' ');
-                const text = (box.innerText || box.textContent || '') + ' ' + chips;
+                const text = strict ? chips : (box.innerText || box.textContent || '') + ' ' + chips;
                 return text.toLowerCase().replace(/[^a-z0-9]/g, '').includes(key);
-            }, name);
+            }, {want:name,strict:!!opts.agentMode});
             if (held) return true;
             if (held === null) return false;   // no prompt box on screen at all
             await wait(700);
@@ -109,6 +118,20 @@ async function attachVoice(page, name, opts = {}) {
     const wait = opts.wait || sleep;
     const attempts = Number(opts.attempts) > 0 ? Number(opts.attempts) : 3;
     if (!name) return false;
+    if (opts.agentMode && await voiceOnPromptBox(page,name,{wait,agentMode:true})) return true;
+    if(opts.agentMode) {
+        const {agentVoiceChipState}=require('./agent_voice_chip');
+        const existing=await page.evaluate(agentVoiceChipState,{name});
+        if(existing.count) {
+            log('Replacing an unverified existing voice ingredient with the exact selected Alnilam asset; image references are retained.');
+            await page.evaluate(agentVoiceChipState,{phase:'clear',name});
+            for(let poll=0;poll<20;poll++) {
+                if(!(await page.evaluate(agentVoiceChipState,{name})).count)break;
+                if(poll===19)throw Error('Existing voice ingredient could not be cleared. No batch submitted.');
+                await wait(250);
+            }
+        }
+    }
 
     for (let attempt = 1; attempt <= attempts; attempt++) {
         await page.keyboard.press('Escape');
@@ -126,7 +149,27 @@ async function attachVoice(page, name, opts = {}) {
         await wait(2500);
         const menuOpen = await page.evaluate(() => !!document.querySelector('input[aria-label="Search assets"]'));
         if (!menuOpen) { log(`  voice attempt ${attempt}: ingredients menu did not open`); await wait(800); continue; }
-        await page.evaluate(() => {
+        if (opts.agentMode) {
+            try {
+                await require('./reference_picker_images').selectCategory(page,'Voices',{log});
+            } catch (error) {
+                // No voice asset has been pressed yet. Reopen the same picker
+                // within this operation instead of aborting the batch driver.
+                if (!/Reference picker/.test(error.message || '')) throw error;
+                log(`  voice attempt ${attempt}: ${error.message}`);
+                await page.keyboard.press('Escape');
+                await wait(500);
+                continue;
+            }
+            // A search left over from the Images category hides voice assets.
+            const search = await page.$('.cdk-overlay-pane input[aria-label="Search assets"]');
+            if (search) {
+                await search.click();
+                await page.keyboard.down('Control'); await page.keyboard.press('KeyA'); await page.keyboard.up('Control');
+                await page.keyboard.press('Backspace');
+                await wait(600);
+            }
+        } else await page.evaluate(() => {
             const el = [...document.querySelectorAll('mat-list-item, [role="menuitem"], button, li, span')]
                 .find((x) => /^voices$/i.test((x.innerText || '').trim()));
             if (el) el.click();
@@ -135,14 +178,17 @@ async function attachVoice(page, name, opts = {}) {
         const preCount = await page.evaluate(() => document.querySelectorAll('button.asset-item').length);
         log(`  (voice list shows ${preCount} item(s) before search)`);
         const wantedSrc = '\\b' + String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b';
-        const findItem = () => page.evaluate((src) => {
+        const findItem = () => page.evaluate(({src,strict,name}) => {
             const re = new RegExp(src, 'i');
-            const el = [...document.querySelectorAll('button.asset-item')].find((x) => re.test(x.innerText || ''));
+            const candidates = [...document.querySelectorAll(strict ? '.cdk-overlay-pane button.asset-item' : 'button.asset-item')]
+                .filter(x => {const r=x.getBoundingClientRect();return r.width>0&&r.height>0&&!x.disabled;})
+                .filter(x => strict ? (x.querySelector('.asset-title')?.textContent || '').trim().toLowerCase() === name.toLowerCase() : re.test(x.innerText || ''));
+            const el = strict ? (candidates.length===1 ? candidates[0] : null) : candidates[0];
             if (!el) return null;
             el.scrollIntoView({ block: 'center' });
             const r = el.getBoundingClientRect();
             return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2), text: (el.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 42) };
-        }, wantedSrc);
+        }, {src:wantedSrc,strict:!!opts.agentMode,name:String(name)});
         // The voices list is short, so SCAN it first. The search box is fussy
         // about a full name and often says "No assets found" for an item that is
         // plainly in the list, so it is only the fallback.
@@ -193,16 +239,27 @@ async function attachVoice(page, name, opts = {}) {
             return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
         });
         let added = false;
+        if(opts.agentMode)await page.evaluate(require('./agent_voice_chip').agentVoiceChipState,{phase:'capture',name});
         if (addBtn) { await page.mouse.click(addBtn.x, addBtn.y); added = true; }
         await wait(1500);
         await page.keyboard.press('Escape');
         await wait(800);
         log(`  voice "${name}" ${added ? 'added to the prompt' : 'selected, but Add-to-prompt not found'}`);
-        if (!added) continue;
+        if(opts.agentMode && added) {
+            for(let poll=0;poll<10;poll++) {
+                const state=await page.evaluate(require('./agent_voice_chip').agentVoiceChipState,{phase:'mark',name});
+                if(state.verified){log(`  voice "${name}" verified: exact library selection created one audio ingredient chip.`);return true;}
+                await wait(250);
+            }
+        }
+        if (!added) {
+            if (opts.agentMode && await voiceOnPromptBox(page,name,{wait,agentMode:true})) return true;
+            continue;
+        }
         // Pressed is not the same as landed - and only the readback can tell
         // them apart, because the button sits enabled and answers a click
         // whether or not the asset reaches the box.
-        const on = await voiceOnPromptBox(page, name, { wait });
+        const on = await voiceOnPromptBox(page, name, { wait, agentMode:opts.agentMode });
         if (on) return true;
         // Deliberately NOT retried. The press went in; a second attempt could
         // add the same voice twice, and a doubled voice asset is a worse

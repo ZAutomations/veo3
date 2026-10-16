@@ -342,9 +342,10 @@ function main() {
         if (none.length) log(`         (scenes with no words to match on: ${none.join(', ')})`);
     }
     console.log('');
-    log(`Story order: ${orderString(ordered)}`);
+    log(`${unresolved.length ? 'Provisional order (NOT verified)' : 'Story order'}: ${orderString(ordered)}`);
     console.log('');
-    log(`Or without touching the manifest:  node join_clips.js "${path.relative(process.cwd(), CLIPS_DIR)}" --order ${orderString(ordered)}`);
+    if (!unresolved.length) log(`Or without touching the manifest:  node join_clips.js "${path.relative(process.cwd(), CLIPS_DIR)}" --order ${orderString(ordered)}`);
+    else log('No verified --order command is available: unidentified clips must be checked or replaced.');
 
     // ── write ────────────────────────────────────────────────────────────────
     if (!WRITE) {
@@ -372,6 +373,7 @@ function main() {
             match_cover: byFile[f].cover === null ? null : Number(byFile[f].cover.toFixed(2)),
             match_from: byFile[f].scene === null ? null
                 : (wanted.find(w => w.n === byFile[f].scene) || {}).from || null,
+            order_verified: byFile[f].cover !== null,
         })),
         orderResolvedBy: 'dialogue',
         orderResolvedAt: new Date().toISOString(),
@@ -385,15 +387,26 @@ function main() {
     if (out.clips.length !== wanted.length || unresolved.length && out.clips.some(c => c.match_cover === null)) {
         out.complete = false;
     }
+    out.needsSceneOrdering = !out.complete;
+    out.missingScenes = wanted.filter(w => !Object.values(byFile).some(m => m.scene === w.n && m.cover !== null)).map(w => w.n);
+    out.unidentifiedClips = unresolved.map(file => {
+        const candidate = matchClips([file], heard, wanted, MIN_COVER).byFile[file];
+        return {file, transcript:heard[file], repeats_scene:candidate.cover !== null ? candidate.scene : null};
+    });
     if (fs.existsSync(MANIFEST)) {
         const bak = MANIFEST + '.before-order-backup';
         if (!fs.existsSync(bak)) fs.copyFileSync(MANIFEST, bak);
         log(`Previous manifest kept as ${path.basename(bak)}`);
     }
     fs.writeFileSync(MANIFEST, JSON.stringify(out, null, 2));
-    log(`Wrote ${path.relative(process.cwd(), MANIFEST)} with clips in story order.`);
+    const report = ['STORY CLIP ORDER', ...out.clips.filter(c => c.order_verified).map(c => `Scene ${c.matched_scene}: ${c.file}`),
+        ...(out.missingScenes.length ? [`Missing verified scenes: ${out.missingScenes.join(', ')}`] : []),
+        ...out.unidentifiedClips.map(c => `${c.file}: ${c.repeats_scene ? 'repeats narration from Scene '+c.repeats_scene : 'unidentified narration'} — ${c.transcript.replace(/\s+/g,' ')}`)];
+    fs.writeFileSync(path.join(CLIPS_DIR, 'CLIP_ORDER.txt'), report.join('\n')+'\n');
+    log(`Wrote ${path.relative(process.cwd(), MANIFEST)} with ${out.complete ? 'verified story order' : 'partial scene matches; joining remains blocked'}.`);
     console.log('');
-    log(`Next:  node join_clips.js "${path.relative(process.cwd(), CLIPS_DIR)}"`);
+    if (out.complete) log(`Next:  node join_clips.js "${path.relative(process.cwd(), CLIPS_DIR)}"`);
+    else log(`Missing verified scenes: ${out.missingScenes.join(', ')}. See clips/CLIP_ORDER.txt.`);
 }
 
 if (require.main === module) main();

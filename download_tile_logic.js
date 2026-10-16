@@ -87,7 +87,7 @@ function resolveSceneManifest(manifest) {
             .sort((a,b) => Number(b.match_cover || 0) - Number(a.match_cover || 0)
                 || Number(a.tileIndex ?? Infinity) - Number(b.tileIndex ?? Infinity));
         if (!hits.length) return manifest;
-        selected.push({...all.get(hits[0].file), order:scene});
+        selected.push({...all.get(hits[0].file), order:scene, order_verified:true});
     }
     const used = new Set(selected.map(c => c.file));
     if (used.size !== expected) return manifest;

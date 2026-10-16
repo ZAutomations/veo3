@@ -787,7 +787,7 @@ async function renameNewest(page, name, tileIndex = 0) {
 // port, only the caller differs. `page` must be a Flow PROJECT page.
 // Returns { made, failed, total }.
 async function generateRefs(page, refs, opts = {}) {
-    refs = require('./saved_couple').applySavedRefs(refs,
+    refs = (require('./dog_couple').isDogRefs(refs)||refs.some(r=>/IMPORTED ZACK 3D/.test(r.prompt||''))) ? refs : require('./saved_couple').applySavedRefs(refs,
         opts.savedCouple === undefined ? require('./saved_couple').loadSavedCouple('agent') : opts.savedCouple);
     // Shadowing `log` with the caller's sink; the body's log() calls need no
     // change for it.
@@ -875,7 +875,7 @@ async function generateRefs(page, refs, opts = {}) {
 
 // ── CLI ─────────────────────────────────────────────────────────────────────
 if (require.main === module) (async () => {
-    const couple = require('./saved_couple').loadSavedCouple('agent');
+    const couple = require('./dog_couple').savedForStory(STORY,'agent');
     if (couple && STORY) {
         const dir = fs.statSync(STORY).isDirectory() ? STORY : path.dirname(STORY);
         const storyFile = fs.readdirSync(dir).find(f => /_story\.json$/i.test(f));

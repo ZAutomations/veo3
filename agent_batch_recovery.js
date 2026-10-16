@@ -17,4 +17,20 @@ function failedBeforeMedia(snapshot, pendingPrompt) {
     return prompt.length > 100 && normalize(request.text).includes(prompt);
 }
 
-module.exports = { failedBeforeMedia };
+// A click or a cleared composer is not proof that Flow scheduled videos.
+// Stop an idle, empty request instead of waiting the whole 30-minute budget.
+function submissionWatchdog(baseline=0, {idleMs=120000, now=Date.now}={}) {
+    let idleSince=null;
+    return snapshot => {
+        const mt=snapshot.mediaTiles||{};
+        if(mt.agent_busy || mt.flow_video_tile>baseline || mt.generating_video_tile>0
+            || mt.failed_video_tile>0 || mt.project_scan_complete===false) {
+            idleSince=null; return null;
+        }
+        if(idleSince===null)idleSince=now();
+        if(now()-idleSince<idleMs)return null;
+        return `Flow has been idle for ${Math.round(idleMs/1000)} seconds after submission without scheduling a new video. Existing videos: ${mt.flow_video_tile||0}; reference images: ${mt.flow_image_tile||0}. Submission outcome is unverified; checkpoint preserved and no prompt repeated.`;
+    };
+}
+
+module.exports = { failedBeforeMedia, submissionWatchdog };

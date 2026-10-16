@@ -3,6 +3,8 @@ const {execFileSync}=require('child_process');
 const {chooseUpscaled,videoInfo,verifiedExisting}=require('../single_clip_omni_upscaled');
 const {locateJob,stateFor}=require('../single_clip_omni_media');
 const job={number:1,prompt:'Prompt 1'};
+assert.equal(locateJob([{key:'reused-row',assetId:'different-video',text:'Prompt 7'}],job,{key:'reused-row',assetId:''}),null,'recycled DOM row is not proof of scene identity');
+assert.equal(locateJob([{key:'narrated',text:'Shortened visual prompt. A broken vase revealed the small mistake they had been hiding.'}],{number:1,prompt:'Full long prompt not present',scene:{script_line:'A broken vase revealed the small mistake they had been hiding.'}}).key,'narrated');
 const tiles=[{key:'a',text:'Prompt 10',ready:true},{key:'b',text:'Prompt 1',ready:true}];
 assert.equal(locateJob(tiles,job).key,'b');
 assert.throws(()=>locateJob([...tiles,{key:'c',text:'Prompt 1'}],job),/multiple/);

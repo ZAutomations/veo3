@@ -13,8 +13,10 @@ function tileSnapshot(){
    if(count===1)scope=node;
   }
   const text=scope.textContent||'';
-  const sources=[...tile.querySelectorAll('video,source,img')].map(e=>e.currentSrc||e.getAttribute('src')||'');
-  const assetId=(sources.join(' ').match(/\/(?:video|image|asb)\/([^=?/#\s]+)/)||[])[1]||'';
+  // Inventory uses raw src; browser currentSrc can select another responsive
+  // preview URL. Retain both identities instead of discarding the raw one.
+  const sources=[...tile.querySelectorAll('video,source,img')].flatMap(e=>[e.currentSrc||'',e.getAttribute('src')||'',e.getAttribute('poster')||'']).filter(Boolean);
+  const assetId=(sources.join(' ').match(/\/video\/([^=?/#\s]+)/)||sources.join(' ').match(/\/(?:image|asb)\/([^=?/#\s]+)/)||[])[1]||'';
   const failed=/audio generation failed|failed to generate|generation failed|you have not been charged|unusual activity/i.test(text)
    ||!!scope.querySelector('[class*="generation-error"]');
   const videoSources=[...tile.querySelectorAll('video')].some(e=>!!(e.currentSrc||e.getAttribute('src')));
@@ -28,7 +30,8 @@ function tileSnapshot(){
   const ready=!failed&&!busy&&(completedPreview
    ||sources.some(s=>/^https?:/i.test(s)&&! /placeholder|loading|\.svg(?:[?#]|$)/i.test(s)));
   const r=tile.getBoundingClientRect();
-  return {key:store.keys.get(tile),assetId,text,failed,busy,ready,x:r.x,y:r.y,width:r.width,height:r.height};
+  const assetIds=[...new Set(sources.map(s=>(s.match(/\/(?:video|image|asb)\/([^=?/#\s]+)/)||[])[1]).filter(Boolean))];
+  return {key:store.keys.get(tile),assetId,assetIds,text,failed,busy,ready,x:r.x,y:r.y,width:r.width,height:r.height};
  });
 }
 const norm=s=>String(s||'').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
@@ -38,11 +41,14 @@ function promptMatches(tile,job){
  // Source prompts may omit the leading generation instruction; the exact spoken
  // lines still distinguish the scene. Short generic lines alone are insufficient.
  const lines=(job.scene?.dialogue||[]).map(d=>norm(d.line)).filter(t=>t.length>=18);
+ const narration=norm(job.scene?.script_line);
+ if(narration.length>=30&&text.includes(narration))return true;
  return lines.length>0&&lines.every(line=>text.includes(line));
 }
 function locateJob(tiles,job,receipt=null){
  if(receipt){
-  const direct=tiles.find(t=>(receipt.assetId&&t.assetId===receipt.assetId)||t.key===receipt.key);
+  const direct=tiles.find(t=>(receipt.assetId&&(t.assetId===receipt.assetId||t.assetIds?.includes(receipt.assetId)))
+   ||(receipt.key&&t.key===receipt.key&&promptMatches(t,job)));
   if(direct)return direct;
  }
  const excluded=new Set(receipt?.excluded||[]);

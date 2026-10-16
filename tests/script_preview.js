@@ -1,0 +1,10 @@
+const assert=require('assert'),P=require('../desktop_ui/script_preview');
+const clips=n=>Array.from({length:n},(_,i)=>`Clip ${i+1}:\nNarration: "Line"`).join('\n');
+const thermos=`Story 3\nTitle: Thermos\nClip seconds: 8\nEstimated duration: 72 seconds\n${clips(9)}`;
+assert.equal(P.preview(thermos,7),'9 clips × 8 seconds = 72 seconds. No AI writing.');
+assert(P.preview(thermos.replace('Clip 9:','Clip 10:'),8).includes('consecutive'));
+assert(P.preview(thermos.replace('72 seconds','56 seconds'),8).includes('Declared 56s'));
+assert(P.preview(`Story 1\nDuration: 30 seconds. Exactly 5 clips of 6 seconds.\n${clips(5)}`,8).includes('5 clips × 6 seconds = 30 seconds'));
+assert(P.preview(thermos+'\nStory 4\nClip seconds: 6\n'+clips(5),8).includes('Story 2: 5 clips × 6 seconds = 30 seconds'));
+assert(P.preview('',8).includes('Paste the complete script'));
+console.log('PASS: import preview derives actual clips and duration, ignores old manual count, handles batch scripts and flags mismatches.');

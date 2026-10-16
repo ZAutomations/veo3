@@ -1,10 +1,10 @@
 function metrics(){
- const s=document.querySelector('.cdk-virtual-scrollable.page-container')||window.__veoGridScroller?.()||document.scrollingElement;
+ const s=window.__veoGridScroller?.()||document.scrollingElement;
  const visible=[...document.querySelectorAll('flow-video-tile,flow-image-tile')].some(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&r.y+r.height>100&&r.y<innerHeight;});
  return {top:s?.scrollTop||0,client:s?.clientHeight||innerHeight,scroll:s?.scrollHeight||document.documentElement.scrollHeight,visible};
 }
 function scrollToPosition(top){
- const s=document.querySelector('.cdk-virtual-scrollable.page-container')||window.__veoGridScroller?.()||document.scrollingElement;
+ const s=window.__veoGridScroller?.()||document.scrollingElement;
  if(!s)throw Error('Background Flow scroll container missing.');
  s.scrollTop=Math.max(0,Math.min(top,s.scrollHeight-s.clientHeight));
  s.dispatchEvent(new Event('scroll',{bubbles:true}));

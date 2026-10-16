@@ -1,0 +1,47 @@
+MASTER PROMPT: Relationship Dialogue — Dog Couple (Realistic Comedy)
+PRESET ID: relationship-dialogue-dog-couple
+USE IN TOOL: Story Writer > Import ready script. Paste the complete ChatGPT TXT, select this preset and aspect ratio, then click Import script → story files. Clip count comes from the supplied script. No Gemini writing call.
+
+COPY FROM THE NEXT LINE INTO CHATGPT:
+
+You create ready-to-import scripts for Relationship Dialogue — Dog Couple (Realistic Comedy).
+FIRST ask ONLY: "What video length would you like: 30 seconds or approximately 60 seconds?" Wait for my choice before writing. If I already chose a length, do not ask again.
+Write 10 varied stories unless I request another number. Use the topic or source script I supply; otherwise choose varied suitable topics.
+30 seconds means exactly five six-second clips per story. Approximately 60 seconds means exactly eight eight-second clips per story (64 seconds). Explain the 64-second convention in the initial duration question if necessary, outside the output file.
+For six-second clips aim for 10-13 spoken words total, maximum 15. For eight-second clips aim for 14-18, maximum 20. Usually two short turns per clip. Leave 0.30 seconds between speakers and allow a brief reaction. Action text is not spoken.
+Sarah is a mature cream-coloured female Labrador-mix dog with a clear adult female voice. George is a mature black male Labrador-mix dog with a warm adult male voice. Natural four-legged canine bodies, muzzles, ears, tails and paws; no human bodies, hands or clothes. Keep consistent identities. Use playful, affectionate, cheeky but non-explicit domestic comedy: blankets, snacks, snoring, attention, the remote, forgotten promises. Dry delivery, witty reversals and callbacks, ending in the strongest punchline. Do not use sexual acts, mating or erotic actions. Never replace a clean domestic joke with a disguised sexual joke.
+Each story is one connected conversation: immediate hook, developing situation, meaningful reversal or clarification, and a complete ending. No disconnected jokes or filler. When a supplied source has a different turn structure, preserve its speaker sequence and meaning; ask before forcing it into an incompatible duration. Never cut off a sentence simply to reduce word count.
+Include one short natural Action: per clip, one consistent Setting:, no extra cast, complex camera moves, captions, music or voice-over. Preset appearance and voice instructions are injected by my tool.
+Work without any previous chat history. Follow this prompt and the script or references I provide in this conversation. Never claim to have watched a link you cannot access; ask for the transcript or uploaded video instead. Do not invent source facts, figures, qualifications or outcomes. Keep scripts non-explicit and non-graphic; do not disguise restricted content with coded words. No prompt can guarantee a provider will accept every generation.
+Provide finished content, not placeholders. Check numbering, durations, complete sentences and word counts before delivery. If file creation is available, give me a downloadable UTF-8 TXT file. Otherwise give the entire result in one copyable code block. No explanatory introduction, tables, decorative separators or Markdown headings inside the output file.
+
+OUTPUT EXACTLY THIS STRUCTURE, repeated for Story 1 through Story 10:
+Story 1
+Title: [finished title]
+Preset: relationship-dialogue-dog-couple
+Clip seconds: [6 or 8 according to my choice]
+Setting: [one specific domestic setting]
+
+Clip 1:
+Action: [short action appropriate to the character anatomy]
+Sarah: "[complete line]"
+George: "[complete line]"
+
+Clip 2:
+Action: [short action]
+George: "[complete line]"
+Sarah: "[complete line]"
+
+Continue to Clip 5 or Clip 8. Do not output that instruction or brackets. Restart clip numbering at 1 for each story. Inside clips ONLY Action:, Sarah:, George: fields. Title/Preset/Clip seconds/Setting must precede Clip 1. Deliver all requested scripts in relationship-dialogue-dog-couple_READY_SCRIPTS.txt.
+
+The explicit output format, duration choice and spoken-word limits above take precedence over conflicting older context below. Do not reproduce this context block in the output.
+PRESET IDENTITY AND STYLE CONTEXT (use for writing, do not reproduce this block in the output):
+STYLE: Photorealistic talking pet dogs in a believable cozy domestic room. Natural four-legged canine anatomy, realistic short fur, floppy ears, canine muzzles and paws. Sarah is the mature cream-coloured female Labrador-mix dog; George is the mature black male Labrador-mix dog. Subtle speaking muzzle animation, expressive eyes and head tilts. No human bodies or clothes, cartoon or 3D toy look.
+PALETTE: Natural black and cream fur, warm neutral furnishings, clear soft daylight or gentle warm indoor lighting.
+CAMERA: Simple steady medium two-dog framing with both faces readable. Optional speaker close-up and reaction cut. No orbiting, repeated zooms or complicated movement.
+DIRECTION: Realistic talking dog couple. Sarah is the cream female dog; George is the black male dog. Keep their reference identities. Use playful, cheeky but non-explicit domestic relationship comedy with a hook, connected setup, reversals and final punchline. Use snacks, blanket stealing, snoring, remote-control disputes or attention misunderstandings. Preserve safe supplied dialogue meaning, speakers and order with small variations. Replace any explicit sexual source joke with a genuinely different clean domestic joke, never coded euphemisms. Original eight-second clips use two or three turns, roughly 14-22 spoken words with brief reaction beats and 0.30-second speaker gaps. Eight clips default to 64 seconds. No guaranteed provider acceptance. No narrator, music or captions.
+DIALOGUE_DELIVERY: Dry playful adult female and male voices, audible natural conversation. Finish every line, pause 0.30 seconds, then the next dog speaks. Only the labelled dog moves its muzzle for speech.
+AVOID: No explicit sexual jokes, mating, erotic movement, animal abuse, coercion, puppies, childlike voices, humans, human bodies, clothing, narrator, music, captions, text or watermarks. No coded substitutes for restricted sexual actions.
+BLOCKING: Sarah and George rest on separate spots of the same sofa, pet cushions or an ordinary covered bed. Keep each dog distinguishable; use paws and head tilts, never human hands or bipedal bodies.
+CAST_IDIOM: Fictional mature pet dog with natural canine proportions, realistic fur, four legs and paws. Adult voice, no human anatomy or clothes.
+STORY_SHAPES: ["A domestic misunderstanding escalates through playful teasing and callbacks to a clean punchline.", "One dog makes a dramatic demand about snacks, blankets or attention; the other replies deadpan and reverses the joke."]

@@ -1,0 +1,15 @@
+const assert=require('assert');
+const {submissionWatchdog}=require('../agent_batch_recovery');
+let clock=0;
+const tracker=submissionWatchdog(0,{now:()=>clock});
+const idle={mediaTiles:{flow_video_tile:0,flow_image_tile:1,project_scan_complete:true}};
+assert.equal(tracker(idle),null);clock=119999;assert.equal(tracker(idle),null);
+clock=120000;assert.match(tracker(idle),/reference images: 1/);
+assert.equal(tracker({mediaTiles:{...idle.mediaTiles,agent_busy:true}}),null);
+clock=200000;assert.equal(tracker(idle),null,'busy activity resets the idle wait');
+clock=300000;assert.equal(tracker({mediaTiles:{...idle.mediaTiles,flow_video_tile:1,generating_video_tile:1}}),null);
+const next=submissionWatchdog(5,{now:()=>clock});
+assert.equal(next({mediaTiles:{flow_video_tile:5,project_scan_complete:true}}),null);
+clock+=120000;assert.match(next({mediaTiles:{flow_video_tile:5,project_scan_complete:true}}),/no prompt repeated/);
+assert.equal(next({mediaTiles:{flow_video_tile:5,project_scan_complete:false}}),null,'unmounted rows must not count as a proven empty request');
+console.log('PASS: idle submission with only a reference stops clearly; active, partial and incomplete scans never trigger the empty-request stop.');

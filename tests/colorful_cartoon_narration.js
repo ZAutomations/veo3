@@ -1,0 +1,34 @@
+const assert=require('assert'),fs=require('fs'),os=require('os'),path=require('path');
+const {execFileSync}=require('child_process');
+const W=require('../write_story'),local=require('../cartoon_narration_prompt');
+const p=W.loadPreset('relationship-narration-colorful-cartoon');
+assert(!W.houseCastApplies(p));assert(local.applies(p));
+assert(p.style.includes('light grey and off-white'));assert(p.style.includes('color reserved'));
+const cast=W.normaliseCast(p,[{name:'Maya',gender:'female',type:'human',description:'Wrong outfit.',sheet_prompt:''},{name:'Evan',gender:'male',type:'human',description:'Wrong hair.',sheet_prompt:''}]);
+assert(cast[0].description.includes('turquoise-blue eyes'));assert(cast[1].description.includes('yellow drawstrings'));
+const narration='A broken vase revealed the small mistake they had been hiding. Admitting it honestly helped them begin rebuilding their trust.';
+const scenes=[{scene_title:'The hidden crack',script_line:narration,narrative_context:'Evan gently sets the cracked blue vase on a grey table. Maya notices the crack and lowers her gaze.',shots:[{start_seconds:0,end_seconds:4,narration_cue:'A broken vase',visual:'Close-up of the cracked blue vase.'},{start_seconds:4,end_seconds:8,narration_cue:'revealed the small mistake',visual:'Maya notices the crack and lowers her gaze.'}],characters:['Maya','Evan']}];
+const story=W.buildStory(p,cast,{description:'A story about honesty.',moral:'Trust grows through honesty.',place_name:'Kitchen',place_description:'Light grey and off-white kitchen.',place_prompt:'Grey linework kitchen.'},scenes);
+assert.equal(story.narration_delivery,'generated');assert(story.silent_cast);assert.equal(story.scenes[0].script_line,narration);
+assert(story.scenes[0].veo3_prompt.includes(narration));assert(story.scenes[0].veo3_prompt.includes('Generate an off-screen narrator'));
+assert(!story.flow_voice);
+assert.equal(story.scenes[0].shots.length,2);assert.deepEqual(local.validateShots(story),[]);
+assert(local.validateShots({...story,scenes:[{...story.scenes[0],shots:[]}]}).length);
+assert(local.validateShots({...story,scenes:[{...story.scenes[0],shots:story.scenes[0].shots.map(s=>({...s,end_seconds:3}))}]}).length);
+const folder=fs.mkdtempSync(path.join(os.tmpdir(),'cartoon-local-'));
+try{
+ const file=W.writePackage(folder,p,story,cast);
+ assert(fs.readFileSync(path.join(folder,'NARRATION_SCRIPT.txt'),'utf8').includes(narration));
+ const segments=JSON.parse(fs.readFileSync(path.join(folder,'narration_segments.json')));assert.equal(segments.segments[0].start_seconds,0);
+ const individual=fs.readFileSync(path.join(folder,'clip_prompts','clip_001.txt'),'utf8');
+ assert(individual.includes('mouths naturally closed'));assert(individual.includes(narration));
+ assert(individual.includes('SHOT 1 (0-4s)'));assert(individual.includes('SHOT 2 (4-8s)'));assert(individual.includes('not extra output clips'));
+ execFileSync(process.execPath,['story_to_agent_prompt.js',file,'--out',path.join(folder,'agent_prompt.txt')],{cwd:path.resolve(__dirname,'..'),windowsHide:true});
+ const agent=fs.readFileSync(path.join(folder,'agent_prompt.txt'),'utf8');
+ assert(agent.includes('narrated clips with audio'));assert(agent.includes('NARRATION (off-screen voice-over, read exactly)'));assert(agent.includes(narration));
+ assert(!agent.includes('No generated voice-over'));assert(!agent.includes('added locally'));assert(!agent.includes('silent audio track'));
+ assert(agent.includes('@maya'));assert(agent.includes('light grey and off-white'));
+ const c=W.castPrompt(p,[]),s=W.scenesPrompt(p,cast,[],1,1,[], 'Grey kitchen','');
+ assert(c.includes('off-screen'));assert(s.includes('ONLY in script_line'));assert(s.includes('Do not include dialogue fields'));
+ console.log('PASS: cartoon style, generated off-screen narration in complete clip and Agent prompts, silent cast, no separate audio requirement.');
+}finally{fs.rmSync(folder,{recursive:true,force:true});}

@@ -1,0 +1,35 @@
+MASTER PROMPT: Horror Story (2D)
+PRESET ID: genai-horror-2d
+USE IN TOOL: Story Writer > Title & details > Write stories, with this preset selected. Match the GUI clip count and seconds to the script; text duration alone does not set GUI controls. This preset is NOT currently supported by Import ready script. This route still uses Gemini/AI Studio to finalize the story.
+
+COPY FROM THE NEXT LINE INTO CHATGPT:
+
+Create complete scripts for my Horror Story (2D) preset. Ask for the topic or supplied source, requested duration, and number of stories unless already specified. For normal narrated eight-second clips, explain that total generated duration is clip count times eight seconds. Do not silently turn a short source into a long film. Offer source-length matching when a transcript is supplied. Preserve facts and original speaker ownership. Produce a coherent hook, ordered development and full ending, rather than a list of disconnected facts. For real factual topics, verify uncertain information or ask for clarification; never present invented research as evidence.
+For original eight-second narration aim for 16-20 spoken words, maximum 22, allowing pauses. Preserve the full source and choose more clips rather than rushing or dropping material.
+
+Work without any previous chat history. Follow this prompt and the script or references I provide in this conversation. Never claim to have watched a link you cannot access; ask for the transcript or uploaded video instead. Do not invent source facts, figures, qualifications or outcomes. Keep scripts non-explicit and non-graphic; do not disguise restricted content with coded words. No prompt can guarantee a provider will accept every generation.
+Provide finished content, not placeholders. Check numbering, durations, complete sentences and word counts before delivery. If file creation is available, give me a downloadable UTF-8 TXT file. Otherwise give the entire result in one copyable code block. No explanatory introduction, tables, decorative separators or Markdown headings inside the output file.
+
+Return genai-horror-2d_STORY_SCRIPTS.txt. These are story-writing inputs, not direct-import scripts for this preset. Output:
+Story 1
+Title: [finished title]
+Preset: genai-horror-2d
+Details:
+Duration: [chosen generated duration] seconds. [number] clips of 8 seconds.
+Story brief: [specific premise, viewpoint, cast and setting; do not repeat the whole script here]
+
+Clip 1:
+Narration: "[complete narration segment]"
+Visual: [specific event and action]
+Sound: [quiet appropriate sound or None]
+
+Continue through the complete story. Replace all placeholders; never include the continuation instruction. Repeat Story 2 etc. for a batch. For Sarah/George dialogue include setting and descriptive prose BEFORE Clip 1, then only labelled spoken lines within clips; no Action: fields that the legacy transcript parser could mistake for speech.
+The tool applies the preset below. Follow its genre, visual medium, camera, cast, tone and sound rules when describing the scenes:
+STYLE: 2D animated cartoon style illustration, flat vector shading, dark moody blue-grey lighting, desaturated palette with one warm accent, deep shadows in the corners, quiet unsettling atmosphere, cinematic true-horror animation style
+PALETTE: Blue-grey night, charcoal shadow, sickly pale green, one warm lamp amber, muted blood red used sparingly, cold moonlight white
+CAMERA: 2D horror staging: held wide shots that let a dark corner sit in frame, slow push-ins toward a closed door or a window, close-ups on a face realising something, stillness before each turn. No 3D, no shaky motion.
+DIRECTION: A first-person HORROR account, told by a narrator, in the past tense. Clip 1 drops the viewer into one specific moment - an exact time, place, sound or physical sensation - with one oddly specific detail, and never explains the background first. Then establish normal life briefly, introduce one small thing that is wrong and gets rationalised away, and escalate through three to five rising beats, each more intense, using short fragmented sentences at the tense moments. Reach a single turning point, then the climax through the narrator's own senses - sound, cold, smell, touch - then resolve and leave one lingering final line that does not fully conclude. One narrator, no on-screen text.
+NARRATION_VOICE: hushed tense male voice, intimate first-person, slow and unsettling
+AVOID: no on-screen text, subtitles, captions, watermarks or UI, no photoreal footage, no 3D CGI, no anime, no gore or graphic injury, no jump-scare monster faces in close-up, no real people or real places named as fact, no comedy
+CAST_IDIOM: 2D animated cartoon human in flat vector shading, desaturated colours, plain modern clothing in fixed colours, a tense guarded expression, deep shadow across one side of the face. NOT anime, NOT 3D, NOT photoreal.
+STORY_SHAPES: ["an ordinary night, then one small detail that is wrong", "the narrator notices a warning sign, and rationalises it away", "everything seems fine, until it very much is not", "a personal account that ends on a question instead of an answer"]

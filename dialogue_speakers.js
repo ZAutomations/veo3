@@ -74,12 +74,21 @@ function labelledTranscriptTurns(detail) {
     text = text.replace(/^(?:title|transcript|source dialogue|video transcript):[^\n]*\n/gi, '');
     const pieces = text.includes('>>') ? text.split('>>') : text.split(/\r?\n/);
     const turns = [];
+    let metadata = false;
     for (const piece of pieces) {
-        const value = piece.trim();
+        const value = piece.trim().replace(/^\*\*(.+?)\*\*\s*$/, '$1').replace(/^(Sarah|George|Female|Male)\*\*\s*:/i,'$1:').replace(/^\*\*(Sarah|George|Female|Male):\*\*/i,'$1:');
         if (!value) continue;
+        if(/^[\s=*_\-─━—]{3,}$/.test(value)||/^STORY\s+\d+\b/i.test(value))continue;
+        if(/^(?:clip|scene)\s+\d+\b/i.test(value)){metadata=false;continue;}
+        if(/^(?:story brief|brief|details|summary|ending message|moral|lesson|title|transcript|source dialogue|video transcript)\s*:/i.test(value)){
+            metadata=!/^(?:transcript|source dialogue|video transcript)\s*:/i.test(value);continue;
+        }
         const match = value.match(/^(Female|Male|Woman|Man|Wife|Husband|Sarah|George)\s*:\s*([\s\S]+)$/i);
+        if(!match&&metadata)continue;
         if (!match) throw Error('Transcript speaker is missing. Label EVERY turn Female: or Male: (Sarah: / George: also work). Text alone cannot reliably identify who spoke. No API request or generation should run until labels are supplied.');
-        turns.push({ speaker: /^(female|woman|wife|sarah)$/i.test(match[1]) ? 'Sarah' : 'George', line: match[2].trim() });
+        metadata=false;
+        const line=match[2].trim().replace(/^(?:"([\s\S]*)"|“([\s\S]*)”)$/,(all,straight,curly)=>straight??curly);
+        turns.push({ speaker: /^(female|woman|wife|sarah)$/i.test(match[1]) ? 'Sarah' : 'George', line });
     }
     if (!turns.length) throw Error('No labelled dialogue found.');
     return turns;
