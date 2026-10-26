@@ -2,6 +2,7 @@
 const fs=require('fs'),path=require('path'),crypto=require('crypto');
 function parse(text,defaults={}){
  const rows=String(text||'').replace(/^\uFEFF/,'').split(/\r?\n/);
+ const derived=id=>require('./write_story').presetLists().find(p=>p.id===id&&p.derived_video_preset);
  const stories=[];let story=null,clip=null,section='';
  const unquote=value=>value.replace(/^(?:"([\s\S]*)"|“([\s\S]*)”)$/,(m,a,b)=>a??b).trim();
  function start(){story={title:'',preset:defaults.preset,seconds:Number(defaults.seconds||8),setting:'',characters:[],locations:[],clips:[]};stories.push(story);clip=null;section='';}
@@ -10,20 +11,21 @@ function parse(text,defaults={}){
   if(/^Story\s+\d+\s*:?$/i.test(line)){start();continue;}
   if(!story)start();
   const heading=line.match(/^Clip\s+(\d+)\s*(?:[-–—]\s*(.*?))?\s*:\s*$/i);
-  if(heading){const n=Number(heading[1]);if(n!==story.clips.length+1)throw Error(`${story.title}: clip numbers must start at 1 and be consecutive.`);clip={number:n,title:heading[2]||(['3d-zack-style','3d-motivational-red-green'].includes(story.preset)?`Clip ${n}`:`Conversation ${n}`),action:'',dialogue:[],shots:[]};story.clips.push(clip);section='';continue;}
+  if(heading){const n=Number(heading[1]);if(n!==story.clips.length+1)throw Error(`${story.title}: clip numbers must start at 1 and be consecutive.`);clip={number:n,title:heading[2]||(['3d-zack-style','3d-motivational-red-green','heartwarming-cat-3d'].includes(story.preset)?`Clip ${n}`:`Conversation ${n}`),action:'',dialogue:[],shots:[]};story.clips.push(clip);section='';continue;}
   if(section&&!clip&&/^None\.?$/i.test(line)){section='';continue;}
   const field=line.match(/^([A-Za-z0-9 +_-]+):\s*(.*)$/);
   if(!field)throw Error(`Unrecognised line: ${line}. Use field labels and Clip N: headings.`);
   const key=field[1].toLowerCase(),value=field[2];
   if(clip){
-   if(['sarah','george','female','male'].includes(key)){
+   const custom=derived(story.preset),speaker=custom?.reference_cast?.find(c=>c.name.toLowerCase()===key);
+   if(speaker||['sarah','george','female','male'].includes(key)){
     const speech=unquote(value);if(!speech)throw Error(`Clip ${clip.number}: empty dialogue.`);
-    clip.dialogue.push({speaker:['sarah','female'].includes(key)?'Sarah':'George',line:speech});continue;
+    clip.dialogue.push({speaker:speaker?.name||(['sarah','female'].includes(key)?'Sarah':'George'),line:speech});continue;
    }
-   if(story.preset==='3d-motivational-red-green'&&['start state','end state'].includes(key)){const field=key.replace(' ','_');if(clip[field])throw Error(`Clip ${clip.number}: duplicate ${key}.`);clip[field]=value;continue;}
+   if((custom||['3d-motivational-red-green','heartwarming-cat-3d'].includes(story.preset))&&['start state','end state'].includes(key)){const field=key.replace(' ','_');if(clip[field])throw Error(`Clip ${clip.number}: duplicate ${key}.`);clip[field]=value;continue;}
    if(key==='action'){clip.action=[clip.action,value].filter(Boolean).join(' ');continue;}
    if(key==='narration'){if(clip.narration)throw Error(`Clip ${clip.number}: duplicate narration.`);clip.narration=unquote(value);continue;}
-   if(key==='effect'||key==='sound'){clip[key]=value;continue;}
+   if(key==='effect'||key==='sound'||(custom||story.preset==='heartwarming-cat-3d')&&key==='audio'){clip[key==='audio'?'sound':key]=value;continue;}
    const shot=key.match(/^shot\s+(\d+)$/);
    if(shot){
     if(Number(shot[1])!==clip.shots.length+1)throw Error(`Clip ${clip.number}: shot numbers must be consecutive.`);
@@ -41,6 +43,7 @@ function parse(text,defaults={}){
   if(key==='title')story.title=value;
   else if(key==='preset')story.preset=value;
   else if(key==='setting')story.setting=value;
+  else if(story.preset==='heartwarming-cat-3d'&&key==='location name')story.location_name=value;
   else if(story.preset==='3d-motivational-red-green'&&['left label','right label','footer start','footer end'].includes(key)){const field=key.replace(' ','_');if(story[field])throw Error(`Duplicate ${key}.`);story[field]=unquote(value);}
   else if(key==='clip seconds')story.seconds=Number(value);
   else if(key==='characters'||key==='locations'){
@@ -54,12 +57,17 @@ function parse(text,defaults={}){
  }
  if(!stories.length)throw Error('Paste a ready script first.');
  for(const s of stories){
-  const zack=s.preset==='3d-zack-style',motivational=s.preset==='3d-motivational-red-green';
+  const custom=derived(s.preset);
+  const zack=s.preset==='3d-zack-style',motivational=s.preset==='3d-motivational-red-green',cat=s.preset==='heartwarming-cat-3d';
   if(!s.title.trim()||(!motivational&&!s.setting.trim()&&!(zack&&s.locations.length)))throw Error('Every story needs Title: and Setting: (or named Locations: for Zack D).');
   if(![4,6,8,10].includes(s.seconds))throw Error(`${s.title}: choose 4, 6, 8 or 10 seconds per clip (depending on your video model).`);
   if(!s.clips.length)throw Error(`${s.title}: no clips supplied.`);
   for(const c of s.clips){
-   if(zack){
+   if(custom){
+    // Custom preset mode/timings are validated below.
+   }else if(cat){
+    // Pure pantomime is validated separately; it must never acquire narration.
+   }else if(zack){
     if(!c.narration||c.dialogue.length)throw Error(`Clip ${c.number}: Zack D requires Narration: and no character dialogue.`);
     if(c.shots.length<2||c.shots.length>4)throw Error(`Clip ${c.number}: requires two to four timed shots.`);
     let end=0;
@@ -75,6 +83,8 @@ function parse(text,defaults={}){
     if(!c.narration||c.dialogue.length||c.shots.length)throw Error(`Clip ${c.number}: 3D Motivational requires Narration:, Start state:, Action: and End state:, with no dialogue or Shot fields.`);
    }else if(!c.dialogue.length||c.narration||c.shots.length)throw Error(`${s.title}: every dialogue clip needs labelled dialogue; narration/shots require Zack D.`);
   }
+  if(custom)require('./reference_video_preset').validate(s,custom);
+  if(cat)require('./heartwarming_cat').validate(s);
   if(motivational)require('./motivational_ready_script').validate(s);
   if(s.declaredCount&&s.declaredCount!==s.clips.length)throw Error(`${s.title}: declared clip count differs from the supplied clips.`);
   if(s.declaredDuration&&s.declaredDuration!==s.clips.length*s.seconds)throw Error(`${s.title}: declared duration differs from clip count × seconds.`);
@@ -88,9 +98,11 @@ function writerFor(s,aspect){
 }
 function prepare(s,aspect){
  const W=writerFor(s,aspect),p=W.loadPreset(s.preset);
+ if(require('./reference_video_preset').applies(p))return require('./reference_video_preset').prepare(W,p,s,aspect);
+ if(require('./heartwarming_cat').applies(p))return require('./heartwarming_cat').prepare(W,p,s,aspect);
  if(require('./motivational_metaphor').applies(p))return require('./motivational_ready_script').prepare(W,p,s,aspect);
  if(p.id==='3d-zack-style')return require('./zack_ready_script').prepare(W,p,s,aspect);
- if(p.narration_scope!=='dialogue'||!p.fixed_couple_names||(!require('./dog_couple').applies(p)&&!require('./realistic_couple').enabled(p)))throw Error('Ready script import currently supports realistic, Ghibli, stylized 3D, colorful cartoon and dog-couple Sarah/George dialogue presets, Zack D and 3D Motivational Red vs Green.');
+ if(p.narration_scope!=='dialogue'||!p.fixed_couple_names||(!require('./dog_couple').applies(p)&&!require('./realistic_couple').enabled(p)))throw Error('Ready script import currently supports realistic, Ghibli, stylized 3D, colorful cartoon and dog-couple Sarah/George dialogue presets, Zack D and 3D Motivational Red vs Green and Heartwarming Cat.');
  const cast=W.normaliseCast(p,[{name:'Sarah',gender:'female',type:'human'},{name:'George',gender:'male',type:'human'}]);
  const meta={description:s.title,moral:'',place_name:'Room',place_description:s.setting,place_prompt:`${p.location_medium||p.style}. Empty ${s.setting}. No people or animals, no text.`,blocking:p.blocking||''};
  const story=W.buildStory(p,cast,meta,s.clips.map(c=>({scene_title:c.title,dialogue:c.dialogue,narrative_context:c.action||'The two characters exchange these lines naturally in the established setting.',characters:['Sarah','George']})));
@@ -108,7 +120,7 @@ function run(request){
  const root=path.resolve(request.out||path.join(__dirname,'stories'));fs.mkdirSync(root,{recursive:true});
  return prepared.map(({W,p,cast,story,warnings},i)=>{
   const s=parsed[i],key=JSON.parse(JSON.stringify(s));
-  if(!['3d-zack-style','3d-motivational-red-green'].includes(s.preset)){delete key.characters;delete key.locations;key.clips.forEach(c=>{if(!c.shots.length)delete c.shots;});}
+  if(!p.derived_video_preset&&!['3d-zack-style','3d-motivational-red-green','heartwarming-cat-3d'].includes(s.preset)){delete key.characters;delete key.locations;key.clips.forEach(c=>{if(!c.shots.length)delete c.shots;});}
   const hash=crypto.createHash('sha256').update(JSON.stringify({s:key,aspect})).digest('hex').slice(0,10);
   const dir=path.join(root,`${W.slugify(s.title)}_ready_${hash}`),file=path.join(dir,`${path.basename(dir)}_story.json`);
   warnings.forEach(w=>console.log(`WARNING: ${s.title}: ${w}`));
@@ -116,6 +128,7 @@ function run(request){
   if(fs.existsSync(file)&&fs.existsSync(marker)){console.log(`Already imported; preserved existing package: ${file}`);return file;}
   if(!fs.existsSync(file)){
    W.writePackage(dir,p,story,cast);
+   if(p.derived_video_preset)require('./reference_video_preset').writeRefs(dir,p,story,cast);
    fs.writeFileSync(path.join(dir,'READY_SCRIPT_SOURCE.json'),JSON.stringify(s,null,2)+'\n');
    if(story.zack_ready_import||story.motivational_ready_import){
     fs.writeFileSync(path.join(dir,'NARRATION_SCRIPT.txt'),story.scenes.map((sc,i)=>`Clip ${i+1}: ${sc.script_line}`).join('\n\n')+'\n');

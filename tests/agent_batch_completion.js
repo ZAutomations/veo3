@@ -1,0 +1,11 @@
+const assert=require('assert');
+const {completionTracker}=require('../agent_batch_completion');
+const media={ready_video_tile:10,failed_video_tile:0,generating_video_tile:0,agent_busy:false,project_scan_complete:true};
+let normal=completionTracker(8);
+assert.equal(normal(media),false,'normal batch requires exact clip count');
+assert.equal(normal(media),false,'duplicates never release a normal next batch');
+let recovery=completionTracker(8,{allowExtraReady:true});
+assert.equal(recovery(media),false,'recovery still requires two stable observations');
+assert.equal(recovery(media),true,'missing-scene recovery can finish despite prior retry copies');
+assert.equal(recovery({...media,failed_video_tile:1}),false,'failed generation resets the stable completion gate');
+console.log('PASS: standard batches require an exact count; verified missing-scene recovery tolerates extra retry assets but waits for a stable idle grid.');

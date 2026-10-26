@@ -133,6 +133,23 @@ const words = (t) => new Set(String(t || '').toLowerCase()
 // clip is also listed in `unresolved`. Unidentified clips and unmatched scenes
 // are paired off in the order they already stand, so the caller always gets a
 // complete order and never a silently guessed scene presented as a fact.
+// A unique long contiguous phrase can identify a clip even when its audio
+// or ASR transcript contains only part of the expected line. This is identity
+// evidence, not a claim that the complete narration was delivered.
+function fragmentEvidence(said, wanted, ignorePrecision=false){
+    const token=t=>String(t||'').toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(Boolean);
+    const a=token(said),b=token(wanted);
+    let best=[];
+    for(let i=0;i<a.length;i++)for(let j=0;j<b.length;j++){
+        let n=0;while(i+n<a.length&&j+n<b.length&&a[i+n]===b[j+n])n++;
+        if(n>best.length)best=a.slice(i,i+n);
+    }
+    const content=new Set(best.filter(w=>w.length>1&&!STOP.has(w)));
+    const heardContent=[...words(said)].filter(w=>!STOP.has(w));
+    const wantSet=words(wanted);
+    const precision=heardContent.length?heardContent.filter(w=>wantSet.has(w)).length/heardContent.length:0;
+    return best.length>=6&&content.size>=3&&(ignorePrecision||precision>=0.85);
+}
 function matchClips(clips, heard, wanted, minCover = 0.5) {
     const identifiable = wanted.filter(w => w.text);
     const pairs = [];
@@ -153,13 +170,44 @@ function matchClips(clips, heard, wanted, minCover = 0.5) {
             pairs.push({ file: f, scene: w.n, cover: hit / want.length });
         }
     }
+    // Never infer the last scene merely by elimination or lower the global
+    // threshold. A fragment must independently identify exactly one scene.
+    if(minCover<=0.5)for(const file of clips){
+        if(pairs.some(p=>p.file===file&&p.cover>=minCover))continue;
+        const candidates=identifiable.filter(w=>fragmentEvidence(heard[file],w.text));
+        if(candidates.length!==1)continue;
+        const pair=pairs.find(p=>p.file===file&&p.scene===candidates[0].n);
+        if(pair)pair.partial=true;
+    }
+    // Reworded native narration: require three substantial terms unique to
+    // one scene in THIS story plus a shared phrase containing two of them.
+    // This identifies the topic/scene; it does not certify script fidelity.
+    if(minCover<=0.5)for(const file of clips){
+        if(pairs.some(p=>p.file===file&&(p.cover>=minCover||p.partial)))continue;
+        if(identifiable.some(w=>fragmentEvidence(heard[file],w.text,true)))continue;
+        const said=[...words(heard[file])].filter(w=>!STOP.has(w));
+        if(said.length<6)continue;
+        const candidates=identifiable.filter(w=>{
+            const own=words(w.text);
+            const anchors=said.filter(x=>x.length>=4&&own.has(x)
+                &&identifiable.filter(other=>words(other.text).has(x)).length===1);
+            if(anchors.length<3)return false;
+            const normalized=String(heard[file]).toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(Boolean);
+            const want=' '+String(w.text).toLowerCase().replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim()+' ';
+            return normalized.some((x,i)=>anchors.includes(x)&&anchors.includes(normalized[i+1])&&want.includes(' '+x+' '+normalized[i+1]+' '));
+        });
+        if(candidates.length===1){
+            const pair=pairs.find(p=>p.file===file&&p.scene===candidates[0].n);
+            if(pair){pair.partial=true;pair.method='distinctive_topic_anchors';}
+        }
+    }
     pairs.sort((a, b) => b.cover - a.cover || a.file.localeCompare(b.file));
 
     const byFile = {}, byScene = {};
     for (const p of pairs) {
         if (byFile[p.file] || byScene[p.scene]) continue;
-        if (p.cover < minCover) continue;
-        byFile[p.file] = { scene: p.scene, cover: p.cover };
+        if (p.cover < minCover && !p.partial) continue;
+        byFile[p.file] = { scene: p.scene, cover: p.cover, ...(p.partial ? {partial:true,method:p.method||'unique_partial_phrase'} : {}) };
         byScene[p.scene] = p;
     }
 
@@ -216,8 +264,9 @@ function main() {
         ? path.resolve(flag('--clips'))
         : path.join(path.dirname(STORY_JSON), 'clips');
     if (!fs.existsSync(CLIPS_DIR)) {
-        console.error(`No clips folder: ${CLIPS_DIR}`);
-        process.exit(1);
+        console.error(`RECOVERY_REVIEW_REQUIRED: No clips folder: ${CLIPS_DIR}`);
+        console.error('Download clips first using the same story and Flow project. Resolve clip order only reads local clips; Retry / Continue would repeat this ordering action, not download them. No generation is required.');
+        process.exit(2);
     }
 
     const story = JSON.parse(fs.readFileSync(STORY_JSON, 'utf8'));
@@ -233,8 +282,9 @@ function main() {
         .filter(f => /\.mp4$/i.test(f) && !SKIP.test(f))
         .sort();
     if (!clips.length) {
-        console.error(`No .mp4 clips in ${CLIPS_DIR}`);
-        process.exit(1);
+        console.error(`RECOVERY_REVIEW_REQUIRED: No .mp4 clips in ${CLIPS_DIR}`);
+        console.error('Download clips first using the same story and Flow project, then resolve their order. Retry / Continue would repeat ordering without downloading anything.');
+        process.exit(2);
     }
     // manifest.json is where the resolved order is recorded, and join_clips.js
     // reads exactly this list - keep every other field when rewriting it.
@@ -255,6 +305,15 @@ function main() {
         + `${wanted.filter(w => w.from === 'script_line').length} on the narrator's line, `
         + `${wanted.filter(w => w.from === 'none').length} with neither)`);
 
+    if(require('./silent_scene_identity').isSilent(story)){
+        const mapped=manifest?.clips||[];
+        const verified=manifest?.complete===true&&mapped.length===wanted.length
+          &&new Set(mapped.map(c=>c.file)).size===wanted.length
+          &&wanted.every(w=>mapped.some(c=>c.matched_scene===w.n&&c.order_verified===true&&c.got!==false&&clips.includes(c.file)));
+        if(verified){log('Silent story: existing verified source-to-scene mapping preserved. No speech transcription needed.');return;}
+        console.error('RECOVERY_REVIEW_REQUIRED: This is a silent story. Downloaded clips need verified visual/source scene mapping; music, meows and filenames cannot determine story order. See clips/CLIP_ORDER.txt. No Whisper transcription or guessed order written.');
+        process.exitCode=2;return;
+    }
     if (wanted.filter(w => w.text).length < 2) {
         console.error('\nNothing to match on: fewer than two scenes have words to listen for.');
         console.error('This film is silent or the story was written without lines, so the clips');
@@ -334,6 +393,8 @@ function main() {
     console.log('');
     const resolved = ordered.filter(f => byFile[f].cover !== null).length;
     log(`Resolved: ${resolved} of ${clips.length} clip(s) matched a scene by ear.`);
+    const partial=ordered.filter(f=>byFile[f].partial);
+    for(const file of partial)log(`WARNING: Scene ${byFile[file].scene} (${file}) identified from distinctive partial wording (${byFile[file].method}). The transcript differs from the expected narration; check the audio before publishing.`);
     if (unresolved.length) {
         log(`WARNING: ${unresolved.length} clip(s) could not be matched and keep their previous`);
         for (const f of unresolved) log(`         ${f}`);
@@ -374,6 +435,8 @@ function main() {
             match_from: byFile[f].scene === null ? null
                 : (wanted.find(w => w.n === byFile[f].scene) || {}).from || null,
             order_verified: byFile[f].cover !== null,
+            partial_narration_match: !!byFile[f].partial,
+            match_method: byFile[f].method || (byFile[f].cover !== null ? 'word_coverage' : null),
         })),
         orderResolvedBy: 'dialogue',
         orderResolvedAt: new Date().toISOString(),
@@ -382,6 +445,7 @@ function main() {
             + 'matching it to the scene whose words it speaks. join_clips.js follows this array, '
             + 'so no --order and no --reverse is needed. matched_scene is the story scene number.',
     };
+    out.narrationWarnings = partial.map(file=>({file,scene:byFile[file].scene,reason:'Distinctive wording identifies the scene, but the transcript differs from the full expected narration; check for changed or missing speech.',transcript:heard[file]}));
     out.expected = wanted.length;
     out = require('./download_tile_logic').resolveSceneManifest(out);
     if (out.clips.length !== wanted.length || unresolved.length && out.clips.some(c => c.match_cover === null)) {
@@ -399,7 +463,7 @@ function main() {
         log(`Previous manifest kept as ${path.basename(bak)}`);
     }
     fs.writeFileSync(MANIFEST, JSON.stringify(out, null, 2));
-    const report = ['STORY CLIP ORDER', ...out.clips.filter(c => c.order_verified).map(c => `Scene ${c.matched_scene}: ${c.file}`),
+    const report = ['STORY CLIP ORDER', ...out.narrationWarnings.map(w=>`AUDIO CHECK Scene ${w.scene}: ${w.file} — partial narration transcript: ${w.transcript.replace(/\s+/g,' ')}`), ...out.clips.filter(c => c.order_verified).map(c => `Scene ${c.matched_scene}: ${c.file}`),
         ...(out.missingScenes.length ? [`Missing verified scenes: ${out.missingScenes.join(', ')}`] : []),
         ...out.unidentifiedClips.map(c => `${c.file}: ${c.repeats_scene ? 'repeats narration from Scene '+c.repeats_scene : 'unidentified narration'} — ${c.transcript.replace(/\s+/g,' ')}`)];
     fs.writeFileSync(path.join(CLIPS_DIR, 'CLIP_ORDER.txt'), report.join('\n')+'\n');
@@ -411,4 +475,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { resolveStoryJson, sceneWords, wantedFrom, words, matchClips, orderOf, orderString };
+module.exports = { resolveStoryJson, sceneWords, wantedFrom, words, fragmentEvidence, matchClips, orderOf, orderString };

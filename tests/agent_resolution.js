@@ -1,10 +1,17 @@
 const assert=require('assert'),fs=require('fs'),vm=require('vm');
-const {withSettings}=require('../agent_video_contract');
+const {withSettings,preparePrompt}=require('../agent_video_contract');
 const text='Scene 1 - Hook\nLilly: "Listen carefully."\nScene 2 - Advice\nLilly: "Trust takes time."';
 const converted=withSettings(text,{model:'Omni 1.1 Flash',resolution:'360p',seconds:10,aspect:'9:16'});
 assert.equal((converted.match(/VIDEO GENERATION SETTINGS/g)||[]).length,3);
 assert(converted.includes('duration 10 seconds'));assert(converted.includes('resolution 360p'));assert(converted.includes('Lilly: "Trust takes time."'));
 assert.equal(withSettings(text,{resolution:'Flow'}),text);
+const actualBatch='Create exactly 2 clips.\n\nScene 1 — Opening\nUse @Environment.\n\nScene 2 — Result\nUse @Environment.';
+const prepared=withSettings(preparePrompt(actualBatch),{model:'Omni 1.1 Flash',resolution:'360p',seconds:8,aspect:'9:16'});
+assert.equal((prepared.match(/VIDEO GENERATION SETTINGS/g)||[]).length,3,'actual driver preparation retains scene headings for every-clip instructions');
+assert(prepared.includes('Scene 2 — Result\nVIDEO GENERATION SETTINGS'));
+assert(!prepared.includes('@Environment'));assert(prepared.includes('Use Environment.'));
+assert(prepared.includes('Do not substitute a different model or a higher native resolution'));
+assert.equal((withSettings(preparePrompt(actualBatch),{model:'Omni 1.1 Flash',resolution:'720p'}).match(/resolution 720p/g)||[]).length,3);
 const selected={ratio:'16:9',resolution:'720p',confirm:false};let saved=0,open=true;
 const button=(label,key,value)=>({getBoundingClientRect:()=>({width:100,height:40}),querySelector:s=>s==='.toggle-text'?{textContent:label}:null,getAttribute:()=>String(selected[key]===value),textContent:label,click:()=>selected[key]=value});
 const video={innerText:'Video generation default',getBoundingClientRect:()=>({width:100,height:100}),querySelectorAll:()=>[button('9:16','ratio','9:16')]};

@@ -165,7 +165,7 @@ const KNOWN_REF_NAMES=(()=>{
 const MENTION_LIST = (typeof MENTION_RAW === 'string')
     ? MENTION_RAW.split(',').map(s => s.replace(/^@/, '').trim()).filter(Boolean)
     : MT.extractMentions(PROMPT,KNOWN_REF_NAMES);
-const MENTIONS = MT.distinctMentions(MENTION_LIST);
+let MENTIONS = MT.distinctMentions(MENTION_LIST);
 
 // Model choice in Agent Mode is PLAIN ENGLISH in the prompt - there is no menu.
 // Confirmed live 2026-09-11: telling the agent "use veo3.1 low pirority to
@@ -176,13 +176,7 @@ const MENTIONS = MT.distinctMentions(MENTION_LIST);
 const MODEL_RAW = flag('--model');
 const MODEL_HINT = (typeof MODEL_RAW === 'string') ? MODEL_RAW : null;
 
-const PROMPT_BASE = PROMPT
-    // Keep the NAME as plain words where it belongs, and attach the chip at the
-    // end. Dropping it entirely left "using in every scene", which reads badly.
-    ? PROMPT.replace(/@([A-Za-z0-9_.\-]+)/g, '$1')
-            .replace(/\s{2,}/g, ' ')
-            .trim()
-    : null;
+const PROMPT_BASE = PROMPT ? require('./agent_video_contract').preparePrompt(PROMPT) : null;
 const PROMPT_TEXT = (PROMPT_BASE && MODEL_HINT)
     ? `${PROMPT_BASE} Use ${MODEL_HINT} for all clips.`
     : PROMPT_BASE;
@@ -190,10 +184,13 @@ const PROMPT_TEXT = (PROMPT_BASE && MODEL_HINT)
 // before it ever reaches the box. The writer already carries the rule; this
 // catches a slip. Long prompts still paste, so the text is otherwise untouched.
 const VIDEO_RESOLUTION = String(flag('--video-resolution', 'Flow') || 'Flow');
-const SEND_TEXT = PROMPT_TEXT == null ? null : require('./agent_video_contract').withSettings(W.sanitizeForPolicy(PROMPT_TEXT),{
+let SEND_TEXT = PROMPT_TEXT == null ? null : require('./agent_video_contract').withSettings(W.sanitizeForPolicy(PROMPT_TEXT),{
     model:VIDEO_MODEL,resolution:VIDEO_RESOLUTION,seconds:Number(flag('--scene-seconds',8))||8,aspect:String(flag('--aspect','Flow')),
 });
+if(SEND_TEXT){const source=flag('--refs');if(typeof source==='string'&&/\.json$/i.test(source)&&fs.existsSync(source))SEND_TEXT=require('./agent_scene_ids').inject(SEND_TEXT,JSON.parse(fs.readFileSync(source,'utf8')));}
 if (SEND_TEXT !== PROMPT_TEXT) log('Policy sanitizer adjusted the prompt before sending.');
+if (SEND_TEXT) SEND_TEXT += '\nBATCH TRACKING: Track each requested scene number separately until its video finishes. Preserve completed clips. Retry only the individual failed or missing scene using its exact instructions, references, voice and video settings. Never repeat successful scenes or the whole batch. Follow BLOCKED SCENE HANDLING for a content-policy refusal. Do not report completion while scenes are missing.';
+if (SEND_TEXT) SEND_TEXT += '\nMANDATORY RETRY PREFLIGHT: Before responding to ANY retry, reword, or “generate again” request, inspect the current project assets and identify which numbered scenes already have a completed video. Keep every completed scene unchanged. Generate only the exact missing or failed scene numbers; never regenerate a whole batch because one scene failed. If scene-to-asset mapping is ambiguous, stop and report the ambiguity instead of submitting another generation. Ignore conversation-level Try again when it would repeat successful scenes.';
 
 // A long prompt must NOT be typed key by key - a 3000-character story at 45ms a
 // character is 2+ minutes of keystrokes. Paste it in one shot instead. This is
@@ -320,7 +317,7 @@ function snapshotFn() {
         .map(el => d(el, 1));
 
     const videoEls = [...document.querySelectorAll('flow-video-tile')];
-    const FAIL = /audio generation failed|failed to generate|generation failed|something went wrong|try a different prompt|you have not been charged/i;
+    const FAIL = /audio generation failed|failed to generate|generation failed|something went wrong|try a different prompt|you have not been charged|might violate|may violate|violates? our|content polic|third.party content providers/i;
     const BUSY = /generating|generation in progress|queued|processing|creating|(?:^|\n)\s*\d{1,2}%\s*(?:\n|$)/i;
     const failedVideos = videoEls.filter(t => FAIL.test(t.innerText || t.textContent || '')
         || !!t.querySelector('[class*=error-tile], button[aria-label="Retry"]'));
@@ -427,7 +424,7 @@ async function clickFailures(page) {
     return await page.evaluate(() => {
         const vis = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
         let retry = 0, reuse = 0;
-        const FAIL = /audio generation failed|failed to generate|generation failed|something went wrong|try a different prompt|you have not been charged/i;
+        const FAIL = /audio generation failed|failed to generate|generation failed|something went wrong|try a different prompt|you have not been charged|might violate|may violate|violates? our|content polic|third.party content providers/i;
         const scopes = [...document.querySelectorAll('flow-video-tile, [class*=error-tile], [class*=generation-error], [class*=media-error]')]
             .filter(vis).filter(el => FAIL.test(el.innerText || el.textContent || '')
                 || !!el.querySelector('button[aria-label="Retry"], button.reuse-prompt-button, button[aria-label="Reuse prompt"]'));
@@ -537,6 +534,41 @@ async function sweepFor(page, secs, tag) {
     return await readProjectSnapshot(page);
 }
 
+async function reviewFailedBatch(page, snapshot) {
+    // This helper is module-scoped, outside the generation IIFE; obtain the
+    // attached browser from its Page instead of relying on an out-of-scope var.
+    const browser=page.browser();
+    const submissionFile=flag('--submission-file',null),storyFile=flag('--refs',null);
+    if(typeof submissionFile!=='string'||typeof storyFile!=='string'){
+        log('Retry preflight unavailable: story/checkpoint files were not supplied. No batch-level recovery prompt submitted.');
+        return false;
+    }
+    let sourceText=SEND_TEXT;
+    if(!sourceText){
+        try{
+            const stateFile=submissionFile.replace(/\.submission\.json$/,'');
+            const state=JSON.parse(fs.readFileSync(stateFile,'utf8'));
+            if(state.pending?.prompt&&fs.existsSync(state.pending.prompt))sourceText=fs.readFileSync(state.pending.prompt,'utf8');
+        }catch{}
+    }
+    if(!sourceText){log('Retry preflight stopped: saved numbered batch prompt is unavailable. Nothing submitted.');return false;}
+    const cache=new Map();
+    const plan=await require('./agent_missing_scenes').prepare({
+        engine:{browser,page,projectUrl:page.url()},storyFile,submissionFile,text:sourceText,wait,
+        inspect:(engine,jobs)=>require('./single_clip_omni_recovery').inspectProject(engine,jobs,{}, {log,page:engine.page,sourceCache:cache}),
+    });
+    if(!plan){log('Retry preflight: all scenes in the saved batch already have a verified ready asset. No retry submitted.');return false;}
+    const prompt=plan.prompt+'\n\nRETRY SAFETY: The project was fully inspected twice immediately before this request. Generate ONLY the numbered scenes listed above that are still missing. Preserve every verified completed scene, even if multiple completed retry versions exist. Never repeat the original batch. For a policy-refused missing scene, make one substantive, policy-compliant revision to that scene only; if it still cannot be generated, stop and report it.';
+    log(`Retry preflight verified existing assets twice. Keeping completed scenes ${plan.completed.join(', ')||'(none)'}; submitting ONLY missing scenes ${plan.missing.join(', ')} from batch ${plan.from}-${plan.to}.`);
+    await require('./agent_composer').pasteAgentPrompt(page,installAgentEditor,prompt,{log,wait});
+    const target=await page.evaluate(require('./agent_submission').verifiedSubmissionTarget,{text:prompt,references:0});
+    if(!target.ok)throw Error(`Failed-scene review not submitted: ${target.why}`);
+    require('./agent_missing_scenes').markSubmitting(plan); // Persist uncertainty before the credit-spending click.
+    await page.mouse.click(target.cx,target.cy);
+    log('Missing-scene-only retry submitted once. Waiting for the Agent result.');
+    return true;
+}
+
 async function retryFailedMediaOnly(page, snap, label = 'retry') {
     let retried = 0;
     for (let round = 1; round <= RETRY_ROUNDS; round++) {
@@ -567,7 +599,15 @@ async function retryFailedMediaOnly(page, snap, label = 'retry') {
         }
         if (st.refusedText) {
             log(`Round ${round}: a failed media tile reports a policy refusal.`);
-            log('  Safe retry stopped. Edit that one prompt manually; the full story will not be resubmitted.');
+            const full=await readProjectSnapshot(page,true);
+            if(await reviewFailedBatch(page,full)){
+                await sweepFor(page,RETRY_WATCH,`${label}-safety-review`);
+                continue;
+            }
+            if(require('./agent_blocked_followup').reviewWasSubmitted(flag('--submission-file',null))){
+                throw Error('FLOW_REVIEW_REQUIRED: A clip remains policy-blocked after the recorded safety review for this batch. No further automatic rewording or submission. Successful clips are preserved; that scene needs manual content review.');
+            }
+            log('  Policy refusal needs review; the full story will not be resubmitted.');
             break;
         }
 
@@ -760,7 +800,7 @@ async function uploadRefThroughPicker(page, box, file) {
 (async () => {
     fs.mkdirSync(RUN_DIR, { recursive: true });
 
-    const browser = await puppeteer.connect({ browserURL: CDP_URL, defaultViewport: null });
+    const browser = await require('./automation_browser').connectAutomationBrowser({browserURL:CDP_URL,log});
     const { page, pages, flowTabs } = await selectAgentPage(browser, PROJECT_URL);
     // Prefer a tab that is actually IN a project over one sitting on the
     // Flow home page: the browser often carries both, and first-match
@@ -852,6 +892,16 @@ async function uploadRefThroughPicker(page, box, file) {
 
     if (!s.agentOn) throw Error('Agent Mode did not turn on. No generation submitted.');
 
+    // A permitted safety revision may be requested once before a refusal
+    // becomes terminal. Failed Agent tool cards need not exist in the grid.
+    if (RETRY_FAILED_ONLY && require('./agent_recovery_control').latestRefusal(s)) {
+        if (await reviewFailedBatch(page,s)) {
+            await sweepFor(page,RETRY_WATCH,'safety-review-result');
+            s=await readProjectSnapshot(page,true);
+        }
+        require('./agent_recovery_control').assertRecoverable(s);
+    }
+
     // Reconcile batches supplied manually while the local checkpoint was stale.
     // This returns to the orchestrator WITHOUT typing or clicking Generate.
     const submissionCheckpoint = flag('--submission-file', null);
@@ -884,6 +934,8 @@ async function uploadRefThroughPicker(page, box, file) {
         }
     }
 
+    let missingRecovery = null;
+    let preflightComplete = false;
     if (RETRY_FAILED_ONLY) {
         // An Agent request error is different from a failed video tile. Only
         // replay the exact pending request after two empty-media observations.
@@ -900,8 +952,11 @@ async function uploadRefThroughPicker(page, box, file) {
         banner(`SAFE RETRY: FAILED MEDIA TILES ONLY${EXPECTED_CLIPS ? ` (expect ${EXPECTED_CLIPS})` : ''}`);
         log('The full story prompt will not be typed or submitted.');
         log('Flow conversation-level "Try again" is ignored because it repeats every clip.');
+        const reviewSnapshot=await readProjectSnapshot(page,true);
+        if(await reviewFailedBatch(page,reviewSnapshot))await sweepFor(page,RETRY_WATCH,'failed-scene-review');
         const retried = await retryFailedMediaOnly(page, snap, 'safe-retry');
         const final = await snap('safe-retry-final');
+        s = final;
         const mt = final.mediaTiles;
         log(`Safe retries : ${retried}`);
         log(`Clip state   : ready=${mt.ready_video_tile}, failed=${mt.failed_video_tile}, generating=${mt.generating_video_tile}, total=${mt.flow_video_tile}`);
@@ -909,29 +964,44 @@ async function uploadRefThroughPicker(page, box, file) {
         const incomplete = mt.failed_video_tile > 0 || mt.generating_video_tile > 0
             || mt.agent_busy || mt.project_scan_complete === false || (EXPECTED_CLIPS > 0 && mt.ready_video_tile !== EXPECTED_CLIPS);
         if (duplicate) log('DUPLICATES DETECTED: ready clips exceed the story count. Download can map one clip per scene; automatic join stays blocked until the manifest is exact.');
-        await browser.disconnect();
-        if (incomplete) process.exit(2);
-        return;
+        if (incomplete && mt.failed_video_tile === 0 && mt.generating_video_tile === 0
+                && !mt.agent_busy && submissionCheckpoint && flag('--refs')) {
+            log('Checking exact source prompts twice to recover only missing scenes, including when retry copies make the raw tile count exceed the story count.');
+            const inspectionSources=new Map();
+            missingRecovery = await require('./agent_missing_scenes').prepare({
+                engine:{browser,page,projectUrl:page.url()}, storyFile:flag('--refs'),
+                submissionFile:submissionCheckpoint,text:SEND_TEXT,wait,
+                inspect:(engine,jobs)=>require('./single_clip_omni_recovery').inspectProject(engine,jobs,{}, {log,page:engine.page,sourceCache:inspectionSources}),
+            });
+            if (missingRecovery) {
+                SEND_TEXT=missingRecovery.prompt;
+                MENTIONS=MT.distinctMentions(MT.extractMentions(SEND_TEXT,KNOWN_REF_NAMES));
+                log(`Scene recovery: preserving scenes ${missingRecovery.completed.join(', ')}; submitting ONLY missing scenes ${missingRecovery.missing.join(', ')}.`);
+            } else {
+                preflightComplete=true;
+                log('Scene recovery preflight verified that every scene in the saved batch already has at least one completed source. No generation will be repeated.');
+            }
+        }
+        if (!missingRecovery) {
+            await browser.disconnect();
+            if (incomplete && !preflightComplete) process.exit(2);
+            return;
+        }
     }
 
     // Batch orchestrator supplies the exact completed count required before
     // adding another request. A reused project or uncertain interrupted run
     // must never receive the same scene batch a second time.
     const requiredReady = flag('--require-ready', null);
-    if (requiredReady !== null) {
+    if (requiredReady !== null && !missingRecovery) {
         const needed = Number(requiredReady);
-        const deadline = Date.now() + Math.max(900, WATCH_SECS) * 1000;
-        let confirmed = 0;
-        while (Date.now() < deadline) {
-            const mt = s.mediaTiles;
-            if (mt.failed_video_tile > 0 || mt.ready_video_tile > needed || mt.flow_video_tile > needed) break;
-            const complete = mt.ready_video_tile === needed && mt.generating_video_tile === 0 && !mt.agent_busy && mt.project_scan_complete !== false;
-            confirmed = complete ? confirmed + 1 : 0;
-            if (confirmed >= 2) break;
-            if (!complete) log(`Waiting for previous batch: ready=${mt.ready_video_tile}/${needed}, generating=${mt.generating_video_tile}, Agent busy=${!!mt.agent_busy}. No new prompt submitted.`);
-            await wait(4000);
-            s = await readProjectSnapshot(page);
-        }
+        const gate = await require('./agent_batch_gate').waitForReady({
+            needed, timeoutMs:Math.max(900,WATCH_SECS)*1000,wait,
+            read:full=>readProjectSnapshot(page,full),
+            onWait:mt=>log(`Waiting for previous batch: ready=${mt.ready_video_tile}/${needed}, generating=${mt.generating_video_tile}, Agent busy=${!!mt.agent_busy}, full inventory=${mt.project_scan_complete!==false}. No new prompt submitted.`),
+        });
+        s=gate.snapshot||s;
+        const confirmed=gate.confirmed;
         const mt = s.mediaTiles;
         if (confirmed < 2 || mt.ready_video_tile !== needed
             || mt.generating_video_tile > 0 || mt.failed_video_tile > 0 || mt.agent_busy || mt.project_scan_complete === false) {
@@ -940,6 +1010,8 @@ async function uploadRefThroughPicker(page, box, file) {
             process.exit(2);
         }
     }
+
+    if (SEND_TEXT) SEND_TEXT += '\n' + require('./agent_safety_revision');
 
     // ---- 4. Optional: dump the settings menu -------------------------------
     // The "never ask for confirmation" toggle lives behind this button. We open
@@ -1230,6 +1302,7 @@ async function uploadRefThroughPicker(page, box, file) {
         fs.writeFileSync(submissionFile + '.tmp', JSON.stringify(intent));
         fs.renameSync(submissionFile + '.tmp', submissionFile);
     }
+    if (missingRecovery) require('./agent_missing_scenes').markSubmitting(missingRecovery);
     await page.mouse.click(target.cx, target.cy);
     log('Start generation clicked. Waiting for Flow to schedule video tiles; this does not yet confirm clip generation.');
 
@@ -1251,7 +1324,10 @@ async function uploadRefThroughPicker(page, box, file) {
     let lastTailAt = 0;       // when the agent's text last changed
     let lastNudgeAt = -999;   // when we last sent a nudge
     let nudges = 0;
-    const completedBatch = require('./agent_batch_completion').completionTracker(EXPECTED_CLIPS);
+    const generationTarget = missingRecovery
+        ? s.mediaTiles.ready_video_tile + missingRecovery.missing.length
+        : EXPECTED_CLIPS;
+    const completedBatch = require('./agent_batch_completion').completionTracker(generationTarget,{allowExtraReady:!!missingRecovery});
     const submissionState = require('./agent_batch_recovery').submissionWatchdog(
         Number(requiredReady === null ? s.mediaTiles.flow_video_tile : requiredReady));
 
@@ -1259,6 +1335,16 @@ async function uploadRefThroughPicker(page, box, file) {
         await wait(4000);
         const cur = await readProjectSnapshot(page);
         const elapsed = Math.round((Date.now() - t0) / 1000);
+        if (require('./agent_recovery_control').latestRefusal(cur)) {
+            const full=await readProjectSnapshot(page,true);
+            if(await reviewFailedBatch(page,full)){await wait(4000);continue;}
+            require('./agent_recovery_control').assertRecoverable(full);
+        }
+        if (cur.mediaTiles.failed_video_tile>0 && !cur.mediaTiles.agent_busy
+                && cur.mediaTiles.generating_video_tile===0) {
+            const settled=await readProjectSnapshot(page,true);
+            if(await reviewFailedBatch(page,settled)){await wait(4000);continue;}
+        }
         const stalled = submissionState(cur);
         if (stalled) {
             await snap('submission-no-progress');
@@ -1371,6 +1457,32 @@ async function uploadRefThroughPicker(page, box, file) {
         if (incomplete) {
             log('  Not every clip was produced, so download/join is SKIPPED - a partial');
             log('  film would look broken. Re-run to retry it, or raise --retry-rounds.');
+        }
+    }
+    // Grid counts include retry variants, so a raw count can exceed the story
+    // length even though every requested scene is present. When this run is a
+    // checkpointed failed-clip recovery, verify source prompts scene-by-scene
+    // before deciding whether the batch is complete or later steps may run.
+    if (RETRY_FAILED_ONLY && typeof flag('--refs') === 'string'
+            && typeof flag('--submission-file') === 'string') {
+        try {
+            const storyFile=flag('--refs'),submissionFile=flag('--submission-file');
+            const story=JSON.parse(fs.readFileSync(storyFile,'utf8'));
+            const intent=JSON.parse(fs.readFileSync(submissionFile,'utf8'));
+            const jobs=story.scenes.slice(0,intent.to).map((scene,i)=>({number:i+1,scene,prompt:scene.veo3_prompt||scene.script_line||''}));
+            const inspected=await require('./single_clip_omni_recovery').inspectProject(
+                {browser,page,projectUrl:page.url()},jobs,{}, {log,page,sourceCache:new Map()});
+            const mapped=require('./agent_missing_scenes').planMissing(story,intent,inspected);
+            if(!mapped.missing.length&&!inspected.generatingSeen){
+                incomplete=false;
+                log(`Scene-level recovery verification: all ${intent.to} requested scenes have a completed source. Extra retry assets do not trigger a duplicate generation.`);
+            }else{
+                incomplete=true;
+                log(`Scene-level recovery verification still finds missing scenes: ${mapped.missing.join(', ')}.`);
+            }
+        }catch(error){
+            incomplete=true;
+            log(`Scene-level recovery verification unavailable; keeping the batch incomplete and blocking later steps: ${error.message}`);
         }
     }
     log('');

@@ -817,7 +817,11 @@ async function generateRefs(page, refs, opts = {}) {
             made++;
             continue;
         }
-        const result = await RI.withActivityWait(async () => {
+        const recovery = require('./reference_generation_receipt');
+        const receipt = recovery.receiptFor(page.url().split('?')[0],r);
+        const recovered = await recovery.recoverPending(page,receipt,waitS,RI,log);
+        if(recovered?.alreadyNamed){made++;log('  verified reference already saved; skipped.');continue;}
+        const result = recovered || await RI.withActivityWait(async () => {
             // Recheck before every sheet and retry, so a stale Video selection
             // never silently turns a character sheet into a video.
             await prepare();
@@ -825,12 +829,15 @@ async function generateRefs(page, refs, opts = {}) {
                 return { ok: false, why: 'Reference prompt did not land.' };
             }
             const before = await page.evaluate(RI.referenceState);
+            // Persist before submit: if the process stops after a click, retry
+            // observes the pending image rather than spending credits again.
+            receipt.write({status:'pending',before});
             let click = await clickSubmit(page);
             for (let a = 2; a <= 6 && !click.ok; a++) {
                 await wait(5000);
                 click = await clickSubmit(page);
             }
-            if (!click.ok) return { ok: false, why: `Could not submit: ${click.why}` };
+            if (!click.ok) {receipt.clear();return { ok: false, why: `Could not submit: ${click.why}` };}
             log(`  generating image... (up to ${waitS}s)`);
             return RI.waitForReferenceImage(page, before, waitS);
         }, { log });
@@ -886,9 +893,9 @@ if (require.main === module) (async () => {
 
     let browser;
     try {
-        browser = await puppeteer.connect({ browserURL: `http://127.0.0.1:${CDP_PORT}`, defaultViewport: null });
+        browser = await require('./automation_browser').connectAutomationBrowser({browserURL:`http://127.0.0.1:${CDP_PORT}`,log});
     } catch (e) {
-        console.error(`Could not connect to Chrome on CDP port ${CDP_PORT}. Start the automation browser first.`);
+        console.error(e.message);
         process.exit(1);
     }
     const { normalizeProjectUrl, selectAgentPage } = require('./flow_project');

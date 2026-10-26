@@ -1,0 +1,8 @@
+const ID='3d-zack-style';
+const applies=s=>s?.id===ID||s?.zack_ready_import===true||s?.visual_shot_format==='zack-internal-cuts'||/Zack D/i.test(s?.niche||'');
+const DIRECTION='NATIVE AUDIO: Generate the supplied exact narration inside the video with one consistent off-screen adult male narrator, American English, medium-low pitch, warm calm conversational documentary delivery, clean articulation and subtle curious pacing. Keep the selected Flow voice asset when attached. On-screen people remain silent. Use one consistent original instrumental musical identity suited to this story: sparse ambient synth for space, minimal curious electronic pulse for science/technology, gentle organic atmosphere for nature, restrained documentary tension for history/disaster, or soft neutral ambience for medicine. Choose a specific instrumentation, mood, tempo feeling and texture for the whole story and repeat that identity in each sound brief; vary only intensity through curiosity, explanation, reveal and resolution. Keep music quiet below intelligible narration, justified effects restrained, no vocals, lyrics, chanting, loud beats or dramatic intro restarting every clip. A supplied Sound field is the audio source of truth: preserve explicit None/no-music requests in existing imports. Independent clips may need editing if music or voice continuity varies.';
+function instructions(story,scene){
+ const sound=scene.sound||scene.sound_context||'';
+ return 'NATIVE SOUND: '+(sound||story.sound_style||'Quiet relevant task effects and low topic-appropriate instrumental background music, with narration foreground.')+'\n'+DIRECTION;
+}
+module.exports={applies,DIRECTION,instructions};

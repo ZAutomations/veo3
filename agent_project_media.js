@@ -11,7 +11,7 @@ function projectFrame() {
         const sources = [...tile.querySelectorAll('video, video source, img')]
             .map(el => el.currentSrc || el.getAttribute('src') || el.getAttribute('poster') || '')
             .filter(src => /^(https?:|blob:)/i.test(src) && !/\.svg(?:[?#]|$)|placeholder|loading/i.test(src));
-        const failed = /audio generation failed|failed to generate|generation failed|something went wrong|try a different prompt|you have not been charged/i.test(text)
+        const failed = /audio generation failed|failed to generate|generation failed|something went wrong|try a different prompt|you have not been charged|might violate|may violate|violates? our|content polic|third.party content providers/i.test(text)
             || !!tile.querySelector('[class*=error-tile], button[aria-label="Retry"]');
         const preview = sources.length > 0 || /play_circle|play_arrow/i.test(text)
             || !!tile.querySelector('[aria-label="Generated video thumbnail"]');

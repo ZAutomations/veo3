@@ -15,8 +15,8 @@ try{
  assert.throws(()=>plan(tiles,story),/multiple matching/);
  const entries=assetPlan(tiles,story,file,project);assert.equal(entries.length,3);assert.deepEqual(entries.map(e=>e.receipt.assetId),['a','b','c']);
  assert.equal(entries[0].receipt.nativeResolution,360);
- assert.equal(assetPlan(tiles.slice(1),story,file,project),null);
- assert.equal(assetPlan([...tiles.slice(0,2),tiles[0]],story,file,project),null);
+ assert.equal(assetPlan(tiles.slice(1),story,file,project).length,2,'partial ready grid can still be saved for review');
+ assert.equal(assetPlan([...tiles.slice(0,2),tiles[0]],story,file,project).length,2,'duplicate DOM rows for one asset are deduplicated');
  assert.equal(assetPlan(tiles.map((t,i)=>({...t,busy:i===0})),story,file,project),null);
  const hit={assetId:'video-source',assetIds:['video-source','thumbnail-source'],ready:true,text:'caption'};
  assert.equal(locateJob([hit],{number:1,prompt:'unknown'}, {assetId:'thumbnail-source'}),hit);
@@ -33,6 +33,11 @@ try{
  const blocked=require('child_process').spawnSync(process.execPath,[path.join(__dirname,'../join_clips.js'),d.out,'--dry-run','--reverse'],{encoding:'utf8'});
  assert.equal(blocked.status,2);assert((blocked.stdout+blocked.stderr).includes('REFUSING TO JOIN'));
  const before=fs.readFileSync(file,'utf8');fs.appendFileSync(file,' ');assert.equal(assetPlan(tiles,story,file,project),null);fs.writeFileSync(file,before);
- checkpoint.completed=2;fs.writeFileSync(path.join(dir,'agent_batches_p.json'),JSON.stringify(checkpoint));assert.equal(assetPlan(tiles,story,file,project),null);
- console.log('PASS: shared batch prompts cannot assign scene order; matching completed checkpoint enables unique-asset collection; manifest requires narration resolution; incomplete/changed projects blocked.');
+ checkpoint.completed=2;checkpoint.pending={from:3,to:3};fs.writeFileSync(path.join(dir,'agent_batches_p.json'),JSON.stringify(checkpoint));
+ const retryTiles=[...tiles,{assetId:'retry-a',assetTitle:require('../agent_scene_ids').sceneId(story,1),text:'play_circle 360p',ready:true,index:3}];
+ const partial=assetPlan(retryTiles,story,file,project);assert.equal(partial.length,4,'incomplete checkpoint still preserves each distinct completed asset');
+ assert.equal(new Set(partial.map(e=>e.receipt.assetId)).size,4,'retry variants remain separate assets');
+ assert(partial.every(e=>!e.receipt.sceneId),'partial/retry inventory must not invent verified scene order');
+ assert.equal(assetPlan(tiles.map(t=>({...t,assetTitle:'V3_aaaaaaaaaaaa_S001'})),story,file,project),null,'foreign scene identity cannot authorize mixed-project downloads');
+ console.log('PASS: shared batch prompts cannot assign scene order; story-bound incomplete checkpoints preserve every distinct ready asset, including retry variants, as unresolved assets; changed/foreign projects remain blocked.');
 }finally{fs.rmSync(dir,{recursive:true,force:true});}

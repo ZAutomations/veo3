@@ -2,6 +2,7 @@
 from pathlib import Path
 from collections import deque
 import json
+import hashlib
 import os
 import re
 import secrets
@@ -98,6 +99,26 @@ def presets():
     return result
 
 
+def validate_download_project(story_file, project):
+    match = re.search(r'/project/([\w-]+)', project or '')
+    if not match:
+        return
+    selected = Path(story_file).resolve()
+    owners = []
+    for checkpoint in selected.parent.parent.glob('*/agent_batches_' + match[1] + '.json'):
+        state = read_json(checkpoint)
+        if state.get('project') != match[1] or not state.get('fingerprint'):
+            continue
+        for candidate in checkpoint.parent.glob('*_story.json'):
+            if hashlib.sha256(candidate.read_bytes()).hexdigest() == state['fingerprint']:
+                owners.append(candidate.resolve())
+    if selected in owners or len(owners) != 1:
+        return
+    owner = owners[0]
+    data = read_json(owner)
+    raise ValueError(f'Story/project mismatch: this project belongs to "{data.get("title", owner.stem)}" ({len(data.get("scenes", []))} clips). Select that story before downloading: {owner}')
+
+
 def active_account():
     data = read_json(ROOT / 'accounts.json')
     accounts = data.get('accounts', [])
@@ -110,6 +131,9 @@ def command(filename, *args):
 
 
 def plan_action(action, p):
+    if action == 'reverse_video':
+        from reverse_video_desktop import request_payload
+        return 'writer', [('request', ('reverse_video_engine.js', request_payload(ROOT, p)))]
     if action == 'generate_queue':
         if p.get('view') not in ('agent', 'ingredients', 'omni'):
             raise ValueError('Choose a video workflow.')
@@ -122,7 +146,7 @@ def plan_action(action, p):
         operations = []
         for path in paths:
             inputs = dict(p, story=path, project='', newProject=True, reuseRefs=False,
-                          genRefs=bool(p.get('batchGenRefs', True)), **{'from':1, 'to':''})
+                          genRefs=bool(p.get('batchGenRefs', True) or p.get('genRefs')), **{'from':1, 'to':''})
             _, steps = plan_action('generate', inputs)
             operations.extend(steps)
         return 'flow', operations
@@ -214,24 +238,34 @@ def plan_action(action, p):
     first = integer(p.get('from', 1), 1, total, 'First scene')
     last = integer(p.get('to', total) or total, first, total, 'Last scene')
     project = project_url(p.get('project'), required=action in ('manual', 'retry_failed', 'delete', 'download'))
+    if action == 'download':
+        validate_download_project(path, project)
     base = ['--cdp', str(port)]
     if project:
         base += ['--project-url', project]
     if action == 'build':
         return 'flow', [('cli', command('story_to_agent_prompt.js', path, '--aspect', aspect, '--seconds', seconds))]
-    if action in ('join', 'order', 'export_excel'):
+    if action in ('join', 'order', 'fix_join', 'export_excel'):
         if action == 'export_excel':
             return 'flow', [('cli', [sys.executable, str(ROOT / 'story_to_excel.py'), str(path)])]
         if action == 'order':
             return 'flow', [('cli', command('order_clips_by_dialogue.js', path, '--clips', path.parent / 'clips', '--write'))]
+        if action == 'fix_join':
+            return 'flow', [('cli', command('fix_order_and_join.js', path))]
         return 'flow', [('cli', command('join_clips.js', path.parent / 'clips'))]
     if action == 'delete':
         if not p.get('confirmed'):
             raise ValueError('Confirm moving all project videos to Trash first.')
         return 'flow', [('request', ('delete_project_video_clips.js', dict(project=project, story=str(path), cdp=port, confirmed=True)))]
     if action == 'retry_failed':
-        return 'flow', [('cli', command('agent_mode.js', '--retry-failed-only', '--expected', total,
-                                       '--retry-rounds', 8, '--retry-watch', 90, *base))]
+        retry = command('agent_mode.js', '--retry-failed-only', '--expected', total,
+                        '--retry-rounds', 8, '--retry-watch', 90, '--refs', path, *base)
+        match = re.search(r'/project/([A-Za-z0-9_-]+)', project or '')
+        if match:
+            submission = path.parent / f'agent_batches_{match.group(1)}.json.submission.json'
+            if submission.is_file():
+                retry += ['--submission-file', str(submission)]
+        return 'flow', [('cli', retry)]
     if action == 'manual':
         selection = str(p.get('selection', '')).strip()
         batch = p.get('selectionType') == 'batch'
@@ -281,7 +315,8 @@ def plan_action(action, p):
         resume = first > 1 and action != 'refs'
         if resume and not project:
             raise ValueError('Resuming Ingredients requires the existing project URL.')
-        for condition, flag in [(action == 'refs', '--refs-only'),
+        for condition, flag in [(action != 'refs', '--auto-start'),
+                                (action == 'refs', '--refs-only'),
                                 (p.get('newProject') and not resume, '--new-project'),
                                 (p.get('reuseRefs'), '--skip-refs'),
                                 (p.get('genRefs') and not resume, '--gen-refs'),
@@ -324,6 +359,80 @@ def plan_action(action, p):
     return 'flow', [('mcp', ('batch_pipeline', args))]
 
 
+AUTO_RETRY_SECONDS = 8
+
+
+def automatic_retry_allowed(action, lane):
+    # Use the same action allowlist as manual Retry / Continue. Any error in
+    # these workflows is eligible; checkpoint planning still prevents replay
+    # of destructive actions or an unverified generation submission.
+    return lane in {'flow', 'writer'} and action in RETRY_ACTIONS
+
+
+def retry_missing_agent_batch(record, remaining):
+    """When Join/Order failed, resume a checkpointed missing Agent batch first.
+
+    A join error is downstream evidence, not a reason to loop the join command
+    while the story checkpoint still has an unsubmitted/incomplete batch.
+    The Agent driver performs the twice-confirmed source preflight and submits
+    only missing scenes; following operations run only after it verifies them.
+    """
+    if record.get('action') != 'generate' or record.get('payload', {}).get('view') != 'agent' or not remaining:
+        return None
+    kind, spec = remaining[0]
+    if kind != 'cli' or not any(str(arg).endswith(('join_clips.js', 'order_clips_by_dialogue.js')) for arg in spec):
+        return None
+    payload = record.get('payload', {})
+    story = Path(str(payload.get('story', ''))).expanduser()
+    project = project_url(payload.get('project'))
+    match = re.search(r'/project/([A-Za-z0-9_-]+)$', project)
+    if not story.is_file() or not match:
+        return None
+    story = story.resolve()
+    project_id = match.group(1)
+    state_file = story.parent / f'agent_batches_{project_id}.json'
+    submission = Path(str(state_file) + '.submission.json')
+    if not state_file.is_file() or not submission.is_file():
+        return None
+    try:
+        data = read_json(state_file)
+        story_data = read_json(story)
+        story_hash = hashlib.sha256(story.read_bytes()).hexdigest()
+        intent = read_json(submission)
+    except OSError:
+        return None
+    total = len(story_data.get('scenes', []))
+    if (data.get('project') != project_id or data.get('fingerprint') != story_hash
+            or data.get('total') != total or not isinstance(data.get('pending'), dict)
+            or data['pending'].get('from') != intent.get('from')
+            or data['pending'].get('to') != intent.get('to')
+            or intent.get('fingerprint') != story_hash):
+        return None
+
+    port = str(payload.get('cdp', 9222))
+    recovery = command('agent_mode.js', '--retry-failed-only', '--expected', total,
+                       '--retry-rounds', 0, '--retry-watch', 90, '--watch', 1800,
+                       '--refs', story, '--submission-file', submission,
+                       '--project-url', project, '--cdp', port,
+                       '--aspect', payload.get('aspect', '9:16'),
+                       '--video-model', payload.get('model', 'Omni 1.1 Flash'),
+                       '--video-resolution', payload.get('resolution', '360p'),
+                       '--scene-seconds', payload.get('seconds', 8))
+    _, download_ops = plan_action('download', {**payload, 'story': str(story), 'project': project, 'view': 'agent'})
+    _, order_ops = plan_action('order', {**payload, 'story': str(story), 'project': project, 'view': 'agent'})
+    _, join_ops = plan_action('join', {**payload, 'story': str(story), 'project': project, 'view': 'agent'})
+    return [('cli', recovery), *download_ops, *order_ops, *join_ops]
+
+
+def retry_step_name(recent, phase):
+    match = re.findall(r'FAILED at ([a-z_]+)', recent, re.I)
+    if match:
+        return match[-1]
+    if re.search(r'No completed reference image|reference preparation', recent, re.I):
+        return 'reference preparation'
+    return phase
+
+
 class Job:
     def __init__(self, action, payload, lane, operations):
         self.id = uuid.uuid4().hex
@@ -334,6 +443,8 @@ class Job:
         self.proc = None
         self.client = None
         self.stopped = False
+        self._stop_event = threading.Event()
+        self.auto_retry_count = 0
         self.logs = deque(maxlen=4000)
         self.sequence = 0
         self.operation_index = 0
@@ -343,12 +454,12 @@ class Job:
 
     def save_progress(self):
         view = self.payload.get('view', 'writer' if self.lane == 'writer' else '')
-        if view in ('writer', 'agent', 'ingredients', 'omni') and self.action in RETRY_ACTIONS:
+        if view in ('writer', 'agent', 'ingredients', 'omni', 'reverse') and self.action in RETRY_ACTIONS:
             save_json(ROOT / 'logs' / 'desktop' / f'last_{view}_job.json',
                       dict(id=self.id, action=self.action, payload=self.payload, lane=self.lane,
                            operations=self.operations, operation_index=self.operation_index,
                            operation_projects=self.operation_projects, operation_phases=self.operation_phases,
-                           phase=self.phase, status=self.status))
+                           phase=self.phase, status=self.status, auto_retry_count=self.auto_retry_count))
 
     def log(self, line):
         # Driver output may contain keys. Never display complete tokens in the UI.
@@ -374,21 +485,29 @@ class Job:
         if changed:
             self.save_progress()
         with lock:
-            self.sequence += 1
-            self.logs.append(dict(id=self.sequence, text=line, time=time.time()))
+            now = time.time()
+            stamp = time.strftime('%H:%M:%S', time.localtime(now))
+            # MCP results can contain an entire multiline batch summary. Stamp
+            # every physical line, including headings, failure and retry lines.
+            entries = line.splitlines() or ['']
             folder = ROOT / 'logs' / 'desktop'
             folder.mkdir(parents=True, exist_ok=True)
             with (folder / (self.id + '.log')).open('a', encoding='utf-8') as stream:
-                stream.write(line + '\n')
+                for entry in entries:
+                    timestamped = f'[{stamp}] {entry}'
+                    self.sequence += 1
+                    self.logs.append(dict(id=self.sequence, text=timestamped, time=now))
+                    stream.write(timestamped + '\n')
 
     def summary(self):
         return dict(id=self.id, action=self.action, lane=self.lane, status=self.status,
                     created=self.created, finished=self.finished, phase=self.phase,
-                    operation=self.operation_index+1, latest=self.logs[-1]['text'] if self.logs else '')
+                    operation=self.operation_index+1, auto_retry_count=self.auto_retry_count, latest=self.logs[-1]['text'] if self.logs else '')
 
     def stop(self):
         with lock:
             self.stopped = True
+            self._stop_event.set()
             proc, client = self.proc, self.client
         if client:
             client.stop()
@@ -400,67 +519,114 @@ class Job:
                 proc.terminate()
         self.log('Stop requested. Saved checkpoints are retained.')
 
+    def _run_operations(self):
+        for index in range(self.operation_index, len(self.operations)):
+            kind, spec = self.operations[index]
+            self.operation_index = index
+            self.phase = 'running operation ' + str(index + 1)
+            self.save_progress()
+            if self.action == 'generate_queue':
+                story = spec[1].get('story') if kind == 'request' else spec[1].get('stories', [''])[0] if kind == 'mcp' else next((str(x) for x in spec if str(x).endswith('.json')), '')
+                self.log('STORY QUEUE: starting ' + str(story))
+            if self.stopped:
+                break
+            if kind == 'request':
+                filename, request = spec
+                requestfile = ROOT / 'logs' / 'desktop' / (self.id + '.json')
+                save_json(requestfile, request)
+                kind, spec = 'cli', command(filename, requestfile)
+            if kind == 'cli':
+                self.log('Starting ' + Path(spec[1]).name)
+                with lock:
+                    if self.stopped:
+                        break
+                    self.proc = subprocess.Popen(spec, cwd=ROOT, stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='replace',
+                        creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+                for line in self.proc.stdout:
+                    self.log(line.rstrip())
+                code = self.proc.wait()
+                self.proc = None
+                if code and not self.stopped:
+                    raise RuntimeError(f'Driver exited with code {code}. See the log above.')
+            else:
+                name, args = spec
+                with lock:
+                    if self.stopped:
+                        break
+                    self.client = MCPClient(str(ROOT / 'mcp_server.js'), cwd=str(ROOT), log=self.log)
+                self.client.start()
+                if self.stopped:
+                    self.client.stop()
+                    break
+                result = self.client.call_tool(name, args)
+                self.log(result['text'])
+                self.client.stop()
+                self.client = None
+                if result['isError'] and not self.stopped:
+                    raise RuntimeError('The workflow reported an error. See the log above.')
+
     def run(self):
         try:
-            for index, (kind, spec) in enumerate(self.operations):
-                self.operation_index = index
-                self.phase = 'running operation ' + str(index + 1)
-                self.save_progress()
-                if self.action == 'generate_queue':
-                    story = spec[1].get('story') if kind == 'request' else spec[1].get('stories', [''])[0] if kind == 'mcp' else next((str(x) for x in spec if str(x).endswith('.json')), '')
-                    self.log('STORY QUEUE: starting ' + str(story))
-                if self.stopped:
+            while not self.stopped:
+                attempt_start = self.sequence
+                try:
+                    self._run_operations()
+                    self.status = 'stopped' if self.stopped else 'completed'
                     break
-                if kind == 'request':
-                    filename, request = spec
-                    requestfile = ROOT / 'logs' / 'desktop' / (self.id + '.json')
-                    save_json(requestfile, request)
-                    kind, spec = 'cli', command(filename, requestfile)
-                if kind == 'cli':
-                    self.log('Starting ' + Path(spec[1]).name)
-                    with lock:
-                        if self.stopped:
-                            break
-                        self.proc = subprocess.Popen(spec, cwd=ROOT, stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='replace',
-                            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
-                    for line in self.proc.stdout:
-                        self.log(line.rstrip())
-                    code = self.proc.wait()
-                    self.proc = None
-                    if code and not self.stopped:
-                        raise RuntimeError(f'Driver exited with code {code}. See the log above.')
-                else:
-                    name, args = spec
-                    with lock:
-                        if self.stopped:
-                            break
-                        self.client = MCPClient(str(ROOT / 'mcp_server.js'), cwd=str(ROOT), log=self.log)
-                    self.client.start()
+                except Exception as exc:
+                    self.log(str(exc))
+                    recent = '\n'.join(row['text'] for row in self.logs if row['id'] > attempt_start)
                     if self.stopped:
-                        self.client.stop()
+                        self.status = 'stopped'
                         break
-                    result = self.client.call_tool(name, args)
-                    self.log(result['text'])
-                    self.client.stop()
-                    self.client = None
-                    if result['isError'] and not self.stopped:
-                        raise RuntimeError('The workflow reported an error. See the log above.')
-            self.status = 'stopped' if self.stopped else 'completed'
+                    if re.search(r'FLOW_REVIEW_REQUIRED:|RECOVERY_REVIEW_REQUIRED:', recent):
+                        self.log('Automatic retry stopped: this step needs review, so reopening the same project cannot resolve it. Completed clips and downloads are preserved.')
+                        self.status = 'failed'
+                        break
+                    if not automatic_retry_allowed(self.action, self.lane):
+                        self.status = 'failed'
+                        break
+                    # Use the same checkpoint planner as both Retry / Continue
+                    # controls. Batch identity and later stories stay intact.
+                    record = dict(id=self.id, action=self.action, payload=self.payload,
+                                  lane=self.lane, operations=self.operations,
+                                  operation_index=self.operation_index,
+                                  operation_projects=self.operation_projects,
+                                  operation_phases=self.operation_phases,
+                                  phase=self.phase, status='failed')
+                    if self.client:
+                        self.client.stop()
+                        self.client = None
+                    remaining = retry_plan(record)
+                    self.operations[self.operation_index:] = remaining
+                    self.auto_retry_count += 1
+                    mode = 'batch' if self.action == 'generate_queue' else 'single video'
+                    step = retry_step_name(recent, self.phase)
+                    self.phase = 'waiting to retry ' + step
+                    self.log(f'Automatic Retry / Continue ({mode}) #{self.auto_retry_count}: {step} failed; resuming the saved step in {AUTO_RETRY_SECONDS} seconds. Completed clips and downloads are preserved. Press Stop to cancel.')
+                    self.save_progress()
+                    if self._stop_event.wait(AUTO_RETRY_SECONDS):
+                        self.status = 'stopped'
+                        break
+            if self.stopped:
+                self.status = 'stopped'
         except Exception as exc:
             self.log(str(exc))
             self.status = 'stopped' if self.stopped else 'failed'
         finally:
             if self.client:
                 self.client.stop()
+                self.client = None
             self.finished = time.time()
+            self.log({'completed': 'Workflow completed successfully.', 'failed': 'Workflow stopped with an error.', 'stopped': 'Workflow stopped by user.'}.get(self.status, self.status))
             save_json(ROOT / 'logs' / 'desktop' / (self.id + '.result.json'), self.summary())
             self.save_progress()
 
 
 jobs = {}
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
-RETRY_ACTIONS = {'write', 'import_script', 'finalize', 'generate', 'generate_queue', 'refs', 'download', 'order', 'join', 'build', 'export_excel', 'retry_failed'}
+RETRY_ACTIONS = {'reverse_video', 'write', 'import_script', 'finalize', 'generate', 'generate_queue', 'refs', 'download', 'order', 'join', 'fix_join', 'build', 'export_excel', 'retry_failed'}
 
 
 def retry_plan(record):
@@ -473,14 +639,26 @@ def retry_plan(record):
     if not isinstance(cursor, int) or cursor < 0 or cursor >= len(operations):
         raise ValueError('Saved workflow step is unavailable.')
     remaining = json.loads(json.dumps(operations[cursor:]))
+    missing_batch_retry = retry_missing_agent_batch(record, remaining)
+    if missing_batch_retry:
+        return missing_batch_retry
     for offset, (kind, spec) in enumerate(remaining):
         project = record.get('operation_projects', {}).get(str(cursor+offset), '') if record.get('action') == 'generate_queue' else record.get('payload', {}).get('project', '')
         reference_failed = record.get('operation_phases', {}).get(str(cursor+offset)) == 'refs'
-        if offset == 0 and not reference_failed and re.fullmatch(r'[0-9a-f]{32}', record.get('id', '')):
+        if offset == 0 and str(cursor+offset) not in record.get('operation_phases', {}) and re.fullmatch(r'[0-9a-f]{32}', record.get('id', '')):
             logfile = ROOT / 'logs' / 'desktop' / (record['id'] + '.log')
             if logfile.is_file():
                 current_log = logfile.read_text(encoding='utf-8', errors='replace').rsplit('STORY QUEUE: starting', 1)[-1]
                 reference_failed = bool(re.search(r'FAILED at generate_refs', current_log))
+        # Repair old queue requests that ignored the enabled general reference switch.
+        # Only the original skipped-preparation request needs correction; once refs
+        # were requested, normal phase checkpoints govern subsequent retries.
+        if (kind == 'mcp' and record.get('action') == 'generate_queue'
+                and spec[1].get('generate') and not spec[1].get('generate_refs')
+                and spec[1].get('new_project')
+                and record.get('payload', {}).get('genRefs')):
+            reference_failed = True
+            spec[1]['generate_refs'] = True
         if kind == 'mcp' and spec[1].get('generate') and (project or record.get('action') != 'generate_queue'):
             if len(spec[1].get('stories', [])) != 1 or not project:
                 raise ValueError('This pipeline needs its saved single-story project to resume safely; no generation repeated.')
@@ -509,7 +687,7 @@ def retry_plan(record):
 @app.post('/api/retry')
 def retry_workflow(body: dict):
     view = body.get('view')
-    if view not in ('writer', 'agent', 'ingredients', 'omni'):
+    if view not in ('writer', 'agent', 'ingredients', 'omni', 'reverse'):
         raise HTTPException(400, 'Choose a workflow tab.')
     record = read_json(ROOT / 'logs' / 'desktop' / f'last_{view}_job.json')
     if not record:
@@ -593,6 +771,48 @@ def story_completion(path, story, manifest):
     completed_final = final.is_file() and final.stat().st_size > 0 and final.stat().st_mtime >= path.stat().st_mtime
     return dict(downloaded=len(downloaded), done=bool(complete_clips or completed_final),
                 completion='Final video saved' if completed_final else 'All clips downloaded' if complete_clips else 'Available')
+
+
+@app.get('/api/reverse-runs')
+def reverse_runs():
+    from reverse_video_desktop import list_runs
+    return list_runs(ROOT)
+
+
+@app.get('/api/reverse-run')
+def reverse_run(id: str):
+    from reverse_video_desktop import read_run
+    try:
+        return read_run(ROOT, id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+
+
+@app.post('/api/reverse-save')
+def reverse_save(body: dict):
+    from reverse_video_desktop import register
+    try:
+        return register(ROOT, body)
+    except (ValueError, OSError) as exc:
+        raise HTTPException(400, str(exc))
+
+
+@app.get('/api/master-prompts')
+def master_prompt_list():
+    folder = ROOT / 'Master prompts'
+    return [dict(**preset, available=(folder / (preset['id'] + '.txt')).is_file()) for preset in presets()]
+
+
+@app.get('/api/master-prompt')
+def master_prompt(preset: str):
+    allowed = {p['id']: p for p in presets()}
+    if preset not in allowed:
+        raise HTTPException(400, 'Select a known preset.')
+    folder = (ROOT / 'Master prompts').resolve()
+    source = (folder / (preset + '.txt')).resolve()
+    if source.parent != folder or not source.is_file():
+        raise HTTPException(404, 'No saved master prompt is available for this preset.')
+    return dict(id=preset, name=allowed[preset]['name'], text=source.read_text(encoding='utf-8-sig'))
 
 
 @app.get('/api/library')
@@ -734,7 +954,7 @@ class DesktopBridge:
 
     def choose_file(self, kind='story'):
         import webview
-        types = ('Images (*.png;*.jpg;*.jpeg;*.webp)',) if kind == 'image' else ('JSON files (*.json)',)
+        types = ('Videos (*.mp4;*.mov;*.m4v;*.webm;*.mkv;*.avi)',) if kind == 'video' else ('Images (*.png;*.jpg;*.jpeg;*.webp)',) if kind == 'image' else ('JSON files (*.json)',)
         result = (self._window or webview.windows[0]).create_file_dialog(webview.FileDialog.OPEN, directory=str(ROOT / 'stories'), file_types=types)
         return str(result[0]) if result else ''
 
@@ -759,7 +979,7 @@ class DesktopBridge:
             return True
         bridge = DesktopBridge(self._base_url)
         theme = surface_preferences('writer').get('theme', 'crimson')
-        background = {'crimson': '#09090b', 'ember': '#0b0806', 'matte': '#e6e7eb'}.get(theme, '#09090b')
+        background = {'crimson': '#09090b', 'ember': '#0b0806', 'matte': '#e6e7eb', 'lime': '#0f1113'}.get(theme, '#09090b')
         window = webview.create_window('VEO3 Story Writer', self._base_url + '/?writer=1', js_api=bridge,
             width=1120, height=850, min_size=(980, 620), background_color=background, confirm_close=True)
         bridge._window = window
@@ -786,7 +1006,7 @@ def main():
     screen = webview.screens[0]
     width, height = min(1380, screen.width - 40), min(920, screen.height - 80)
     theme = read_json(STATE).get('theme', 'crimson')
-    background = {'crimson': '#09090b', 'ember': '#0b0806', 'matte': '#e6e7eb'}.get(theme, '#09090b')
+    background = {'crimson': '#09090b', 'ember': '#0b0806', 'matte': '#e6e7eb', 'lime': '#0f1113'}.get(theme, '#09090b')
     bridge = DesktopBridge(f'http://127.0.0.1:{port}')
     bridge._window = webview.create_window('VEO3 Studio', bridge._base_url, js_api=bridge,
                           width=width, height=height, min_size=(980, 620), background_color=background, confirm_close=True)

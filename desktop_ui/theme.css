@@ -19,6 +19,14 @@
  --field:rgba(255,255,255,.75);--hot:rgba(227,21,43,.14);--glow:#c9ccd3;
  color-scheme:light;
 }
+/* Higgsfield-inspired lime actions with near-black labels and charcoal surfaces. */
+[data-theme="lime"]{
+ --bg:#0f1113;--bg2:#17191c;--accent:#d1fe17;--accent2:#d1fe17;--on-accent:#1a1a1a;
+ --text:#f7f7f8;--muted:#a5a8ad;--faint:#7b8088;
+ --glass:rgba(255,255,255,.035);--glass2:rgba(255,255,255,.065);--line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.18);
+ --field:#111315;--hot:rgba(209,254,23,.10);--glow:#263000;--ok:#d1fe17;--bad:#ff6978;
+ color-scheme:dark;
+}
 body{background:radial-gradient(ellipse at 90% 0%,var(--hot),transparent 40%),var(--bg);color:var(--text)}
 ::selection{background:var(--accent);color:var(--on-accent)}
 ::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--line2);border-radius:8px}
@@ -85,3 +93,13 @@ dialog::backdrop{background:#0008}.dialog-icon{background:var(--hot);color:var(-
 .card-collapsible:not([open])>summary{margin-bottom:8px}
 #story-detail.card-collapsible{margin-top:24px}
 @media(max-width:800px){.stats>.card-body{grid-template-columns:1fr}.hero>.card-body{flex-wrap:wrap}.card-visibility-toggle{min-width:48px}}
+
+#master-prompt-text{width:100%;min-height:460px;height:60vh;resize:vertical;margin-top:16px;font-family:Consolas,monospace;font-size:13px;line-height:1.6}#master-prompt-status{color:var(--text-muted);font-size:13px;align-self:center}
+
+[data-theme="lime"] .button.primary{box-shadow:none;font-weight:650}[data-theme="lime"] .button.primary:hover{filter:brightness(.94)}[data-theme="lime"] .segmented button.selected{background:var(--accent);color:var(--on-accent)}
+
+/* Reference analysis workspace */
+.reverse-video-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid var(--border)}
+.reverse-video-row small{display:block;overflow-wrap:anywhere;opacity:.7;margin-top:5px}
+#reverse-report,#reverse-master,#reverse-preset{width:100%;min-height:340px;resize:vertical;font-family:Consolas,monospace;font-size:12px;line-height:1.6}
+#reverse-runs{min-width:240px;max-width:100%}

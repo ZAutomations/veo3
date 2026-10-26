@@ -465,6 +465,7 @@ for (const sc of scenes) {
     // In the sound-led mode every clip gets a sound brief, including clip 1 -
     // the hook still has wind or traffic under it, and saying so is what keeps
     // the music bed from being the only thing on the audio track.
+    if (zackCuts) L.push(require('./zack_native_audio').instructions(story,sc));
     if (INTRO) {
         if (sound) withSound++;
         L.push(sound
@@ -515,10 +516,11 @@ if (DIALOGUE) {
     L.push('Do not add any character dialogue anywhere - narration only.');
 }
 
-const body = require('./motivational_ready_script').agent(story,{from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS}) || require('./zack_ready_script').agent(story,{from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS}) || require('./cartoon_narration_prompt').agent(story,{from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS}) || require('./simple_dialogue_prompt').agent(story, {
+let body = require('./reference_video_preset').agent(story,{from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS}) || require('./heartwarming_cat').agent(story,{from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS}) || require('./motivational_ready_script').agent(story,{from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS}) || require('./zack_ready_script').agent(story,{from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS}) || require('./cartoon_narration_prompt').agent(story,{from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS}) || require('./simple_dialogue_prompt').agent(story, {
     from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS,
     native:!!flag('--flow-characters',false),
 }) || (zackCuts ? require('./zack_shot_contract').DIRECTION + '\n\n' : '') + L.join('\n');
+body = require('./agent_scene_ids').inject(body,story);
 const outPath = OUT || path.join(path.dirname(storyPath), 'agent_prompt.txt');
 
 if (PRINT_ONLY) {
@@ -605,7 +607,7 @@ if (INTRO) {
         console.log(`               WARNING: ${scenes.length - withSound} scene(s) have no sound brief.`);
         console.log('               The agent will invent the audio for those clips. Add sound_context.');
     }
-} else if (!DIALOGUE && withNarration < scenes.length) {
+} else if (!DIALOGUE && !require('./reference_video_preset').applies(story) && !require('./heartwarming_cat').applies(story) && withNarration < scenes.length) {
     console.log(`               WARNING: ${scenes.length - withNarration} scene(s) have no narration text.`);
     console.log('               The agent will INVENT those scenes. Add script_line to the story JSON.');
 }

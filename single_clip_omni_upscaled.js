@@ -84,13 +84,14 @@ class UpscaledDownloader{
   fs.mkdirSync(this.out,{recursive:true});
   fs.writeFileSync(this.ledgerFile+'.tmp',JSON.stringify(this.ledger,null,2));fs.renameSync(this.ledgerFile+'.tmp',this.ledgerFile);
   const unresolved=this.orderMode==='unresolved-assets';
-  const clips=this.ledger.clips.slice().sort((a,b)=>a.scene-b.scene).map(e=>({file:e.file,order:e.scene,matched_scene:unresolved?null:e.scene,match_from:unresolved?'asset identity; narration ordering pending':'exact Omni source prompt',order_verified:!unresolved,
-   assetId:e.assetId||null,got:true,width:e.width,height:e.height,route:e.route,sha256:e.sha256}));
+  const clips=this.ledger.clips.slice().sort((a,b)=>a.scene-b.scene).map(e=>({file:e.file,order:e.scene,matched_scene:unresolved?null:e.scene,match_from:unresolved?'asset identity; scene ordering pending':e.sceneId?'scene_id':'exact Omni source prompt',order_verified:!unresolved,
+   assetId:e.assetId||null,sceneId:e.sceneId||null,got:true,width:e.width,height:e.height,route:e.route,sha256:e.sha256}));
   const complete=clips.length===this.total&&clips.every((c,i)=>c.order===i+1
    &&Math.min(c.width,c.height)===(this.targets.get(c.order)||this.targetResolution)
    &&fs.existsSync(path.join(this.out,c.file))&&crypto.createHash('sha256').update(fs.readFileSync(path.join(this.out,c.file))).digest('hex')===c.sha256);
   const manifest={projectUrl:this.project,expected:this.total,complete:complete&&!unresolved,downloadComplete:complete,needsSceneOrdering:unresolved,
-   route:this.upscaleFromSource?'Source-matched Upscaled':`Omni ${this.downloadVersion==='original'?'Original':'Upscaled'} ${this.targetResolution}p`,orderResolvedBy:unresolved?null:'exact Omni source prompt',clips};
+   route:this.upscaleFromSource?'Source-matched Upscaled':`Omni ${this.downloadVersion==='original'?'Original':'Upscaled'} ${this.targetResolution}p`,orderResolvedBy:unresolved?null:clips.every(c=>c.sceneId)?'scene_id':'exact Omni source prompt',clips};
+  if(!unresolved&&clips.some(c=>c.sceneId))fs.writeFileSync(path.join(this.out,'SCENE_ASSET_MAP.json'),JSON.stringify({projectUrl:this.project,expected:this.total,complete:manifest.complete&&clips.every(c=>c.sceneId),clips:clips.map(c=>({scene:c.matched_scene,sceneId:c.sceneId,assetId:c.assetId,file:c.file,sha256:c.sha256}))},null,2)+'\n');
   fs.writeFileSync(path.join(this.out,'omni_manifest.partial.json'),JSON.stringify(manifest,null,2));
   if(complete){
    const target=path.join(this.out,'manifest.json');
@@ -177,7 +178,8 @@ class UpscaledDownloader{
   if(!upscaled)throw Error(`Scene ${job.number}: Upscaled submenu did not open.`);
   this.activeDownload={};
   this.log(`Scene ${job.number}: Download > ${upscaled.text.replace(/\s+/g,' ')}.`);
-  if(!await this.page.evaluate(bg.clickMenuText,upscaled.text))throw Error('Upscaled menu click did not target one visible item.');
+  await require('./download_menu_click').clickDownloadOption(this.page,upscaled.text);
+  this.log(`Scene ${job.number}: trusted click sent; waiting for Flow to start the transfer.`);
   const deadline=Date.now()+6*60*1000;
   const startDeadline=Date.now()+90000;
   while(Date.now()<deadline){
@@ -199,7 +201,7 @@ class UpscaledDownloader{
   }
   fs.copyFileSync(source,dest);
   const entry={scene:job.number,file,project:this.project,promptHash:crypto.createHash('sha256').update(job.prompt).digest('hex'),
-   assetId:hit.assetId,sourceAttemptedAt:receipt?.attemptedAt||null,route,width:info.width,height:info.height,sha256:info.sha256};
+   assetId:hit.assetId,sceneId:receipt?.sceneId||null,sourceAttemptedAt:receipt?.attemptedAt||null,route,width:info.width,height:info.height,sha256:info.sha256};
   this.ledger.clips=this.ledger.clips.filter(c=>c.scene!==job.number);this.ledger.clips.push(entry);this.save();this.activeDownload=null;
   this.log(`Scene ${job.number}: saved and decoded ${info.width}x${info.height} ${this.downloadVersion} clip.`);return entry;
  }
@@ -216,7 +218,7 @@ class UpscaledDownloader{
      await this.page.keyboard.press('Escape');await sleep(1000);
     }
    }
-  }}finally{await this.engine.page.bringToFront();}
+  }}finally{try{if(!this.engine.page.isClosed?.())await this.engine.page.bringToFront();}catch{}}
  }
  async close(){if(this.cdp){await this.cdp.send('Browser.setDownloadBehavior',{behavior:'default',eventsEnabled:false}).catch(()=>{});await this.cdp.detach().catch(()=>{});}if(this.page&&!this.useExistingPage)await this.page.close();}
 }

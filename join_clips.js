@@ -145,8 +145,7 @@ if (savedManifest && expectedClips) {
 // This also covers saved Retry commands from older Studio versions. Resolve
 // locally before joining an asset download; never infer order from filenames.
 if (savedManifest && savedManifest.complete === false && !manualOrder && !DRY_RUN
-    && !ALLOW_PARTIAL && (!savedManifest.orderResolvedBy ||
-        savedManifest.orderResolvedBy === 'dialogue' && !Array.isArray(savedManifest.missingScenes))) {
+    && !ALLOW_PARTIAL) {
     const storyFile = require('./order_clips_by_dialogue').resolveStoryJson(path.dirname(path.resolve(DIR)));
     if (storyFile) {
         log('Checking story order from clip narration before joining (local transcription).');
@@ -168,9 +167,10 @@ if ((savedManifest && savedManifest.complete === false || expectedClips && ready
     if (savedManifest && savedManifest.missingScenes && savedManifest.missingScenes.length) {
         console.error(`Missing verified story scenes: ${savedManifest.missingScenes.join(', ')}.`);
         for (const c of savedManifest.unidentifiedClips || []) console.error(`${c.file}: ${c.repeats_scene ? 'repeats narration from Scene '+c.repeats_scene : 'narration not identified'}.`);
-        console.error('See clips/CLIP_ORDER.txt. Replace missing scenes, then Resolve clip order again. Repeating Join cannot restore missing content.');
+        console.error('RECOVERY_REVIEW_REQUIRED: Scene order is still unresolved after the local check. See clips/CLIP_ORDER.txt; review the listed clip or replace it before joining. Automatic Join retries cannot resolve unchanged content.');
         process.exit(2);
     }
+    console.error('RECOVERY_REVIEW_REQUIRED: The verified story clip set is incomplete; automatic Join retries stopped.');
     console.error(readyInManifest === expectedClips
         ? 'All files are present, but scene order is unresolved or the manifest is stale. Resolve clip order, or provide --order with your verified story order.'
         : readyInManifest > expectedClips

@@ -27,6 +27,11 @@ try {
     assert.match(result.stderr,/Missing verified story scenes: 2/);
     assert.match(result.stderr,/repeats narration from Scene 1/);
     assert(!result.stdout.includes('Or without touching the manifest'));
+    assert.match(result.stderr,/RECOVERY_REVIEW_REQUIRED:/,'unchanged unresolved ordering must stop the automatic retry loop');
+    const rerun = spawnSync(process.execPath, [path.join(root,'join_clips.js'),clips], {encoding:'utf8'});
+    assert.equal(rerun.status,2);
+    assert.match(rerun.stdout,/Checking story order/,'saved partial manifest gets a new local resolution check on explicit Join');
+    assert.match(rerun.stderr,/RECOVERY_REVIEW_REQUIRED:/);
     const manifest = JSON.parse(fs.readFileSync(path.join(clips,'manifest.json')));
     assert.equal(manifest.complete,false);
     assert.deepEqual(manifest.missingScenes,[2]);

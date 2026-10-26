@@ -1,0 +1,15 @@
+const assert=require('assert'),fs=require('fs'),os=require('os'),path=require('path');
+const {receiptFor,recoverPending}=require('../reference_generation_receipt');
+(async()=>{const dir=fs.mkdtempSync(path.join(os.tmpdir(),'ref-receipt-'));
+try{const ref={name:'Environment',prompt:'Actual ship interior'};const r=receiptFor('project1',ref,dir);assert.equal(r.read(),null);
+const before={images:[{key:'older'}],videos:[],errors:[]};r.write({status:'pending',before});
+const restarted=receiptFor('project1',ref,dir);let waits=0;
+const RI={referenceState:()=>{},waitForReferenceImage:async(page,state,seconds)=>{assert.deepEqual(state,before);waits++;return {ok:true,tileIndex:2}}};
+const page={evaluate:async()=>({images:[{key:'new',tileIndex:2}]})};
+assert.deepEqual(await recoverPending(page,restarted,180,RI,()=>{}),{ok:true,tileIndex:2});assert.equal(waits,1);
+r.write({status:'completed',imageKey:'new'});assert((await recoverPending(page,restarted,180,RI,()=>{})).alreadyNamed);assert.equal(waits,1);
+assert.equal(receiptFor('project2',ref,dir).read(),null);assert.equal(receiptFor('project1',{...ref,prompt:'Different'},dir).read(),null);
+page.evaluate=async()=>({images:[]});const unknown=await recoverPending(page,restarted,180,RI,()=>{});assert(!unknown.ok&&unknown.why.includes('no duplicate submitted'));
+r.clear();assert.equal(r.read(),null);
+console.log('PASS: pending reference persists across restart, late completion reused, completed reference verified, projects/prompts isolated, uncertain image never substituted or submitted again.');
+}finally{fs.rmSync(dir,{recursive:true,force:true});}})().catch(e=>{console.error(e);process.exitCode=1});

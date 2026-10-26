@@ -765,7 +765,7 @@ function contentMapBlock(cm) {
         ] : PRESET_ID === '3d-zack-style' ? [
             'SOURCE FIDELITY: preserve the source subject, tense, cause and outcome.',
             'The hook makes the FIRST source event interesting without changing or reordering it.',
-            'Finish every source event and the original ending BEFORE the separate extra CTA clip.',
+            'Finish every source event and the complete original ending. Do not append an unrequested CTA clip.',
             'Use simple new wording. Do not invent numbers, capabilities or advice to the viewer.',
         ] : [
             'Scene 1 is the HOOK: pose the single most counter-intuitive claim or question from',
@@ -966,6 +966,8 @@ function lookBlock(p, place) {
 }
 
 function castPrompt(p, houseCast) {
+    if(p.derived_video_preset)return require('./reference_video_preset').castPrompt(p,{title:TITLE,detail:DETAIL,count:SCENES});
+    if(require('./heartwarming_cat').applies(p))return require('./heartwarming_cat').castPrompt(p,{title:TITLE,detail:DETAIL,count:SCENES,seconds:SECONDS,aspect:ASPECT});
     if(require('./dog_couple').applies(p))return require('./dog_couple').cast(p,{title:TITLE,detail:DETAIL,count:SCENES,seconds:SECONDS,aspect:ASPECT,source:CONTENT_MAP});
     if(require('./motivational_metaphor').applies(p))return require('./motivational_metaphor').cast(p,{title:TITLE,detail:DETAIL,count:SCENES,seconds:SECONDS,aspect:ASPECT});
     if(require('./cartoon_narration_prompt').applies(p))return require('./cartoon_narration_prompt').cast(p,{title:TITLE,detail:DETAIL,count:SCENES,seconds:SECONDS,aspect:ASPECT,source:CONTENT_MAP,houseCast});
@@ -1342,6 +1344,8 @@ Return ONLY this JSON, no other text:
 }
 
 function scenesPrompt(p, cast, outline, from, to, soFar, place, blocking) {
+    if(p.derived_video_preset)return require('./reference_video_preset').scenesPrompt(p,{outline,previous:soFar,place},from,to);
+    if(require('./heartwarming_cat').applies(p))return require('./heartwarming_cat').scenesPrompt(p,cast,{outline,previous:soFar,place},from,to,{seconds:SECONDS});
     if(require('./dog_couple').applies(p))return require('./dog_couple').scenes(p,{title:TITLE,detail:DETAIL,count:SCENES,seconds:SECONDS,aspect:ASPECT,source:CONTENT_MAP,cast,outline,from,to,previous:soFar,place,blocking});
     if(require('./motivational_metaphor').applies(p))return require('./motivational_metaphor').scenes(p,{title:TITLE,detail:DETAIL,count:SCENES,seconds:SECONDS,cast,outline,from,to,previous:soFar,place});
     if(require('./cartoon_narration_prompt').applies(p))return require('./cartoon_narration_prompt').scenes(p,{title:TITLE,detail:DETAIL,count:SCENES,seconds:SECONDS,source:CONTENT_MAP,cast,outline,from,to,previous:soFar,place});
@@ -1667,7 +1671,7 @@ WHAT EACH LINE HAS TO DO - this matters more than the word count:
 `;
     const skeleton = dialogue
         ? `{"scenes":[{"scene_title":"","dialogue":[{"speaker":"","line":""}],"narrative_context":"","characters":[]}]}`
-        : intro
+        : (intro || p.id === '3d-zack-style')
         ? `{"scenes":[{"scene_title":"","script_line":"","sound_context":"","narrative_context":"","characters":[]}]}`
         : `{"scenes":[{"scene_title":"","script_line":"","narrative_context":"","characters":[]}]}`;
 
@@ -1677,6 +1681,7 @@ TITLE: ${TITLE}
 DETAIL FROM THE CREATOR: ${DETAIL || '(none given)'}
 ${lookBlock(p, fixed)}
 ${arrangementBlock}${audioBlock}${sourceDialogueBlock}
+${p.id === '3d-zack-style' ? require('./zack_native_audio').DIRECTION + ' Add sound_context to EVERY scene: SFX: timed justified effects or None; BGM: the same concise story-level musical identity with current intensity; Mix: narration foreground, quiet instrumental music, restrained effects.' : ''}
 ${castBlock}
 ${prev}
 THE BEATS FOR THESE CLIPS (one clip each, same order):
@@ -1710,6 +1715,8 @@ ${skeleton}`;
 // ambiguity - and left blank when it does, because guessing "human" for the dog
 // would hand an animal a person's wardrobe rules.
 function normaliseCast(p, cast) {
+    if(p.derived_video_preset)return p.reference_cast.map(c=>({...c,sheet_prompt:p.style+' Character reference, neutral background, no labels: '+c.description}));
+    cast=require('./heartwarming_cat').approvedCast(p,cast||[]);
     cast=require('./dog_couple').approvedCast(p,cast||[]);
     cast=require('./motivational_metaphor').approvedCast(p,cast||[]);
     cast=require('./cartoon_narration_prompt').approvedCast(p,cast||[]);
@@ -1817,6 +1824,8 @@ function enforceSourceDialogueFidelity(scenes, cast, cm, p = {}) {
 }
 
 function buildStory(p, cast, meta, scenes) {
+    if(p.derived_video_preset)return require('./reference_video_preset').build(p,cast,meta,scenes,{title:TITLE,aspect:ASPECT,seconds:SECONDS});
+    if(require('./heartwarming_cat').applies(p))return require('./heartwarming_cat').build(p,cast,meta,scenes,{title:TITLE,aspect:ASPECT,seconds:SECONDS});
     ({ meta, scenes } = require('./fantasy_advice_identity').inputs(p, cast, meta, scenes));
     ({ meta, scenes } = require('./couple_names').renameStoryInputs(p, cast, meta, scenes));
     // Apply the same speaker contract to API output and imported browser answers.
@@ -1892,6 +1901,7 @@ function buildStory(p, cast, meta, scenes) {
         moral: meta.moral,
         niche: p.label,
         style: p.style,
+        ...(p.id === '3d-zack-style' ? { sound_style: p.sound_style } : {}),
         ...(p.narrative_mode?{narrative_mode:p.narrative_mode}:{}),
         ...(require('./dog_couple').applies(p)?{character_species:'dog'}:{}),
         ...(require('./motivational_metaphor').applies(p)?{visual_direction:require('./motivational_metaphor').LOCK,requested_duration_seconds:DURATION,trim_target_seconds:DURATION<=16?15:30}:{}),
@@ -1952,7 +1962,7 @@ function buildStory(p, cast, meta, scenes) {
             // The sound brief only exists for sound-led presets. Naming the
             // literal sounds of the place is what stops a clip with no
             // voice-over from arriving with nothing on the audio track at all.
-            ...(intro ? { sound_context: s.sound_context || '' } : {}),
+            ...((intro || p.id === '3d-zack-style') ? { sound_context: s.sound_context || '' } : {}),
             narrative_context: sanitizeForPolicy(require('./cartoon_narration_prompt').applies(p)?shot({...s,narrative_context:require('./cartoon_narration_prompt').visual(s)}):shot(s)),
             // A clip with no narration carries its sound brief in the AUDIO slot
             // instead of an empty narrator line, which the video model would
@@ -1966,7 +1976,7 @@ function buildStory(p, cast, meta, scenes) {
                         : 'No dialogue in this clip. Room tone and the ambient sound of the place only.')
                     : (intro && !String(s.script_line || '').trim())
                         ? `No voice-over in this clip. Natural sound only: ${s.sound_context}`
-                        : require('./cartoon_narration_prompt').applies(p) ? require('./cartoon_narration_prompt').audio(p,s) : `Narrator (V.O., ${p.narration_voice}): "${s.script_line}"`)),
+                        : require('./cartoon_narration_prompt').applies(p) ? require('./cartoon_narration_prompt').audio(p,s) : `Narrator (V.O., ${p.narration_voice}): "${s.script_line}"` + (p.id === '3d-zack-style' ? '\n'+require('./zack_native_audio').instructions({sound_style:p.sound_style},s) : ''))),
             characters: (s.characters || []).map(x => String(x).toLowerCase()),
         })),
         character_descriptions: descriptions,
@@ -1975,6 +1985,8 @@ function buildStory(p, cast, meta, scenes) {
 }
 
 function validate(story, cast, p = {}) {
+    if(p.derived_video_preset){try{require('./reference_video_preset').validate({seconds:story.scene_seconds,clips:story.scenes.map((s,i)=>({...s,number:i+1,narration:s.script_line,sound:s.sound_context}))},p);return [];}catch(e){return [e.message];}}
+    if(require('./heartwarming_cat').applies(p))return require('./heartwarming_cat').validateStory(story,cast);
     const { hard: WORDS_HARD } = wordBudget(p);
     const bad = [];
     bad.push(...require('./cartoon_narration_prompt').validateShots(story));
@@ -2185,7 +2197,7 @@ function writePackage(dir, p, story, cast) {
             `=== PLACE - ${(placeName || p.label || 'the film').toUpperCase()} ===`,
             `save as: character_refs/${placeName || 'place'}.jpg`,
             '',
-            ...(p.id === 'fern-documentary' ? ['This is a design reference for matching shots only, not the whole film.', 'Use the location and time required by each narrated event. Generate ONE image'] : ['This is the ONE place this film happens in. Every clip is shot here,', 'with the same furniture and the same light. Generate it as ONE image']),
+            ...((p.derived_video_preset || p.id === 'heartwarming-cat-3d') ? ['This is one coherent home design reference, not a fixed camera or lighting state.', 'Use the story-relevant room, light and prop state in every scene. Generate ONE image'] : p.id === 'fern-documentary' ? ['This is a design reference for matching shots only, not the whole film.', 'Use the location and time required by each narrated event. Generate ONE image'] : ['This is the ONE place this film happens in. Every clip is shot here,', 'with the same furniture and the same light. Generate it as ONE image']),
             'of the place EMPTY - no people and no animals - seen straight on and',
             'wide, evenly lit, the whole space readable.',
             '',
@@ -2405,6 +2417,7 @@ function writePackage(dir, p, story, cast) {
     require('./cartoon_narration_prompt').writeNarration(dir,story);
     minimal.write(dir, story);
     if (p.id === 'fantasy-princess-relationship-advice') require('./fantasy_advice_camera').writeExtend(dir, story);
+    if(p.derived_video_preset)require('./reference_video_preset').writeRefs(dir,p,story,cast);
     return storyPath;
 }
 

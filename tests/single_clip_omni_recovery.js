@@ -24,6 +24,10 @@ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../single_clip_omni_reco
  const inspection=await actual.inspectProject({browser:{newPage:async()=>page},projectUrl:'https://flow.google.com/project/test',page},jobs,{}, {sleep:async()=>{}});
  assert(inspection.targetsVerified);assert(!inspection.exhaustive);assert.equal(scrolled,0,'all five matched sources require no scrolling even with a nonmoving scroll host');
  assert.deepEqual(actual.reconcilePending({},jobs.map(j=>j.number),inspection).completed,[1,2,3,4,5]);
+ let cleaned=0;const originalClose=page.close;page.close=async()=>{cleaned++;};
+ const closedOrigin={bringToFront:async()=>{throw Error('Session closed');}};
+ const recovered=await actual.inspectProject({browser:{newPage:async()=>page},projectUrl:'https://flow.google.com/project/test',page:closedOrigin},jobs,{}, {sleep:async()=>{}});
+ assert(recovered.targetsVerified);assert.equal(cleaned,1,'inspection closes even when the original browser tab has gone');page.close=originalClose;
  const receipt=await mod.exports.confirmSubmission({evaluate:async()=>''}, {number:12}, {}, {timeout:100,sleep:async()=>{}});
  assert.equal(receipt.key,'new');assert(receipt.confirmedAt);
  frames=0;await assert.rejects(mod.exports.confirmSubmission({evaluate:async()=>''}, {number:12}, {}, {timeout:0}),/no new matching clip tile/);

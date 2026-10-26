@@ -189,13 +189,9 @@ async function setInstructions(page, text) {
 if (require.main === module) (async () => {
     let browser;
     try {
-        browser = await puppeteer.connect({
-            browserURL: `http://127.0.0.1:${CDP_PORT}`, defaultViewport: null,
-        });
+        browser = await require('./automation_browser').connectAutomationBrowser({browserURL:`http://127.0.0.1:${CDP_PORT}`,account:flag('--account',''),log});
     } catch (e) {
-        console.error(`Could not connect to Chrome on CDP port ${CDP_PORT}.`);
-        console.error('Start the automation browser first (START_CHROME_CDP.bat / the GUI), then retry.');
-        process.exit(1);
+        console.error(e.message);process.exit(1);
     }
 
     let page = await flowPage(browser);

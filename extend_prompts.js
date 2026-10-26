@@ -122,6 +122,24 @@ const MIN_BLOCK = 100;
 function deriveExtendPrompts(story, toScene) {
     const scenes = (story && Array.isArray(story.scenes)) ? story.scenes : [];
     if (scenes.length < 2) return { ok: false, reason: 'the story has fewer than two scenes' };
+    // Structured visual stories already separate action from style. Do not
+    // try subtracting a common prefix from their standalone prompt headers.
+    if (require('./heartwarming_cat').applies(story)) {
+        const prompts={};
+        for(let i=1;i<scenes.length&&(!toScene||i+1<=toScene);i++){
+            const scene=scenes[i];
+            if(!scene.shots?.length||!scene.start_state||!scene.end_state)return {ok:false,reason:`scene ${i+1} needs structured shots and start/end states for continuation`};
+            prompts[i+1]=[
+                'Continue from the exact final frame of the preceding clip. Preserve the established adult woman and cat, wardrobe, bib, teddy, furniture, lighting, camera position and spatial direction. No fresh establishing shot or standalone restart.',
+                `CONTINUITY TARGET: ${scene.start_state}. Preserve the actual carried frame if it differs slightly; transition naturally into the next action without teleporting or resetting poses.`,
+                ...scene.shots.map((s,n)=>`NEXT ACTION ${n+1} (${s.start_seconds}–${s.end_seconds}s): ${s.visual}`),
+                `END STATE: ${scene.end_state}`,
+                require('./heartwarming_cat').audio(story,i),
+                'Silent visual storytelling. No narration, human speech, singing, subtitles or lip-sync. Retain the current framing at the boundary; change camera only where the next action explicitly requests it.'
+            ].join('\n\n');
+        }
+        return {ok:true,block:'Structured action/state fields; repeated standalone style/setup excluded.',prompts,skipped:[]};
+    }
 
     const bodies = scenes.map(s => sceneBody(s.veo3_prompt));
     const blank = bodies.findIndex(b => !b);

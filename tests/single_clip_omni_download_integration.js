@@ -6,7 +6,7 @@ const fixture=path.join(folder,'fixture.mp4');
 const fixture1080=path.join(folder,'fixture1080.mp4');
 execFileSync('ffmpeg',['-v','error','-y','-f','lavfi','-i','color=c=black:s=1280x720:r=10','-t','0.2','-c:v','libx264','-preset','ultrafast',fixture],{windowsHide:true,timeout:30000});
 execFileSync('ffmpeg',['-v','error','-y','-f','lavfi','-i','color=c=black:s=1920x1080:r=10','-t','0.2','-c:v','libx264','-preset','ultrafast',fixture1080],{windowsHide:true,timeout:30000});
-let mode='',newPages=0,backgroundNavigations=0,menuClicks=0,downloads=0,downloadPath='',generationChecks=0,nativeOptions=false,captionsOnly=false,copiedPrompt='',recycledNumber=0;
+let mode='',newPages=0,backgroundNavigations=0,menuClicks=0,downloads=0,downloadPath='',generationChecks=0,nativeOptions=false,captionsOnly=false,copiedPrompt='',recycledNumber=0,chosenOption='';
 const original=n=>`Original prompt for scene ${n}: a woman notices a broken vase and thoughtfully considers what happened.`;
 const callbacks={};
 const cdp={on:(event,fn)=>callbacks[event]=fn,send:async(method,args)=>{if(args?.downloadPath)downloadPath=args.downloadPath;},detach:async()=>{}};
@@ -20,16 +20,13 @@ const page={bringToFront:async()=>{},goto:async()=>backgroundNavigations++,waitF
   if(!fn.name&&captionsOnly)return copiedPrompt;
   if(fn.name==='menuItems')return mode==='download'?[{text:'Download',x:30,y:40}]:mode==='sizes'?(nativeOptions?[{text:'720p Original',x:40,y:50},{text:'1080p Upscaled',x:50,y:60}]:[{text:'360p Original',x:40,y:50},{text:'720p Upscaled',x:50,y:60}]):[];
   if(fn.name==='openClipMenu'){mode='download';menuClicks++;return {ok:true,direct:false};}
+  if(fn.name==='menuTarget'){chosenOption=args;return {x:50,y:60};}
   if(fn.name==='clickMenuText'){
    if(args==='Download')mode='sizes';
-   else if(args==='720p Upscaled'||args==='720p Original'||args==='1080p Upscaled'){
-    const guid=`guid-${++downloads}`;fs.copyFileSync(args==='1080p Upscaled'?fixture1080:fixture,path.join(downloadPath,guid));
-    callbacks['Browser.downloadWillBegin']({guid});callbacks['Browser.downloadProgress']({guid,state:'completed'});
-   }
    return true;
   }
  },
- mouse:{move:async()=>{throw Error('background mouse event forbidden');},click:async()=>{throw Error('background mouse event forbidden');}}
+ mouse:{move:async()=>{throw Error('unexpected mouse movement');},click:async(x,y)=>{assert.equal(x,50);assert.equal(y,60);assert.equal(mode,'sizes');const guid=`guid-${++downloads}`;fs.copyFileSync(chosenOption==='1080p Upscaled'?fixture1080:fixture,path.join(downloadPath,guid));callbacks['Browser.downloadWillBegin']({guid});callbacks['Browser.downloadProgress']({guid,state:'completed'});}}
 
 };
 const engine={projectUrl:'https://flow.google.com/project/test-pipeline',page:{bringToFront:async()=>{}},

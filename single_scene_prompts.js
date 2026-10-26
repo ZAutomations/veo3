@@ -8,6 +8,8 @@ function promptForScene(story, index, options = {}) {
     const aspect = /^(flow|auto)$/i.test(ratio || '') ? null : ratio;
     const seconds = Number(options.seconds || story.scene_seconds) || 8;
     const request = `Generate ONE standalone clip for story scene ${index + 1} only. Do not generate other scenes or repeat the full story. Use the existing named references in this project.\n`;
+    if(require('./reference_video_preset').applies(story))return require('./reference_video_preset').scene(story,index,{aspect:aspect||'Flow',seconds});
+    if(require('./heartwarming_cat').applies(story))return require('./heartwarming_cat').scene(story,index,{aspect:aspect||'Flow',seconds});
     if(require('./motivational_ready_script').applies(story))return require('./motivational_ready_script').scene(story,index,{aspect:aspect||'Flow',seconds});
     if(require('./zack_ready_script').applies(story))return require('./zack_ready_script').scene(story,index,{aspect:aspect||'Flow',seconds});
     if(require('./cartoon_narration_prompt').applies(story))return request+'\n'+require('./cartoon_narration_prompt').scene(story,index,{aspect,seconds})+'\n';
@@ -34,6 +36,7 @@ function promptForScene(story, index, options = {}) {
         story.place ? `${require('./fern_topic_visuals').applies(story) ? 'REFERENCE SETTING (matching shots only)' : 'LOCATION'}: ${story.place.name}. ${story.place.description || ''}` : '',
         story.blocking ? `POSITIONS: ${story.blocking}` : '',
         `VISUAL: ${scene.narrative_context || ''}`, `AUDIO: ${audio}`,
+        require('./zack_native_audio').applies(story) ? require('./zack_native_audio').instructions(story,scene) : '',
         require('./fern_topic_visuals').applies(story) ? 'Do not rewrite the spoken lines, add narration, captions or additional clips. Keep mannequin identity, clothing and location design consistent; use the setting required by each supplied shot.' : 'Do not rewrite the spoken lines, add narration, captions or additional clips. Keep character identity, clothing and location consistent.'
     ].filter(Boolean).join('\n\n') + '\n';
 }

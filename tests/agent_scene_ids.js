@@ -1,0 +1,30 @@
+const assert=require('assert'),fs=require('fs'),path=require('path'),os=require('os'),vm=require('vm');
+const I=require('../agent_scene_ids'),A=require('../agent_upscaled_download');
+const story={title:'Silent teddy',preset_id:'heartwarming-cat-3d',narrated:false,scenes:Array.from({length:8},(_,i)=>({script_line:'',dialogue:[],narrative_context:'Action '+i,shots:[{visual:'Unique scene action '+i}],veo3_prompt:'Generate scene '+(i+1)}))};
+const text='Create eight clips.\n\n'+story.scenes.map((s,i)=>`Scene ${i+1} — Action\n${s.veo3_prompt}`).join('\n\n');
+const injected=I.inject(text,story);assert.equal((injected.match(/SCENE ASSET ID: V3_/g)||[]).length,8);assert(injected.includes('METADATA ONLY'));assert(!injected.includes('SCENE ASSET ID: undefined'));assert.equal(I.inject(injected,story),injected);
+const names=story.scenes.map((s,i)=>I.sceneId(story,i+1));assert.equal(new Set(names).size,8);assert.notEqual(I.sceneId({...story,title:'Another film'},1),names[0]);
+const tiles=names.map((id,i)=>({assetId:'asset-'+i,index:7-i,caption:id,text:'play_circle 360p',prompt:injected})).reverse();
+assert.deepEqual(A.plan(tiles,story).map(e=>e.receipt.assetId),Array.from({length:8},(_,i)=>'asset-'+i));
+assert(A.plan(tiles,story).every(e=>e.receipt.sceneId&&e.receipt.match_from==='scene_id'&&e.receipt.nativeResolution===360));
+// Flow grid mode keeps the name in a footer button aria-label, not tile text.
+const footerTiles=tiles.map(t=>({...t,caption:'play_circle',prompt:'',buttons:[{aria:t.caption,text:'',cls:'footer-left'}]}));
+assert.equal(I.plan(footerTiles,story).length,8);
+assert(I.plan(footerTiles,story).every(e=>e.receipt.nativeResolution===360&&!e.receipt.native720));
+assert.equal(I.plan(tiles.slice(0,7),story),null,'incomplete IDs cannot authorize full mapping');
+assert.equal(I.plan(tiles.map(t=>({...t,caption:'',prompt:injected})),story),null,'a shared batch prompt is not individual identity');
+assert.throws(()=>I.plan([...tiles,{...tiles[0],assetId:'duplicate'}],story),/multiple completed/);
+assert.equal(I.plan(tiles.map(t=>({...t,caption:t.caption.replace(I.prefix(story),'V3_aaaaaaaaaaaa'),prompt:''})),story),null);
+const temp=fs.mkdtempSync(path.join(os.tmpdir(),'scene-ids-'));
+(async()=>{try{
+ const file=path.join(temp,'story.json');fs.writeFileSync(file,JSON.stringify(story));let captured;
+ const Fake=class{constructor(engine,options){captured=this;this.options=options;}async group(jobs,receipts){this.jobs=jobs;this.receipts=receipts;}async close(){}};
+ const moduleStub={exports:{}};
+ const requireMock=n=>n==='./single_clip_omni_upscaled'?{UpscaledDownloader:Fake}:n==='./single_clip_omni_recovery'?{inspectProject:async()=>{throw Error('ID mapping must not inspect source prompts');}}:n.startsWith('./')?require(path.join(__dirname,'..',n)):require(n);
+ vm.runInNewContext(fs.readFileSync(require.resolve('../agent_upscaled_download'),'utf8'),{module:moduleStub,exports:moduleStub.exports,require:requireMock,console});
+ await moduleStub.exports.download({}, {},{storyFile:file,project:'https://flow.google.com/project/test',tiles:footerTiles,outDir:path.join(temp,'clips')});
+ assert.equal(captured.options.orderMode,'scene');assert.equal(captured.jobs.length,8);assert.equal(captured.receipts[1].sceneId,names[0]);
+ assert.equal(captured.options.useExistingPage,true,'Agent downloads must not create or navigate an extra tab');
+ assert(Object.values(captured.receipts).every(r=>r.nativeResolution===360&&!r.native720),'360p tiles must request 720p upscale, not 1080p');
+ console.log('PASS: stable per-story scene IDs, idempotent Agent instructions, shuffled-asset mapping, duplicate/missing/shared-ID rejection and silent downloads without Gemini, Whisper or source inspection.');
+}finally{fs.rmSync(temp,{recursive:true,force:true});}})().catch(e=>{console.error(e);process.exitCode=1;});

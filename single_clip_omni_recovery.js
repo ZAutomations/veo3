@@ -13,11 +13,13 @@ function reuseForInspection({key,assetId}){
  const previous=document.querySelector('.ProseMirror')?.innerText||'';
  button.click();return {previous};
 }
-async function inspectProject(engine,jobs,receipts={},options={}){
+async function inspectProjectOnce(engine,jobs,receipts={},options={}){
  const log=options.log||(()=>{}),wait=options.sleep||sleep;
- const page=await engine.browser.newPage();let retained=false;
+ const ownsPage=!options.page;
+ const page=options.page||await engine.browser.newPage();let retained=false;
+ const sourceCache=options.sourceCache||new Map();
  try{
-  await page.goto(engine.projectUrl,{waitUntil:'domcontentloaded',timeout:120000});
+  if(ownsPage)await page.goto(engine.projectUrl,{waitUntil:'domcontentloaded',timeout:120000});
   await page.bringToFront();
   await page.waitForSelector('flow-video-tile',{timeout:30000});
   await page.evaluate(installGridScroller);
@@ -29,7 +31,7 @@ async function inspectProject(engine,jobs,receipts={},options={}){
   }));
   for(let round=0;round<100;round++){
    for(const tile of await media.snapshot(page)){
-    const id=tile.assetId||tile.key,old=records.get(id);
+    const id=tile.assetId||tile.key,old=records.get(id)||sourceCache.get(id);
     if(old?.sourcePrompt)tile.text+='\n'+old.sourcePrompt;
     else if(!jobs.some(job=>media.promptMatches(tile,job))){
      // Completed cards may expose only a generated caption. Reuse copies the
@@ -43,6 +45,7 @@ async function inspectProject(engine,jobs,receipts={},options={}){
     }
     if(old?.sourcePrompt)tile.sourcePrompt=old.sourcePrompt;
     records.set(id,tile);
+    if(tile.assetId&&tile.sourcePrompt)sourceCache.set(id,{sourcePrompt:tile.sourcePrompt});
    }
    // Finding every requested source proves its existence without requiring a
    // full-project scan. This never authorizes clearing a missing checkpoint.
@@ -52,7 +55,12 @@ async function inspectProject(engine,jobs,receipts={},options={}){
    if(frame.top>=frame.scroll-frame.client-2){
     await wait(1000);
     const before=records.size;
-    for(const tile of await media.snapshot(page))records.set(tile.assetId||tile.key,tile);
+    for(const tile of await media.snapshot(page)){
+     const id=tile.assetId||tile.key,old=records.get(id);
+     // A status refresh must not erase source evidence obtained via Reuse.
+     if(old?.sourcePrompt){tile.sourcePrompt=old.sourcePrompt;tile.text+='\n'+old.sourcePrompt;}
+     records.set(id,tile);
+    }
     const next=await page.evaluate(bg.metrics);
     if(next.top>=next.scroll-next.client-2&&next.visible&&records.size===before){if(++quiet>=2){exhaustive=true;break;}}
     else quiet=0;
@@ -73,7 +81,21 @@ async function inspectProject(engine,jobs,receipts={},options={}){
   const result={found,exhaustive,targetsVerified,unidentifiedSources:tiles.some(t=>!t.sourcePrompt&&!jobs.some(j=>media.promptMatches(t,j))),generatingSeen:tiles.some(t=>t.busy),tiles};
   if(options.keepOpen){retained=true;result.page=page;}
   return result;
- }finally{if(!retained){await engine.page.bringToFront();await page.close();}}
+ }finally{if(ownsPage&&!retained){
+  // A closed generation tab must not mask inspection results or prevent the
+  // temporary inspection tab from being cleaned up.
+  try{if(!engine.page.isClosed?.())await engine.page.bringToFront();}catch{}
+  try{if(!page.isClosed?.())await page.close();}catch{}
+ }}
+}
+async function inspectProject(engine,jobs,receipts={},options={}){
+ for(let attempt=0;attempt<3;attempt++){
+  try{return await inspectProjectOnce(engine,jobs,receipts,options);}
+  catch(error){
+   if(options.page||attempt===2||!/Execution context was destroyed|Cannot find context with specified id|frame was detached/i.test(error.message))throw error;
+   (options.log||(()=>{}))('Flow navigated during read-only inspection; opening a fresh inspection tab. No generation submitted.');
+  }
+ }
 }
 function reconcilePending(state,pending,result){
  if(!result.exhaustive&&!(pending.length&&pending.every(n=>result.found[n])))throw Error('Resume project check was incomplete. No scene resubmitted.');

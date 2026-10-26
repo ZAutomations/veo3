@@ -34,11 +34,15 @@ assert.throws(()=>I.parse(text.replace('16 seconds','24 seconds')),/declared dur
 const dir=fs.mkdtempSync(path.join(os.tmpdir(),'zack-ready-'));
 try{
  const [file]=I.run({text,aspect:'9:16',out:dir});const story=JSON.parse(fs.readFileSync(file,'utf8'));
+ assert(require('../zack_shot_contract').DIRECTION.includes('CAMERA-LED TRANSITIONS'));
+ assert(Z.scene(story,0).includes('CAMERA-LED TRANSITIONS'));
+ assert(Z.scene(story,0).includes('roughly 0.3-0.7 seconds'));
+ assert(!Z.scene(story,0).includes('Clear cuts, simple readable motion'));
  assert.equal(story.total_scenes,2);assert.equal(story.scene_seconds,8);assert(story.narrated);assert(story.silent_cast);
  assert.equal(story.flow_voice,'Alnilam');assert.equal(story.imported_locations.length,2);
  assert.deepEqual(story.scenes.map(s=>s.script_line),parsed.clips.map(c=>c.narration));
  const folder=path.dirname(file);const prompt=fs.readFileSync(path.join(folder,'clip_prompts','clip_001.txt'),'utf8');
- for(const item of ['0-3s','5-8s','Highlight the icon','Soft click','cyan-blue','Read this complete line exactly','No music'])assert(prompt.includes(item),item);
+ for(const item of ['0-3s','5-8s','Highlight the icon','Soft click','cyan-blue','Read this complete line exactly','NATIVE SOUND:'])assert(prompt.includes(item),item);
  const agent=fs.readFileSync(path.join(folder,'agent_prompt.txt'),'utf8');assert(agent.includes('Soft click'));assert(agent.includes('Battery interior'));assert(agent.includes('No added CTA'));assert(!agent.includes('NARRATION: (none found'));
  assert.equal(JSON.parse(fs.readFileSync(path.join(folder,'refs.json'),'utf8')).refs.length,1);
  assert.equal(require('../dog_couple').savedForStory(file,'agent',{agent_saved_couple:true,couple_sarah_file:'missing'}),null);

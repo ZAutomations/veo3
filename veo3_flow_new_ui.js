@@ -712,48 +712,7 @@ class Veo3FlowNewUI {
     // cloned profile (flow login included) + CDP port. Same as the MCP setup.
     async connect() {
         banner('🚀 CONNECTING THE AUTOMATION BROWSER');
-        const port = this.cdpUrl.replace('http://127.0.0.1:', '');
-        let connected = false;
-        for (let i = 0; i < 3; i++) {
-            try {
-                this.browser = await puppeteer.connect({ browserURL: this.cdpUrl, defaultViewport: null });
-                connected = true;
-                break;
-            } catch {
-                log(`⚠️  No automation Chrome on CDP port ${port} (attempt ${i + 1}/3)`);
-                if (i === 0) {
-                    // --account runs on that account's own profile (a
-                    // different Google login); without it, the legacy
-                    // single profile. Account profiles are signed in once
-                    // by hand via the GUI's Accounts tab.
-                    let profileDir, profileName;
-                    if (this.accountLabel) {
-                        const am = require('./account_manager.js');
-                        const acc = am.findAccount(am.load(), this.accountLabel);
-                        if (!acc) throw new Error(`--account "${this.accountLabel}" is not in accounts.json`);
-                        profileDir = am.profileDir(acc);
-                        profileName = 'Default';
-                    } else {
-                        profileDir = buildDedicatedProfile();
-                        profileName = CONFIG.CHROME_PROFILE;
-                    }
-                    const a = await this.waitForUserInput('   Launch it now? (y/n): ');
-                    if (a.toLowerCase() !== 'y') break;
-                    log('   ⏳ Starting Chrome with the dedicated profile...');
-                    spawn(CONFIG.CHROME_EXE, [
-                        `--remote-debugging-port=${port}`,
-                        `--user-data-dir=${profileDir}`,
-                        `--profile-directory=${profileName}`,
-                        '--no-first-run',
-                        '--no-default-browser-check',
-                        '--disable-blink-features=AutomationControlled',
-                        '--window-size=1920,1080',
-                    ], { detached: true, stdio: 'ignore' }).unref();
-                }
-                await wait(5000);
-            }
-        }
-        if (!connected) throw new Error(`Could not connect to Chrome via CDP ${this.cdpUrl}`);
+        this.browser = await require('./automation_browser').connectAutomationBrowser({browserURL:this.cdpUrl,account:this.accountLabel,log});
         log(`✅ Automation browser attached (CDP ${this.cdpUrl}, profile: ${this.accountLabel || CONFIG.CHROME_PROFILE})`);
 
         const pages = await this.browser.pages();
@@ -1389,6 +1348,12 @@ async uploadRefViaSendKeys(filePath) {
     // ── scene 1 (project grid, text-to-video) ─────────────────────
     async prepareScene1(scene) {
         banner(`🎬 SCENE 1 SETUP: ${scene.scene_title || 'Scene 1'}`);
+        if(this.skipRefs){
+            // Reuse the project images, but attach them to the NEW clip-1
+            // prompt. Uploaded images are not automatically ingredient chips.
+            this.skipRefs=false;this.opts.noUploadRefs=true;this._refsGenerated=true;
+            log('Reusing existing project reference images; attaching them to clip 1 without uploading or regenerating them.');
+        }
         // prompt box must be the "What do you want to create?" one
         if (this.opts.videoModel || this.opts.aspect || this._refsGenerated) {
             await require('./ingredients_setup').prepareVideo(this.page, {
@@ -1416,6 +1381,7 @@ async uploadRefViaSendKeys(filePath) {
         // voice makes every extend that follows it sound wrong too.
         await this.attachVoiceToScene(1);
         log('');
+        const firstClipBefore=await require('./ingredients_first_clip').snapshot(this.page);
         if (this.opts.autoStart) {
             await this.clickStartGeneration();
             await this.autoApproveCredits();
@@ -1423,7 +1389,7 @@ async uploadRefViaSendKeys(filePath) {
         } else {
             log('IN BROWSER: check video settings, then click Start generation.');
         }
-        log('Waiting for generation to start and finish... (max 12 min)');
+        log('Watching for the new completed video tile (poll every 2.5s; 12-minute safety timeout, not a delay).');
         const deadline = Date.now() + 720000;
         const started = Date.now();
         let sawGenerating = false;
@@ -1451,6 +1417,9 @@ async uploadRefViaSendKeys(filePath) {
                 }),
             }), this.cfg.patterns);
             if (st.__error) continue;
+            const completedFirst=await require('./ingredients_first_clip').snapshot(this.page);
+            const readyFirst=require('./ingredients_first_clip').newlyCompleted(completedFirst,firstClipBefore);
+            if(readyFirst){await require('./ingredients_first_clip').openCompleted(this,readyFirst,{log});return;}
             if (st.creditsOut || await this.checkCreditsOut()) throw new Error('CREDITS_EXHAUSTED');
             if (st.approve) await this.autoApproveCredits();
             if (st.failed) throw new Error('Scene 1 generation FAILED in browser');
@@ -1462,31 +1431,12 @@ async uploadRefViaSendKeys(filePath) {
                     this._lastMoveAt = Date.now();
                 }
                 continue; }
-            if (sawGenerating || this.isEditorUrl(st.url)) {
-                // generation likely done - look for the clip tile / editor
-                if (this.isEditorUrl(st.url)) {
-                    log('   EDITOR-OPEN');
-                    await this.waitForEditorReady();
-                    await this.clickNewestClip();
-                    return;
-                }
-                // click newest tile to enter editor
-                const tiles = await this.page.$$('flow-video-tile');
-                const newest = tiles[tiles.length - 1];
-                const clicked = !!newest;
-                if (newest) await newest.click();
-                if (clicked) {
-                    await wait(8000);
-                    if (this.isEditorUrl(this.page.url())) {
-                        log('   ✅ Clip ready, editor open');
-                        await this.waitForEditorReady();
-                        await this.clickNewestClip();
-                        return;
-                    }
-                }
+            if (this.isEditorUrl(st.url)) {
+                await this.waitForEditorReady();
+                if(await this.countCompletedClips()>0){await this.clickNewestClip();return;}
             }
         }
-        throw new Error('Scene 1: timed out waiting for clip/editor');
+        throw new Error('RECOVERY_REVIEW_REQUIRED: Scene 1 completion was not confirmed before the safety timeout. Existing generation preserved; resume will inspect it without submitting again.');
     }
 
     // ── scenes 2+ (extend in editor) ──────────────────────────────
@@ -2429,7 +2379,7 @@ async doExtendScene(scene, sceneNum) {
                 return true;
             } catch (e) {
                 const msg = e.message || String(e);
-                if (/CREDITS_EXHAUSTED/.test(msg)) throw e;
+                if (/CREDITS_EXHAUSTED|RECOVERY_REVIEW_REQUIRED:/.test(msg)) throw e;
                 lastMsg = msg;
                 // These failures happen before a generation was safely
                 // submitted. Repeating clicks cannot repair a missing asset or
@@ -2496,6 +2446,7 @@ ${'='.repeat(70)}
         banner('🎬 VEO3 FLOW NEW-UI ENGINE');
         await this.loadScenes();
         await this.initializeFailedPromptsLog();
+        require('./ingredients_resume_start').checkModel(this.opts);
         await this.connect();
 
         if (this.genRefs || this.opts.newProject || this.freshProject) {
@@ -2521,8 +2472,7 @@ ${'='.repeat(70)}
         // allow CLI range override after load
         if (!this.opts.toScene) this.toScene = this.scenes.length;
         if (this.opts.resumeAuto) {
-            await this.ensureEditor();
-            const completed = await this.countCompletedClips();
+            const completed = await require('./ingredients_resume_start').prepare(this,{log});
             this.fromScene = completed + 1;
             log(`Retry / Continue: verified ${completed} completed timeline clips; continuing at scene ${this.fromScene}.`);
             if (completed >= this.toScene) {
@@ -2607,7 +2557,7 @@ function parseArgs(argv) {
         else if (a === '--no-download') opts.download = false;
         else if (a === '--join') opts.join = true;
         else if (a === '--export-only') opts.exportOnly = true;
-        else if (a === '--resume-auto') { opts.resumeAuto=true;opts.newProject=false;opts.genRefs=false;opts.skipRefs=true; }
+        else if (a === '--resume-auto') { opts.resumeAuto=true;opts.autoStart=true;opts.newProject=false;opts.genRefs=false;opts.skipRefs=true; }
         else if (a === '--extend-model') opts.extendModel = argv[++i];
         else if (a === '--cdp') opts.cdp = `http://127.0.0.1:${argv[++i]}`;
         else if (a === '--account') opts.account = argv[++i];
@@ -2620,7 +2570,7 @@ function parseArgs(argv) {
 
 // Exported so the watchdog and retry logic can be driven against a stub page
 // in tests. A direct `node veo3_flow_new_ui.js ...` still runs the CLI below.
-module.exports = { Veo3FlowNewUI, CONFIG, mp4sUnder, flowClipKey, flowClipOrder, parseArgs };
+module.exports = { Veo3FlowNewUI, CONFIG, buildDedicatedProfile, mp4sUnder, flowClipKey, flowClipOrder, parseArgs };
 
 if (require.main === module) (async () => {
     const opts = parseArgs(process.argv);

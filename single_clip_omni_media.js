@@ -36,6 +36,7 @@ function tileSnapshot(){
 }
 const norm=s=>String(s||'').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
 function promptMatches(tile,job){
+ if(job.silentVisual)return require('./silent_scene_identity').matches(tile.text,job.scene);
  const text=norm(tile.text),prompt=norm(job.prompt);
  if(prompt&&(text===prompt||(prompt.length>=50&&text.includes(prompt))))return true;
  // Source prompts may omit the leading generation instruction; the exact spoken
