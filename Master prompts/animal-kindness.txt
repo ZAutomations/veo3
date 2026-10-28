@@ -23,7 +23,7 @@ Hook: "[Clip 1 only; leave absent in later clips]"
 Visual: [clear silent physical action]
 Sound: [physical sounds, no further speech]
 
-Continue through the complete story. Replace all placeholders; never include the continuation instruction. Repeat Story 2 etc. for a batch. For Sarah/George dialogue include setting and descriptive prose BEFORE Clip 1, then only labelled spoken lines within clips; no Action: fields that the legacy transcript parser could mistake for speech.
+Continue through the complete story. Replace all placeholders; never include the continuation instruction. Repeat Story 2 etc. for a batch. For Sarah/SAM dialogue include setting and descriptive prose BEFORE Clip 1, then only labelled spoken lines within clips; no Action: fields that the legacy transcript parser could mistake for speech.
 The tool applies the preset below. Follow its genre, visual medium, camera, cast, tone and sound rules when describing the scenes:
 STYLE: Photorealistic 4K cinematic film, 35mm anamorphic lens quality, natural shallow depth of field, real-world lighting balance, physical micro-textures in fur, fabric and skin, restrained natural colour grading, premium streaming documentary quality
 PALETTE: Natural earth tones, warm amber and cool slate shadows, muted greens, overcast greys, soft golden-hour warmth

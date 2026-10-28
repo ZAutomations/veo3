@@ -78,6 +78,8 @@ function readRefsFile(file) {
         .map(r => ({
             name: String(r.name).trim(),
             file: r.file ? String(r.file) : '',
+            ...(r.localFile ? {localFile:r.localFile} : {}),
+            ...(r.presetReference ? {presetReference:true} : {}),
             kind: isPlace(r) ? 'place' : 'character',
             prompt: isPlace(r) && require('./location_style').isRelationship(story)
                 ? require('./location_style').locationPrompt(story, {description: story.place?.description || r.prompt, prompt:r.prompt})

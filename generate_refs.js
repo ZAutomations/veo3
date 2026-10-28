@@ -100,7 +100,8 @@ function loadRefs() {
     }
     let refs = [], source = '';
     if (fs.existsSync(f) && fs.statSync(f).isFile()) {
-        refs = readRefsFile(f);
+        const data = JSON.parse(fs.readFileSync(f, 'utf8'));
+        refs = Array.isArray(data.scenes) ? loadStoryRefs(f, data).refs : readRefsFile(f);
         source = path.basename(f);
     } else {
         // No refs.json: loadStoryRefs falls back to the story's
@@ -787,15 +788,15 @@ async function renameNewest(page, name, tileIndex = 0) {
 // port, only the caller differs. `page` must be a Flow PROJECT page.
 // Returns { made, failed, total }.
 async function generateRefs(page, refs, opts = {}) {
-    refs = (require('./dog_couple').isDogRefs(refs)||refs.some(r=>/IMPORTED ZACK 3D/.test(r.prompt||''))) ? refs : require('./saved_couple').applySavedRefs(refs,
-        opts.savedCouple === undefined ? require('./saved_couple').loadSavedCouple('agent') : opts.savedCouple);
+    refs = require('./saved_couple').applySavedRefs(refs,
+        opts.savedCouple === undefined ? require('./saved_couple').loadSavedCouple('agent', undefined, opts.story || STORY) : opts.savedCouple);
     // Shadowing `log` with the caller's sink; the body's log() calls need no
     // change for it.
     const log = opts.log || moduleLog;
     const waitS = opts.waitS || WAIT_S;
     const keepAgentOn = opts.keepAgentOn !== undefined ? opts.keepAgentOn : KEEP_AGENT;
 
-    log(`${refs.length} reference image(s) to make:`);
+    log(`${refs.length} required reference image(s): ${refs.filter(r=>r.localFile).length} saved uploads, ${refs.filter(r=>!r.localFile).length} generated/reused.`);
     refs.forEach((r) => log(`  - ${r.name}  (${r.kind || 'ref'})`));
     if (!await waitForProjectReady(page)) log('warning: prompt bar is slow to appear - still trying.');
 
@@ -909,7 +910,7 @@ if (require.main === module) (async () => {
     log(`Project: ${page.url()}`);
 
     const r = await generateRefs(page, refs, {
-        waitS: WAIT_S, keepAgentOn: KEEP_AGENT,
+        waitS: WAIT_S, keepAgentOn: KEEP_AGENT, savedCouple: couple,
     });
     log('Next: run agent_mode (or the MCP run_agent) with --no-upload-refs so it');
     log('@-mentions the tiles just made instead of uploading local files.');

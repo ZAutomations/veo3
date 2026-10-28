@@ -1,6 +1,6 @@
 # Speaking shots
 
-The Patterns We Ignore already assigned the first line, "You've changed.", to George. Its saved speaker labels were correct. A generated video assigning that line to Sarah is an error during the Flow/Veo generation stage. The source file alone cannot reveal whether Flow's agent rewrote an individual request or Veo ignored it.
+The Patterns We Ignore already assigned the first line, "You've changed.", to SAM. Its saved speaker labels were correct. A generated video assigning that line to Sarah is an error during the Flow/Veo generation stage. The source file alone cannot reveal whether Flow's agent rewrote an individual request or Veo ignored it.
 
 Relationship scenes now compile into a sequence of speaking shots. Every shot connects the visible character, their clothing, their voice and their exact spoken line. Only the active speaker's mouth is clearly visible. The scene returns to its shared framing after the final line. Background activities and the location reference's empty-room instructions are omitted from the speaking scene. One scene still produces one clip.
 

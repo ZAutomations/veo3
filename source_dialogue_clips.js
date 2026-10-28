@@ -33,7 +33,7 @@ function regroup(cm, count, seconds = 8) {
         return { index: i + 1, t_start: time(i * seconds), t_end: time((i + 1) * seconds),
             places: [...new Set(source.flatMap(c => c.places || []))],
             points: turns.map(t => t.words.join(' ')),
-            visual: 'Sarah and George converse naturally in one bright, clear domestic room. Show the current speaker and the listening reaction.',
+            visual: 'Sarah and SAM converse naturally in one bright, clear domestic room. Show the current speaker and the listening reaction.',
             source_dialogue: turns.map(t => ({ ...t.original, line: t.words.join(' ') })) };
     });
     return { ...cm, clips, dialogue_retiming: { original_groups: source.length, clips: count, words: words.length } };

@@ -23,7 +23,7 @@ Narration: "[complete narration segment]"
 Visual: [specific event and action]
 Sound: [quiet appropriate sound or None]
 
-Continue through the complete story. Replace all placeholders; never include the continuation instruction. Repeat Story 2 etc. for a batch. For Sarah/George dialogue include setting and descriptive prose BEFORE Clip 1, then only labelled spoken lines within clips; no Action: fields that the legacy transcript parser could mistake for speech.
+Continue through the complete story. Replace all placeholders; never include the continuation instruction. Repeat Story 2 etc. for a batch. For Sarah/SAM dialogue include setting and descriptive prose BEFORE Clip 1, then only labelled spoken lines within clips; no Action: fields that the legacy transcript parser could mistake for speech.
 The tool applies the preset below. Follow its genre, visual medium, camera, cast, tone and sound rules when describing the scenes:
 STYLE: Simple stick-figure animation, minimalist black stick bodies wearing no clothing, detailed pure-white realistic-style faces that carry all the detail with real human face shapes rather than round cartoon heads, flat 2D animation, bold clean shapes, historical palace, village and battlefield backgrounds
 PALETTE: Bright flat colour: marble white and stone grey, royal red and gold, Egyptian gold and turquoise, earthy brown, blue sky, black stick lines

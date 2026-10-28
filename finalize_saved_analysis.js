@@ -22,10 +22,10 @@ function finalize(file,options={}) {
         require('child_process').execFileSync(process.execPath,args,{stdio:'inherit',windowsHide:true});
         return path.join(dir,W.slugify(title)+'_story.json');
     }
-    const cast=require('./realistic_couple').apply(p,['Sarah','George'].map(name=>({name,type:'human',gender:name==='Sarah'?'female':'male'})));
+    const cast=require('./realistic_couple').apply(p,['Sarah','SAM'].map(name=>({name,type:'human',gender:name==='Sarah'?'female':'male'})));
     const map=require('./dialogue_speakers').sourceSpeakerMap(W.contentMapClips(cm),cast,p);
     const clips=W.contentMapClips(cm);
-    const scenes=clips.map((c,i)=>({scene_title:c.title || `Conversation ${i+1}`,characters:['Sarah','George'],
+    const scenes=clips.map((c,i)=>({scene_title:c.title || `Conversation ${i+1}`,characters:['Sarah','SAM'],
         dialogue:(c.source_dialogue||[]).map(d=>({speaker:map.get(d.speaker)||d.speaker,line:String(d.line||'').trim()})),
         narrative_context:String(c.visual||'Natural conversation in the established room.') }));
     const meta={description:'A couple discusses relationship expectations, personal boundaries and mutual respect.',moral:'A partnership requires mutual respect and freely chosen boundaries.',target_audience:p.audience,

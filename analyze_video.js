@@ -189,7 +189,7 @@ ${preserveDialogue ? `- DIALOGUE TRANSCRIPTION IS GROUND TRUTH. In every clip, s
   identify that word in notes. Never replace it with a newly written conversation.
 - IDENTIFY SPEAKERS BEFORE REWRITING. Watch mouth movements and listen to the
   matching voice across the video. Use a stable ID for each person and record
-  gender on EVERY turn. Female maps to Sarah; male maps to George, regardless
+  gender on EVERY turn. Female maps to Sarah; male maps to SAM, regardless
   of who speaks first, who asks questions, or which side they sit on. Never
   infer gender from sentence meaning, relationship stereotypes or turn order.
   Consecutive turns may belong to the same person. If attribution is uncertain,

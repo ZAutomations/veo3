@@ -5,7 +5,7 @@
 1. Reopen the launcher and select **Single Clip Omni**.
 2. Choose your story JSON and From/To range (To = 0 means the last scene).
 3. Select Omni Flash, aspect ratio and generation resolution.
-4. Prepare references as before, or enable **References already in this project**. Saved couple uploads Sarah/George and generates the location. All references attach to every standalone prompt.
+4. Prepare references as before, or enable **References already in this project**. Saved couple uploads Sarah/SAM and generates the location. All references attach to every standalone prompt.
 5. Enable **Use simple test prompts when available** to use `simple_test_clip_prompts/clip_001.txt`, etc. Otherwise the scene's stored prompt is used directly.
 6. Enable **Download Upscaled 720p between batches** and click **Generate clips**.
 

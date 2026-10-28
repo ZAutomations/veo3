@@ -23,7 +23,7 @@ Narration: "[complete narration segment]"
 Visual: [specific event and action]
 Sound: [quiet appropriate sound or None]
 
-Continue through the complete story. Replace all placeholders; never include the continuation instruction. Repeat Story 2 etc. for a batch. For Sarah/George dialogue include setting and descriptive prose BEFORE Clip 1, then only labelled spoken lines within clips; no Action: fields that the legacy transcript parser could mistake for speech.
+Continue through the complete story. Replace all placeholders; never include the continuation instruction. Repeat Story 2 etc. for a batch. For Sarah/SAM dialogue include setting and descriptive prose BEFORE Clip 1, then only labelled spoken lines within clips; no Action: fields that the legacy transcript parser could mistake for speech.
 The tool applies the preset below. Follow its genre, visual medium, camera, cast, tone and sound rules when describing the scenes:
 STYLE: 2D adult animation style, digital cartoon illustration, clean flat shapes with soft gradient shading, pale characters with wide expressive eyes, moody interior and street lighting, defined shadows, a clear digital cartoon illustration
 PALETTE: Dim warm interior amber, cold blue-grey night, sickly fluorescent green, police red and blue, muted beige daylight, charcoal shadows

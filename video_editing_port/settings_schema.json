@@ -1,0 +1,2058 @@
+[
+  {
+    "key": "silence_crossfade_enabled",
+    "page": "quick",
+    "group": "Standalone Silence Removal",
+    "label": "Crossfade + Click SFX at cuts",
+    "default": false,
+    "order": 1443,
+    "type": "check",
+    "layout": {
+      "order": 1450,
+      "colspan": 3
+    }
+  },
+  {
+    "key": "silence_crossfade_duration",
+    "page": "quick",
+    "group": "Standalone Silence Removal",
+    "label": "Crossfade Duration (s)",
+    "type": "slider",
+    "min": 0.1,
+    "max": 1.0,
+    "default": 0.3,
+    "step": 0.05,
+    "order": 1456,
+    "layout": {
+      "order": 1450,
+      "colspan": 3
+    }
+  },
+  {
+    "key": "silence_transition_enabled",
+    "page": "quick",
+    "group": "Standalone Silence Removal",
+    "label": "Inject transitions from Transitions tab (spaced every ~5s)",
+    "default": false,
+    "order": 1469,
+    "type": "check",
+    "layout": {
+      "order": 1450,
+      "colspan": 3
+    }
+  },
+  {
+    "key": "silence_transition_duration",
+    "page": "quick",
+    "group": "Standalone Silence Removal",
+    "label": "Transition Duration (s)",
+    "type": "slider",
+    "min": 0.1,
+    "max": 1.0,
+    "default": 0.3,
+    "step": 0.05,
+    "order": 1481,
+    "layout": {
+      "order": 1450,
+      "colspan": 3
+    }
+  },
+  {
+    "key": "silence_skip_done",
+    "page": "quick",
+    "group": "Standalone Silence Removal",
+    "label": "Skip already-processed edits",
+    "default": true,
+    "order": 1494,
+    "type": "check",
+    "layout": {
+      "order": 1450,
+      "colspan": 3
+    }
+  },
+  {
+    "key": "transition_sfx_enabled",
+    "page": "transitions",
+    "group": "Transitions & Cinematic Effects",
+    "label": "SFX Master",
+    "default": true,
+    "order": 14228,
+    "type": "check",
+    "layout": {
+      "order": 14022,
+      "parent": "outer"
+    }
+  },
+  {
+    "key": "transition_sfx_volume",
+    "page": "transitions",
+    "group": "Transitions & Cinematic Effects",
+    "label": "transition sfx volume",
+    "default": 0.6,
+    "order": 14240,
+    "type": "slider",
+    "min": 0.0,
+    "max": 1.0,
+    "step": 0.05,
+    "layout": {
+      "order": 14022,
+      "parent": "outer"
+    }
+  },
+  {
+    "key": "custom_sfx_file",
+    "page": "transitions",
+    "group": "Transitions & Cinematic Effects",
+    "label": "custom sfx file",
+    "default": "",
+    "order": 14280,
+    "layout": {
+      "order": 14022,
+      "parent": "outer"
+    }
+  },
+  {
+    "key": "custom_sfx_volume",
+    "page": "transitions",
+    "group": "Transitions & Cinematic Effects",
+    "label": "custom sfx volume",
+    "default": 0.8,
+    "order": 14306,
+    "type": "slider",
+    "min": 0.0,
+    "max": 1.0,
+    "step": 0.05,
+    "layout": {
+      "order": 14022,
+      "parent": "outer"
+    }
+  },
+  {
+    "key": "transition_zoom_scale",
+    "page": "transitions",
+    "group": "Transitions & Cinematic Effects",
+    "label": "Zoom Scale",
+    "default": 1.3,
+    "type": "slider",
+    "min": 1.1,
+    "max": 2.0,
+    "step": 0.1,
+    "order": 14330,
+    "layout": {
+      "order": 14022,
+      "parent": "outer"
+    }
+  },
+  {
+    "key": "transition_blur_amount",
+    "page": "transitions",
+    "group": "Transitions & Cinematic Effects",
+    "label": "Blur Px",
+    "default": 15,
+    "type": "slider",
+    "min": 5,
+    "max": 30,
+    "step": 0.1,
+    "order": 14331,
+    "layout": {
+      "order": 14022,
+      "parent": "outer"
+    }
+  },
+  {
+    "key": "transition_glitch_intensity",
+    "page": "transitions",
+    "group": "Transitions & Cinematic Effects",
+    "label": "Glitch %",
+    "default": 0.5,
+    "type": "slider",
+    "min": 0.1,
+    "max": 1.0,
+    "step": 0.1,
+    "order": 14332,
+    "layout": {
+      "order": 14022,
+      "parent": "outer"
+    }
+  },
+  {
+    "key": "transition_bounce_height",
+    "page": "transitions",
+    "group": "Transitions & Cinematic Effects",
+    "label": "Bounce H",
+    "default": 0.3,
+    "type": "slider",
+    "min": 0.05,
+    "max": 1.0,
+    "step": 0.1,
+    "order": 14333,
+    "layout": {
+      "order": 14022,
+      "parent": "outer"
+    }
+  },
+  {
+    "key": "transition_fade_in",
+    "page": "transitions",
+    "group": "Fade In",
+    "label": "Fade In",
+    "default": false,
+    "type": "check",
+    "order": 14445.003,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_fade_in_duration",
+    "page": "transitions",
+    "group": "Fade In",
+    "label": "Duration (seconds)",
+    "default": 0.5,
+    "type": "slider",
+    "min": 0.1,
+    "max": 10,
+    "step": 0.1,
+    "order": 14445.004,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_sfx_fade_in",
+    "page": "transitions",
+    "group": "Fade In",
+    "label": "Sound effect",
+    "default": "(default)",
+    "type": "select",
+    "choices": [
+      "(default)",
+      "(none)"
+    ],
+    "order": 14445.005,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_fade_out",
+    "page": "transitions",
+    "group": "Fade Out",
+    "label": "Fade Out",
+    "default": false,
+    "type": "check",
+    "order": 14445.006,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_fade_out_duration",
+    "page": "transitions",
+    "group": "Fade Out",
+    "label": "Duration (seconds)",
+    "default": 0.5,
+    "type": "slider",
+    "min": 0.1,
+    "max": 10,
+    "step": 0.1,
+    "order": 14445.007,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_sfx_fade_out",
+    "page": "transitions",
+    "group": "Fade Out",
+    "label": "Sound effect",
+    "default": "(default)",
+    "type": "select",
+    "choices": [
+      "(default)",
+      "(none)"
+    ],
+    "order": 14445.008,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_zoom_in",
+    "page": "transitions",
+    "group": "Zoom In",
+    "label": "Zoom In",
+    "default": false,
+    "type": "check",
+    "order": 14445.009,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_zoom_in_duration",
+    "page": "transitions",
+    "group": "Zoom In",
+    "label": "Duration (seconds)",
+    "default": 1.0,
+    "type": "slider",
+    "min": 0.1,
+    "max": 10,
+    "step": 0.1,
+    "order": 14445.01,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_sfx_zoom_in",
+    "page": "transitions",
+    "group": "Zoom In",
+    "label": "Sound effect",
+    "default": "(default)",
+    "type": "select",
+    "choices": [
+      "(default)",
+      "(none)"
+    ],
+    "order": 14445.011,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_zoom_out",
+    "page": "transitions",
+    "group": "Zoom Out",
+    "label": "Zoom Out",
+    "default": false,
+    "type": "check",
+    "order": 14445.012,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_zoom_out_duration",
+    "page": "transitions",
+    "group": "Zoom Out",
+    "label": "Duration (seconds)",
+    "default": 1.0,
+    "type": "slider",
+    "min": 0.1,
+    "max": 10,
+    "step": 0.1,
+    "order": 14445.013,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_sfx_zoom_out",
+    "page": "transitions",
+    "group": "Zoom Out",
+    "label": "Sound effect",
+    "default": "(default)",
+    "type": "select",
+    "choices": [
+      "(default)",
+      "(none)"
+    ],
+    "order": 14445.014,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_blur_in",
+    "page": "transitions",
+    "group": "Blur In",
+    "label": "Blur In",
+    "default": false,
+    "type": "check",
+    "order": 14445.015,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_blur_duration",
+    "page": "transitions",
+    "group": "Blur In",
+    "label": "Duration (seconds)",
+    "default": 0.5,
+    "type": "slider",
+    "min": 0.1,
+    "max": 10,
+    "step": 0.1,
+    "order": 14445.016,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_sfx_blur_in",
+    "page": "transitions",
+    "group": "Blur In",
+    "label": "Sound effect",
+    "default": "(default)",
+    "type": "select",
+    "choices": [
+      "(default)",
+      "(none)"
+    ],
+    "order": 14445.017,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_blur_out",
+    "page": "transitions",
+    "group": "Blur Out",
+    "label": "Blur Out",
+    "default": false,
+    "type": "check",
+    "order": 14445.018,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_sfx_blur_out",
+    "page": "transitions",
+    "group": "Blur Out",
+    "label": "Sound effect",
+    "default": "(default)",
+    "type": "select",
+    "choices": [
+      "(default)",
+      "(none)"
+    ],
+    "order": 14445.02,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_slide_in",
+    "page": "transitions",
+    "group": "Slide In",
+    "label": "Slide In",
+    "default": false,
+    "type": "check",
+    "order": 14445.021,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_slide_duration",
+    "page": "transitions",
+    "group": "Slide In",
+    "label": "Duration (seconds)",
+    "default": 0.8,
+    "type": "slider",
+    "min": 0.1,
+    "max": 10,
+    "step": 0.1,
+    "order": 14445.022,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_sfx_slide_in",
+    "page": "transitions",
+    "group": "Slide In",
+    "label": "Sound effect",
+    "default": "(default)",
+    "type": "select",
+    "choices": [
+      "(default)",
+      "(none)"
+    ],
+    "order": 14445.023,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_slide_out",
+    "page": "transitions",
+    "group": "Slide Out",
+    "label": "Slide Out",
+    "default": false,
+    "type": "check",
+    "order": 14445.024,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_sfx_slide_out",
+    "page": "transitions",
+    "group": "Slide Out",
+    "label": "Sound effect",
+    "default": "(default)",
+    "type": "select",
+    "choices": [
+      "(default)",
+      "(none)"
+    ],
+    "order": 14445.026,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_wipe_in",
+    "page": "transitions",
+    "group": "Wipe In",
+    "label": "Wipe In",
+    "default": false,
+    "type": "check",
+    "order": 14445.027,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_wipe_duration",
+    "page": "transitions",
+    "group": "Wipe In",
+    "label": "Duration (seconds)",
+    "default": 0.8,
+    "type": "slider",
+    "min": 0.1,
+    "max": 10,
+    "step": 0.1,
+    "order": 14445.028,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_sfx_wipe_in",
+    "page": "transitions",
+    "group": "Wipe In",
+    "label": "Sound effect",
+    "default": "(default)",
+    "type": "select",
+    "choices": [
+      "(default)",
+      "(none)"
+    ],
+    "order": 14445.029,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_wipe_out",
+    "page": "transitions",
+    "group": "Wipe Out",
+    "label": "Wipe Out",
+    "default": false,
+    "type": "check",
+    "order": 14445.03,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_sfx_wipe_out",
+    "page": "transitions",
+    "group": "Wipe Out",
+    "label": "Sound effect",
+    "default": "(default)",
+    "type": "select",
+    "choices": [
+      "(default)",
+      "(none)"
+    ],
+    "order": 14445.032,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_glitch_start",
+    "page": "transitions",
+    "group": "Glitch Start",
+    "label": "Glitch Start",
+    "default": false,
+    "type": "check",
+    "order": 14445.033,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_glitch_duration",
+    "page": "transitions",
+    "group": "Glitch Start",
+    "label": "Duration (seconds)",
+    "default": 0.5,
+    "type": "slider",
+    "min": 0.1,
+    "max": 10,
+    "step": 0.1,
+    "order": 14445.034,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_sfx_glitch_start",
+    "page": "transitions",
+    "group": "Glitch Start",
+    "label": "Sound effect",
+    "default": "(default)",
+    "type": "select",
+    "choices": [
+      "(default)",
+      "(none)"
+    ],
+    "order": 14445.035,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_glitch_end",
+    "page": "transitions",
+    "group": "Glitch End",
+    "label": "Glitch End",
+    "default": false,
+    "type": "check",
+    "order": 14445.036,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_sfx_glitch_end",
+    "page": "transitions",
+    "group": "Glitch End",
+    "label": "Sound effect",
+    "default": "(default)",
+    "type": "select",
+    "choices": [
+      "(default)",
+      "(none)"
+    ],
+    "order": 14445.038,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_cinematic_bars",
+    "page": "transitions",
+    "group": "Cinematic Bars",
+    "label": "Cinematic Bars",
+    "default": false,
+    "type": "check",
+    "order": 14445.039,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_bars_duration",
+    "page": "transitions",
+    "group": "Cinematic Bars",
+    "label": "Duration (seconds)",
+    "default": 0.8,
+    "type": "slider",
+    "min": 0.1,
+    "max": 10,
+    "step": 0.1,
+    "order": 14445.04,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_sfx_cinematic_bars",
+    "page": "transitions",
+    "group": "Cinematic Bars",
+    "label": "Sound effect",
+    "default": "(default)",
+    "type": "select",
+    "choices": [
+      "(default)",
+      "(none)"
+    ],
+    "order": 14445.041,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_sfx_lens_flare",
+    "page": "transitions",
+    "group": "Lens Flare",
+    "label": "Sound effect",
+    "default": "(default)",
+    "type": "select",
+    "choices": [
+      "(default)",
+      "(none)"
+    ],
+    "order": 14445.044,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_sfx_light_leak",
+    "page": "transitions",
+    "group": "Light Leaks",
+    "label": "Sound effect",
+    "default": "(default)",
+    "type": "select",
+    "choices": [
+      "(default)",
+      "(none)"
+    ],
+    "order": 14445.047,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_sfx_film_burn",
+    "page": "transitions",
+    "group": "Film Burn",
+    "label": "Sound effect",
+    "default": "(default)",
+    "type": "select",
+    "choices": [
+      "(default)",
+      "(none)"
+    ],
+    "order": 14445.05,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_bounce",
+    "page": "transitions",
+    "group": "Bounce",
+    "label": "Bounce",
+    "default": false,
+    "type": "check",
+    "order": 14445.051,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_bounce_duration",
+    "page": "transitions",
+    "group": "Bounce",
+    "label": "Duration (seconds)",
+    "default": 0.6,
+    "type": "slider",
+    "min": 0.1,
+    "max": 10,
+    "step": 0.1,
+    "order": 14445.052,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_sfx_bounce",
+    "page": "transitions",
+    "group": "Bounce",
+    "label": "Sound effect",
+    "default": "(default)",
+    "type": "select",
+    "choices": [
+      "(default)",
+      "(none)"
+    ],
+    "order": 14445.053,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_mask",
+    "page": "transitions",
+    "group": "Mask Reveal",
+    "label": "Mask Reveal",
+    "default": false,
+    "type": "check",
+    "order": 14445.054,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_mask_duration",
+    "page": "transitions",
+    "group": "Mask Reveal",
+    "label": "Duration (seconds)",
+    "default": 0.6,
+    "type": "slider",
+    "min": 0.1,
+    "max": 10,
+    "step": 0.1,
+    "order": 14445.055,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_sfx_mask",
+    "page": "transitions",
+    "group": "Mask Reveal",
+    "label": "Sound effect",
+    "default": "(default)",
+    "type": "select",
+    "choices": [
+      "(default)",
+      "(none)"
+    ],
+    "order": 14445.056,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_bounce_mask",
+    "page": "transitions",
+    "group": "Bounce+Mask",
+    "label": "Bounce+Mask",
+    "default": false,
+    "type": "check",
+    "order": 14445.057,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_bounce_mask_duration",
+    "page": "transitions",
+    "group": "Bounce+Mask",
+    "label": "Duration (seconds)",
+    "default": 0.8,
+    "type": "slider",
+    "min": 0.1,
+    "max": 10,
+    "step": 0.1,
+    "order": 14445.058,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_sfx_bounce_mask",
+    "page": "transitions",
+    "group": "Bounce+Mask",
+    "label": "Sound effect",
+    "default": "(default)",
+    "type": "select",
+    "choices": [
+      "(default)",
+      "(none)"
+    ],
+    "order": 14445.059,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_radial_wipe",
+    "page": "transitions",
+    "group": "Radial Wipe",
+    "label": "Radial Wipe",
+    "default": false,
+    "type": "check",
+    "order": 14445.06,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_radial_wipe_duration",
+    "page": "transitions",
+    "group": "Radial Wipe",
+    "label": "Duration (seconds)",
+    "default": 1.0,
+    "type": "slider",
+    "min": 0.1,
+    "max": 10,
+    "step": 0.1,
+    "order": 14445.061,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_sfx_radial_wipe",
+    "page": "transitions",
+    "group": "Radial Wipe",
+    "label": "Sound effect",
+    "default": "(default)",
+    "type": "select",
+    "choices": [
+      "(default)",
+      "(none)"
+    ],
+    "order": 14445.062,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_color_dissolve",
+    "page": "transitions",
+    "group": "Color Dissolve",
+    "label": "Color Dissolve",
+    "default": false,
+    "type": "check",
+    "order": 14445.063,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_color_dissolve_duration",
+    "page": "transitions",
+    "group": "Color Dissolve",
+    "label": "Duration (seconds)",
+    "default": 0.8,
+    "type": "slider",
+    "min": 0.1,
+    "max": 10,
+    "step": 0.1,
+    "order": 14445.064,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_sfx_color_dissolve",
+    "page": "transitions",
+    "group": "Color Dissolve",
+    "label": "Sound effect",
+    "default": "(default)",
+    "type": "select",
+    "choices": [
+      "(default)",
+      "(none)"
+    ],
+    "order": 14445.065,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_split_wipe",
+    "page": "transitions",
+    "group": "Split Wipe",
+    "label": "Split Wipe",
+    "default": false,
+    "type": "check",
+    "order": 14445.066,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_split_wipe_duration",
+    "page": "transitions",
+    "group": "Split Wipe",
+    "label": "Duration (seconds)",
+    "default": 1.0,
+    "type": "slider",
+    "min": 0.1,
+    "max": 10,
+    "step": 0.1,
+    "order": 14445.067,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_sfx_split_wipe",
+    "page": "transitions",
+    "group": "Split Wipe",
+    "label": "Sound effect",
+    "default": "(default)",
+    "type": "select",
+    "choices": [
+      "(default)",
+      "(none)"
+    ],
+    "order": 14445.068,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_luma_wipe",
+    "page": "transitions",
+    "group": "Luma Wipe",
+    "label": "Luma Wipe",
+    "default": false,
+    "type": "check",
+    "order": 14445.069,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_luma_wipe_duration",
+    "page": "transitions",
+    "group": "Luma Wipe",
+    "label": "Duration (seconds)",
+    "default": 0.8,
+    "type": "slider",
+    "min": 0.1,
+    "max": 10,
+    "step": 0.1,
+    "order": 14445.07,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_sfx_luma_wipe",
+    "page": "transitions",
+    "group": "Luma Wipe",
+    "label": "Sound effect",
+    "default": "(default)",
+    "type": "select",
+    "choices": [
+      "(default)",
+      "(none)"
+    ],
+    "order": 14445.071,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_slide_direction",
+    "page": "transitions",
+    "group": "Slide In",
+    "label": "transition slide direction",
+    "default": "left",
+    "type": "select",
+    "choices": [
+      "left",
+      "right",
+      "up",
+      "down"
+    ],
+    "order": 14133,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_wipe_direction",
+    "page": "transitions",
+    "group": "Wipe In",
+    "label": "transition wipe direction",
+    "default": "right",
+    "type": "select",
+    "choices": [
+      "left",
+      "right",
+      "up",
+      "down"
+    ],
+    "order": 14138,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_bars_height",
+    "page": "transitions",
+    "group": "Cinematic Bars",
+    "label": "transition bars height",
+    "default": 10,
+    "type": "slider",
+    "min": 2,
+    "max": 25,
+    "step": 0.1,
+    "order": 14163,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_mask_shape",
+    "page": "transitions",
+    "group": "Mask Reveal",
+    "label": "transition mask shape",
+    "default": "circle",
+    "type": "select",
+    "choices": [
+      "circle",
+      "square",
+      "diamond",
+      "star"
+    ],
+    "order": 14143,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_mask_color",
+    "page": "transitions",
+    "group": "Mask Reveal",
+    "label": "transition mask color",
+    "default": "#000000",
+    "order": 13998.161,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_radial_wipe_direction",
+    "page": "transitions",
+    "group": "Radial Wipe",
+    "label": "transition radial wipe direction",
+    "default": "out",
+    "type": "select",
+    "choices": [
+      "out",
+      "in"
+    ],
+    "order": 14177,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_color_dissolve_direction",
+    "page": "transitions",
+    "group": "Color Dissolve",
+    "label": "transition color dissolve direction",
+    "default": "in",
+    "type": "select",
+    "choices": [
+      "in",
+      "out"
+    ],
+    "order": 14182,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_split_wipe_direction",
+    "page": "transitions",
+    "group": "Split Wipe",
+    "label": "transition split wipe direction",
+    "default": "horizontal",
+    "type": "select",
+    "choices": [
+      "horizontal",
+      "vertical",
+      "diagonal"
+    ],
+    "order": 14187,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "transition_luma_wipe_direction",
+    "page": "transitions",
+    "group": "Luma Wipe",
+    "label": "transition luma wipe direction",
+    "default": "in",
+    "type": "select",
+    "choices": [
+      "in",
+      "out"
+    ],
+    "order": 14192,
+    "layout": {
+      "order": 13998
+    }
+  },
+  {
+    "key": "silence_removal_enabled",
+    "page": "audio",
+    "group": "Auto Silence Removal",
+    "label": "Enable silence removal",
+    "default": false,
+    "order": 11972,
+    "type": "check",
+    "layout": {
+      "order": 11972,
+      "colspan": 4
+    }
+  },
+  {
+    "key": "silence_threshold",
+    "page": "audio",
+    "group": "Auto Silence Removal",
+    "label": "Threshold (dB)",
+    "type": "slider",
+    "min": -50,
+    "max": -20,
+    "default": -30,
+    "step": 1,
+    "order": 11973,
+    "layout": {
+      "order": 11972,
+      "colspan": 4
+    }
+  },
+  {
+    "key": "silence_min_duration",
+    "page": "audio",
+    "group": "Auto Silence Removal",
+    "label": "Min Silence (s)",
+    "type": "slider",
+    "min": 0.1,
+    "max": 2.0,
+    "default": 0.5,
+    "step": 0.1,
+    "order": 11974,
+    "layout": {
+      "order": 11972,
+      "colspan": 4
+    }
+  },
+  {
+    "key": "silence_padding",
+    "page": "audio",
+    "group": "Auto Silence Removal",
+    "label": "Padding (s)",
+    "type": "slider",
+    "min": 0.0,
+    "max": 0.5,
+    "default": 0.15,
+    "step": 0.05,
+    "order": 11975,
+    "layout": {
+      "order": 11972,
+      "colspan": 4
+    }
+  },
+  {
+    "key": "caption_layout",
+    "page": "captions",
+    "group": "Global Settings",
+    "label": "caption layout",
+    "default": "2-line",
+    "order": 13405,
+    "type": "radio",
+    "choices": [
+      "1-line",
+      "2-line",
+      "multi-line"
+    ],
+    "layout": {
+      "order": 13388,
+      "parent": "grid_container",
+      "row": 1,
+      "col": 1
+    }
+  },
+  {
+    "key": "caption_font_size",
+    "page": "captions",
+    "group": "Global Settings",
+    "label": "Caption Font Size (Global)",
+    "type": "slider",
+    "min": 30,
+    "max": 200,
+    "default": 60,
+    "step": 1,
+    "order": 13430,
+    "layout": {
+      "order": 13388,
+      "parent": "grid_container",
+      "row": 1,
+      "col": 1
+    }
+  },
+  {
+    "key": "caption_position",
+    "page": "captions",
+    "group": "Global Settings",
+    "label": "caption position",
+    "default": "bottom",
+    "order": 13448,
+    "layout": {
+      "order": 13388,
+      "parent": "grid_container",
+      "row": 1,
+      "col": 1
+    },
+    "type": "radio",
+    "choices": [
+      "top",
+      "center",
+      "bottom"
+    ]
+  },
+  {
+    "key": "caption_y_offset",
+    "page": "captions",
+    "group": "Global Settings",
+    "label": "Y Offset",
+    "type": "slider",
+    "min": -500,
+    "max": 500,
+    "default": 0,
+    "step": 1,
+    "order": 13463,
+    "layout": {
+      "order": 13388,
+      "parent": "grid_container",
+      "row": 1,
+      "col": 1
+    }
+  },
+  {
+    "key": "caption_sync_offset",
+    "page": "captions",
+    "group": "Global Settings",
+    "label": "Sync Offset (s)",
+    "type": "slider",
+    "min": -0.5,
+    "max": 0.5,
+    "default": 0.0,
+    "step": 0.01,
+    "order": 13472,
+    "layout": {
+      "order": 13388,
+      "parent": "grid_container",
+      "row": 1,
+      "col": 1
+    }
+  },
+  {
+    "key": "caption_words_per_line",
+    "page": "captions",
+    "group": "Global Settings",
+    "label": "Words Per Caption",
+    "type": "slider",
+    "min": 1,
+    "max": 5,
+    "default": 3,
+    "step": 1,
+    "order": 13475,
+    "layout": {
+      "order": 13388,
+      "parent": "grid_container",
+      "row": 1,
+      "col": 1
+    }
+  },
+  {
+    "key": "caption_text_case",
+    "page": "captions",
+    "group": "Global Settings",
+    "label": "caption text case",
+    "default": "Normal",
+    "order": 13484,
+    "type": "select",
+    "choices": [
+      "Normal",
+      "ALL CAPS",
+      "Title Case"
+    ],
+    "layout": {
+      "order": 13388,
+      "parent": "grid_container",
+      "row": 1,
+      "col": 1
+    }
+  },
+  {
+    "key": "caption_language",
+    "page": "captions",
+    "group": "Global Settings",
+    "label": "caption language",
+    "default": "auto",
+    "order": 13503,
+    "type": "select",
+    "choices": [
+      "auto",
+      "english",
+      "russian",
+      "arabic",
+      "urdu",
+      "japanese",
+      "chinese",
+      "korean",
+      "hindi",
+      "thai"
+    ],
+    "layout": {
+      "order": 13388,
+      "parent": "grid_container",
+      "row": 1,
+      "col": 1
+    }
+  },
+  {
+    "key": "clipper_captions_enabled",
+    "page": "captions",
+    "group": "Pro Captions (ASS)",
+    "label": "Enable Pro ASS Captions (replaces per-frame)",
+    "default": false,
+    "order": 13700,
+    "type": "check",
+    "layout": {
+      "order": 13698,
+      "parent": "grid_container",
+      "col": 2,
+      "colspan": 2
+    }
+  },
+  {
+    "key": "clipper_caption_preset",
+    "page": "captions",
+    "group": "Pro Captions (ASS)",
+    "label": "Style preset",
+    "default": "bold_white",
+    "order": 13701,
+    "layout": {
+      "order": 13698,
+      "parent": "grid_container",
+      "col": 2,
+      "colspan": 2
+    },
+    "type": "select",
+    "choices": [
+      "bold_white",
+      "karaoke_yellow",
+      "minimal",
+      "hormozi_green",
+      "hormozi_yellow",
+      "beast_red",
+      "raj_clean",
+      "alex_caps",
+      "one_word_punch",
+      "word_reveal",
+      "bebas_clean",
+      "comic_bangers",
+      "slab_impact",
+      "marker_note",
+      "serif_elegant",
+      "neon_pop",
+      "boxed_tiktok",
+      "oswald_news",
+      "green_word"
+    ],
+    "choiceLabels": {
+      "bold_white": "Bold White",
+      "karaoke_yellow": "Karaoke Yellow",
+      "minimal": "Minimal",
+      "hormozi_green": "Hormozi Green",
+      "hormozi_yellow": "Hormozi Yellow",
+      "beast_red": "Beast Pop",
+      "raj_clean": "Raj Shamani Clean",
+      "alex_caps": "Alex Bold Caps",
+      "one_word_punch": "One-Word Punch",
+      "word_reveal": "Word Reveal",
+      "bebas_clean": "Bebas Clean",
+      "comic_bangers": "Comic Punch",
+      "slab_impact": "Slab Impact",
+      "marker_note": "Marker",
+      "serif_elegant": "Serif Elegant",
+      "neon_pop": "Neon Pop",
+      "boxed_tiktok": "Boxed",
+      "oswald_news": "Oswald News",
+      "green_word": "Green Word"
+    }
+  },
+  {
+    "key": "clipper_override_font_family",
+    "page": "captions",
+    "group": "Pro Captions (ASS)",
+    "label": "Font override (empty uses preset)",
+    "default": "",
+    "order": 13705,
+    "type": "font",
+    "choices": [
+      "Agency FB",
+      "Agency FB Bold",
+      "Aldhabi",
+      "Alfa Slab One",
+      "Algerian",
+      "Andalus",
+      "Anton",
+      "Arabic Typesetting",
+      "Archivo Black",
+      "Arial",
+      "Arial Black",
+      "Arial Bold",
+      "Arial Bold Italic",
+      "Arial Italic",
+      "Arial Narrow",
+      "Arial Narrow Bold",
+      "Arial Narrow Bold Italic",
+      "Arial Narrow Italic",
+      "Arial Rounded MT Bold",
+      "Bahnschrift",
+      "Bangers",
+      "Baskerville Old Face",
+      "Bauhaus 93",
+      "Bebas Neue",
+      "Bell MT",
+      "Bell MT Bold",
+      "Bell MT Italic",
+      "Berlin Sans FB",
+      "Berlin Sans FB Bold",
+      "Berlin Sans FB Demi Bold",
+      "Bernard MT Condensed",
+      "Blackadder ITC",
+      "Bodoni MT",
+      "Bodoni MT Black",
+      "Bodoni MT Black Italic",
+      "Bodoni MT Bold",
+      "Bodoni MT Bold Italic",
+      "Bodoni MT Condensed",
+      "Bodoni MT Condensed Bold",
+      "Bodoni MT Condensed Bold Italic",
+      "Bodoni MT Condensed Italic",
+      "Bodoni MT Italic",
+      "Bodoni MT Poster Compressed",
+      "Book Antiqua",
+      "Book Antiqua Bold",
+      "Book Antiqua Bold Italic",
+      "Book Antiqua Italic",
+      "Bookman Old Style",
+      "Bookman Old Style Bold",
+      "Bookman Old Style Bold Italic",
+      "Bookman Old Style Italic",
+      "Bookshelf Symbol 7",
+      "Bowlby One SC",
+      "Bradley Hand ITC",
+      "Britannic Bold",
+      "Broadway",
+      "Brush Script MT Italic",
+      "Bungee",
+      "Calibri",
+      "Calibri Bold",
+      "Calibri Bold Italic",
+      "Calibri Italic",
+      "Calibri Light",
+      "Calibri Light Italic",
+      "Californian FB",
+      "Californian FB Bold",
+      "Californian FB Italic",
+      "Calisto MT",
+      "Calisto MT Bold",
+      "Calisto MT Bold Italic",
+      "Calisto MT Italic",
+      "Cambria",
+      "Cambria Bold",
+      "Cambria Bold Italic",
+      "Cambria Italic",
+      "Cambria Math",
+      "Candara",
+      "Candara Bold",
+      "Candara Bold Italic",
+      "Candara Italic",
+      "Candara Light",
+      "Candara Light Italic",
+      "Castellar",
+      "Centaur",
+      "Century",
+      "Century Gothic",
+      "Century Gothic Bold",
+      "Century Gothic Bold Italic",
+      "Century Gothic Italic",
+      "Century Schoolbook",
+      "Century Schoolbook Bold",
+      "Century Schoolbook Bold Italic",
+      "Century Schoolbook Italic",
+      "Changa",
+      "Chiller",
+      "Colonna MT",
+      "Comic Sans MS",
+      "Comic Sans MS Bold",
+      "Comic Sans MS Bold Italic",
+      "Comic Sans MS Italic",
+      "Concert One",
+      "Consolas",
+      "Consolas Bold",
+      "Consolas Bold Italic",
+      "Consolas Italic",
+      "Constantia",
+      "Constantia Bold",
+      "Constantia Bold Italic",
+      "Constantia Italic",
+      "Cooper Black",
+      "Copperplate Gothic Bold",
+      "Copperplate Gothic Light",
+      "Corbel",
+      "Corbel Bold",
+      "Corbel Bold Italic",
+      "Corbel Italic",
+      "Corbel Light",
+      "Corbel Light Italic",
+      "Courier 10,12,15",
+      "Courier New",
+      "Courier New Bold",
+      "Courier New Bold Italic",
+      "Courier New Italic",
+      "Curlz MT",
+      "DM Serif Display",
+      "Dubai Bold",
+      "Dubai Light",
+      "Dubai Medium",
+      "Dubai Regular",
+      "Ebrima",
+      "Ebrima Bold",
+      "Edwardian Script ITC",
+      "Elephant",
+      "Elephant Italic",
+      "Engravers MT",
+      "Eras Bold ITC",
+      "Eras Demi ITC",
+      "Eras Light ITC",
+      "Eras Medium ITC",
+      "Felix Titling",
+      "Footlight MT Light",
+      "Forte",
+      "Franklin Gothic Book",
+      "Franklin Gothic Book Italic",
+      "Franklin Gothic Demi",
+      "Franklin Gothic Demi Cond",
+      "Franklin Gothic Demi Italic",
+      "Franklin Gothic Heavy",
+      "Franklin Gothic Heavy Italic",
+      "Franklin Gothic Medium",
+      "Franklin Gothic Medium Cond",
+      "Franklin Gothic Medium Italic",
+      "Freestyle Script",
+      "French Script MT",
+      "Gabriola",
+      "Gadugi",
+      "Gadugi Bold",
+      "Garamond",
+      "Garamond Bold",
+      "Garamond Italic",
+      "Georgia",
+      "Georgia Bold",
+      "Georgia Bold Italic",
+      "Georgia Italic",
+      "Gigi",
+      "Gill Sans MT",
+      "Gill Sans MT Bold",
+      "Gill Sans MT Bold Italic",
+      "Gill Sans MT Condensed",
+      "Gill Sans MT Ext Condensed Bold",
+      "Gill Sans MT Italic",
+      "Gill Sans Ultra Bold",
+      "Gill Sans Ultra Bold Condensed",
+      "Gloucester MT Extra Condensed",
+      "Goudy Old Style",
+      "Goudy Old Style Bold",
+      "Goudy Old Style Italic",
+      "Goudy Stout",
+      "Haettenschweiler",
+      "Harlow Solid Italic",
+      "Harrington",
+      "High Tower Text",
+      "High Tower Text Italic",
+      "Holo MDL2 Assets",
+      "Impact",
+      "Imprint MT Shadow",
+      "Informal Roman",
+      "Ink Free",
+      "Javanese Text",
+      "Jokerman",
+      "Juice ITC",
+      "Kristen ITC",
+      "Kunstler Script",
+      "Leelawadee",
+      "Leelawadee Bold",
+      "Leelawadee UI",
+      "Leelawadee UI Bold",
+      "Leelawadee UI Semilight",
+      "Lilita One",
+      "Lucida Bright",
+      "Lucida Bright Demibold",
+      "Lucida Bright Demibold Italic",
+      "Lucida Bright Italic",
+      "Lucida Calligraphy Italic",
+      "Lucida Console",
+      "Lucida Fax Demibold",
+      "Lucida Fax Demibold Italic",
+      "Lucida Fax Italic",
+      "Lucida Fax Regular",
+      "Lucida Handwriting Italic",
+      "Lucida Sans Demibold Italic",
+      "Lucida Sans Demibold Roman",
+      "Lucida Sans Italic",
+      "Lucida Sans Regular",
+      "Lucida Sans Typewriter Bold",
+      "Lucida Sans Typewriter Bold Oblique",
+      "Lucida Sans Typewriter Oblique",
+      "Lucida Sans Typewriter Regular",
+      "Lucida Sans Unicode",
+      "Luckiest Guy",
+      "MS Gothic",
+      "MS Outlook",
+      "MS PGothic",
+      "MS Reference Sans Serif",
+      "MS Reference Specialty",
+      "MS Sans Serif 8,10,12,14,18,24",
+      "MS Serif 8,10,12,14,18,24",
+      "MS UI Gothic",
+      "MT Extra",
+      "MV Boli",
+      "Magneto Bold",
+      "Maiandra GD",
+      "Malgun Gothic",
+      "Malgun Gothic Bold",
+      "Malgun Gothic SemiLight",
+      "Matura MT Script Capitals",
+      "Microsoft Himalaya",
+      "Microsoft JhengHei",
+      "Microsoft JhengHei Bold",
+      "Microsoft JhengHei Light",
+      "Microsoft JhengHei UI",
+      "Microsoft JhengHei UI Bold",
+      "Microsoft JhengHei UI Light",
+      "Microsoft New Tai Lue",
+      "Microsoft New Tai Lue Bold",
+      "Microsoft PhagsPa",
+      "Microsoft PhagsPa Bold",
+      "Microsoft Sans Serif",
+      "Microsoft Tai Le",
+      "Microsoft Tai Le Bold",
+      "Microsoft Uighur",
+      "Microsoft Uighur Bold",
+      "Microsoft YaHei",
+      "Microsoft YaHei Bold",
+      "Microsoft YaHei Light",
+      "Microsoft YaHei UI",
+      "Microsoft YaHei UI Bold",
+      "Microsoft YaHei UI Light",
+      "Microsoft Yi Baiti",
+      "MingLiU-ExtB",
+      "MingLiU_HKSCS-ExtB",
+      "Mistral",
+      "Modern",
+      "Modern No. 20",
+      "Mongolian Baiti",
+      "Monotype Corsiva",
+      "Montserrat",
+      "Myanmar Text",
+      "Myanmar Text Bold",
+      "NSimSun",
+      "Niagara Engraved",
+      "Niagara Solid",
+      "Nirmala Text",
+      "Nirmala Text Bold",
+      "Nirmala Text Semilight",
+      "Nirmala UI",
+      "Nirmala UI Bold",
+      "Nirmala UI Semilight",
+      "Noto Naskh Arabic",
+      "Noto Nastaliq Urdu",
+      "Noto Sans Arabic",
+      "Noto Sans Devanagari",
+      "Noto Serif Devanagari",
+      "OCR A Extended",
+      "Old English Text MT",
+      "Onyx",
+      "Oswald",
+      "PMingLiU-ExtB",
+      "Palace Script MT",
+      "Palatino Linotype",
+      "Palatino Linotype Bold",
+      "Palatino Linotype Bold Italic",
+      "Palatino Linotype Italic",
+      "Papyrus",
+      "Parchment",
+      "Passion One",
+      "Paytone One",
+      "Permanent Marker",
+      "Perpetua",
+      "Perpetua Bold",
+      "Perpetua Bold Italic",
+      "Perpetua Italic",
+      "Perpetua Titling MT Bold",
+      "Perpetua Titling MT Light",
+      "Playbill",
+      "Poor Richard",
+      "Poppins",
+      "Pristina",
+      "Rage Italic",
+      "Ravie",
+      "Rockwell",
+      "Rockwell Bold",
+      "Rockwell Bold Italic",
+      "Rockwell Condensed",
+      "Rockwell Condensed Bold",
+      "Rockwell Extra Bold",
+      "Rockwell Italic",
+      "Roman",
+      "Russo One",
+      "Sakkal Majalla",
+      "Sakkal Majalla Bold",
+      "Sans Serif Collection",
+      "Script",
+      "Script MT Bold",
+      "Segoe Fluent Icons",
+      "Segoe MDL2 Assets",
+      "Segoe Print",
+      "Segoe Print Bold",
+      "Segoe Script",
+      "Segoe Script Bold",
+      "Segoe UI",
+      "Segoe UI Black",
+      "Segoe UI Black Italic",
+      "Segoe UI Bold",
+      "Segoe UI Bold Italic",
+      "Segoe UI Emoji",
+      "Segoe UI Historic",
+      "Segoe UI Italic",
+      "Segoe UI Light",
+      "Segoe UI Light Italic",
+      "Segoe UI Semibold",
+      "Segoe UI Semibold Italic",
+      "Segoe UI Semilight",
+      "Segoe UI Semilight Italic",
+      "Segoe UI Symbol",
+      "Segoe UI Variable",
+      "Showcard Gothic",
+      "Shrikhand",
+      "Sigmar One",
+      "SimSun",
+      "SimSun-ExtB",
+      "SimSun-ExtG",
+      "Simplified Arabic",
+      "Simplified Arabic Bold",
+      "Simplified Arabic Fixed",
+      "Sitka Text",
+      "Sitka Text Italic",
+      "Small Fonts",
+      "Snap ITC",
+      "Stencil",
+      "Sylfaen",
+      "Symbol",
+      "Tahoma",
+      "Tahoma Bold",
+      "Teko",
+      "Tempus Sans ITC",
+      "Times New Roman",
+      "Times New Roman Bold",
+      "Times New Roman Bold Italic",
+      "Times New Roman Italic",
+      "Titan One",
+      "Traditional Arabic",
+      "Traditional Arabic Bold",
+      "Trebuchet MS",
+      "Trebuchet MS Bold",
+      "Trebuchet MS Bold Italic",
+      "Trebuchet MS Italic",
+      "Tw Cen MT",
+      "Tw Cen MT Bold",
+      "Tw Cen MT Bold Italic",
+      "Tw Cen MT Condensed",
+      "Tw Cen MT Condensed Bold",
+      "Tw Cen MT Condensed Extra Bold",
+      "Tw Cen MT Italic",
+      "Urdu Typesetting",
+      "Urdu Typesetting Bold",
+      "Verdana",
+      "Verdana Bold",
+      "Verdana Bold Italic",
+      "Verdana Italic",
+      "Viner Hand ITC",
+      "Vivaldi Italic",
+      "Vladimir Script",
+      "Webdings",
+      "Wide Latin",
+      "Wingdings",
+      "Wingdings 2",
+      "Wingdings 3",
+      "Yu Gothic Bold",
+      "Yu Gothic Light",
+      "Yu Gothic Medium",
+      "Yu Gothic Regular",
+      "Yu Gothic UI Bold",
+      "Yu Gothic UI Light",
+      "Yu Gothic UI Regular",
+      "Yu Gothic UI Semibold",
+      "Yu Gothic UI Semilight"
+    ],
+    "layout": {
+      "order": 13698,
+      "parent": "grid_container",
+      "col": 2,
+      "colspan": 2
+    }
+  },
+  {
+    "key": "clipper_override_bold",
+    "page": "captions",
+    "group": "Pro Captions (ASS)",
+    "label": "Bold",
+    "default": false,
+    "order": 13706,
+    "type": "check",
+    "layout": {
+      "order": 13698,
+      "parent": "grid_container",
+      "col": 2,
+      "colspan": 2
+    }
+  },
+  {
+    "key": "clipper_override_stroke",
+    "page": "captions",
+    "group": "Pro Captions (ASS)",
+    "label": "Stroke width (0 uses preset)",
+    "default": 0,
+    "order": 13707,
+    "layout": {
+      "order": 13698,
+      "parent": "grid_container",
+      "col": 2,
+      "colspan": 2
+    },
+    "type": "number",
+    "min": 0,
+    "max": 15,
+    "step": 1
+  },
+  {
+    "key": "clipper_override_bg_enabled",
+    "page": "captions",
+    "group": "Pro Captions (ASS)",
+    "label": "BG Pill",
+    "default": false,
+    "order": 13708,
+    "type": "check",
+    "layout": {
+      "order": 13698,
+      "parent": "grid_container",
+      "col": 2,
+      "colspan": 2
+    }
+  },
+  {
+    "key": "clipper_override_bg_color",
+    "page": "captions",
+    "group": "Pro Captions (ASS)",
+    "label": "Background colour",
+    "default": "",
+    "order": 13709,
+    "layout": {
+      "order": 13698,
+      "parent": "grid_container",
+      "col": 2,
+      "colspan": 2
+    },
+    "type": "optional-color"
+  },
+  {
+    "key": "clipper_override_bg_opacity",
+    "page": "captions",
+    "group": "Pro Captions (ASS)",
+    "label": "Background opacity (%)",
+    "default": 80,
+    "order": 13710,
+    "type": "slider",
+    "min": 0,
+    "max": 100,
+    "step": 1,
+    "layout": {
+      "order": 13698,
+      "parent": "grid_container",
+      "col": 2,
+      "colspan": 2
+    }
+  },
+  {
+    "key": "clipper_caption_animation",
+    "page": "captions",
+    "group": "Pro Captions (ASS)",
+    "label": "Animation",
+    "default": "none",
+    "order": 13711,
+    "layout": {
+      "order": 13698,
+      "parent": "grid_container",
+      "col": 2,
+      "colspan": 2
+    },
+    "type": "select",
+    "choices": [
+      "none",
+      "highlight",
+      "word_reveal",
+      "one_word",
+      "karaoke"
+    ],
+    "choiceLabels": {
+      "none": "Static — all words shown",
+      "highlight": "Highlight — active word glows",
+      "word_reveal": "Word Reveal — words appear as spoken",
+      "one_word": "One Word — a single word at a time",
+      "karaoke": "Karaoke — words fill left to right"
+    }
+  },
+  {
+    "key": "clipper_override_highlight_color",
+    "page": "captions",
+    "group": "Pro Captions (ASS)",
+    "label": "Highlight colour",
+    "default": "",
+    "order": 13702,
+    "layout": {
+      "order": 13698,
+      "parent": "grid_container",
+      "col": 2,
+      "colspan": 2
+    },
+    "type": "optional-color"
+  },
+  {
+    "key": "clipper_override_primary_color",
+    "page": "captions",
+    "group": "Pro Captions (ASS)",
+    "label": "Primary colour",
+    "default": "",
+    "order": 13703,
+    "layout": {
+      "order": 13698,
+      "parent": "grid_container",
+      "col": 2,
+      "colspan": 2
+    },
+    "type": "optional-color"
+  },
+  {
+    "key": "clipper_override_stroke_color",
+    "page": "captions",
+    "group": "Pro Captions (ASS)",
+    "label": "Stroke colour",
+    "default": "",
+    "order": 13704,
+    "layout": {
+      "order": 13698,
+      "parent": "grid_container",
+      "col": 2,
+      "colspan": 2
+    },
+    "type": "optional-color"
+  }
+]

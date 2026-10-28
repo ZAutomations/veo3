@@ -465,7 +465,7 @@ class Veo3FlowNewUI {
         require('./saved_couple').bindSavedStory(this.jsonFilePath, savedCouple);
         require('./saved_couple').applyIngredientsReferenceMode(this, savedCouple);
         if (savedCouple && !this.resumeExisting && !this.opts.exportOnly) {
-            log('Saved couple workflow ON: upload Sarah + George, generate the location, then attach all references to clip 1. Legacy reference flags are overridden.');
+            log('Preset reference library ON: upload matching saved images, generate missing references, then attach the scene references.');
         }
         log(`📂 Loading scenes: ${this.jsonFilePath}`);
         const data = JSON.parse(await fsp.readFile(this.jsonFilePath, 'utf-8'));
@@ -532,7 +532,7 @@ class Veo3FlowNewUI {
         // missing place or an unmatched name is visible in the log BEFORE a
         // single credit is spent, not discovered in the finished clips.
         const storyRefs = loadStoryRefs(this.jsonFilePath, data);
-        this.storyRefs = storyRefs.refs;
+        this.storyRefs = require('./saved_couple').applySavedRefs(storyRefs.refs, this.savedCouple);
         this.storyRefsSource = storyRefs.source;
         log(`   🧩 ${this.storyRefs.length} reference image(s) from ${storyRefs.source}`);
         for (const r of this.storyRefs) log(`      ${r.kind === 'place' ? 'place' : 'cast '}  ${r.name}`);
@@ -808,6 +808,7 @@ class Veo3FlowNewUI {
 
     // ── prompt typing (ProseMirror editor in new UI) ─────────────
     async typePrompt(prompt) {
+        prompt = require('./reference_identity').withIdentity(prompt, this.storyRefs, this.story?.character_descriptions);
         const ok = await this.evalJs((p) => {
             // The prompt box is a ProseMirror editor; its placeholder span reads
             // "What happens next?" / "What do you want to create?" / "Describe how to editâ€¦"

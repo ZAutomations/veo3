@@ -11,6 +11,8 @@ function selectedClips(text,total){
 }
 function groups(total,{batch,clips,size=5}){
     if(clips)return selectedClips(clips,total).map(n=>({from:n,to:n}));
+    size=Number(size);
+    if(!Number.isSafeInteger(size)||size<1)throw Error('Prompts per batch must be a positive whole number.');
     const count=Math.ceil(total/size),start=Number(batch);
     if(!Number.isInteger(start)||start<1||start>count)throw Error(`Batch must be between 1 and ${count}.`);
     const result=[];for(let n=start;n<=count;n++)result.push({from:(n-1)*size+1,to:Math.min(n*size,total)});return result;
@@ -19,7 +21,7 @@ async function main(argv){
     const flag=name=>{const i=argv.indexOf(name);return i>=0?argv[i+1]:undefined};
     const storyFile=path.resolve(flag('--story')||'');const story=JSON.parse(fs.readFileSync(storyFile));
     const project=flag('--project-url');if(!/^https:\/\/flow\.google\.com\/project\/[a-z0-9-]+(?:\/.*)?$/i.test(project||''))throw Error('Enter the existing Flow project URL.');
-    const plan=groups(story.scenes.length,{batch:flag('--batch'),clips:flag('--clips')});
+    const plan=groups(story.scenes.length,{batch:flag('--batch'),clips:flag('--clips'),size:flag('--batch-size')??5});
     const dir=path.join(path.dirname(storyFile),'manual_generation_'+Date.now());fs.mkdirSync(dir,{recursive:true});
     const checkpoint={project,story:storyFile,plan,completed:[],mode:'explicit manual selection; original batch checkpoint ignored'};
     const save=()=>fs.writeFileSync(path.join(dir,'progress.json'),JSON.stringify(checkpoint,null,2));save();

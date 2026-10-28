@@ -144,7 +144,7 @@ for (const sc of scenes) {
 if (!charKeys.length && story.character_references) {
     charKeys.push(...Object.keys(story.character_references));
 }
-const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const cap = (s) => /^sam$/i.test(s) ? 'SAM' : s.charAt(0).toUpperCase() + s.slice(1);
 const charNames = charKeys.map(cap);
 
 // ── the place ----------------------------------------------------------------
@@ -252,8 +252,8 @@ if (story.moral) L.push(`Message of the story: ${story.moral}`);
 L.push('');
 
 if (DIALOGUE) {
-    if (charNames.some(n => n.toLowerCase() === 'sarah') && charNames.some(n => n.toLowerCase() === 'george')) {
-        L.push('SPEAKER IDENTITY LOCK: Sarah is the female reference character with her own female voice. George is the male reference character with his own male voice. Each speaks ONLY the DIALOGUE lines labelled with their own name, in the exact listed order. Never swap lines or voices. Only the named speaker moves their lips; the listener keeps their mouth closed.');
+    if (charNames.some(n => n.toLowerCase() === 'sarah') && charNames.some(n => n.toLowerCase() === 'sam')) {
+        L.push('SPEAKER IDENTITY LOCK: Sarah is the female reference character with her own female voice. SAM is the male reference character with his own male voice. Each speaks ONLY the DIALOGUE lines labelled with their own name, in the exact listed order. Never swap lines or voices. Only the named speaker moves their lips; the listener keeps their mouth closed.');
     }
     L.push('CRITICAL FORMAT - this is a SPOKEN DIALOGUE VIDEO, not a narrated one:');
     L.push('- There is NO narrator and NO voice-over anywhere in this video. Nothing is');
@@ -451,7 +451,7 @@ for (const sc of scenes) {
         L.push('DIALOGUE (spoken on screen, read exactly):');
         L.push(require('./dialogue_speakers').audioMix().trim());
         if (lines.length) {
-            const fixedCouple = charNames.some(n => /^sarah$/i.test(n)) && charNames.some(n => /^george$/i.test(n));
+            const fixedCouple = charNames.some(n => /^sarah$/i.test(n)) && charNames.some(n => /^sam$/i.test(n));
             lines.forEach(d => L.push(fixedCouple ? `  ${require('./dialogue_speakers').formatDialogueTurn(d)}` : `  ${d.speaker}: "${d.line}"`));
         } else {
             L.push('  (nobody speaks in this clip - a silent beat. No narration either.)');
@@ -520,6 +520,7 @@ let body = require('./reference_video_preset').agent(story,{from:rangeFrom,to:ra
     from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS,
     native:!!flag('--flow-characters',false),
 }) || (zackCuts ? require('./zack_shot_contract').DIRECTION + '\n\n' : '') + L.join('\n');
+body = require('./reference_identity').forAgent(body, storyPath, [...charNames, placeName].filter(Boolean));
 body = require('./agent_scene_ids').inject(body,story);
 const outPath = OUT || path.join(path.dirname(storyPath), 'agent_prompt.txt');
 

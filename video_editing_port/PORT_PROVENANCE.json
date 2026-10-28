@@ -1,0 +1,28 @@
+{
+  "source_root": "D:\\MyFinalAutomations\\VideoAuotmation",
+  "copied_modules": [
+    "clipper_captions.py",
+    "caption_fonts.py",
+    "_whisper_word_timestamps.py",
+    "VoiceModules/TransitionSFX"
+  ],
+  "extracted_from": "youtube_video_automation_enhanced.py",
+  "extracted_symbols": [
+    "TransitionEffects",
+    "_load_sfx",
+    "_sfx_name_for",
+    "_make_sfx_clip",
+    "_load_custom_sfx_audio",
+    "_resolve_sfx_for_transition",
+    "_apply_segment_transitions",
+    "_ffmpeg_cut_concat"
+  ],
+  "settings_from": "desktop/ui/settings-schema.js",
+  "adaptations": [
+    "Package-relative imports only; no dependency on the original tool installation.",
+    "Silence detector adapter records keep intervals and handles trailing silence.",
+    "Transitions preserve clip duration and are placed at mapped verified join boundaries.",
+    "Pro ASS captions and preview use the same original libass engine.",
+    "Silence keep intervals and FFmpeg video trims use exact frame indices to prevent accumulated A/V rounding drift; audio uses the same high-precision timeline."
+  ]
+}

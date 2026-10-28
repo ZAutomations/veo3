@@ -3,7 +3,7 @@ const minimal=require('../relationship_minimal_package');
 const simple=require('../simple_dialogue_prompt');
 const presets=require('../styles.json').styles.filter(p=>p.id.startsWith('relationship-dialogue'));
 for(const p of presets){
- const s={title:'Test',niche:p.label,narration_scope:'dialogue',scene_seconds:8,place:{name:'Kitchen'},blocking:'Force fixed posture',camera_direction:'Complicated shots',character_descriptions:{},scenes:[{dialogue:[{speaker:'George',line:'I hear you.'},{speaker:'Sarah',line:'Thank you for listening.'}]}]};
+ const s={title:'Test',niche:p.label,narration_scope:'dialogue',scene_seconds:8,place:{name:'Kitchen'},blocking:'Force fixed posture',camera_direction:'Complicated shots',character_descriptions:{},scenes:[{dialogue:[{speaker:'SAM',line:'I hear you.'},{speaker:'Sarah',line:'Thank you for listening.'}]}]};
  const original=JSON.stringify(s.scenes[0].dialogue);
  assert(minimal.applies(p,s));minimal.apply(s);
  assert.equal(JSON.stringify(s.scenes[0].dialogue),original);

@@ -17,7 +17,7 @@ const blocked=Object.assign(Error('blocked by the API: PROHIBITED_CONTENT'),{blo
  const preload=path.join(temp,'block_response.js'),counter=path.join(temp,'calls.txt');
  fs.writeFileSync(preload,`const fs=require('fs');global.fetch=async()=>{fs.appendFileSync(${JSON.stringify(counter)},'called\\n');return {ok:true,text:async()=>JSON.stringify({promptFeedback:{blockReason:'PROHIBITED_CONTENT'}})};};`);
  const child=spawnSync(process.execPath,['--require',preload,path.resolve('write_story.js'),
-  '--title','A calm relationship conversation','--detail','Sarah: Communication matters. George: Respect matters too.',
+  '--title','A calm relationship conversation','--detail','Sarah: Communication matters. SAM: Respect matters too.',
   '--preset','relationship-dialogue-ghibli','--seconds','8','--duration','40','--key','fake-test-key',
   '--transport','auto','--out',path.join(temp,'output')],{encoding:'utf8',timeout:15000});
  assert.equal(child.status,1,child.stderr);

@@ -4,7 +4,7 @@ import desktop_app as app
 with tempfile.TemporaryDirectory() as folder:
     story=pathlib.Path(folder)/'sample_story.json'
     story.write_text(json.dumps({'title':'Sample','scene_seconds':8,'scenes':[{'veo3_prompt':'test'}]}))
-    base={'view':'agent','queue':[str(story)],'model':'Omni 1.1 Flash','aspect':'9:16','seconds':8,'resolution':'360p'}
+    base={'usePresetRefs':False,'view':'agent','queue':[str(story)],'model':'Omni 1.1 Flash','aspect':'9:16','seconds':8,'resolution':'360p'}
     for general,batch,expected in [(True,False,True),(False,True,True),(False,False,False),(True,True,True)]:
         _,ops=app.plan_action('generate_queue',dict(base,genRefs=general,batchGenRefs=batch))
         assert ops[0][1][1]['generate_refs']==expected,(general,batch)

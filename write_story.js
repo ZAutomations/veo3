@@ -1324,7 +1324,7 @@ Also design "thumbnail": {"headline":"maximum five simple words","visual_concept
 2. Write a one-sentence "moral" (max 25 words).
 3. Write "target_audience" (max 12 words).
 ${castRule}${castFields}${castSpec}${placeField}${blockingField}
-${p.fixed_couple_names ? 'FIXED NAMES: woman = Sarah, man = George. Include each character gender. If the source calls them by a different name, record that original name ONLY in source_name (otherwise leave it empty), so every spoken mention can be replaced. All story text, descriptions and sheet prompts must use Sarah and George. Preserve source speaker order in the characters array.' : ''}
+${p.fixed_couple_names ? 'FIXED NAMES: woman = Sarah, man = SAM. Include each character gender. If the source calls them by a different name, record that original name ONLY in source_name (otherwise leave it empty), so every spoken mention can be replaced. All story text, descriptions and sheet prompts must use Sarah and SAM. Preserve source speaker order in the characters array.' : ''}
 ${outlineNo}. Write an "outline": exactly ${SCENES} entries, one per clip.
      "title" - 2 to 5 words
      "beat"  - one sentence: what happens in this clip and what changes.
@@ -1379,7 +1379,7 @@ ${DETAIL}
 Use its spoken turns in their original order, grouped according to the outline.
 Never substitute a new story, visual metaphor, lesson or invented dialogue.
 Treat >> as turn separators and remove [music]. Keep the original meaning and
-lightly simplify English only. The woman is Sarah and the man is George;
+lightly simplify English only. The woman is Sarah and the man is SAM;
 replace source names in both speaker labels and direct address. Preserve every
 turn across the film. Source dialogue length overrides original-idea density
 targets; do not add filler or drop dialogue to satisfy a target.
@@ -1900,6 +1900,7 @@ function buildStory(p, cast, meta, scenes) {
         target_audience: meta.target_audience || '',
         moral: meta.moral,
         niche: p.label,
+        preset_id: p.id,
         style: p.style,
         ...(p.id === '3d-zack-style' ? { sound_style: p.sound_style } : {}),
         ...(p.narrative_mode?{narrative_mode:p.narrative_mode}:{}),
@@ -2641,7 +2642,7 @@ if (require.main === module) (async () => {
 
     const resolvedPreset = require('./relationship_transcript').resolveTranscriptPreset(PRESET_ID, TITLE, DETAIL);
     if (resolvedPreset !== PRESET_ID) {
-        console.log('  Relationship transcript detected: using Relationship Dialogue Ghibli (Sarah / George).');
+        console.log('  Relationship transcript detected: using Relationship Dialogue Ghibli (Sarah / SAM).');
         PRESET_ID = resolvedPreset;
     }
     const p = loadPreset(PRESET_ID);

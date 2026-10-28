@@ -35,7 +35,7 @@ async function main(argv) {
     const value = name => argv[argv.indexOf(name) + 1];
     const story = argv.includes('--refs') ? value('--refs') : '';
     if (!story || !fs.existsSync(story)) throw new Error('A valid --refs story JSON is required for clip batching.');
-    const savedCouple = require('./saved_couple').loadSavedCouple('agent');
+    const savedCouple = require('./saved_couple').loadSavedCouple('agent', undefined, story);
     require('./saved_couple').bindSavedStory(story, savedCouple);
     let project = argv.includes('--project-url') ? value('--project-url') : '';
     if (!project) {
@@ -47,12 +47,13 @@ async function main(argv) {
         } finally { await browser.disconnect(); }
     }
     if (savedCouple && !argv.includes('--no-upload-refs')) {
-        const refs = await runNode('generate_refs.js', ['--story', path.dirname(path.resolve(story)),
+        const refs = await runNode('generate_refs.js', ['--story', path.resolve(story),
             '--project-url', project, '--cdp', argv.includes('--cdp') ? value('--cdp') : '9222']);
         if (refs.code !== 0) throw Error('Saved reference upload failed. Clip generation stopped.');
         argv.push('--no-upload-refs');
     }
     const result = await runAgentBatches({ project_url: project, submit: true,
+        clip_batch_size: argv.includes('--batch-size') ? Number(value('--batch-size')) : 5,
         aspect: argv.includes('--aspect') ? value('--aspect') : undefined,
         no_upload_refs: argv.includes('--no-upload-refs'),
         watch: argv.includes('--watch') ? Number(value('--watch')) : 900 }, story,

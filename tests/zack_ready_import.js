@@ -45,7 +45,7 @@ try{
  for(const item of ['0-3s','5-8s','Highlight the icon','Soft click','cyan-blue','Read this complete line exactly','NATIVE SOUND:'])assert(prompt.includes(item),item);
  const agent=fs.readFileSync(path.join(folder,'agent_prompt.txt'),'utf8');assert(agent.includes('Soft click'));assert(agent.includes('Battery interior'));assert(agent.includes('No added CTA'));assert(!agent.includes('NARRATION: (none found'));
  assert.equal(JSON.parse(fs.readFileSync(path.join(folder,'refs.json'),'utf8')).refs.length,1);
- assert.equal(require('../dog_couple').savedForStory(file,'agent',{agent_saved_couple:true,couple_sarah_file:'missing'}),null);
+ assert.deepEqual(require('../dog_couple').savedForStory(file,'agent',{agent_saved_couple:true,couple_sarah_file:'missing'}),[]);
  const withCast=text.replace('None\nLocations:', 'Passenger: Adult traveller in a plain blue shirt and grey trousers.\nLocations:').replace('A hand inserts','Passenger inserts');
  const out=I.prepare(I.parse(withCast)[0],'9:16');assert(out.story.character_descriptions.passenger.includes('plain blue shirt'));assert(out.story.scenes[0].characters.includes('passenger'));assert(Z.scene(out.story,0).includes('@Passenger'));assert(!Z.scene(out.story,1).includes('@Passenger'));
  assert(Z.scene(story,1).includes('Quiet whoosh'));

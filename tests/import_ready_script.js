@@ -5,14 +5,14 @@ Preset: relationship-dialogue-dog-couple
 Details:
 Duration: 16 seconds. Exactly 2 clips of 8 seconds.
 Setting: A cozy living room with two dog beds.
-Characters: Sarah and George.
+Characters: Sarah and SAM.
 Clip 1:
 Action: Sarah tilts her head.
 Sarah: "You stole my blanket again."
-George: "I was keeping it warm for you."
+SAM: "I was keeping it warm for you."
 Clip 2:
-Action: George rests his paw on the blanket.
-George: "Sharing is caring."
+Action: SAM rests his paw on the blanket.
+SAM: "Sharing is caring."
 Sarah: "Then care about your own blanket."`;
 const parsed=I.parse(text);assert.equal(parsed[0].clips.length,2);assert.equal(parsed[0].seconds,8);
 assert.throws(()=>I.parse(text.replace('Clip 2:','Clip 3:')),/consecutive/);

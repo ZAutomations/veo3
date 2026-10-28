@@ -437,3 +437,5 @@ if (total && finalDur != null && Math.abs(finalDur - total) > 1.5) {
 }
 log(`Clips   : ${ordered.length} joined, in this order:`);
 ordered.forEach((f, i) => log(`          ${String(i + 1).padStart(2, '0')}. ${f}`));
+
+require('./video_editing_hook').runAfterJoin(outPath, path.join(path.dirname(outPath), 'JOINED_CLIP_ORDER.txt'));

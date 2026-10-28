@@ -2,7 +2,7 @@ const assert=require('assert'),fs=require('fs'),path=require('path'),puppeteer=r
 (async()=>{
  const testDir=fs.mkdtempSync(path.join(require('os').tmpdir(),'studio-txt-'));
  const txt=path.join(testDir,'batch-stories.txt'),empty=path.join(testDir,'empty.txt');
- const ready='Story 1\nTitle: Test import\nClip seconds: 8\nSetting: A living room\nClip 1:\nSarah: Hello.\nGeorge: Hi.';
+ const ready='Story 1\nTitle: Test import\nClip seconds: 8\nSetting: A living room\nClip 1:\nSarah: Hello.\nSAM: Hi.';
  fs.writeFileSync(txt,ready);fs.writeFileSync(empty,'');
  const browser=await puppeteer.launch({headless:true});
  try{

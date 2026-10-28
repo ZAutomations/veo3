@@ -23,7 +23,7 @@ Narration: "[complete narration segment]"
 Visual: [specific event and action]
 Sound: [quiet appropriate sound or None]
 
-Continue through the complete story. Replace all placeholders; never include the continuation instruction. Repeat Story 2 etc. for a batch. For Sarah/George dialogue include setting and descriptive prose BEFORE Clip 1, then only labelled spoken lines within clips; no Action: fields that the legacy transcript parser could mistake for speech.
+Continue through the complete story. Replace all placeholders; never include the continuation instruction. Repeat Story 2 etc. for a batch. For Sarah/SAM dialogue include setting and descriptive prose BEFORE Clip 1, then only labelled spoken lines within clips; no Action: fields that the legacy transcript parser could mistake for speech.
 The tool applies the preset below. Follow its genre, visual medium, camera, cast, tone and sound rules when describing the scenes:
 STYLE: 3D rendered shot, video-game engine render aesthetic, cinematic depth of field, CGI skin texture on living subjects and plain CGI texture on objects and empty scenes, physically plausible materials, warm practical lighting, blurred soft background
 PALETTE: Warm chandelier amber, cool city blue, casino green felt, restaurant cream, steely industrial grey, deep night blue, gold accent

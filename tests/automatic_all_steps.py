@@ -15,7 +15,7 @@ with tempfile.TemporaryDirectory() as tmp,patch.object(app,'ROOT',Path(tmp)):
             if len(calls)<3:raise RuntimeError('A previously unseen error sentence')
         with patch.object(job,'_run_operations',perform):job.run()
         assert job.status=='completed' and job.auto_retry_count==2,(action,list(job.logs))
-        assert delay.calls==[8,8]
+        assert delay.calls==([8,16] if action=='import_script' else [8,8])
     # A known clip-stage checkpoint must not be changed back to reference
     # preparation because an earlier attempt logged a reference timeout.
     job=app.Job('generate',{'view':'agent','project':'https://flow.google.com/project/same'},'flow',[])

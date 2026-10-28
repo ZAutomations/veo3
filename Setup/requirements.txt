@@ -3,3 +3,6 @@ yt-dlp>=2025.1.1
 openai-whisper>=20240930
 
 -r requirements-desktop.txt
+
+# Ported local video editing engines
+-r requirements-editing.txt

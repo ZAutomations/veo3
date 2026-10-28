@@ -371,6 +371,9 @@ class Veo3LauncherGUI:
                 source = SETTINGS_FILE
             with open(source, "r", encoding="utf-8") as f:
                 s = json.load(f)
+            for field in ("file", "description"):
+                if "couple_sam_" + field not in s and "couple_george_" + field in s:
+                    s["couple_sam_" + field] = s["couple_george_" + field]
             # Existing workflow preferences win; fill only keys absent in older files.
             for target, legacy in (("mcp_video_model", "video_model"), ("mcp_aspect", "aspect_ratio"),
                                    ("mcp_seconds", "scene_seconds"), ("mcp_resume_url", "agent_project_url")):
@@ -1233,37 +1236,45 @@ class Veo3LauncherGUI:
     # ── tab 1: ingredients (unchanged behaviour) ──────────────
     def saved_couple_controls(self, parent, mode):
         if not hasattr(self, "couple_sarah_file_var"):
-            for name in ("sarah", "george"):
+            for name in ("sarah", "sam"):
                 for field in ("file", "description"):
                     key = f"couple_{name}_{field}"
                     setattr(self, key + "_var", tk.StringVar(value=self.settings.get(key, "")))
-        key = {"ingredients": "ing_saved_couple", "omni": "omni_saved_couple"}.get(mode, "agent_saved_couple")
-        var = tk.BooleanVar(value=self.settings.get(key, False))
+        var = tk.BooleanVar(value=self.settings.get("preset_reference_modes", {}).get(mode, True))
         setattr(self, mode + "_saved_couple_var", var)
-        frame = ttk.LabelFrame(parent, text="Saved couple reference sheets")
+        frame = ttk.LabelFrame(parent, text="Preset reference library")
         frame.columnconfigure(1, weight=1)
-        label = ("Enable saved couple workflow (upload Sarah + George, generate location, attach to clip 1)"
-                 if mode == "ingredients" else "Use my saved Sarah and George images (skip character generation)")
-        ttk.Checkbutton(frame, text=label,
-                        variable=var).grid(row=0, column=0, columnspan=3, sticky="w", padx=8, pady=6)
-        for index, name in enumerate(("sarah", "george")):
-            row = index * 2 + 1
-            file_var = getattr(self, f"couple_{name}_file_var")
-            ttk.Label(frame, text=name.title() + " image:").grid(row=row, column=0, padx=8, pady=4)
-            ttk.Entry(frame, textvariable=file_var).grid(row=row, column=1, sticky="ew", padx=8, pady=4)
-            def choose(target=file_var):
-                chosen = filedialog.askopenfilename(title="Choose character reference sheet",
-                    filetypes=[("Reference images", "*.png *.jpg *.jpeg *.webp")])
-                if chosen:
-                    target.set(chosen)
-            ttk.Button(frame, text="Browse", command=choose).grid(row=row, column=2, padx=8, pady=4)
-            ttk.Label(frame, text="Appearance (optional):").grid(row=row + 1, column=0, padx=8, pady=4)
-            ttk.Entry(frame, textvariable=getattr(self, f"couple_{name}_description_var")).grid(
-                row=row + 1, column=1, columnspan=2, sticky="ew", padx=8, pady=4)
-        hint = ("Enabled: reference options above are automatic and locked. Scene 2+ resumes skip reference preparation."
-                if mode == "ingredients" else "Both modes share these files. Locations are still generated normally.")
-        ttk.Label(frame, text=hint,
-                  style="Hint.TLabel").grid(row=5, column=0, columnspan=3, sticky="w", padx=8, pady=6)
+        ttk.Checkbutton(frame, text="Use selected preset's saved reference images; generate missing references", variable=var).grid(row=0, column=0, columnspan=3, sticky="w", padx=8, pady=6)
+        catalog = []
+        for filename in ("styles.json", "genai_styles.json"):
+            with open(os.path.join(BASE_DIR, filename), encoding="utf-8") as stream:
+                db = json.load(stream)
+            catalog.extend(db.get("styles", db.get("presets", [])))
+        entries = {p.get("label", p.get("name", p["id"])): p["id"] for p in catalog if p.get("id")}
+        selected = tk.StringVar(value=next(iter(entries), ""))
+        folder_var = tk.StringVar()
+        def refresh(*_):
+            preset = entries.get(selected.get(), "")
+            default = os.path.join(BASE_DIR, "Preset References", preset)
+            os.makedirs(default, exist_ok=True)
+            configured = self.settings.get("preset_reference_library", {}).get(preset, {})
+            folder_var.set(configured if isinstance(configured, str) else configured.get("folder", default))
+        ttk.Combobox(frame, textvariable=selected, values=list(entries), state="readonly").grid(row=1, column=0, padx=8, pady=4)
+        ttk.Entry(frame, textvariable=folder_var).grid(row=1, column=1, sticky="ew", padx=8, pady=4)
+        def save_folder():
+            preset = entries.get(selected.get())
+            if preset:
+                self.settings.setdefault("preset_reference_library", {})[preset] = {"folder": folder_var.get().strip()}
+        def choose_folder():
+            folder = filedialog.askdirectory(title="Choose preset reference folder", initialdir=os.path.join(BASE_DIR, "Preset References"))
+            if folder:
+                folder_var.set(folder)
+                save_folder()
+        ttk.Button(frame, text="Browse", command=choose_folder).grid(row=1, column=2, padx=8)
+        ttk.Button(frame, text="Save folder", command=save_folder).grid(row=2, column=2, padx=8)
+        ttk.Label(frame, text="Use story names as filenames, e.g. Sarah.jpg, Cat.png, Bedroom.webp.", style="Hint.TLabel").grid(row=2, column=0, columnspan=2, sticky="w", padx=8, pady=6)
+        selected.trace_add("write", refresh)
+        refresh()
         if mode == "ingredients":
             var.trace_add("write", lambda *_: self.update_ingredients_reference_mode())
             self.update_ingredients_reference_mode()
@@ -2058,6 +2069,8 @@ class Veo3LauncherGUI:
                 var.set(f"⚠️ Could not parse: {e}")
 
     def collect_inputs(self):
+        self.settings["preset_reference_modes"] = {mode: getattr(self, mode + "_saved_couple_var").get()
+            for mode in ("agent", "ingredients", "omni") if hasattr(self, mode + "_saved_couple_var")}
         self.update_ingredients_reference_mode()
         if hasattr(self, "omni_story_var"):
             for key, var in (("story_json", self.omni_story_var), ("from_scene", self.omni_from_var),
@@ -2121,9 +2134,9 @@ class Veo3LauncherGUI:
             "agent_saved_couple": self.agent_saved_couple_var.get(),
             "ing_saved_couple": self.ingredients_saved_couple_var.get(),
             "couple_sarah_file": self.couple_sarah_file_var.get().strip(),
-            "couple_george_file": self.couple_george_file_var.get().strip(),
+            "couple_sam_file": self.couple_sam_file_var.get().strip(),
             "couple_sarah_description": self.couple_sarah_description_var.get().strip(),
-            "couple_george_description": self.couple_george_description_var.get().strip(),
+            "couple_sam_description": self.couple_sam_description_var.get().strip(),
             "preset_group": self.preset_group_var.get() if hasattr(self, "preset_group_var") else self.settings.get("preset_group", "Classic"),
             "gemini_model": self.gen_model_var.get().strip() or "gemini-3.8-flash,gemini-3.7-flash,gemini-3.6-flash",
             # Anything typed into the entry but not yet Added counts too, so a

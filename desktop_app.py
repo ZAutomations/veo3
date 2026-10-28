@@ -89,6 +89,39 @@ def integer(value, low, high, label):
     return result
 
 
+def reference_library_settings(legacy=None):
+    legacy = legacy if legacy is not None else read_json(ROOT / 'gui_settings.json')
+    for field in ('file', 'description'):
+        if 'couple_sam_' + field not in legacy and 'couple_george_' + field in legacy:
+            legacy['couple_sam_' + field] = legacy['couple_george_' + field]
+    base = ROOT / 'Preset References'
+    base.mkdir(exist_ok=True)
+    folders = {}
+    for preset in presets():
+        folder = base / preset['id']
+        folder.mkdir(exist_ok=True)
+        configured = legacy.get('preset_reference_library', {}).get(preset['id'], {})
+        folders[preset['id']] = configured if isinstance(configured, str) else configured.get('folder', str(folder))
+    if 'preset_reference_library' not in legacy:
+        import shutil
+        migrated = False
+        preset_id = legacy.get('gen_preset', 'relationship-dialogue-real')
+        if preset_id not in ('relationship-dialogue', 'relationship-dialogue-real', 'relationship-dialogue-ghibli', 'relationship-dialogue-3d', 'relationship-dialogue-colorful-cartoon'):
+            preset_id = 'relationship-dialogue-real'
+        for name in ('Sarah', 'SAM'):
+            source = Path(str(legacy.get('couple_' + name.lower() + '_file', '')))
+            if source.is_file() and source.suffix.lower() in ('.png', '.jpg', '.jpeg', '.webp'):
+                target = base / preset_id / (name + source.suffix.lower())
+                if not target.exists():
+                    shutil.copy2(source, target)
+                migrated = True
+        if migrated:
+            legacy['preset_reference_library'] = {preset_id: {'folder': folders[preset_id]}}
+            save_json(ROOT / 'gui_settings.json', legacy)
+    return dict(root=str(base), folders=folders, modes={mode: legacy.get('preset_reference_modes', {}).get(mode, True)
+                for mode in ('agent', 'ingredients', 'omni')})
+
+
 def presets():
     result = []
     for filename, group in [('styles.json', 'Classic'), ('genai_styles.json', 'GENAI')]:
@@ -131,6 +164,11 @@ def command(filename, *args):
 
 
 def plan_action(action, p):
+    if action == 'edit_video':
+        import video_editing
+        source = video_editing.media_path(p.get('video', ''))
+        cfg = video_editing.settings(p.get('editingSettings'))
+        return 'editing', [('request', ('video_editing.py', dict(video=str(source), settings=cfg)))]
     if action == 'reverse_video':
         from reverse_video_desktop import request_payload
         return 'writer', [('request', ('reverse_video_engine.js', request_payload(ROOT, p)))]
@@ -161,7 +199,8 @@ def plan_action(action, p):
         if aspect not in ('Flow', '9:16', '16:9', '1:1'):
             raise ValueError('Invalid aspect ratio.')
         return 'writer', [('request', ('import_ready_script.js', dict(text=text, preset=p['preset'], aspect=aspect,
-            seconds=integer(p.get('seconds', 8), 4, 10, 'Clip duration'))))]
+            seconds=integer(p.get('seconds', 8), 4, 10, 'Clip duration'),
+            strict8x8=bool(p.get('strictZack8x8', False)))))]
     if action in ('write', 'finalize', 'aistudio'):
         if action == 'aistudio':
             return 'writer', [('cli', command('ask_web.js', '--status', '--launch'))]
@@ -240,6 +279,8 @@ def plan_action(action, p):
     project = project_url(p.get('project'), required=action in ('manual', 'retry_failed', 'delete', 'download'))
     if action == 'download':
         validate_download_project(path, project)
+    if action in ('generate', 'refs') and p.get('usePresetRefs', reference_library_settings()['modes'].get(view, True)):
+        p = dict(p, genRefs=True, reuseRefs=False)
     base = ['--cdp', str(port)]
     if project:
         base += ['--project-url', project]
@@ -269,8 +310,11 @@ def plan_action(action, p):
     if action == 'manual':
         selection = str(p.get('selection', '')).strip()
         batch = p.get('selectionType') == 'batch'
+        batch_size = integer(p.get('manualBatchSize', 5), 1, 1000000, 'Prompts per batch') if batch else 5
         if batch:
-            integer(selection, 1, (total + 4) // 5, 'Batch number')
+            if isinstance(p.get('manualBatchSize'), bool) or float(p.get('manualBatchSize', 5)) != batch_size:
+                raise ValueError('Prompts per batch must be a positive whole number.')
+            integer(selection, 1, (total + batch_size - 1) // batch_size, 'Batch number')
         else:
             for part in re.split(r'[\s,]+', selection):
                 if not re.fullmatch(r'\d+(?:-\d+)?', part):
@@ -278,8 +322,9 @@ def plan_action(action, p):
                 ends = list(map(int, part.split('-')))
                 integer(ends[0], 1, total, 'Clip number')
                 integer(ends[-1], ends[0], total, 'Clip number')
-        return 'flow', [('cli', command('agent_manual_generation.js', '--story', path,
-                '--batch' if batch else '--clips', selection, '--watch', 1800,
+        preparation = [('cli', command('generate_refs.js', '--story', path, *base))] if p.get('usePresetRefs', True) else []
+        return 'flow', preparation + [('cli', command('agent_manual_generation.js', '--story', path,
+                '--batch' if batch else '--clips', selection, '--batch-size', batch_size, '--watch', 1800,
                 '--aspect', aspect, '--video-model', model, '--video-resolution', resolution,
                 '--scene-seconds', seconds, *base))]
     if view == 'omni':
@@ -330,13 +375,16 @@ def plan_action(action, p):
         return 'flow', [('cli', command('generate_refs.js', '--story', path, *base))]
     if action != 'generate':
         raise ValueError('Unknown action.')
+    agent_size = integer(p.get('manualBatchSize', 5), 1, 1000000, 'Prompts per batch')
+    if isinstance(p.get('manualBatchSize'), bool) or float(p.get('manualBatchSize', 5)) != agent_size:
+        raise ValueError('Prompts per batch must be a positive whole number.')
     if not p.get('newProject'):
         # Use the same explicit-project CLI as the classic Agent tab. The full
         # pipeline's start phase discovers its project instead of taking this URL.
         operations = [('cli', command('story_to_agent_prompt.js', path, '--aspect', aspect, '--seconds', seconds))]
         if p.get('genRefs') and not p.get('reuseRefs'):
             operations.append(('cli', command('generate_refs.js', '--story', path, *base)))
-        driver = command('agent_batch_run.js', '--file', path.parent / 'agent_prompt.txt', '--refs', path,
+        driver = command('agent_batch_run.js', '--batch-size', agent_size, '--file', path.parent / 'agent_prompt.txt', '--refs', path,
                          '--watch', 1800, '--aspect', aspect, '--video-model', model,
                          '--video-resolution', resolution, '--scene-seconds', seconds, '--auto-approve', *base)
         if p.get('reuseRefs') or p.get('genRefs'):
@@ -351,7 +399,7 @@ def plan_action(action, p):
             operations.extend(order + join)
         return 'flow', operations
     args = dict(stories=[str(path)], start_phase='clips' if p.get('reuseRefs') and project else 'start',
-                project_url=project, generate=True, submit=True, auto_approve=True,
+                project_url=project, generate=True, submit=True, auto_approve=True, clip_batch_size=agent_size,
                 video_model=model, video_resolution=resolution, download_version=download_version, aspect=aspect, seconds=seconds,
                 cdp=port, watch=1800, new_project=bool(p.get('newProject')),
                 generate_refs=bool(p.get('genRefs')), no_upload_refs=bool(p.get('reuseRefs')),
@@ -436,7 +484,10 @@ def retry_step_name(recent, phase):
 class Job:
     def __init__(self, action, payload, lane, operations):
         self.id = uuid.uuid4().hex
-        self.action, self.payload, self.lane, self.operations = action, payload, lane, operations
+        self.action, self.payload, self.lane, self.operations = action, dict(payload), lane, operations
+        if lane == 'flow' and '_editingSettings' not in self.payload:
+            import video_editing
+            self.payload['_editingSettings'] = video_editing.settings()
         self.status = 'running'
         self.created = time.time()
         self.finished = None
@@ -519,6 +570,16 @@ class Job:
                 proc.terminate()
         self.log('Stop requested. Saved checkpoints are retained.')
 
+    def reference_environment(self):
+        env = os.environ.copy()
+        mode = self.payload.get('view', 'agent')
+        enabled = self.payload.get('usePresetRefs', reference_library_settings()['modes'].get(mode, True))
+        env['VEO_PRESET_REFS'] = '1' if enabled else '0'
+        env['VEO_PYTHON'] = sys.executable
+        if self.payload.get('_editingSettings') is not None:
+            env['VEO_EDITING_SETTINGS'] = json.dumps(self.payload['_editingSettings'])
+        return env
+
     def _run_operations(self):
         for index in range(self.operation_index, len(self.operations)):
             kind, spec = self.operations[index]
@@ -534,7 +595,7 @@ class Job:
                 filename, request = spec
                 requestfile = ROOT / 'logs' / 'desktop' / (self.id + '.json')
                 save_json(requestfile, request)
-                kind, spec = 'cli', command(filename, requestfile)
+                kind, spec = 'cli', ([sys.executable, str(ROOT / filename), str(requestfile)] if filename.endswith('.py') else command(filename, requestfile))
             if kind == 'cli':
                 self.log('Starting ' + Path(spec[1]).name)
                 with lock:
@@ -542,7 +603,7 @@ class Job:
                         break
                     self.proc = subprocess.Popen(spec, cwd=ROOT, stdout=subprocess.PIPE,
                         stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='replace',
-                        creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+                        creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0), env=self.reference_environment())
                 for line in self.proc.stdout:
                     self.log(line.rstrip())
                 code = self.proc.wait()
@@ -554,7 +615,7 @@ class Job:
                 with lock:
                     if self.stopped:
                         break
-                    self.client = MCPClient(str(ROOT / 'mcp_server.js'), cwd=str(ROOT), log=self.log)
+                    self.client = MCPClient(str(ROOT / 'mcp_server.js'), cwd=str(ROOT), log=self.log, env=self.reference_environment())
                 self.client.start()
                 if self.stopped:
                     self.client.stop()
@@ -580,11 +641,19 @@ class Job:
                     if self.stopped:
                         self.status = 'stopped'
                         break
+                    if self.action == 'import_script' and re.search(r'IMPORT_VALIDATION_FAILED|READY SCRIPT IMPORT FAILED:.*(?:Unrecognised line|Unknown script field|shot timings|declared duration|no clips|requires Narration)', recent, re.I):
+                        self.log('Automatic import retry stopped: this script needs correction. The story/clip/line details are shown above. No video generation was started.')
+                        self.status = 'failed'
+                        break
                     if re.search(r'FLOW_REVIEW_REQUIRED:|RECOVERY_REVIEW_REQUIRED:', recent):
                         self.log('Automatic retry stopped: this step needs review, so reopening the same project cannot resolve it. Completed clips and downloads are preserved.')
                         self.status = 'failed'
                         break
                     if not automatic_retry_allowed(self.action, self.lane):
+                        self.status = 'failed'
+                        break
+                    if self.action == 'import_script' and self.auto_retry_count >= 3:
+                        self.log('Automatic import retry limit reached after 3 retries. Correct the input or resolve the local file/runtime error, then retry manually.')
                         self.status = 'failed'
                         break
                     # Use the same checkpoint planner as both Retry / Continue
@@ -604,9 +673,10 @@ class Job:
                     mode = 'batch' if self.action == 'generate_queue' else 'single video'
                     step = retry_step_name(recent, self.phase)
                     self.phase = 'waiting to retry ' + step
-                    self.log(f'Automatic Retry / Continue ({mode}) #{self.auto_retry_count}: {step} failed; resuming the saved step in {AUTO_RETRY_SECONDS} seconds. Completed clips and downloads are preserved. Press Stop to cancel.')
+                    retry_delay = min(60, AUTO_RETRY_SECONDS * 2 ** (self.auto_retry_count - 1)) if self.action == 'import_script' else AUTO_RETRY_SECONDS
+                    self.log(f'Automatic Retry / Continue ({mode}) #{self.auto_retry_count}: {step} failed; resuming the saved step in {retry_delay} seconds. Completed clips and downloads are preserved. Press Stop to cancel.')
                     self.save_progress()
-                    if self._stop_event.wait(AUTO_RETRY_SECONDS):
+                    if self._stop_event.wait(retry_delay):
                         self.status = 'stopped'
                         break
             if self.stopped:
@@ -730,8 +800,12 @@ async def local_only(request: Request, call_next):
     response = await call_next(request)
     response.headers['Cache-Control'] = 'no-store'
     response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'"
+    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'"
     return response
+
+
+from video_editing_desktop import install as install_video_editing
+install_video_editing(app, TOKEN, save_json)
 
 
 @app.get('/', response_class=HTMLResponse)
@@ -754,7 +828,8 @@ def bootstrap(studio_surface: str = Header(default='studio', alias='X-Studio-Sur
             cdp=legacy.get(f'{prefix}_cdp_port' if prefix else 'cdp_port', 9222))
     return dict(root=str(ROOT), models=MODELS, presets=presets(), defaults=initial, workflowDefaults=workflow_defaults,
                 preferences=surface_preferences(studio_surface), hasApiKeys=bool(legacy.get('gemini_api_keys') or legacy.get('gemini_api_key')),
-                savedCouple={k: legacy.get(k, '') for k in ('couple_sarah_file', 'couple_george_file', 'couple_sarah_description', 'couple_george_description', 'agent_saved_couple', 'ing_saved_couple', 'omni_saved_couple')})
+                referenceLibrary=reference_library_settings(legacy),
+                savedCouple={k: legacy.get(k, '') for k in ('couple_sarah_file', 'couple_sam_file', 'couple_sarah_description', 'couple_sam_description', 'agent_saved_couple', 'ing_saved_couple', 'omni_saved_couple')})
 
 
 def story_completion(path, story, manifest):
@@ -794,6 +869,22 @@ def reverse_save(body: dict):
     try:
         return register(ROOT, body)
     except (ValueError, OSError) as exc:
+        raise HTTPException(400, str(exc))
+
+
+@app.post('/api/ready-script/preflight')
+def ready_script_preflight(payload: dict):
+    try:
+        _, operations = plan_action('import_script', payload)
+        request = operations[0][1][1]
+        result = subprocess.run(command('import_ready_script.js', '--inspect'), input=json.dumps(request),
+            cwd=ROOT, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=90,
+            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+        if result.returncode:
+            raise ValueError(result.stderr.strip() or 'Import preflight failed.')
+        reports = json.loads(result.stdout)
+        return dict(reports=reports)
+    except (ValueError, TypeError, OSError, subprocess.TimeoutExpired) as exc:
         raise HTTPException(400, str(exc))
 
 
@@ -877,11 +968,16 @@ def settings(data: dict):
         if any(j.status == 'running' for j in jobs.values()):
             raise HTTPException(409, 'Finish or stop jobs before changing shared settings.')
         legacy = read_json(ROOT / 'gui_settings.json')
-        allowed = {'couple_sarah_file', 'couple_george_file', 'couple_sarah_description', 'couple_george_description',
-                   'agent_saved_couple', 'ing_saved_couple', 'omni_saved_couple'}
+        allowed = {'couple_sarah_file', 'couple_sam_file', 'couple_sarah_description', 'couple_sam_description',
+                   'agent_saved_couple', 'ing_saved_couple', 'omni_saved_couple', 'preset_reference_library', 'preset_reference_modes'}
         for key in allowed:
             if key in data:
                 legacy[key] = data[key]
+        if 'referenceFolders' in data:
+            folders = data['referenceFolders']
+            if not isinstance(folders, dict):
+                raise HTTPException(400, 'Invalid preset reference folders.')
+            legacy['preset_reference_library'] = {p['id']: {'folder': str(folders.get(p['id'], '')).strip() or str(ROOT / 'Preset References' / p['id'])} for p in presets()}
         if str(data.get('apiKeys', '')).strip():
             legacy['gemini_api_keys'] = [x.strip() for x in data['apiKeys'].splitlines() if x.strip()]
         save_json(ROOT / 'gui_settings.json', legacy)
@@ -954,6 +1050,9 @@ class DesktopBridge:
 
     def choose_file(self, kind='story'):
         import webview
+        if kind == 'folder':
+            result = (self._window or webview.windows[0]).create_file_dialog(webview.FileDialog.FOLDER, directory=str(ROOT / 'Preset References'))
+            return str(result[0]) if result else ''
         types = ('Videos (*.mp4;*.mov;*.m4v;*.webm;*.mkv;*.avi)',) if kind == 'video' else ('Images (*.png;*.jpg;*.jpeg;*.webp)',) if kind == 'image' else ('JSON files (*.json)',)
         result = (self._window or webview.windows[0]).create_file_dialog(webview.FileDialog.OPEN, directory=str(ROOT / 'stories'), file_types=types)
         return str(result[0]) if result else ''

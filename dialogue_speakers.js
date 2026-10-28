@@ -16,7 +16,7 @@ function sourceSpeakerMap(source, cast, preset) {
         }
         if (known.length > 1) throw Error(`Source speaker ${who} changes gender between turns; review the transcript.`);
         const canonical = /^(female|woman|wife|girl|sarah)$/i.test(who) ? 'female'
-            : /^(male|man|husband|boy|george)$/i.test(who) ? 'male' : null;
+            : /^(male|man|husband|boy|sam|george)$/i.test(who) ? 'male' : null;
         if (fixed && (known[0] || canonical)) {
             if (canonical && known[0] && canonical !== known[0]) throw Error(`Conflicting identity for source speaker ${who}.`);
             result.set(who, fixed[known[0] || canonical]);
@@ -76,19 +76,19 @@ function labelledTranscriptTurns(detail) {
     const turns = [];
     let metadata = false;
     for (const piece of pieces) {
-        const value = piece.trim().replace(/^\*\*(.+?)\*\*\s*$/, '$1').replace(/^(Sarah|George|Female|Male)\*\*\s*:/i,'$1:').replace(/^\*\*(Sarah|George|Female|Male):\*\*/i,'$1:');
+        const value = piece.trim().replace(/^\*\*(.+?)\*\*\s*$/, '$1').replace(/^(Sarah|SAM|George|Female|Male)\*\*\s*:/i,'$1:').replace(/^\*\*(Sarah|SAM|George|Female|Male):\*\*/i,'$1:');
         if (!value) continue;
         if(/^[\s=*_\-─━—]{3,}$/.test(value)||/^STORY\s+\d+\b/i.test(value))continue;
         if(/^(?:clip|scene)\s+\d+\b/i.test(value)){metadata=false;continue;}
         if(/^(?:story brief|brief|details|summary|ending message|moral|lesson|title|transcript|source dialogue|video transcript)\s*:/i.test(value)){
             metadata=!/^(?:transcript|source dialogue|video transcript)\s*:/i.test(value);continue;
         }
-        const match = value.match(/^(Female|Male|Woman|Man|Wife|Husband|Sarah|George)\s*:\s*([\s\S]+)$/i);
+        const match = value.match(/^(Female|Male|Woman|Man|Wife|Husband|Sarah|SAM|George)\s*:\s*([\s\S]+)$/i);
         if(!match&&metadata)continue;
-        if (!match) throw Error('Transcript speaker is missing. Label EVERY turn Female: or Male: (Sarah: / George: also work). Text alone cannot reliably identify who spoke. No API request or generation should run until labels are supplied.');
+        if (!match) throw Error('Transcript speaker is missing. Label EVERY turn Female: or Male: (Sarah: / SAM: also work). Text alone cannot reliably identify who spoke. No API request or generation should run until labels are supplied.');
         metadata=false;
         const line=match[2].trim().replace(/^(?:"([\s\S]*)"|“([\s\S]*)”)$/,(all,straight,curly)=>straight??curly);
-        turns.push({ speaker: /^(female|woman|wife|sarah)$/i.test(match[1]) ? 'Sarah' : 'George', line });
+        turns.push({ speaker: /^(female|woman|wife|sarah)$/i.test(match[1]) ? 'Sarah' : 'SAM', line });
     }
     if (!turns.length) throw Error('No labelled dialogue found.');
     return turns;
@@ -108,18 +108,18 @@ function speakerLock(preset) {
 }
 function formatDialogueTurn(turn) {
     const name = String(turn.speaker || '').trim();
-    const gender = /^sarah$/i.test(name) ? 'female' : /^george$/i.test(name) ? 'male' : null;
+    const gender = /^sarah$/i.test(name) ? 'female' : /^sam$/i.test(name) ? 'male' : null;
     if (!gender) return `${name} (on screen, speaking): "${turn.line}"`;
-    const listener = gender === 'female' ? 'George' : 'Sarah';
+    const listener = gender === 'female' ? 'SAM' : 'Sarah';
     return `${name} (${gender} reference character, ${gender} voice; only ${name} speaks and moves their lips, ${listener} listens with mouth closed): "${turn.line}"`;
 }
 // Rebuild audio from structured turns rather than retaining stale model prose.
 function dialogueAudio(story, scene) {
     if (story?.narration_scope !== 'dialogue' || !scene?.dialogue?.length) return null;
     const names = Object.keys(story.character_descriptions || {}).map(n => n.toLowerCase());
-    if (!names.includes('sarah') || !names.includes('george')) return null;
-    for (const turn of scene.dialogue) if (!/^(sarah|george)$/i.test(String(turn.speaker).trim())) throw Error(`Unknown couple dialogue speaker: ${turn.speaker}`);
-    return speakerLock({ fixed_couple_names: { female: 'Sarah', male: 'George' } })
+    if (!names.includes('sarah') || !names.includes('sam')) return null;
+    for (const turn of scene.dialogue) if (!/^(sarah|sam)$/i.test(String(turn.speaker).trim())) throw Error(`Unknown couple dialogue speaker: ${turn.speaker}`);
+    return speakerLock({ fixed_couple_names: { female: 'Sarah', male: 'SAM' } })
         + scene.dialogue.map(formatDialogueTurn).join('\n');
 }
 function withDialogueAudio(story, scene, prompt) {

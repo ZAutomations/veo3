@@ -1,0 +1,9 @@
+# Local engines ported from VideoAuotmation.
+moviepy>=2.1,<3
+numpy>=1.24
+Pillow>=10
+scipy>=1.10
+requests>=2.31
+opencv-python>=4.8
+soundfile>=0.12
+openai-whisper>=20240930

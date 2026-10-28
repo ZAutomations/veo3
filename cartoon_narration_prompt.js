@@ -45,7 +45,7 @@ SOURCE CONTENT: ${JSON.stringify(c.source||{})}
 ${c.count} scenes, ${c.seconds} seconds each, aspect ${c.aspect}.
 STYLE: ${p.style}
 STORY DIRECTION: ${p.direction}
-Use exactly these two approved recurring cartoon adults, preserving their names, faces, eye colours, hairstyles, full outfits and colours: ${JSON.stringify(p.approved_cartoon_cast||[])}. They act naturally, with expressions following the story; no permanent smile. Do not substitute the Sarah/George identities from other presets. Match uploaded reference images; text alone cannot encode an exact face.
+Use exactly these two approved recurring cartoon adults, preserving their names, faces, eye colours, hairstyles, full outfits and colours: ${JSON.stringify(p.approved_cartoon_cast||[])}. They act naturally, with expressions following the story; no permanent smile. Do not substitute the Sarah/SAM identities from other presets. Match uploaded reference images; text alone cannot encode an exact face.
 Characters and meaningful props are coloured. Room or street architecture, furniture and incidental scenery are exclusively light grey and off-white with fine grey linework. Use a bright grey-and-white location reference, no people in its plate. Colour only a plot-relevant object when the scene requires it.
 Design one consistent setting appropriate to this story; characters can walk, act and interact naturally. No frozen conversation posture. Mouths stay closed in reference images too.
 The narrator tells what happened, using he/she/they and the story's viewpoint. Start with an interesting hook, develop specific cause and consequence, finish with a grounded relationship lesson and a brief relevant question for viewers. No unsupported claims or victim blaming.

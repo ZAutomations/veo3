@@ -4,11 +4,11 @@ function render(story,scene){
  if(require('./dog_couple').applies(story))return require('./dog_couple').render(story,scene);
  const style=/Colorful Cartoon/i.test(story.niche||'')?story.style:/Stylized 3D/i.test(story.niche||'')?'Polished stylized 3D animation':/Ghibli/i.test(story.niche||'')?'Hand-painted 2D animation with soft watercolor shading':/Realistic/i.test(story.niche||'')?'Photorealistic cinematic film':'Human-like 2.5D illustration with soft dimensional shading';
  const turns=scene.dialogue||[];
- if(!turns.length||turns.some(d=>!['Sarah','George'].includes(d.speaker)||!String(d.line||'').trim()))throw Error('Simple relationship prompt requires labelled Sarah/George dialogue.');
+ if(!turns.length||turns.some(d=>!['Sarah','SAM'].includes(d.speaker)||!String(d.line||'').trim()))throw Error('Simple relationship prompt requires labelled Sarah/SAM dialogue.');
  return [`Generate one ${Number(story.scene_seconds)||8}-second clip. Keep the aspect ratio selected in Flow.`,
  `STYLE: ${style}, matching the character reference images.`,
- story.script_import ? `SETTING: ${story.place?.description||story.place?.name||'domestic room'}. ${scene.imported_action||'Sarah and George have a natural conversation.'} ${story.camera_direction||'Simple steady conversational framing, with both characters clearly visible.'}` : `SETTING: A bright, clean ${story.place?.name||'domestic room'} with natural daylight. Sarah and George have a natural conversation.`,
- 'CHARACTERS: Sarah is a 25-year-old adult woman. George is a 28-year-old adult man. Keep the same reference faces, hair and outfits. Use the attached references for their appearance.',
+ story.script_import ? `SETTING: ${story.place?.description||story.place?.name||'domestic room'}. ${scene.imported_action||'Sarah and SAM have a natural conversation.'} ${story.camera_direction||'Simple steady conversational framing, with both characters clearly visible.'}` : `SETTING: A bright, clean ${story.place?.name||'domestic room'} with natural daylight. Sarah and SAM have a natural conversation.`,
+ 'CHARACTERS: Sarah is a 25-year-old adult woman. SAM is a 28-year-old adult man. Keep the same reference faces, hair and outfits. Use the attached references for their appearance.',
  'AUDIO: Calm, respectful conversation at a clearly audible normal volume. Speak the following lines exactly, in this order. Only the labelled character speaks each entire line; the other listens. Finish the last word, then leave a 0.30-second pause before the next line. No overlapping voices or narrator.',
  ...turns.map(d=>`${d.speaker} (${d.speaker==='Sarah'?'female':'male'} voice): ${JSON.stringify(d.line)}`)].join('\n')+'\n';
 }

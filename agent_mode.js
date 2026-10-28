@@ -188,7 +188,8 @@ let SEND_TEXT = PROMPT_TEXT == null ? null : require('./agent_video_contract').w
     model:VIDEO_MODEL,resolution:VIDEO_RESOLUTION,seconds:Number(flag('--scene-seconds',8))||8,aspect:String(flag('--aspect','Flow')),
 });
 if(SEND_TEXT){const source=flag('--refs');if(typeof source==='string'&&/\.json$/i.test(source)&&fs.existsSync(source))SEND_TEXT=require('./agent_scene_ids').inject(SEND_TEXT,JSON.parse(fs.readFileSync(source,'utf8')));}
-if (SEND_TEXT !== PROMPT_TEXT) log('Policy sanitizer adjusted the prompt before sending.');
+if (SEND_TEXT) SEND_TEXT = require('./reference_identity').forAgent(SEND_TEXT, flag('--refs'), MENTIONS.map(m=>typeof m==='string'?m:m.name));
+if (SEND_TEXT !== PROMPT_TEXT) log('Video settings and reference identity instructions applied before sending.');
 if (SEND_TEXT) SEND_TEXT += '\nBATCH TRACKING: Track each requested scene number separately until its video finishes. Preserve completed clips. Retry only the individual failed or missing scene using its exact instructions, references, voice and video settings. Never repeat successful scenes or the whole batch. Follow BLOCKED SCENE HANDLING for a content-policy refusal. Do not report completion while scenes are missing.';
 if (SEND_TEXT) SEND_TEXT += '\nMANDATORY RETRY PREFLIGHT: Before responding to ANY retry, reword, or “generate again” request, inspect the current project assets and identify which numbered scenes already have a completed video. Keep every completed scene unchanged. Generate only the exact missing or failed scene numbers; never regenerate a whole batch because one scene failed. If scene-to-asset mapping is ambiguous, stop and report the ambiguity instead of submitting another generation. Ignore conversation-level Try again when it would repeat successful scenes.';
 
@@ -1157,7 +1158,7 @@ async function uploadRefThroughPicker(page, box, file) {
             await page.waitForFunction(() => [...document.querySelectorAll('.side-nav-list-item-title')].some(e=>e.getBoundingClientRect().width>0),{timeout:12000,polling:100});
             await snap(`mention${mi + 1}-open`);
 
-            const requiredKind = FLOW_CHARACTERS && /^(Sarah|George)$/i.test(name) ? 'character' : 'image';
+            const requiredKind = FLOW_CHARACTERS && /^(Sarah|SAM)$/i.test(name) ? 'character' : 'image';
             if (requiredKind === 'character') {
                 await require('./reference_picker_images').selectCategory(page, 'Characters', {log});
             } else {

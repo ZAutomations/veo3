@@ -77,3 +77,12 @@ Setup/setup.log
 # New desktop interface personal preferences
 desktop_settings.json
 desktop_writer_settings.json
+
+# Personal preset image library (keep the empty preset folders).
+/Preset References/**/*
+!/Preset References/**/
+!/Preset References/**/.gitkeep
+
+# Personal editing preferences and local render caches
+video_editing_settings.json
+**/video_editing_preview_cache/

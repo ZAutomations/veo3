@@ -23,7 +23,7 @@ Narration: "[complete narration segment]"
 Visual: [specific event and action]
 Sound: [quiet appropriate sound or None]
 
-Continue through the complete story. Replace all placeholders; never include the continuation instruction. Repeat Story 2 etc. for a batch. For Sarah/George dialogue include setting and descriptive prose BEFORE Clip 1, then only labelled spoken lines within clips; no Action: fields that the legacy transcript parser could mistake for speech.
+Continue through the complete story. Replace all placeholders; never include the continuation instruction. Repeat Story 2 etc. for a batch. For Sarah/SAM dialogue include setting and descriptive prose BEFORE Clip 1, then only labelled spoken lines within clips; no Action: fields that the legacy transcript parser could mistake for speech.
 The tool applies the preset below. Follow its genre, visual medium, camera, cast, tone and sound rules when describing the scenes:
 STYLE: Dark-mode 2.5D topographic shaded-relief cartography, satellite-photoreal hybrid, exaggerated 3D elevation casting long shadows, glowing luminous neon vector boundaries, volumetric atmospheric lighting, deep-space vignette at the frame edge, premium technical infographic finish, zero on-screen text, ultra-sharp 4K satellite aesthetic, NOT flat 2D vector art, NOT toy-like, NOT cel-shaded
 PALETTE: Deep Midnight Ocean #080C16, Charcoal Slate Terrain #1C222D with shaded ridges #2A323D, Luminous Amber Gold highlight #FFB703, Electric Neon Cyan waterways #00E5FF, Laser Crimson divider #FF2A42, Lowland Moss Green #2A4736

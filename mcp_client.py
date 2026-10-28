@@ -16,7 +16,8 @@ import threading
 
 
 class MCPClient:
-    def __init__(self, server_js, cwd=None, log=None):
+    def __init__(self, server_js, cwd=None, log=None, env=None):
+        self.env = env
         self.server_js = server_js
         self.cwd = cwd or os.path.dirname(os.path.abspath(server_js))
         self.log = log or (lambda _line: None)
@@ -31,6 +32,7 @@ class MCPClient:
         self.proc = subprocess.Popen(
             ["node", self.server_js],
             cwd=self.cwd,
+            env=self.env,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,

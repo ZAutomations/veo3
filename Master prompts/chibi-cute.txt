@@ -23,7 +23,7 @@ Narration: "[complete narration segment]"
 Visual: [specific event and action]
 Sound: [quiet appropriate sound or None]
 
-Continue through the complete story. Replace all placeholders; never include the continuation instruction. Repeat Story 2 etc. for a batch. For Sarah/George dialogue include setting and descriptive prose BEFORE Clip 1, then only labelled spoken lines within clips; no Action: fields that the legacy transcript parser could mistake for speech.
+Continue through the complete story. Replace all placeholders; never include the continuation instruction. Repeat Story 2 etc. for a batch. For Sarah/SAM dialogue include setting and descriptive prose BEFORE Clip 1, then only labelled spoken lines within clips; no Action: fields that the legacy transcript parser could mistake for speech.
 The tool applies the preset below. Follow its genre, visual medium, camera, cast, tone and sound rules when describing the scenes:
 STYLE: Chibi anime style, super-deformed cute characters, adorable aesthetic, soft pastel colour palette, kawaii vibe, simplified rounded features, playful atmosphere
 PALETTE: Soft pastels, candy colors, gentle warm tones

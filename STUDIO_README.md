@@ -14,7 +14,7 @@ The top bar offers **Crimson**, **Ember** and **Matte** colour themes matching O
 - **Single Clip Omni:** the existing five-at-a-time standalone driver, background Upscaled downloads, saved checkpoint recovery and whole-story download backlog.
 - **Story Library:** finalized stories, numbered full prompts, copy, Excel export through generation tabs and story-folder access.
 - **Accounts:** existing account profiles, browser switching, add, pause/resume, counter reset and removal.
-- **Settings:** saved Sarah/George images and descriptions, mode switches and Gemini API keys. Existing keys are not returned to the interface.
+- **Settings:** saved Sarah/SAM images and descriptions, mode switches and Gemini API keys. Existing keys are not returned to the interface.
 
 Writing and Flow have independent job lanes. Writing uses the existing separate AI Studio profile, so it can continue while Flow works. Only one Flow operation runs at a time in Studio. Do not run another Flow job in the classic GUI simultaneously. A rejected or incomplete job is shown as failed, never completed successfully.
 
@@ -40,7 +40,7 @@ This preset creates hand-drawn 2D relationship stories with colourful adult char
 
 ## Import ready scripts without AI writing
 
-In Studio, open Story Writer > Import ready script. Paste one or multiple stories, choose a Sarah/George dialogue preset and aspect ratio, then click Import script → story files. No Gemini request or video generation runs during import.
+In Studio, open Story Writer > Import ready script. Paste one or multiple stories, choose a Sarah/SAM dialogue preset and aspect ratio, then click Import script → story files. No Gemini request or video generation runs during import.
 
 Required structure:
 
@@ -52,9 +52,9 @@ Clip seconds: 8
 Setting: A cozy living room with two dog beds.
 
 Clip 1:
-Action: Sarah tilts her head toward George.
+Action: Sarah tilts her head toward SAM.
 Sarah: "You stole my blanket again."
-George: "I was keeping it warm for you."
+SAM: "I was keeping it warm for you."
 ```
 
 Repeat Clip 2:, Clip 3: and so on. Repeat Story 2 for another story. Preset: is optional and otherwise uses the selected preset. Clip seconds: overrides the selector. Duration: 30 seconds. Exactly 5 clips of 6 seconds. is also supported and checked against the actual clip count. Action: is optional. Dialogue remains unchanged; long lines produce warnings. Setting and clip numbering are validated.

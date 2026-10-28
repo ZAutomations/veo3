@@ -1,6 +1,6 @@
 const assert=require('assert');
 const MT=require('../mention_target'),P=require('../reference_picker_images');
-assert.deepEqual(MT.distinctMentions(MT.extractMentions('Use @George, @Sarah and @Sunlit Minimalist Living Room.', ['george','sarah','Sunlit Minimalist Living Room'])),['George','Sarah','Sunlit Minimalist Living Room']);
+assert.deepEqual(MT.distinctMentions(MT.extractMentions('Use @SAM, @Sarah and @Sunlit Minimalist Living Room.', ['sam','sarah','Sunlit Minimalist Living Room'])),['SAM','Sarah','Sunlit Minimalist Living Room']);
 (async()=>{
  let chips=0,clicks=0;
  const page={evaluate:async fn=>{

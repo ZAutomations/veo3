@@ -43,7 +43,7 @@ async function run(request){
  engine.story=story;engine.scenes=story.scenes;engine.characterReferences=story.character_references||{};
  engine.storyRefs=loadStoryRefs(file,story).refs;
  const gui=fs.existsSync(path.join(__dirname,'gui_settings.json'))?JSON.parse(fs.readFileSync(path.join(__dirname,'gui_settings.json'),'utf8')):{};
- engine.savedCouple=require('./dog_couple').savedForStory(file,'ingredients',{...gui,ing_saved_couple:!!request.savedCouple});
+ engine.savedCouple=require('./dog_couple').savedForStory(file,'omni',gui);
  engine.storyRefs=saved.applySavedRefs(engine.storyRefs,engine.savedCouple);engine.skipRefs=false;
  if(engine.savedCouple&&!request.reuseRefs)engine.genRefs=true;
  if(request.reuseRefs||request.downloadOnly)engine.genRefs=false;

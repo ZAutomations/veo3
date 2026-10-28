@@ -72,6 +72,8 @@ async function prepareAgentBatches(a, storyJson, state, run, log = () => {}) {
 // Persist intent BEFORE launching Flow. An interrupted/uncertain submission is
 // retried through failed-media controls only, never by replaying its prompt.
 async function runAgentBatches(a, storyJson, run, log) {
+    const requestedSize = a.clip_batch_size === undefined ? 5 : Number(a.clip_batch_size);
+    if (!Number.isSafeInteger(requestedSize) || requestedSize < 1) return {ok:false,text:'Prompts per batch must be a positive whole number.'};
     const source = fs.readFileSync(storyJson, 'utf8');
     const story = JSON.parse(source);
     const total = (story.scenes || []).length;
@@ -91,10 +93,12 @@ async function runAgentBatches(a, storyJson, run, log) {
         }
     } else {
         state = { project: project[1], project_url: a.project_url, fingerprint, total,
-            size: Math.max(1, Math.min(7, Number(a.clip_batch_size) || 5)), completed: 0, pending: null, aspect };
+            size: requestedSize, completed: 0, pending: null, aspect };
     }
     // Keep an interrupted batch intact; subsequent batches use the new size.
-    state.size = Math.max(1, Math.min(7, Number(a.clip_batch_size) || 5));
+    state.size = requestedSize;
+    log(`Agent prompts per batch: ${state.size}.`);
+    if(state.pending)log(`Preserving pending scenes ${state.pending.from}-${state.pending.to}; subsequent batches use ${state.size}.`);
     const save = () => {
         fs.writeFileSync(stateFile + '.tmp', JSON.stringify(state, null, 2));
         fs.renameSync(stateFile + '.tmp', stateFile);

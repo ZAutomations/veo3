@@ -1,7 +1,7 @@
 const assert=require('assert');
 const brief=require('../relationship_writing_brief');
 const presets=require('../styles.json').styles.filter(brief.applies);
-const script='Sarah: Why do we stop listening?\nGeorge: We can choose to listen again.';
+const script='Sarah: Why do we stop listening?\nSAM: We can choose to listen again.';
 for(const p of presets){
  const context={title:'Listening',detail:script,count:5,seconds:8,aspect:'9:16',houseCast:[],source:null};
  const prompt=brief.cast(p,context);

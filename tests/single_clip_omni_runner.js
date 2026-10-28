@@ -3,7 +3,7 @@ const queue=require('../single_clip_omni_queue');
 const realMedia=require('../single_clip_omni_media');
 const folder=fs.mkdtempSync(path.join(os.tmpdir(),'veo-omni-test-'));
 const storyFile=path.join(folder,'story.json');
-fs.writeFileSync(storyFile,JSON.stringify({scenes:Array.from({length:12},(_,i)=>({veo3_prompt:`Prompt ${i+1}`,characters:['sarah','george']}))}));
+fs.writeFileSync(storyFile,JSON.stringify({scenes:Array.from({length:12},(_,i)=>({veo3_prompt:`Prompt ${i+1}`,characters:['sarah','sam']}))}));
 let submits=0,refs=0,settingsCalls=[],promptNumbers=[],tiles=[],events=[],reloads=0,virtualize=false,backgroundChecks=0;
 class Engine{
  constructor(file,opts){assert.equal(opts.referenceCategory,'Images');this.opts=opts;this.genRefs=opts.genRefs;this.projectUrl=opts.projectUrl;this._refsGenerated=false;
@@ -22,7 +22,7 @@ const project='https://flow.google.com/project/test-omni';
 const moduleObject={exports:{}};
 const mockRequire=name=>{
  if(name==='./veo3_flow_new_ui')return {Veo3FlowNewUI:Engine};
- if(name==='./refs_for_scene')return {loadStoryRefs:()=>({refs:[{name:'Sarah'},{name:'George'},{name:'Bedroom',kind:'place'}]})};
+ if(name==='./refs_for_scene')return {loadStoryRefs:()=>({refs:[{name:'Sarah'},{name:'SAM'},{name:'Bedroom',kind:'place'}]})};
  if(name==='./flow_project')return {normalizeProjectUrl:u=>u};
  if(name==='./saved_couple')return {loadSavedCouple:()=>null,applySavedRefs:r=>r};
  if(name==='./single_clip_omni_settings')return {prepareReferences:async()=>{},prepareVideo:async(p,opts)=>settingsCalls.push(opts)};

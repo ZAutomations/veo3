@@ -38,7 +38,7 @@ Use practical coordinates relative to furniture (beside sofa, on rug, at left do
 Do not put multiple incompatible actions in the same instant. A final teddy transfer must occur visibly if its location changes.
 
 EXACT READY-IMPORT FORMAT
-Use this format with plain field labels. No Markdown tables, bullets, code fences, timestamped Clip headings, unlabelled paragraphs, or separate giant Veo prompts. The tool injects the full style, identities, references, audio constraints and generation settings locally. "Preset:" must be heartwarming-cat-3d. Do not include Sarah:/George:, Narration:, Characters: or Locations: sections.
+Use this format with plain field labels. No Markdown tables, bullets, code fences, timestamped Clip headings, unlabelled paragraphs, or separate giant Veo prompts. The tool injects the full style, identities, references, audio constraints and generation settings locally. "Preset:" must be heartwarming-cat-3d. Do not include Sarah:/SAM:, Narration:, Characters: or Locations: sections.
 
 Story 1
 Title: [Original title]

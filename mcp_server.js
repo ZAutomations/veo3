@@ -462,7 +462,7 @@ async function doAnalyzeVideo(a) {
 async function doGenerateRefs(a) {
     const sJson = resolveStoryJson(a.story);
     if (sJson) require('./saved_couple').bindSavedStory(sJson, require('./dog_couple').savedForStory(sJson, 'agent'));
-    const target = String(sJson ? storyDirOf(sJson) : (a.story || '')).trim();
+    const target = String(sJson || a.story || '').trim();
     if (!target) return { ok: false, text: 'Give a story (folder or JSON) whose refs.json exists.' };
     const args = ['--story', path.resolve(HERE, target)];
     pushOpt(args, '--project-url', a.project_url);
@@ -862,6 +862,7 @@ const TOOLS = [
                 aspect: { type: 'string', description: '"Flow" (default, set the ratio in Flow), or 16:9 / 9:16 / 1:1.' },
                 video_model: { type: 'string', description: 'Video model for this project, e.g. "Veo 3.1 - Fast". "Flow" (default) leaves it alone.' },
                 video_resolution: { type: "string", enum: ["Flow", "360p", "720p"], description: "Agent video resolution; verified and repeated in every clip prompt." },
+                clip_batch_size: { type: "integer", minimum: 1, description: "Prompts per Agent batch; default 5. Pending batches retain their original range." },
                 download_version: { type: "string", enum: ["upscaled", "original"], description: "Download the upscaled version or preserve the original generated size." },
                 model: { type: 'string', description: 'Gemini model, e.g. gemini-3.6-flash.' },
                 models: { type: 'array', items: { type: 'string' }, description: 'Fallback chain, newest first. Overrides model.' },
@@ -913,6 +914,7 @@ const TOOLS = [
                 model: { type: 'string', description: 'Model hint, e.g. "veo3.1 low priority".' },
                 video_model: { type: 'string', description: 'Video model this project must generate with, e.g. "Veo 3.1 - Fast" or "Omni 1.1 Flash". Set in Flow just before Generate. "Flow" (default) leaves the project on its own setting.' },
                 video_resolution: { type: "string", enum: ["Flow", "360p", "720p"], description: "Agent video resolution; verified and repeated in every clip prompt." },
+                clip_batch_size: { type: "integer", minimum: 1, description: "Prompts per Agent batch; default 5. Pending batches retain their original range." },
                 download_version: { type: "string", enum: ["upscaled", "original"], description: "Download the upscaled version or preserve the original generated size." },
                 aspect: { type: 'string', enum: ['Flow', '16:9', '1:1', '9:16'], description: 'Video generation default ratio. Flow leaves it unchanged.' },
                 voices: { type: 'array', items: { type: 'string' }, description: 'Flow voice names to attach, one per speaker (e.g. ["Orus"] or ["Orus","Achernar"]).' },
@@ -1043,6 +1045,7 @@ const TOOLS = [
                 veo_model: { type: 'string', description: 'Veo model hint for Flow, e.g. "veo3.1 low priority".' },
                 video_model: { type: 'string', description: 'Video model this project must generate with, e.g. "Veo 3.1 - Fast" or "Omni 1.1 Flash". "Flow" (default) leaves it alone.' },
                 video_resolution: { type: "string", enum: ["Flow", "360p", "720p"], description: "Agent video resolution; verified and repeated in every clip prompt." },
+                clip_batch_size: { type: "integer", minimum: 1, description: "Prompts per Agent batch; default 5. Pending batches retain their original range." },
                 download_version: { type: "string", enum: ["upscaled", "original"], description: "Download the upscaled version or preserve the original generated size." },
                 no_house_cast: { type: 'boolean' },
                 new_project: { type: 'boolean', description: 'Create a fresh Flow project for this film before generating.' },
@@ -1136,7 +1139,7 @@ const TOOLS = [
                 if (!g.ok) return fail(parts.join('\n\n'));
                 noUpload = true;
             }
-            const r = await doRunAgent({ story: storyArg, cdp: a.cdp, watch: a.watch, model: a.veo_model, submit: a.submit, auto_approve: a.auto_approve, project_url: projectUrl, no_upload_refs: noUpload, video_model: a.video_model, video_resolution: a.video_resolution, scene_seconds: a.seconds || a.scene_seconds, aspect: a.aspect, flow_characters: a.flow_characters, voices: presetVoices(a.preset || (contentMap && contentMap.preset_suggestion)) });
+            const r = await doRunAgent({ story: storyArg, cdp: a.cdp, watch: a.watch, model: a.veo_model, submit: a.submit, auto_approve: a.auto_approve, project_url: projectUrl, no_upload_refs: noUpload, video_model: a.video_model, video_resolution: a.video_resolution, clip_batch_size: a.clip_batch_size, scene_seconds: a.seconds || a.scene_seconds, aspect: a.aspect, flow_characters: a.flow_characters, voices: presetVoices(a.preset || (contentMap && contentMap.preset_suggestion)) });
             parts.push('## run_agent\n' + r.text);
             if (!r.ok || !a.submit) return r.ok ? text(parts.join('\n\n')) : fail(parts.join('\n\n'));
 
@@ -1197,6 +1200,7 @@ const TOOLS = [
                 veo_model: { type: 'string', description: 'Veo model hint for Flow, e.g. "veo3.1 low priority".' },
                 video_model: { type: 'string', description: 'Video model this project must generate with, e.g. "Veo 3.1 - Fast" or "Omni 1.1 Flash". "Flow" (default) leaves it alone.' },
                 video_resolution: { type: "string", enum: ["Flow", "360p", "720p"], description: "Agent video resolution; verified and repeated in every clip prompt." },
+                clip_batch_size: { type: "integer", minimum: 1, description: "Prompts per Agent batch; default 5. Pending batches retain their original range." },
                 download_version: { type: "string", enum: ["upscaled", "original"], description: "Download the upscaled version or preserve the original generated size." },
                 generate: { type: 'boolean', description: 'Drive Flow for each item. Off = write the stories only.' },
                 submit: { type: 'boolean', description: 'true = actually spend credits.' },
@@ -1398,7 +1402,7 @@ const TOOLS = [
                         noUpload = true;
                     }
                     log(`[batch ${i}] driving Flow (this can take a while)...`);
-                    const r = await doRunAgent({ story: storyArg, cdp: a.cdp, watch: a.watch, model: a.veo_model, submit: true, auto_approve: a.auto_approve, project_url: projectUrl, no_upload_refs: noUpload, video_model: a.video_model, video_resolution: a.video_resolution, scene_seconds: a.seconds || a.scene_seconds, aspect: a.aspect, flow_characters: a.flow_characters, voices: presetVoices(preset) });
+                    const r = await doRunAgent({ story: storyArg, cdp: a.cdp, watch: a.watch, model: a.veo_model, submit: true, auto_approve: a.auto_approve, project_url: projectUrl, no_upload_refs: noUpload, video_model: a.video_model, video_resolution: a.video_resolution, clip_batch_size: a.clip_batch_size, scene_seconds: a.seconds || a.scene_seconds, aspect: a.aspect, flow_characters: a.flow_characters, voices: presetVoices(preset) });
                     if (!r.ok) { bad('run_agent', r); continue; }
                     out.push('  generated.');
                     log(`[batch ${i}] generated`);
