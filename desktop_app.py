@@ -163,6 +163,36 @@ def command(filename, *args):
     return ['node', str(ROOT / filename), *map(str, args)]
 
 
+GLOBAL_WORKFLOW_DEFAULTS = dict(rotateQueueAccounts=False, videosPerAccount=2,
+    activityCooldownEnabled=True, activityCooldownSeconds=60, activityMaxAttempts=3,
+    videoModel='Omni 1.1 Flash',videoAspect='9:16',videoResolution='360p',
+    videoDownloadVersion='upscaled',videoSeconds=8,automationCdp=9222,agentPromptsPerBatch=5)
+
+
+def global_workflow_settings(values=None):
+    supplied = read_json(ROOT / 'gui_settings.json').get('workflow_globals', {}) if values is None else values
+    if not isinstance(supplied, dict):raise ValueError('Invalid global workflow settings.')
+    cfg = dict(GLOBAL_WORKFLOW_DEFAULTS, **{k:v for k,v in supplied.items() if k in GLOBAL_WORKFLOW_DEFAULTS})
+    for key in ('rotateQueueAccounts','activityCooldownEnabled'):
+        if not isinstance(cfg[key], bool):raise ValueError(f'{key} must be enabled or disabled.')
+    for key,low,high in [('videosPerAccount',1,50),('activityCooldownSeconds',60,3600),('activityMaxAttempts',1,3),('videoSeconds',4,10),('automationCdp',1024,65535),('agentPromptsPerBatch',1,1000000)]:
+        value=integer(cfg[key],low,high,key)
+        if isinstance(cfg[key],bool) or float(cfg[key])!=value:raise ValueError(f'{key} must be a whole number.')
+        cfg[key]=value
+    for key,choices in [('videoModel',MODELS),('videoAspect',('Flow','9:16','16:9','1:1')),('videoResolution',('Flow','360p','720p')),('videoDownloadVersion',('original','upscaled'))]:
+        if cfg[key] not in choices:raise ValueError(f'Invalid global {key}.')
+    if cfg['videoSeconds'] not in (4,6,8,10):raise ValueError('Clip seconds must be 4, 6, 8 or 10.')
+    return cfg
+
+
+def global_workflow_payload(payload):
+    cfg=global_workflow_settings(payload.get('_globalWorkflow'))
+    result=dict(payload, _globalWorkflow=cfg, rotateQueueAccounts=cfg['rotateQueueAccounts'], videosPerAccount=cfg['videosPerAccount'])
+    if payload.get('view') in ('agent','ingredients','omni'):
+        result.update(model=cfg['videoModel'],aspect=cfg['videoAspect'],resolution=cfg['videoResolution'],downloadVersion=cfg['videoDownloadVersion'],seconds=cfg['videoSeconds'],cdp=cfg['automationCdp'],manualBatchSize=cfg['agentPromptsPerBatch'])
+    return result
+
+
 def plan_action(action, p):
     if action == 'edit_video':
         import video_editing
@@ -173,6 +203,7 @@ def plan_action(action, p):
         from reverse_video_desktop import request_payload
         return 'writer', [('request', ('reverse_video_engine.js', request_payload(ROOT, p)))]
     if action == 'generate_queue':
+        p=global_workflow_payload(p)
         if p.get('view') not in ('agent', 'ingredients', 'omni'):
             raise ValueError('Choose a video workflow.')
         selected = p.get('queue', [])
@@ -181,9 +212,24 @@ def plan_action(action, p):
         paths = [str(story_path(item)[0]) for item in selected]
         if len(set(paths)) != len(paths):
             raise ValueError('The queue contains duplicate stories.')
+        allocations = []
+        if p.get('rotateQueueAccounts'):
+            quota = integer(p.get('videosPerAccount', 2), 1, 50, 'Videos per account')
+            if float(p.get('videosPerAccount', 2)) != quota:raise ValueError('Videos per account must be a whole number.')
+            store = read_json(ROOT / 'accounts.json');accounts = store.get('accounts', [])
+            start = int(store.get('current', 0)) if accounts else 0
+            month = time.strftime('%Y-%m')
+            ordered = accounts[start:] + accounts[:start]
+            available = [a for a in ordered if not a.get('paused') and not a.get('restricted') and not a.get('blocked')
+                and (a.get('clips_used', 0) if a.get('clips_month') == month else 0) < a.get('max_clips', 100)]
+            if not available:
+                raise ValueError('No eligible saved account is available. Nothing started.')
+            allocations = [available[(i//quota)%len(available)]['label'] for i in range(len(paths))]
         operations = []
-        for path in paths:
-            inputs = dict(p, story=path, project='', newProject=True, reuseRefs=False,
+        for index, path in enumerate(paths):
+            if allocations:
+                operations.append(('cli', command('queue_account.js', '--label', allocations[index], '--cdp', p.get('cdp', 9222))))
+            inputs = dict(p, story=path, _queueAccount=allocations[index] if allocations else '', project='', newProject=True, reuseRefs=False,
                           genRefs=bool(p.get('batchGenRefs', True) or p.get('genRefs')), **{'from':1, 'to':''})
             _, steps = plan_action('generate', inputs)
             operations.extend(steps)
@@ -242,7 +288,7 @@ def plan_action(action, p):
         return 'writer', [('mcp', ('batch_pipeline', args))]
     if action.startswith('account_'):
         operation = action.removeprefix('account_')
-        if operation not in ('add', 'use', 'pause', 'resume', 'reset', 'remove'):
+        if operation not in ('add', 'use', 'pause', 'resume', 'reset', 'remove', 'move_up', 'move_down'):
             raise ValueError('Unknown account operation.')
         label = str(p.get('label', '')).strip()
         if not label:
@@ -338,8 +384,8 @@ def plan_action(action, p):
                    genRefs=bool(p.get('genRefs')) and not p.get('reuseRefs'),
                    savedCouple=bool(p.get('savedCouple', read_json(ROOT / 'gui_settings.json').get('omni_saved_couple', False))), simple=bool(p.get('simple', True)),
                    refsOnly=action == 'refs', download=bool(p.get('download', True)), join=bool(p.get('join')))
-        if active_account():
-            req['account'] = active_account()
+        if p.get('_queueAccount') or active_account():
+            req['account'] = p.get('_queueAccount') or active_account()
         if action == 'download':
             req.update(downloadOnly=True, newProject=False, genRefs=False, reuseRefs=True)
         elif action not in ('generate', 'refs'):
@@ -355,8 +401,8 @@ def plan_action(action, p):
     if view == 'ingredients':
         cmd = command('veo3_flow_new_ui.js', path, '--from', first, '--to', last,
                       '--video-model', model, '--aspect', aspect, *base)
-        if active_account():
-            cmd += ['--account', active_account()]
+        if p.get('_queueAccount') or active_account():
+            cmd += ['--account', p.get('_queueAccount') or active_account()]
         resume = first > 1 and action != 'refs'
         if resume and not project:
             raise ValueError('Resuming Ingredients requires the existing project URL.')
@@ -485,6 +531,7 @@ class Job:
     def __init__(self, action, payload, lane, operations):
         self.id = uuid.uuid4().hex
         self.action, self.payload, self.lane, self.operations = action, dict(payload), lane, operations
+        self.payload.setdefault('_globalWorkflow',global_workflow_settings())
         if lane == 'flow' and '_editingSettings' not in self.payload:
             import video_editing
             self.payload['_editingSettings'] = video_editing.settings()
@@ -576,11 +623,26 @@ class Job:
         enabled = self.payload.get('usePresetRefs', reference_library_settings()['modes'].get(mode, True))
         env['VEO_PRESET_REFS'] = '1' if enabled else '0'
         env['VEO_PYTHON'] = sys.executable
+        policy=self.payload.get('_globalWorkflow',GLOBAL_WORKFLOW_DEFAULTS)
+        env['VEO_ACTIVITY_WAIT_SECONDS']=str(policy['activityCooldownSeconds'])
+        env['VEO_ACTIVITY_MAX_ATTEMPTS']=str(policy['activityMaxAttempts'])
+        env['VEO_ACTIVITY_COOLDOWN_ENABLED']='1' if policy['activityCooldownEnabled'] else '0'
+        env['VEO_ACTIVITY_COOLDOWN_ELAPSED'] = '1' if self.payload.get('_unusualActivityFailures') else '0'
         if self.payload.get('_editingSettings') is not None:
             env['VEO_EDITING_SETTINGS'] = json.dumps(self.payload['_editingSettings'])
         return env
 
     def _run_operations(self):
+        # On resume, restore only the originally assigned account. Never choose
+        # another account in response to an error or platform restriction.
+        if self.action == 'generate_queue' and self.payload.get('rotateQueueAccounts') and self.operation_index:
+            assigned = next((spec for kind,spec in reversed(self.operations[:self.operation_index])
+                if kind == 'cli' and len(spec)>1 and str(spec[1]).endswith('queue_account.js')), None)
+            if assigned and not self.stopped:
+                checked = subprocess.run(assigned,cwd=ROOT,capture_output=True,text=True,encoding='utf-8',errors='replace',
+                    timeout=120,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
+                for line in (checked.stdout+checked.stderr).splitlines():self.log(line)
+                if checked.returncode:raise RuntimeError('FLOW_REVIEW_REQUIRED: Could not restore the assigned queue account. No alternate account selected.')
         for index in range(self.operation_index, len(self.operations)):
             kind, spec = self.operations[index]
             self.operation_index = index
@@ -629,6 +691,9 @@ class Job:
 
     def run(self):
         try:
+            if self.action == 'generate_queue':
+                on = self.payload.get('rotateQueueAccounts', False)
+                self.log('ACCOUNT ALLOCATION: ' + (f"ON; {self.payload.get('videosPerAccount', 2)} videos per account; wraps to first eligible account." if on else 'OFF; using the current account. Videos-per-account value is inactive.'))
             while not self.stopped:
                 attempt_start = self.sequence
                 try:
@@ -645,7 +710,20 @@ class Job:
                         self.log('Automatic import retry stopped: this script needs correction. The story/clip/line details are shown above. No video generation was started.')
                         self.status = 'failed'
                         break
-                    if re.search(r'FLOW_REVIEW_REQUIRED:|RECOVERY_REVIEW_REQUIRED:', recent):
+                    unusual = bool(re.search(r'unusual\s+activity|UNUSUAL_ACTIVITY', recent, re.I))
+                    if unusual:
+                        context = f'{self.operation_index}:{self.operation_phases.get(str(self.operation_index), "")}'
+                        history = self.payload.setdefault('_unusualActivityFailures', {})
+                        history[context] = int(history.get(context, 0)) + 1
+                        attempts = history[context]
+                        policy=self.payload['_globalWorkflow']
+                        limit=policy['activityMaxAttempts']
+                        self.log(f'FLOW_UNUSUAL_ACTIVITY: failure {attempts}/{limit}; completed work preserved; no account switching.')
+                        if not policy['activityCooldownEnabled'] or attempts >= limit or 'UNUSUAL_ACTIVITY_BLOCKED' in recent:
+                            self.log('Unusual-activity retry limit reached. Job stopped for Flow review; no new project or account will be used.')
+                            self.status = 'failed'
+                            break
+                    if (not unusual or re.search(r'policy-blocked|content policy|unresolved scene order|multiple completed video assets', recent, re.I)) and re.search(r'FLOW_REVIEW_REQUIRED:|RECOVERY_REVIEW_REQUIRED:', recent):
                         self.log('Automatic retry stopped: this step needs review, so reopening the same project cannot resolve it. Completed clips and downloads are preserved.')
                         self.status = 'failed'
                         break
@@ -673,7 +751,7 @@ class Job:
                     mode = 'batch' if self.action == 'generate_queue' else 'single video'
                     step = retry_step_name(recent, self.phase)
                     self.phase = 'waiting to retry ' + step
-                    retry_delay = min(60, AUTO_RETRY_SECONDS * 2 ** (self.auto_retry_count - 1)) if self.action == 'import_script' else AUTO_RETRY_SECONDS
+                    retry_delay = self.payload['_globalWorkflow']['activityCooldownSeconds'] if unusual else min(60, AUTO_RETRY_SECONDS * 2 ** (self.auto_retry_count - 1)) if self.action == 'import_script' else AUTO_RETRY_SECONDS
                     self.log(f'Automatic Retry / Continue ({mode}) #{self.auto_retry_count}: {step} failed; resuming the saved step in {retry_delay} seconds. Completed clips and downloads are preserved. Press Stop to cancel.')
                     self.save_progress()
                     if self._stop_event.wait(retry_delay):
@@ -828,7 +906,7 @@ def bootstrap(studio_surface: str = Header(default='studio', alias='X-Studio-Sur
             cdp=legacy.get(f'{prefix}_cdp_port' if prefix else 'cdp_port', 9222))
     return dict(root=str(ROOT), models=MODELS, presets=presets(), defaults=initial, workflowDefaults=workflow_defaults,
                 preferences=surface_preferences(studio_surface), hasApiKeys=bool(legacy.get('gemini_api_keys') or legacy.get('gemini_api_key')),
-                referenceLibrary=reference_library_settings(legacy),
+                referenceLibrary=reference_library_settings(legacy), globalWorkflow=global_workflow_settings(),
                 savedCouple={k: legacy.get(k, '') for k in ('couple_sarah_file', 'couple_sam_file', 'couple_sarah_description', 'couple_sam_description', 'agent_saved_couple', 'ing_saved_couple', 'omni_saved_couple')})
 
 
@@ -909,6 +987,9 @@ def master_prompt(preset: str):
 @app.get('/api/library')
 def library():
     result = []
+    known=presets()
+    ids={p['id'] for p in known}
+    aliases={p['name'].strip().casefold():p['id'] for p in known}
     for path in (ROOT / 'stories').rglob('*_story.json'):
         if any(x in path.parts for x in ('backups', 'clips', 'logs')):
             continue
@@ -918,7 +999,7 @@ def library():
         manifest = read_json(path.parent / 'clips' / 'manifest.json')
         result.append(dict(path=str(path), title=story.get('title', path.stem), scenes=len(story['scenes']),
                           duration=len(story['scenes']) * story.get('scene_seconds', 8),
-                          preset=story.get('niche', ''), modified=path.stat().st_mtime,
+                          preset=story.get('niche', ''), presetId=story.get('preset_id') if story.get('preset_id') in ids else aliases.get(str(story.get('niche','')).strip().casefold(),story.get('preset_id','')), modified=path.stat().st_mtime,
                           **story_completion(path, story, manifest)))
     return sorted(result, key=lambda x: x['modified'], reverse=True)
 
@@ -968,6 +1049,9 @@ def settings(data: dict):
         if any(j.status == 'running' for j in jobs.values()):
             raise HTTPException(409, 'Finish or stop jobs before changing shared settings.')
         legacy = read_json(ROOT / 'gui_settings.json')
+        if 'globalWorkflow' in data:
+            try:legacy['workflow_globals']=global_workflow_settings(data['globalWorkflow'])
+            except ValueError as exc:raise HTTPException(400,str(exc))
         allowed = {'couple_sarah_file', 'couple_sam_file', 'couple_sarah_description', 'couple_sam_description',
                    'agent_saved_couple', 'ing_saved_couple', 'omni_saved_couple', 'preset_reference_library', 'preset_reference_modes'}
         for key in allowed:
@@ -990,6 +1074,7 @@ def start_job(body: dict):
     if not isinstance(payload, dict):
         raise HTTPException(400, 'Invalid job inputs.')
     try:
+        payload=global_workflow_payload(payload)
         lane, operations = plan_action(action, payload)
     except (ValueError, TypeError, OSError) as exc:
         raise HTTPException(400, str(exc))

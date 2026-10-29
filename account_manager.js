@@ -112,6 +112,22 @@ function remove(label) {
     return gone;
 }
 
+function reorderStore(store,label,direction) {
+    if(!['up','down'].includes(direction))throw Error('Choose up or down.');
+    const account=findAccount(store,label);
+    if(!account)throw Error('Unknown account.');
+    const active=store.accounts[store.current];
+    const from=store.accounts.indexOf(account),to=from+(direction==='up'?-1:1);
+    if(to<0||to>=store.accounts.length)return store;
+    store.accounts.splice(from,1);store.accounts.splice(to,0,account);
+    store.current=active?store.accounts.indexOf(active):0;
+    return store;
+}
+function moveAccount(label,direction) {
+    const store=reorderStore(load(),label,direction);
+    save(store);return store;
+}
+
 function setPaused(label, paused) {
     const store = load();
     const acc = findAccount(store, label);
@@ -296,6 +312,9 @@ async function cli() {
         } else if (cmd === 'next') {
             const acc = nextAvailable();
             console.log(acc ? acc.label : '(every account is empty or paused this month)');
+        } else if (cmd === 'move_up' || cmd === 'move_down') {
+            moveAccount(flag('--label'),cmd==='move_up'?'up':'down');
+            console.log('Account order saved; active browser unchanged.');
         } else if (cmd === 'pause' || cmd === 'resume') {
             const acc = setPaused(flag('--label'), cmd === 'pause');
             console.log(`${acc.label}: ${acc.paused ? 'paused' : 'resumed'}.`);
@@ -312,7 +331,7 @@ if (require.main === module) cli();
 
 module.exports = {
     ACCOUNTS_FILE, PROFILES_ROOT,
-    load, save, add, remove, findAccount, currentAccount, setCurrent,
+    load, save, add, remove, findAccount, currentAccount, setCurrent, reorderStore, moveAccount,
     nextAvailable, countClip, resetCounter, setPaused, setMaxClips,
     profileDir, cdpAlive, switchBrowser, launchBrowser, killAutomationChromes,
     ensureMonthly, monthKey,

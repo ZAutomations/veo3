@@ -11,6 +11,7 @@ function promptForScene(story, index, options = {}) {
     if(require('./reference_video_preset').applies(story))return require('./reference_video_preset').scene(story,index,{aspect:aspect||'Flow',seconds});
     if(require('./heartwarming_cat').applies(story))return require('./heartwarming_cat').scene(story,index,{aspect:aspect||'Flow',seconds});
     if(require('./motivational_ready_script').applies(story))return require('./motivational_ready_script').scene(story,index,{aspect:aspect||'Flow',seconds});
+    if(require('./fern_ready_script').applies(story))return require('./fern_ready_script').scene(story,index,{aspect:aspect||'Flow',seconds});
     if(require('./zack_ready_script').applies(story))return require('./zack_ready_script').scene(story,index,{aspect:aspect||'Flow',seconds});
     if(require('./cartoon_narration_prompt').applies(story))return request+'\n'+require('./cartoon_narration_prompt').scene(story,index,{aspect,seconds})+'\n';
     const simple = require('./simple_dialogue_prompt').agent(story, { from: index + 1, to: index + 1, aspect, seconds, native: !!options.native });

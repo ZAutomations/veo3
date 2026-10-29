@@ -83,3 +83,16 @@ batch validation, repeat-import preservation and retry classification. The actua
 failed Story 141 input also passed strict local preflight. The original Story 51
 TXT was unavailable, so its format is covered by a representative fixture and
 existing legacy import tests.
+
+
+Fern Documentary now supports local ready import as well. The legacy
+FERN_DOCUMENTARY_SCRIPTS.txt structure with Details, Duration, Story brief,
+Sources, exact Narration, 2–3 timed Shots and Sound is accepted. Characters,
+Locations, Continuity and Effect are optional. Fern preserves the requested
+variable count of eight-second clips (the supplied Dunbar script is 23 clips /
+184 seconds), factual narration and source metadata. Its export uses silent
+faceless matte mannequins and actual story settings. This is not automatic
+fact-checking of the creator's sources or a promise of provider approval.
+Other presets' master prompts still identify whether to use Write stories or
+Import ready script; the shared quality update does not falsely enable imports
+for unsupported preset schemas.

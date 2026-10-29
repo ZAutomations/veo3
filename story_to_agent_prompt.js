@@ -516,7 +516,7 @@ if (DIALOGUE) {
     L.push('Do not add any character dialogue anywhere - narration only.');
 }
 
-let body = require('./reference_video_preset').agent(story,{from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS}) || require('./heartwarming_cat').agent(story,{from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS}) || require('./motivational_ready_script').agent(story,{from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS}) || require('./zack_ready_script').agent(story,{from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS}) || require('./cartoon_narration_prompt').agent(story,{from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS}) || require('./simple_dialogue_prompt').agent(story, {
+let body = require('./fern_ready_script').agent(story,{from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS}) || require('./reference_video_preset').agent(story,{from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS}) || require('./heartwarming_cat').agent(story,{from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS}) || require('./motivational_ready_script').agent(story,{from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS}) || require('./zack_ready_script').agent(story,{from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS}) || require('./cartoon_narration_prompt').agent(story,{from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS}) || require('./simple_dialogue_prompt').agent(story, {
     from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS,
     native:!!flag('--flow-characters',false),
 }) || (zackCuts ? require('./zack_shot_contract').DIRECTION + '\n\n' : '') + L.join('\n');

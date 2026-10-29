@@ -1,0 +1,56 @@
+/* Shared dense desktop layout. Full-width tables/text remain readable. */
+main.studio-compact{max-width:none;padding:22px 24px 34px;font-size:12px}
+.studio-card-grid{display:grid!important;grid-template-columns:repeat(12,minmax(0,1fr))!important;gap:12px!important;align-items:stretch}
+.studio-card-grid>.panel,.studio-card-grid>details{grid-column:span 4;margin:0!important;min-width:0;padding:14px!important;border-radius:11px}
+.studio-card-grid>.studio-span-wide{grid-column:span 8!important}
+.studio-card-grid>.studio-span-full{grid-column:1/-1!important}
+.studio-compact .page-heading{margin:0 0 5px}.studio-compact h1{font-size:24px;margin:4px 0 6px}.studio-compact .page-heading p{font-size:11px}
+.studio-compact .panel-title{gap:8px;margin-bottom:12px;align-items:flex-start}.studio-compact .panel-title h2{font-size:14px;margin:0 0 3px}.studio-compact .panel-title small{font-size:10px;line-height:1.5}.studio-compact .step{width:25px;height:25px;flex:0 0 25px;font-size:10px}
+.studio-compact .form-grid,.studio-compact .form-grid.three{grid-template-columns:1fr;gap:9px}
+.studio-compact .studio-span-full>.form-grid,.studio-compact .studio-span-full>.card-body>.form-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.studio-compact .studio-span-wide>.form-grid,.studio-compact .studio-span-wide>.card-body>.form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.studio-compact .field{min-width:0;gap:4px;margin-bottom:0}.studio-compact .field label{font-size:10px;line-height:1.45}.studio-compact .field small{font-size:10px;line-height:1.45}
+.studio-compact input,.studio-compact select{min-width:0;font-size:11px;padding:8px 9px;min-height:33px}.studio-compact input[type=checkbox]{min-height:0;padding:0;flex-shrink:0}.studio-compact textarea{font-size:11px;min-height:115px}
+.studio-compact .field.full{grid-column:1/-1}.studio-compact .input-row{min-width:0;flex-wrap:wrap}.studio-compact .input-row input{flex:1;min-width:90px}
+.studio-compact .options-grid{grid-template-columns:1fr;gap:8px;margin:10px 0}.studio-compact .toggle-row{padding:8px;gap:8px;min-width:0;font-size:11px}.studio-compact .toggle-row small{font-size:10px;line-height:1.45;margin-top:3px}
+.studio-compact .hint,.studio-compact .footer-note,.studio-compact .settings-note{font-size:10px;line-height:1.55;margin-top:9px}.studio-compact p{overflow-wrap:anywhere}
+.studio-compact .action-bar{margin-top:12px;padding-top:10px;gap:8px;flex-wrap:wrap}.studio-compact .buttons{gap:6px;flex-wrap:wrap}.studio-compact .button{font-size:11px;padding:8px 10px;white-space:normal;line-height:1.35}.studio-compact .button.small{padding:5px 7px;font-size:10px}
+.studio-card-grid>details>summary{font-size:12px;line-height:1.5}.studio-card-grid>details>.panel{padding:10px 0 0;margin:0;border:0;background:transparent;box-shadow:none}.studio-card-grid>details .form-grid{grid-template-columns:1fr}
+.studio-compact .card-heading{font-size:12px;margin-bottom:9px}.studio-compact .card-visibility-toggle{margin-left:auto;flex-shrink:0;font-size:9px;padding:4px 7px}
+.studio-compact .story-queue{max-height:280px;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;position:relative;min-height:0;padding:3px 5px 3px 0;scrollbar-gutter:stable}.studio-compact .account-actions{flex-wrap:wrap}.studio-compact .story-table td,.studio-compact .story-table th{padding:10px 12px}.studio-compact .stat{padding:13px}.studio-compact .workflow-card{padding:16px}
+.studio-compact .editing-caption-grid{gap:14px}.studio-compact .editing-captions .editing-preview-stage{height:205px;min-height:205px;max-height:205px}.studio-compact .editing-captions .editing-preview-stage img,.studio-compact .editing-captions .editing-preview-stage video{max-height:205px}.studio-compact .editing-captions .editing-caption-controls>.form-grid{grid-template-columns:1fr}.studio-compact .editing-captions .editing-style-tiles{grid-template-columns:repeat(3,minmax(0,1fr))}.studio-compact .editing-captions .editing-color-chip{padding:4px 5px}.studio-compact .editing-captions .editing-tile-sample{font-size:11px}.studio-compact .editing-captions .editing-style-tile{font-size:9px}
+.studio-compact .editing-layout>.panel:first-child{grid-column:span 4}.studio-compact .editing-layout>.editing-captions{grid-column:span 8}
+@media(min-width:1600px){.studio-card-grid>.studio-span-small{grid-column:span 3!important}}
+@media(max-width:1000px){.studio-card-grid>.panel,.studio-card-grid>details{grid-column:span 6}.studio-card-grid>.studio-span-wide{grid-column:1/-1!important}.studio-compact .studio-span-full>.form-grid,.studio-compact .studio-span-full>.card-body>.form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.studio-compact .editing-layout>.panel:first-child{grid-column:span 6}.studio-compact .editing-layout>.editing-captions{grid-column:1/-1}}
+@media(max-width:650px){main.studio-compact{padding:16px 12px}.studio-card-grid>.panel,.studio-card-grid>details,.studio-card-grid>.studio-span-small{grid-column:1/-1!important}.studio-compact .studio-span-full>.form-grid,.studio-compact .studio-span-full>.card-body>.form-grid,.studio-compact .studio-span-wide>.form-grid{grid-template-columns:1fr}.studio-compact .editing-caption-grid{grid-template-columns:1fr}}
+
+main.studio-compact{min-width:0;overflow-x:clip}
+.studio-compact .card-body{min-width:0}
+.studio-compact .studio-folder-card .card-body>.form-grid{max-height:360px;overflow-y:auto;overscroll-behavior:contain;padding-right:5px;grid-template-columns:1fr}
+
+/* Unified Generation: engines share presentation, never their checkpoints. */
+.generation-mode-columns{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:stretch}
+.generation-mode-column{display:flex;flex-direction:column;min-width:0;border:1px solid var(--line,#ddd);border-radius:12px;padding:12px;background:var(--bg2,transparent)}
+.generation-mode-column.active{border-color:var(--accent,#c8db00)}
+.generation-mode-column>.panel{flex:1;margin:0;padding:14px;min-width:0}
+.generation-mode-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:0 2px 12px}
+.generation-mode-heading h2{font-size:15px;margin:0}
+.generation-mode-switch{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:11px;font-weight:700}
+.inactive-story-fields{margin:0;padding:0;border:0;min-width:0;opacity:.6}
+.generation-mode-column .form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.shared-video-summary{grid-column:1/-1;display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:9px 12px;border:1px solid var(--line,#ddd);border-radius:9px;font-size:11px}
+.shared-video-summary .button{margin-left:auto}
+.studio-card-grid>.panel,.studio-card-grid>details{align-self:stretch}
+@media(max-width:800px){.generation-mode-columns{grid-template-columns:1fr}.generation-mode-column .form-grid{grid-template-columns:1fr}}
+
+.generation-mode-switch{position:relative;flex-shrink:0;cursor:pointer}
+.generation-mode-switch input{position:absolute;width:1px!important;height:1px!important;min-height:0!important;opacity:0;left:4px;top:8px}
+.generation-mode-switch span{position:relative;display:block;min-width:58px;padding:6px 7px 6px 24px;border:1px solid var(--line,#999);border-radius:20px;background:#7772;text-align:right;font-size:10px;line-height:16px}
+.generation-mode-switch span:before{content:'';position:absolute;width:14px;height:14px;border-radius:50%;background:#888;left:6px;top:7px}
+.generation-mode-switch input:checked+span{background:var(--accent,#b8d700);color:#111;border-color:var(--accent,#b8d700)}
+.generation-mode-switch input:checked+span:before{background:#fff}
+.generation-mode-switch input:focus-visible+span{outline:2px solid var(--accent);outline-offset:3px}
+.studio-card-grid>.generation-finishing{grid-column:1/-1!important}
+.studio-compact .generation-finishing .options-grid{grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch}
+@media(max-width:1050px){.studio-compact .generation-finishing .options-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.studio-compact .generation-finishing .options-grid{grid-template-columns:1fr}}

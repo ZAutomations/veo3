@@ -2,7 +2,7 @@
 // model still belongs to agent_mode.js and its generation-default settings.
 const IMAGE_MODEL = 'Nano Banana Pro';
 const IMAGE_RATIO = '16:9';
-const ACTIVITY_WAIT_MS = 120000;
+const ACTIVITY_WAIT_MS = 60000;
 const ACTIVITY_RETRIES = 2;
 const ACTIVITY_BLOCKED = 'UNUSUAL_ACTIVITY_BLOCKED';
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -174,18 +174,20 @@ async function waitForReferenceImage(page, before, seconds, opts = {}) {
 }
 
 // Google's guidance for this exact message is to wait a couple of minutes.
-// Two retries, each after a full 120s pause; no account or browser switching.
+// Two retries, each after a full 60s pause; no account or browser switching.
 async function withActivityWait(attempt, opts = {}) {
     const say = opts.log || (() => {}), pause = opts.sleep || sleep;
-    for (let n = 0; n <= ACTIVITY_RETRIES; n++) {
+    const retries=process.env.VEO_ACTIVITY_COOLDOWN_ENABLED==='0'?0:Math.max(0,Math.min(3,Number(process.env.VEO_ACTIVITY_MAX_ATTEMPTS)||3)-1);
+    const waitMs=Math.max(60,Number(process.env.VEO_ACTIVITY_WAIT_SECONDS)||60)*1000;
+    for (let n = 0; n <= retries; n++) {
         const result = await attempt(n);
         if (result.ok || !result.unusual) return result;
-        if (n === ACTIVITY_RETRIES) {
-            say(`${ACTIVITY_BLOCKED}: still blocked after ${ACTIVITY_RETRIES} retries. Stopping generation; try manually later and check VPN/proxy settings or contact Flow support.`);
+        if (n === retries) {
+            say(`${ACTIVITY_BLOCKED}: still blocked after ${retries} retries. Stopping generation; try manually later and check VPN/proxy settings or contact Flow support.`);
             return { ...result, blocked: true };
         }
-        say(`WAIT MODE: Flow reported unusual activity. Retrying this reference in 120 seconds (${n + 1}/${ACTIVITY_RETRIES}).`);
-        for (let remaining = ACTIVITY_WAIT_MS; remaining > 0; remaining -= 30000) {
+        say(`WAIT MODE: Flow reported unusual activity. Retrying this reference in ${waitMs/1000} seconds (${n + 1}/${retries}).`);
+        for (let remaining = waitMs; remaining > 0; remaining -= 30000) {
             await pause(Math.min(30000, remaining));
             if (remaining > 30000) say(`WAIT MODE: ${(remaining - 30000) / 1000} seconds remaining.`);
         }
@@ -195,7 +197,9 @@ async function withActivityWait(attempt, opts = {}) {
 function referenceTimeoutMs(count, waitSeconds) {
     // Each sheet can take three complete attempts plus two cooldowns and UI
     // verification/renaming. The MCP process must not kill a legitimate wait.
-    return 120000 + Math.max(1, count) * ((ACTIVITY_RETRIES + 1) * (waitSeconds * 1000 + 60000) + ACTIVITY_RETRIES * ACTIVITY_WAIT_MS);
+    const retries=process.env.VEO_ACTIVITY_COOLDOWN_ENABLED==='0'?0:Math.max(0,Math.min(3,Number(process.env.VEO_ACTIVITY_MAX_ATTEMPTS)||3)-1);
+    const waitMs=Math.max(60,Number(process.env.VEO_ACTIVITY_WAIT_SECONDS)||60)*1000;
+    return 120000 + Math.max(1, count) * ((retries + 1) * (waitSeconds * 1000 + 60000) + retries * waitMs);
 }
 
 module.exports = {

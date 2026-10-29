@@ -9,7 +9,7 @@ class ImportValidationError extends Error {
   this.line?`Line: ${this.line}`:'',this.message,'No video-generation jobs were started.'].filter(Boolean).join('\n');}
 }
 const TOP=new Set(['title','preset','setting','clip seconds','duration','estimated duration','details','characters','locations',
- 'continuity','production profile','location name','left label','right label','footer start','footer end']);
+ 'continuity','story brief','sources','production profile','location name','left label','right label','footer start','footer end']);
 const unquote=value=>String(value).trim().replace(/^(?:"([\s\S]*)"|“([\s\S]*)”)$/,(m,a,b)=>a??b).trim();
 const words=text=>(String(text).match(/[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu)||[]).length;
 
@@ -38,7 +38,7 @@ function parse(text,defaults={}) {
   const heading=line.match(/^Clip\s+(\d+)\s*(?:[-–—]\s*(.*?))?\s*:\s*$/i);
   if(heading){
    const n=Number(heading[1]);if(n!==story.clips.length+1)fail('Clip numbers must start at 1 and be consecutive and unique.',lineNo,'Clip');
-   clip={number:n,title:heading[2]||(['3d-zack-style','3d-motivational-red-green','heartwarming-cat-3d'].includes(story.preset)?`Clip ${n}`:`Conversation ${n}`),action:'',dialogue:[],shots:[]};
+   clip={number:n,title:heading[2]||(['fern-documentary','3d-zack-style','3d-motivational-red-green','heartwarming-cat-3d'].includes(story.preset)?`Clip ${n}`:`Conversation ${n}`),action:'',dialogue:[],shots:[]};
    Object.defineProperty(clip,'_source',{value:{line:lineNo,fields:{},shots:[]},enumerable:false});
    story.clips.push(clip);section='';last=null;continue;
   }
@@ -86,7 +86,7 @@ function parse(text,defaults={}) {
    assign(story,'continuity',value,lineNo,label);continue;
   }
   section='';last=null;
-  if(['title','preset','setting','details'].includes(key)){assign(story,key,value,lineNo,label);continue;}
+  if(['title','preset','setting','details','story brief','sources'].includes(key)){assign(story,key.replace(' ','_'),value,lineNo,label);continue;}
   if(key==='production profile'){
    if(!/^(?:zetomate[- ]8[x×]8|strict[- ]8[x×]8|8[x×]8)$/i.test(value))fail('Supported production profile: zetomate-8x8.',lineNo,label);
    assign(story,'production_profile','zetomate-8x8',lineNo,label);continue;
@@ -119,9 +119,11 @@ function parse(text,defaults={}) {
  for(const s of stories){
   story=s;clip=null;section='Metadata';
   const p=custom(s.preset),zack=s.preset==='3d-zack-style',motivational=s.preset==='3d-motivational-red-green',cat=s.preset==='heartwarming-cat-3d';
+  const fern=s.preset==='fern-documentary';
   const strict=zack&&(defaults.strict8x8===true||s.production_profile==='zetomate-8x8');
   if(strict)s.production_profile='zetomate-8x8';
-  if(!s.title.trim()||(!motivational&&!s.setting.trim()&&!(zack&&s.locations.length)))fail('Every story needs Title: and Setting: (or named Locations: for Zack D).',s._source.line,'Title / Locations');
+  if(zack&&s.clips[0]?.narration&&!/^\s*["“]?(?:what\s+(?:if|happens)|how\s+(?:does|do|can|would|could)|why\s+(?:does|do|is|are|can))/i.test(s.clips[0].narration))s.warnings.push('Clip 1: opening lacks the preset’s direct What if / What happens / How / Why question hook. Narration was preserved; request an explicit hook rewrite before generation.');
+  if(!s.title.trim()||(!motivational&&!s.setting.trim()&&!((zack&&s.locations.length)||(fern&&(s.locations.length||s.story_brief||s.details)))))fail('Every story needs Title: and Setting: (or named Locations: for Zack D).',s._source.line,'Title / Locations');
   for(const kind of ['characters','locations'])for(const entry of s[kind]){entry.description=entry.description.trim();if(!entry.description)fail(`Provide a description for ${entry.name}.`,entry._sourceLine,entry.name,{section:kind});}
   if(!s.preset)fail('Choose or supply a valid Preset:.',s._source.line,'Preset');
   if(![4,6,8,10].includes(s.seconds))fail('Choose 4, 6, 8 or 10 seconds per clip.',s._source.fields.seconds||s._source.line,'Clip seconds');
@@ -137,8 +139,8 @@ function parse(text,defaults={}) {
    clip=c;
    if(c.narration!==undefined)c.narration=unquote(c.narration);
    for(const turn of c.dialogue)turn.line=unquote(turn.line);
-   if(zack){
-    if(!c.narration||c.dialogue.length)fail('Zack D requires Narration: and no character dialogue.',c._source.fields.narration||c._source.line,'Narration');
+   if(zack||fern){
+    if(!c.narration||c.dialogue.length)fail('Narrated ready scripts require Narration: and no character dialogue.',c._source.fields.narration||c._source.line,'Narration');
     if(strict?c.shots.length!==3:c.shots.length<2||c.shots.length>4)fail(strict?'Strict 8×8 clips require exactly three timed shots.':'Requires two to four timed shots.',c._source.line,'Shots');
     let end=0;
     for(let i=0;i<c.shots.length;i++){
@@ -146,7 +148,7 @@ function parse(text,defaults={}) {
      if(!shot.visual)fail('Provide a concrete shot description.',c._source.shots[i],`Shot ${i+1}`);
      if(Math.abs(shot.start_seconds-end)>.001||shot.end_seconds<=shot.start_seconds||shot.end_seconds>s.seconds)fail('Shot timings contain a gap, overlap or invalid endpoint.',c._source.shots[i],`Shot ${i+1}`);
      end=shot.end_seconds;
-     if(/^(?:use a motivated tracking move[.!]?|resolve one scientific question on screen[.!]?|make the explanation visible[.!]?)$/i.test(shot.visual.trim()))s.warnings.push(`Clip ${c.number}, Shot ${i+1}: generic direction does not identify a visible subject or mechanism; review the visual before generation.`);
+     if(/(?:use a motivated tracking move|resolve one scientific question on screen|make the explanation visible|start with an unmistakable subject and visible action)/i.test(shot.visual.trim()))s.warnings.push(`Clip ${c.number}, Shot ${i+1}: generic direction does not identify a visible subject or mechanism; review the visual before generation.`);
     }
     if(Math.abs(end-s.seconds)>.001)fail(`Shots must cover all ${s.seconds} seconds.`,c._source.line,'Shots');
     for(const key of ['effect','sound']){

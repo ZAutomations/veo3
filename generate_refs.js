@@ -12,7 +12,7 @@
  *   2. select Image / 16:9 / Nano Banana Pro in the compact settings summary
  *   3. paste the sheet/plate prompt into the Flow prompt box
  *   4. click Start generation
- *   5. wait for a completed image; unusual activity waits 120s, max 2 retries
+ *   5. wait for a completed image; unusual activity waits 60s, max 2 retries
  *   6. open that tile's More options -> Rename -> type the simple name ("Maya",
  *      "Leo", "Apartment") -> Done
  * Then Agent Mode ON again.

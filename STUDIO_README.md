@@ -79,3 +79,38 @@ Zack D narrative modes: titles such as What would happen if / What if activate t
 Click Open separate Story Writer in the sidebar or Story Writer page. It opens the same maintained Studio writing UI in a dedicated window (including batch writing and direct script import), with no generation tabs. Flow jobs and writer jobs use separate lanes on the same backend. The writer window has its own saved form/collapse preferences in desktop_writer_settings.json; it inherits the main palette on first use. Closing this child window does not stop the main Flow job. Reopening focuses/restores the existing child window or creates it again after closing. Only one writing job can run at a time across Studio windows to avoid conflicting AI Studio sessions; writing can run concurrently with a Flow job.
 
 Agent batch download fallback: When source prompt text is shared by multiple generated clips, a matching fully completed batch checkpoint and exact unique video inventory allow asset-by-asset Original/Upscaled collection. Files use asset identities, not guessed story numbers. The manifest records downloadComplete while keeping complete:false and needsSceneOrdering:true until Resolve clip order verifies narration. Automatic joining still runs narration ordering first and refuses an unresolved manifest. Verified existing asset transfers are skipped. Incomplete/changed checkpoints, missing assets and active/failed generation cannot authorize the fallback.
+
+
+### Fixed account allocation for saved-story queues
+
+In Settings → Global workflow settings, enable Allocate queued videos across
+saved accounts and set Videos per account
+(default 2, disabled by default). Allocation is planned before generation,
+starting with the current eligible saved account, then registry order. Example:
+stories 1–2 on A, 3–4 on B, 5–6 on C. Each story receives a new project. Profiles
+must already be signed in manually. Paused, flagged or exhausted accounts are
+excluded. After the last eligible account, allocation wraps to the first. No eligible accounts fails preflight before credits are spent. Quotas apply per turn through the list; account availability is checked again before each story.
+Allocation applies to this selected queue, not a lifetime per-account video cap.
+All operations for a story must finish before the next assigned account is used.
+Failed stories stay assigned to their original account; unusual-activity errors
+use cooldown/stop, never failover. Resume retains the planned account and project.
+Disabling allocation preserves the existing single-account workflow.
+
+
+Global workflow settings also contains unusual-activity recovery: enabled by
+default, 60-second cooldown, three total attempts. Cooldown can be increased;
+disabling it stops on first unusual-activity failure. Each new Studio job saves
+an immutable settings snapshot. Existing jobs/retries keep their original
+snapshot. Global settings are stored locally inside gui_settings.json; no
+credentials are exposed by the settings response. Per-mode allocation fields
+were removed so old drafts cannot override this shared configuration.
+
+
+The Generation navigation tab now contains Agent and Ingredients as two equal
+Story & project columns. Turning one mode on selects it and turns the other off;
+it does not run automation. Story, project and scene range are retained separately
+per mode so switching presentation cannot mix checkpoints or film projects.
+Video model, aspect, resolution, download version, seconds, browser port and
+Agent batch size live in Settings → Shared video settings. New generation jobs
+use a validated snapshot and ignore stale hidden per-mode video controls.
+Single Clip Omni also uses these settings and validates its model requirements.

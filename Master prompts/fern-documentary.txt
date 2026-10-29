@@ -1,7 +1,7 @@
-MASTER PROMPT: FERN-STYLE FACTUAL DOCUMENTARY
+MASTER PROMPT V3: FERN-STYLE FACTUAL DOCUMENTARY — READY IMPORT + COMPLETE PACKAGE
 PRESET ID: fern-documentary
 
-USE IN TOOL: Story Writer > Title & details > Write stories. Select Fern Documentary Style and set the GUI clip count/seconds to match your script. Fern is NOT currently supported by Import ready script; this workflow still uses Gemini/AI Studio to finalize the story. This file is a dedicated documentary writing prompt, not an importer update.
+USE IN TOOL: Story Writer > Import ready script. Select fern-documentary, paste/attach this TXT and import locally without Gemini. Narration, metadata, chronological shots and native sound instructions are preserved. Fern accepts a requested variable clip count of eight-second clips; do not apply Zack's strict 8×8 profile to it. Existing Title & details writing remains available if desired.
 
 COPY EVERYTHING BELOW THIS LINE INTO CHATGPT:
 
@@ -30,7 +30,7 @@ Examples of hook structures, not facts to copy:
 "[Verified action] should have prevented [risk]. Here is what happened instead."
 "At [verified time/place], [documented first event] changed the situation."
 Use a short opening line that creates curiosity in the first one or two seconds. Avoid greetings, "today we'll discuss", generic scene-setting and invented shock.
-Keep the source chronology intact after the hook. Do not reveal an unsupported later outcome or fabricate a cliffhanger.
+For a new documentary script, prefer an immediate precise How/Why question or a verified contradiction; never a generic introduction. For this supplied robbery topic, a suitable structure is "How did six robbers steal eighteen point nine million dollars—and why did an insider matter so much?" Do not invent a new fact to make the hook. Keep the source chronology intact after the hook. Do not reveal an unsupported later outcome or fabricate a cliffhanger.
 
 LOCATION PLAN
 Before writing the clips, map each narrative beat to its source-supported location and time. One setting is correct when the story needs one; several settings are correct when the events require them. State the location within the shot descriptions, without adding an unsupported metadata field to the output format. Revisited places retain their layout and props. Never force every event into the reference image setting.
@@ -63,16 +63,18 @@ TIMED SHOTS
 Each eight-second clip contains TWO OR THREE DISTINCT SHOTS, linked to the corresponding narration phrases.
 Use Shot 1: 0–3 seconds, Shot 2: 3–5 seconds, Shot 3: 5–8 seconds; or two shots at 0–4 and 4–8 seconds.
 Cover the full eight seconds with no gaps or overlaps.
-Cut between concrete actions, establishing geography, relevant details, evidence and explanatory diagrams. Do not label one continuous pan as three different shots.
+For spatially connected subjects, plan concrete framing beats with one chosen camera path: departure object, pan/track/push route, arrival object and new information. Do not give a menu such as "tracking move or match cut". Settle briefly on each piece of evidence. Use motivated cuts for real changes in place/time or disconnected evidence; explain their purpose in the shot rather than inserting generic cuts. A continuous move may contain multiple timed explanatory beats when they reveal new information; it must not repeat one view as filler.
 Use restrained readable motion. Locations may change when the events require it; do not force all scenes into one room or aircraft cabin.
 Do not depict a later event before its narration. Do not invent visuals that contradict the spoken facts.
 Use subtle arrows or highlights only when they clarify a mechanism or location. No unnecessary emoji, long text, subtitles, logos or watermarks. Short verified dates or diagram labels are allowed when essential.
 Physical sounds and restrained transition effects may sit quietly beneath continuous narration. No music or competing voices.
 
 DELIVERY
-Return one downloadable UTF-8 plain-text file named FERN_DOCUMENTARY_SCRIPTS.txt. If you cannot create a file, provide the entire result in one copyable code block.
+Default delivery is the COMPLETE STORY PACKAGE specified below: four separate files per story when image/file tools are available. The script file uses the exact ready-import syntax below. For an explicitly scripts-only request, deliver one separate numbered SCRIPT.txt per story. If file tools are unavailable, provide complete, individually labeled copyable contents and clearly state that no downloadable files were created.
 Number stories consecutively. Restart clip numbering at 1 for every story. All narration and visual descriptions must be complete, with no placeholders or unfinished sentences.
-Use EXACTLY this structure:
+Use EXACTLY this structure. Optional Characters: and Locations: sections may precede Clip 1, with Name: description entries; Locations must be actual story settings. Continuity: is optional story-level metadata. Story brief: and Sources: are supported metadata, not narration. Do not place a Production profile: zetomate-8x8 line in a Fern script. Effect: may be supplied per clip or omitted. Narration:, 2–3 timed Shot fields and Sound: are required per clip. No unsupported custom clip labels.
+
+Structure:
 
 Story 1
 Title: [finished factual documentary title]
@@ -96,9 +98,132 @@ Shot 2: 4–8 seconds — [relevant visual]
 Sound: [quiet relevant sound or None]
 
 Continue through the complete source and outcome. Replace every bracketed placeholder. Do not print the continuation instruction.
-If multiple stories were requested, repeat Story 2, Story 3 etc. in the same file.
+If multiple stories were requested, write each Story N in its own numbered SCRIPT.txt file. Do not concatenate different stories into one script file unless the user explicitly asks for a combined import as a separate additional deliverable.
 No Markdown headings, tables, decorative separators, introductions or explanations outside the specified fields in the output file.
 
 FINAL CHECK
 Check source accuracy, factual hook, chronological coverage, complete ending, narration length, consecutive clip numbers, eight-second shot coverage, consistent mannequin designs, silent cast and correct total duration.
 Do not claim that any prompt guarantees provider acceptance or viewer retention.
+
+
+FERN DOCUMENTARY — COMPLETE STORY PACKAGE
+
+PURPOSE
+For EACH completed factual Fern-style documentary, deliver an upload-ready four-file package: (1) documentary script TXT, (2) Ideogram thumbnail-prompts TXT containing EXACTLY THREE separate prompts, (3) one actual portrait thumbnail PNG or JPG, and (4) SEO metadata TXT. Future batches may contain five stories, with four separate files per story (20 files total). Preserve the base Fern documentary prompt's factual-source, chronology, visual identity, narration, clip-duration, and timed-shot rules.
+
+DELIVERY CONTRACT — FOUR FILES PER STORY
+Create a clearly numbered package for each story with these exact suffixes:
+01_<SHORT_SLUG>_SCRIPT.txt
+01_<SHORT_SLUG>_IDEOGRAM_3_PROMPTS.txt
+01_<SHORT_SLUG>_THUMBNAIL.png (or .jpg)
+01_<SHORT_SLUG>_SEO_METADATA.txt
+For a 5-story batch, number files 01 through 05. Do not combine individual scripts, prompts, or SEO files across stories. A ZIP archive is optional and supplementary, not a replacement for the four separate files. Deliver working download links to every generated file. If real image generation is unavailable, state that the thumbnail image cannot be supplied; never substitute a text prompt and pretend it is an actual PNG/JPG.
+
+A. SCRIPT FILE
+Keep the EXACT script structure prescribed by the existing Fern master prompt: Story number, Title, Preset, Details, Duration, Story brief, Sources, and consecutive 8-second Clips with Narration, two or three precisely timed Shot fields, and Sound. Research and verify factual incidents before writing; do not invent causes, locations, convictions, dollar amounts or quotes. The visual reconstruction must use the established desaturated slate/teal faceless matte mannequins, consistent props, source-supported settings and non-graphic actions. Never sacrifice the factual conclusion for clickbait.
+
+B. IDEOGRAM THUMBNAIL PROMPTS FILE — EXACTLY THREE
+Provide three fully independent, copy-paste-ready English prompts, each intended to generate ONE distinct image (NEVER a collage, grid, triptych, contact sheet or multiple versions in one frame). Each prompt must specify:
+- Portrait 9:16 composition, optimized for mobile YouTube Shorts visibility; high resolution.
+- Filmic Fern documentary feel: dramatic desaturated dark slate and teal, red alert accents, controlled gold/yellow highlights, realistic cinematic 3D props, deep contrast, strong focal hierarchy.
+- People rendered ONLY as blank faceless matte mannequins in correct role-appropriate clothes: NO eyes, mouth, nose, ears or hair. Unidentifiable shadow silhouettes are also acceptable; NEVER photorealistic recognizable faces.
+- Relevant factual setting and money/vehicles/evidence only if supported by the actual documentary.
+- A suspense hook, an exceptionally large and readable headline, and a second short curiosity line. Provide the EXACT on-image English wording in quotation marks; avoid long sentences or crowded text; normally use 3–7 words for the main headline and 3–7 words for the secondary line. If a figure appears, use accurate source-supported numbers.
+- Intentional placement: hook in top/center, intrigue line near lower third, principal mystery figure or scene unobscured. Maintain safe margins for platform overlays and avoid tiny text.
+- A different factual angle for each prompt: (1) the documented scale/stakes, (2) the central role/system or hidden cause actually supported by sources, (3) the decisive clue/investigation or verified outcome. For a sourced robbery with an insider and unrecovered money, these can be record-breaking scale, insider/mastermind, and the clue/unrecovered funds. For aviation, history, technology or human-body topics, adapt all three angles to that subject; never invent a criminal mastermind, money, unresolved case or record-breaking claim.
+- Clear no-logo/no-watermark/no-extra-text/no-misspelling requirements.
+Do NOT reveal the mastermind's actual name in thumbnail text when the chosen angle is “GUESS WHO?”; preserve a truthful mystery. No false superlatives: distinguish 'largest armed cash robbery at the time' from 'biggest robbery in all U.S. history', especially when newer/larger cash thefts exist.
+
+C. ACTUAL THUMBNAIL IMAGE
+Generate ONE actual portrait 9:16 PNG or JPG for EACH story based on the strongest of the three prompts. Prefer the mastermind/insider mystery angle when supported by the story. Large readable English text is mandatory. The image should have one primary attention target, secondary supporting scene/evidence, arresting but credible dramatic lighting, and clean legibility at phone size. Keep one self-contained image; no montage of multiple thumbnail choices, no composite contact sheet. A thumbnail is stylized artwork, NOT an archival photograph or a claim that depicted staging is documentary footage.
+
+D. SEO METADATA FILE
+Return these exact filled sections:
+Story Number:
+Documentary Topic:
+Primary YouTube Title: [compelling, accurate, ideally under ~90 characters, including 1 or 2 relevant hashtags when natural]
+Alternative YouTube Title 1:
+Alternative YouTube Title 2:
+Short Video Description: [2–4 concise English sentences; accurate hook, story specifics, outcome; do not falsely claim unresolved cases or omit known convictions]
+Five Description Hashtags: [EXACTLY 5 relevant hashtags]
+YouTube Tags (comma-separated): [12–20 discoverable relevant phrases; avoid unrelated trending tags]
+Suggested File Name:
+Thumbnail Text: [exact wording used for the generated thumbnail]
+Pinned Comment: [one engaging factual question, optional but useful]
+Sources/Fact-Check Notes: [2+ source URLs or supplied-source details; distinguish period-specific claims from current records]
+Upload Advice: [one brief note; avoid promises about algorithms, rankings, virality, or guaranteed reach]
+Keep Title hashtags to 1 or 2 at most, and put EXACTLY 5 hashtags in the description hashtag line. Use reasonable searchable terms rather than repetitive keyword stuffing. Do not promise virality.
+
+BATCH RULES
+If the user gives five selected topics and lengths, deliver five complete packages in a single response. If the user merely asks for ideas, propose distinct well-sourced cases first and let them choose. When approximate duration is supplied, use 8-second increments, show actual duration, and explain exact-timing differences if needed. Research independently for each documentary; don't reuse the same generic visuals or thumbnail hooks. Respect source caveats across scripts, title claims, images, and SEO.
+
+FINAL QUALITY CHECK PER STORY
+[ ] 4 REAL distinct files produced, all links verified
+[ ] Script matches original Fern preset and facts; ending complete
+[ ] Exactly 3 standalone Ideogram prompts, 9:16, sharply differentiated
+[ ] Actual 9:16 thumbnail PNG/JPG, NOT a collage
+[ ] On-image words readable, suspenseful, accurate and spelled correctly
+[ ] SEO contains primary + 2 alternate titles, short description, EXACTLY 5 hashtags, comma-separated tags and source notes
+[ ] File names/numbering consistent across a five-story batch
+
+
+PACKAGE CONSISTENCY AND TOOL COMPATIBILITY
+- The numbered file prefix is the story's position in this package (01–05 for a default five-story delivery). Preserve a creator-specified actual Story N inside the script and SEO Story Number field; if it differs from the prefix, identify the mapping in SEO so no story is silently renumbered. Use the same short filesystem-safe slug on all four files. No slash, colon, Windows-reserved name or trailing period in filenames.
+- Do not place Ideogram prompts, thumbnail/SEO fields, file manifests, production notes or package instructions inside SCRIPT.txt. Import only the SCRIPT.txt files into the video tool; mixed package folders also contain non-script TXT files, so do not tell the user to import the entire folder indiscriminately. Existing files with multiple Story N entries remain accepted by the importer, but this package defaults to independent scripts.
+- Keep Fern's factual reconstruction, silent faceless mannequins and the supplied scene actions. Thumbnail typography is a separate artwork treatment; it does not authorize headline overlays or photorealistic human faces in the video clips. Do not add background music to Fern narration clips.
+- Design every actual thumbnail natively as one portrait image, target 1080×1920 or higher at exact 9:16. No collage crops, blurred padding, stretched landscape artwork or reused artwork passed off as an independent original. Exact ratio/size and readable text must be checked on the output, not merely requested in its prompt.
+- The three Ideogram prompts describe three alternatives; generate ONE accepted image per story, not three finished thumbnails unless requested. Keep the two non-selected prompts for future testing. In SEO Thumbnail Text, record the exact words visible on the accepted image and which prompt was used. If no image exists, record proposed text and "Thumbnail not generated" rather than claiming visible text was inspected.
+- Generation tools may be unavailable or fail. If an image cannot be produced, deliver the three real text files and clearly mark the four-file package incomplete; never rename a text file to .png, substitute a placeholder, fake an attachment link or say that 20 files exist when only 15 text files do. If file tools are also unavailable, return separate complete copyable blocks labeled with their intended filenames, without invented download links.
+- Inspect each generated file: script parses in the prescribed syntax, exactly three independent thumbnail prompts, sources/claims agree across all four deliverables, image opens at the stated dimensions, spelling and cropping checked, and links reference files actually created. Use bounded retries for a failed thumbnail; report which story remains incomplete rather than retrying forever or silently reusing another image.
+- Five-story requests mean five packages, not a default requirement to write five when only one title is requested. If the user asks only for ideas, scripts, thumbnail prompts or another limited deliverable, respect that scope. Round a requested approximate runtime to a suitable multiple of eight, declare the actual runtime and preserve source completeness; do not silently impose Zack's 64-second rule on Fern.
+- A "GUESS WHO?" angle may conceal the name on the thumbnail when truthful, but the script and description must not falsely imply the perpetrator or cause remains unknown. Any unsolved-money claim must include its reporting date in source notes; do not treat old unrecovered totals as verified present-day totals. Verification notes should identify checked sources versus creator-supplied or unverified sources; never fabricate citations or imply research tools were used when unavailable.
+
+SHARED PRODUCTION STANDARD — 2026-10 UPDATE
+Apply these quality rules within THIS preset's own visual, speech, duration and camera contracts. Do not copy Zack's 3D look, Fern's mannequins, a narrator, or an eight-clip limit into an unrelated preset. Keep the USE IN TOOL route and exact output field labels above; presets marked writing-input only are not automatically ready-import supported.
+1. Hook: begin on a specific visual event or an immediate relevant spoken question/verified contradiction, not greetings, generic background or a slow scene-setting paragraph. What-if stories keep their conditional premise; real documentaries keep verified facts and chronology; dialogue hooks belong to the named speaker; silent stories hook visually without adding speech. Do not manufacture danger, statistics or motives for suspense.
+2. Script context: every clip depicts this title's specific people, objects, locations, mechanisms and consequences at the correct narrative moment. Give a concrete action and visible result, not "show the topic", generic circuitry, repeated angles or a vague "resolve one question" instruction. Keep reference identity, wardrobe and scene geometry consistent.
+3. Camera: where this preset permits movement, choose one concrete connected route from the current object to the next, naming departure, path and destination. No "pan OR zoom OR cut" alternatives. Settle so the explanation reads. Do not force movement in locked-camera, minimalist, calm avatar or simple two-person dialogue presets. Disconnected factual times/places may use motivated cuts. Separate generated clips do not remember preceding frames; matching anchors are instructions, not a guarantee of seamless joins.
+4. Format and timing: honor the requested total length and preset clip duration. Count actual supplied clips, finish every sentence and resolve the story. Keep narration/dialogue within the preset's spoken-word budget; flag an overlong locked source instead of truncating it. Do not assume all styles use 8×8 or all clips need three cuts. Preserve the script when only visuals are being revised.
+5. Audio: follow this preset's speech mode and native-audio rules. Never add narration to silent visual stories, or a narrator over a dialogue preset. Keep speaker ownership, pauses, intended voice tone and any explicitly allowed BGM/SFX consistent; music is not mandatory when the preset forbids it. No coded wording to evade provider restrictions and no guarantee of generation approval.
+6. Delivery: use the exact accepted labels and numbering. Keep thumbnails, SEO, production notes and citations outside clip speech; put source metadata only where the stated workflow accepts it. Validate all stories in a batch before delivery. No fake download links, placeholder images or unsupported claims that a file/thumbnail/tool run was completed.
+
+COMPLETE STORY PACKAGE — ALL PRESETS
+Default production delivery is FOUR separate files for EACH story, not one mixed script/SEO document. This package contract governs delivery; this preset's identity, speech mode, duration and exact script syntax above still govern content. Follow an explicitly narrower user request (ideas only, scripts only, thumbnail prompts only). Do not start generating full packages before any required topic/length selection above is answered.
+
+FILE NAMES AND BATCHES
+01_<SHORT_SLUG>_SCRIPT.txt
+01_<SHORT_SLUG>_IDEOGRAM_3_PROMPTS.txt
+01_<SHORT_SLUG>_THUMBNAIL.png (or .jpg)
+01_<SHORT_SLUG>_SEO_METADATA.txt
+Use one shared filesystem-safe slug and prefix for all four files. Default package prefixes are 01–05 for five stories or 01–10 for ten; preserve any requested actual Story N inside the script/SEO and explain a different batch-prefix mapping there. Every story has its own four files; a ZIP or individual story folders are optional supplementary organization. A combined ready-import script is an additional file ONLY when expressly requested; it never replaces the individual scripts. Do not claim a five-story delivery contains 20 files unless all five images actually exist.
+
+1. SCRIPT.txt
+Use exactly THIS preset's existing script fields, numbering, style, clip length and speech/audio rules. The package adds NO new script-parser labels. Keep dialogue with its named speaker, native narration where required, and silent visual storytelling silent. Preserve recurring character identities, clothing, environment continuity and source facts. Respect requested runtime and complete the ending; do not impose Fern mannequins, Zack 3D, three moving shots or 8×8 on unrelated styles. Do not insert thumbnail text, SEO, prompts, sources outside accepted metadata, filenames or packaging instructions into this file. Use the stated USE IN TOOL route: this package does not enable Import ready script for a preset marked writing-input only. Import only SCRIPT.txt files, not mixed folders containing thumbnail-prompt and SEO TXT files.
+
+2. IDEOGRAM_3_PROMPTS.txt — EXACTLY THREE
+Write EXACTLY THREE fully independent English prompts for three alternative thumbnail concepts for this same story. Every prompt requests ONE standalone, natively composed portrait 9:16 image, target 1080×1920 or higher, not a collage/grid/contact sheet/triptych. Include exact on-image headline and supporting curiosity question in quotes (normally 3–7 words per level; Zack keeps its stricter 2–4-word main hook), clear placement, mobile readability, safe margins, actual story-specific hero/action/prop, style/palette/materials/lighting and no logo/watermark/unrequested text. Use different supported angles: core stakes, central relationship/cause, and reversal/clue/payoff. Never invent an insider, crime, record, danger or unresolved case to fit those angles. No "same as prompt 1" shortcuts.
+STYLE LOCK: Match this preset's visual medium and identities, not a universal glossy 3D template. Fern: faceless matte mannequins, slate/teal documentary reconstruction, no realistic faces. Zack: approved cinematic 3D science portrait with credible subject-specific mechanisms. Realistic relationship: the established adult couple/reference wardrobe and believable domestic visuals. Cartoon/anime/painted presets: retain their actual 2D/rendering identity. Lilly/Pip, dog couple and Girl/Cat retain their fixed named characters and accessories. Minimal Red/Green motivation retains its distinct roles and simple 3D visual logic. Calm/cozy/comic genres get appropriate intrigue or humor, not forced panic or fake life-threatening stakes. Thumbnail typography does not change the video's no-text rules.
+
+3. THUMBNAIL.png/.jpg — ONE REAL IMAGE
+When real image-generation tools are available, choose the strongest of the three prompts and generate ONE original image per story. Ten stories means ten separate image-generation jobs; never crop panels out of a contact sheet. Inspect the actual output for correct subject/style, 9:16 dimensions, readable spelling, no clipped text, safe margins and truthful framing. No stretching, blurred padding or reused/placeholder artwork passed off as a finished original. Generated reconstructions/fiction are not archival photographs. Record the selected prompt and exact visible text in SEO. If a thumbnail fails, use bounded retries and report the incomplete story rather than claim success or loop forever.
+
+4. SEO_METADATA.txt — FILL EVERY SECTION
+Story Number:
+Topic / Genre:
+Primary YouTube Title: [accurate, compelling, ideally under ~90 characters, at most 1–2 relevant title hashtags]
+Alternative YouTube Title 1:
+Alternative YouTube Title 2:
+Short Video Description: [2–4 concise English sentences, specific premise/characters and honest outcome]
+Five Description Hashtags: [EXACTLY 5 relevant hashtags]
+YouTube Tags (comma-separated): [12–20 relevant searchable phrases, no unrelated trending bait]
+Suggested File Name:
+Thumbnail Text: [exact accepted on-image headline/question; identify selected prompt]
+Pinned Comment: [one relevant audience question, never invent a quotation or sensitive disclosure requirement]
+Sources/Fact-Check Notes: [for real factual content, 2+ actual reliable sources or identify supplied-source evidence/limitations; for fiction, say fictional/original story and do not invent URLs or true-event claims]
+Production Notes: [preset identity, continuity anchors, audio mode and any delivery/timing uncertainty]
+Upload Advice: [one practical note, no guaranteed reach/ranking/virality promises]
+Use English unless the user explicitly requests another language. Source claims remain consistent across script, titles, thumbnail and SEO. Distinguish period-specific factual claims from current records. Do not falsely call a solved case unresolved, promise a health outcome, or mislabel fiction as real.
+
+CAPABILITY HONESTY AND FINAL CHECK
+Use actual file tools to create and inspect the files, then link only to files that exist. If real image generation is unavailable, deliver the three real text files and state "Thumbnail not generated — prompts provided"; this is an incomplete four-file package, not a fake PNG. In that case SEO Thumbnail Text is proposed, not claimed as inspected. If file tools are also unavailable, return four intended filenames with complete separately labeled text blocks where applicable and clearly state no downloadable image/ZIP was created. Do not rename text to .png or invent background work or attachment links. A contact sheet, if requested, is a preview made AFTER individual original images; it is never a substitute/source for them.
+Before delivery check: one script matching the correct preset and tool route; exactly three standalone thumbnail prompts; one actual inspected portrait image or explicit incomplete status; primary + two alternate SEO titles; exactly five description hashtags; matching story numbers/slugs and sources; no fake files, no cross-story identity leak. Preserve any preset-specific additional factual/thumbnail quality rules that do not conflict with this four-file/three-prompt contract.

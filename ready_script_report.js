@@ -10,6 +10,8 @@ function exportScript(source,index=1){
  }else if(source.declaredDuration!==undefined&&source.declaredDuration!==null)out.push(`Estimated duration: ${source.declaredDuration} seconds`);
  if(source.setting)out.push(`Setting: ${source.setting}`);
  if(source.details)out.push(`Details: ${source.details}`);
+ if(source.story_brief)out.push(`Story brief: ${source.story_brief}`);
+ if(source.sources)out.push(`Sources: ${source.sources}`);
  if(source.location_name)out.push(`Location name: ${source.location_name}`);
  for(const [key,label] of [['left_label','Left label'],['right_label','Right label'],['footer_start','Footer start'],['footer_end','Footer end']])if(source[key])out.push(`${label}: ${source[key]}`);
  for(const [key,label] of [['characters','Characters'],['locations','Locations']]){

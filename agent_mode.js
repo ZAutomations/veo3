@@ -354,6 +354,7 @@ function snapshotFn() {
         settingsBtn: !!document.querySelector('button[aria-label="Settings"]'),
         promptText: pm ? (pm.innerText || '').slice(0, 1200) : null,
         promptTextLength: pm ? (pm.innerText || '').length : 0,
+        unusualActivity: [...document.querySelectorAll('flow-video-tile, flow-image-tile, .chat-error-card, [class*=error-tile], [class*=generation-error]')].some(el => /unusual\s+activity/i.test(el.innerText || el.textContent || '')),
         promptHTML: pm ? (pm.innerHTML || '').slice(0, 3000) : null,
         generateBtn: gen ? {
             exists: true,
@@ -373,9 +374,11 @@ function snapshotFn() {
 
 // ---- failure affordances ---------------------------------------------------
 let lastProjectScan = '';
+let activityRetryPermit = process.env.VEO_ACTIVITY_COOLDOWN_ELAPSED === '1';
 const monitorProject = require('./agent_project_media').projectMonitor();
 async function readProjectSnapshot(page, full = false) {
     let snapshot = await page.evaluate(snapshotFn);
+    if (snapshot.unusualActivity && !activityRetryPermit) throw Error('FLOW_UNUSUAL_ACTIVITY: Flow reported unusual activity. Preserve project/checkpoints; use the saved global cooldown before safe retry.');
     // The DOM stops representing the full asset list once Flow virtualizes
     // older rows. Never interpret that viewport count as a missing clip.
     // Even a five/ten-clip batch is virtualized in Flow's single-column list.
@@ -415,7 +418,8 @@ function retryFn() {
     // model says it cannot help with that. Count it so the agent can re-ask
     // with a policy-safe wording instead of blindly clicking Retry.
     const refusedText = scopes.some(el => /policy|violat|community guidelines|not allowed|cannot (generate|create|help)|can't (generate|create|help)|unable to (generate|create)|against our|blocked by|safety/i.test(el.innerText || el.textContent || ''));
-    return { failedText, retryButtons, reuseInError, refusedText };
+    const unusualActivity = scopes.some(el => /unusual\s+activity/i.test(el.innerText || el.textContent || ''));
+    return { failedText, retryButtons, reuseInError, refusedText, unusualActivity };
 }
 
 // Click only a control owned by a failed MEDIA tile. Never click Flow's global
@@ -579,6 +583,7 @@ async function retryFailedMediaOnly(page, snap, label = 'retry') {
             ? `ready=${mt.ready_video_tile}/${EXPECTED_CLIPS}, failed=${mt.failed_video_tile}, generating=${mt.generating_video_tile}`
             : `ready=${mt.ready_video_tile}, failed=${mt.failed_video_tile}, generating=${mt.generating_video_tile}`;
         const st = await page.evaluate(retryFn);
+        if(st.unusualActivity && !activityRetryPermit)throw Error('FLOW_UNUSUAL_ACTIVITY: Flow reported unusual activity; use the saved global cooldown before safe retry.');
 
         // Once the project already has the requested number of completed
         // videos, retrying an additional failed attempt can only increase the
@@ -613,6 +618,7 @@ async function retryFailedMediaOnly(page, snap, label = 'retry') {
         }
 
         log(`Round ${round}: ${tally}; retrying ONE failed media tile only.`);
+        if(st.unusualActivity){log('Saved cooldown elapsed; retrying one failed media tile on the same account.');activityRetryPermit=false;}
         const c = await clickFailures(page);
         retried += c.retry + c.reuse;
         if (!c.retry && !c.reuse) {

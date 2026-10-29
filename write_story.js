@@ -923,6 +923,7 @@ function lookBlock(p, place) {
     const fixed = String(place === undefined ? (p.setting || '') : place).trim();
     return [
         `LOOK: ${p.style}`,
+        'SHARED WRITING STANDARD: Preserve this preset’s visual identity, speech mode, fixed-camera or simple-dialogue rules and requested length. New stories begin on a concrete visual hook or relevant immediate question/verified contradiction; no generic greeting or background paragraph. Preserve locked source narration and facts instead of silently rewriting them. Every beat must name its actual topic-specific subject, setting, action and result; no generic filler, unrelated mechanisms or a camera-angle change pretending to be a new event. Where movement is allowed, select one camera route from the current object to the next: departure, path, destination, then settle. Do not give a menu of cut/zoom/pan alternatives. Retain motivated cuts for disconnected documentary places/times; never force camera motion into a locked-camera, calm-avatar or simple conversation preset. Do not transfer Zack 3D, Fern mannequins, narrator speech or an eight-clip limit to another preset.',
         `CAST TEMPLATE (every character description must follow this shape): ${p.cast_idiom}`,
         ...(p.fixed_couple_appearance ? [require('./realistic_couple').prompt(p)] : []),
         `PALETTE: ${p.palette}`,

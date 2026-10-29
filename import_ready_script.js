@@ -11,8 +11,9 @@ function prepare(s,aspect){
  if(require('./reference_video_preset').applies(p))return require('./reference_video_preset').prepare(W,p,s,aspect);
  if(require('./heartwarming_cat').applies(p))return require('./heartwarming_cat').prepare(W,p,s,aspect);
  if(require('./motivational_metaphor').applies(p))return require('./motivational_ready_script').prepare(W,p,s,aspect);
+ if(p.id==='fern-documentary')return require('./fern_ready_script').prepare(W,p,s,aspect);
  if(p.id==='3d-zack-style')return require('./zack_ready_script').prepare(W,p,s,aspect);
- if(p.narration_scope!=='dialogue'||!p.fixed_couple_names||(!require('./dog_couple').applies(p)&&!require('./realistic_couple').enabled(p)))throw Error('Ready script import currently supports realistic, Ghibli, stylized 3D, colorful cartoon and dog-couple Sarah/SAM dialogue presets, Zack D and 3D Motivational Red vs Green and Heartwarming Cat.');
+ if(p.narration_scope!=='dialogue'||!p.fixed_couple_names||(!require('./dog_couple').applies(p)&&!require('./realistic_couple').enabled(p)))throw Error('Ready script import currently supports realistic, Ghibli, stylized 3D, colorful cartoon and dog-couple Sarah/SAM dialogue presets, Zack D, Fern Documentary, 3D Motivational Red vs Green and Heartwarming Cat.');
  const cast=W.normaliseCast(p,[{name:'Sarah',gender:'female',type:'human'},{name:'SAM',gender:'male',type:'human'}]);
  const meta={description:s.title,moral:'',place_name:'Room',place_description:s.setting,place_prompt:`${p.location_medium||p.style}. Empty ${s.setting}. No people or animals, no text.`,blocking:p.blocking||''};
  const story=W.buildStory(p,cast,meta,s.clips.map(c=>({scene_title:c.title,dialogue:c.dialogue,narrative_context:c.action||'The two characters exchange these lines naturally in the established setting.',characters:['Sarah','SAM']})));
@@ -69,7 +70,7 @@ function run(request){
  const root=path.resolve(request.out||path.join(__dirname,'stories'));fs.mkdirSync(root,{recursive:true});
  return prepared.map(({W,p,cast,story,warnings},i)=>{
   const s=parsed[i],key=semanticKey(s);
-  if(!p.derived_video_preset&&!['3d-zack-style','3d-motivational-red-green','heartwarming-cat-3d'].includes(s.preset)){delete key.characters;delete key.locations;key.clips.forEach(c=>{if(!c.shots.length)delete c.shots;});}
+  if(!p.derived_video_preset&&!['fern-documentary','3d-zack-style','3d-motivational-red-green','heartwarming-cat-3d'].includes(s.preset)){delete key.characters;delete key.locations;key.clips.forEach(c=>{if(!c.shots.length)delete c.shots;});}
   const hash=crypto.createHash('sha256').update(JSON.stringify({s:key,aspect})).digest('hex').slice(0,10);
   const dir=path.join(root,`${W.slugify(s.title)}_ready_${hash}`),file=path.join(dir,`${path.basename(dir)}_story.json`);
   warnings=[...new Set([...(s.warnings||[]),...(warnings||[])])];

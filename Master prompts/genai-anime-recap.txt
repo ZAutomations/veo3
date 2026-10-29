@@ -8,9 +8,9 @@ Create complete scripts for my Anime Recap preset. Ask for the topic or supplied
 For original eight-second narration aim for 16-20 spoken words, maximum 22, allowing pauses. Preserve the full source and choose more clips rather than rushing or dropping material.
 
 Work without any previous chat history. Follow this prompt and the script or references I provide in this conversation. Never claim to have watched a link you cannot access; ask for the transcript or uploaded video instead. Do not invent source facts, figures, qualifications or outcomes. Keep scripts non-explicit and non-graphic; do not disguise restricted content with coded words. No prompt can guarantee a provider will accept every generation.
-Provide finished content, not placeholders. Check numbering, durations, complete sentences and word counts before delivery. If file creation is available, give me a downloadable UTF-8 TXT file. Otherwise give the entire result in one copyable code block. No explanatory introduction, tables, decorative separators or Markdown headings inside the output file.
+Provide finished content, not placeholders. Check numbering, durations, complete sentences and word counts before delivery. If file tools are available, create the separate package files. Otherwise provide complete individually labeled contents and report unavailable image/file capabilities. No explanatory introduction, tables, decorative separators or Markdown headings inside the output file.
 
-Return genai-anime-recap_STORY_SCRIPTS.txt. These are story-writing inputs, not direct-import scripts for this preset. Output:
+Deliver separate numbered SCRIPT.txt files using the complete-package contract below. These are story-writing inputs, not direct-import scripts for this preset. Output:
 Story 1
 Title: [finished title]
 Preset: genai-anime-recap
@@ -23,7 +23,7 @@ Narration: "[complete narration segment]"
 Visual: [specific event and action]
 Sound: [quiet appropriate sound or None]
 
-Continue through the complete story. Replace all placeholders; never include the continuation instruction. Repeat Story 2 etc. for a batch. For Sarah/SAM dialogue include setting and descriptive prose BEFORE Clip 1, then only labelled spoken lines within clips; no Action: fields that the legacy transcript parser could mistake for speech.
+Continue through the complete story. Replace all placeholders; never include the continuation instruction. Use a separate numbered SCRIPT.txt for each Story N in a batch. For Sarah/SAM dialogue include setting and descriptive prose BEFORE Clip 1, then only labelled spoken lines within clips; no Action: fields that the legacy transcript parser could mistake for speech.
 The tool applies the preset below. Follow its genre, visual medium, camera, cast, tone and sound rules when describing the scenes:
 STYLE: Cel-shaded anime and manga illustration, 90s TV-anime look, clean ink line art with soft cel shading, cinematic warm key light and balanced shadows, expressive large eyes, detailed painted backgrounds, 4K detailed illustration
 PALETTE: Warm amber daylight and soft blue shadow, deep navy night, cherry reds and muted greens, warm lamp ochre, clean cel-highlight whites
@@ -33,3 +33,54 @@ NARRATION_VOICE: warm gentle male narrator voice, storytelling and unhurried, th
 AVOID: no on-screen text, subtitles, captions, watermarks or UI, no naming a real anime or studio, no copying an existing character design, no 3D CGI, no photoreal footage, no chibi or super-deformed proportions, no exaggerated comedic faces, no graphic violence
 CAST_IDIOM: Cel-shaded anime human with clean ink outlines, large expressive eyes, gently idealised faces, hair in flat cel shapes with a highlight, simple fixed contemporary clothing in stated colours. Consistent face, hair and outfit for that character in every clip. NOT chibi, NOT super-deformed, NOT 3D, NOT photoreal.
 STORY_SHAPES: ["a calm daily routine, then the one thing that changes it", "two people grow close, a misunderstanding lands, and they find their way back", "a quiet ordinary life, then a loss that re-frames everything", "an outsider is taken in, and has to decide whether to stay"]
+
+
+SHARED PRODUCTION STANDARD — 2026-10 UPDATE
+Apply these quality rules within THIS preset's own visual, speech, duration and camera contracts. Do not copy Zack's 3D look, Fern's mannequins, a narrator, or an eight-clip limit into an unrelated preset. Keep the USE IN TOOL route and exact output field labels above; presets marked writing-input only are not automatically ready-import supported.
+1. Hook: begin on a specific visual event or an immediate relevant spoken question/verified contradiction, not greetings, generic background or a slow scene-setting paragraph. What-if stories keep their conditional premise; real documentaries keep verified facts and chronology; dialogue hooks belong to the named speaker; silent stories hook visually without adding speech. Do not manufacture danger, statistics or motives for suspense.
+2. Script context: every clip depicts this title's specific people, objects, locations, mechanisms and consequences at the correct narrative moment. Give a concrete action and visible result, not "show the topic", generic circuitry, repeated angles or a vague "resolve one question" instruction. Keep reference identity, wardrobe and scene geometry consistent.
+3. Camera: where this preset permits movement, choose one concrete connected route from the current object to the next, naming departure, path and destination. No "pan OR zoom OR cut" alternatives. Settle so the explanation reads. Do not force movement in locked-camera, minimalist, calm avatar or simple two-person dialogue presets. Disconnected factual times/places may use motivated cuts. Separate generated clips do not remember preceding frames; matching anchors are instructions, not a guarantee of seamless joins.
+4. Format and timing: honor the requested total length and preset clip duration. Count actual supplied clips, finish every sentence and resolve the story. Keep narration/dialogue within the preset's spoken-word budget; flag an overlong locked source instead of truncating it. Do not assume all styles use 8×8 or all clips need three cuts. Preserve the script when only visuals are being revised.
+5. Audio: follow this preset's speech mode and native-audio rules. Never add narration to silent visual stories, or a narrator over a dialogue preset. Keep speaker ownership, pauses, intended voice tone and any explicitly allowed BGM/SFX consistent; music is not mandatory when the preset forbids it. No coded wording to evade provider restrictions and no guarantee of generation approval.
+6. Delivery: use the exact accepted labels and numbering. Keep thumbnails, SEO, production notes and citations outside clip speech; put source metadata only where the stated workflow accepts it. Validate all stories in a batch before delivery. No fake download links, placeholder images or unsupported claims that a file/thumbnail/tool run was completed.
+
+COMPLETE STORY PACKAGE — ALL PRESETS
+Default production delivery is FOUR separate files for EACH story, not one mixed script/SEO document. This package contract governs delivery; this preset's identity, speech mode, duration and exact script syntax above still govern content. Follow an explicitly narrower user request (ideas only, scripts only, thumbnail prompts only). Do not start generating full packages before any required topic/length selection above is answered.
+
+FILE NAMES AND BATCHES
+01_<SHORT_SLUG>_SCRIPT.txt
+01_<SHORT_SLUG>_IDEOGRAM_3_PROMPTS.txt
+01_<SHORT_SLUG>_THUMBNAIL.png (or .jpg)
+01_<SHORT_SLUG>_SEO_METADATA.txt
+Use one shared filesystem-safe slug and prefix for all four files. Default package prefixes are 01–05 for five stories or 01–10 for ten; preserve any requested actual Story N inside the script/SEO and explain a different batch-prefix mapping there. Every story has its own four files; a ZIP or individual story folders are optional supplementary organization. A combined ready-import script is an additional file ONLY when expressly requested; it never replaces the individual scripts. Do not claim a five-story delivery contains 20 files unless all five images actually exist.
+
+1. SCRIPT.txt
+Use exactly THIS preset's existing script fields, numbering, style, clip length and speech/audio rules. The package adds NO new script-parser labels. Keep dialogue with its named speaker, native narration where required, and silent visual storytelling silent. Preserve recurring character identities, clothing, environment continuity and source facts. Respect requested runtime and complete the ending; do not impose Fern mannequins, Zack 3D, three moving shots or 8×8 on unrelated styles. Do not insert thumbnail text, SEO, prompts, sources outside accepted metadata, filenames or packaging instructions into this file. Use the stated USE IN TOOL route: this package does not enable Import ready script for a preset marked writing-input only. Import only SCRIPT.txt files, not mixed folders containing thumbnail-prompt and SEO TXT files.
+
+2. IDEOGRAM_3_PROMPTS.txt — EXACTLY THREE
+Write EXACTLY THREE fully independent English prompts for three alternative thumbnail concepts for this same story. Every prompt requests ONE standalone, natively composed portrait 9:16 image, target 1080×1920 or higher, not a collage/grid/contact sheet/triptych. Include exact on-image headline and supporting curiosity question in quotes (normally 3–7 words per level; Zack keeps its stricter 2–4-word main hook), clear placement, mobile readability, safe margins, actual story-specific hero/action/prop, style/palette/materials/lighting and no logo/watermark/unrequested text. Use different supported angles: core stakes, central relationship/cause, and reversal/clue/payoff. Never invent an insider, crime, record, danger or unresolved case to fit those angles. No "same as prompt 1" shortcuts.
+STYLE LOCK: Match this preset's visual medium and identities, not a universal glossy 3D template. Fern: faceless matte mannequins, slate/teal documentary reconstruction, no realistic faces. Zack: approved cinematic 3D science portrait with credible subject-specific mechanisms. Realistic relationship: the established adult couple/reference wardrobe and believable domestic visuals. Cartoon/anime/painted presets: retain their actual 2D/rendering identity. Lilly/Pip, dog couple and Girl/Cat retain their fixed named characters and accessories. Minimal Red/Green motivation retains its distinct roles and simple 3D visual logic. Calm/cozy/comic genres get appropriate intrigue or humor, not forced panic or fake life-threatening stakes. Thumbnail typography does not change the video's no-text rules.
+
+3. THUMBNAIL.png/.jpg — ONE REAL IMAGE
+When real image-generation tools are available, choose the strongest of the three prompts and generate ONE original image per story. Ten stories means ten separate image-generation jobs; never crop panels out of a contact sheet. Inspect the actual output for correct subject/style, 9:16 dimensions, readable spelling, no clipped text, safe margins and truthful framing. No stretching, blurred padding or reused/placeholder artwork passed off as a finished original. Generated reconstructions/fiction are not archival photographs. Record the selected prompt and exact visible text in SEO. If a thumbnail fails, use bounded retries and report the incomplete story rather than claim success or loop forever.
+
+4. SEO_METADATA.txt — FILL EVERY SECTION
+Story Number:
+Topic / Genre:
+Primary YouTube Title: [accurate, compelling, ideally under ~90 characters, at most 1–2 relevant title hashtags]
+Alternative YouTube Title 1:
+Alternative YouTube Title 2:
+Short Video Description: [2–4 concise English sentences, specific premise/characters and honest outcome]
+Five Description Hashtags: [EXACTLY 5 relevant hashtags]
+YouTube Tags (comma-separated): [12–20 relevant searchable phrases, no unrelated trending bait]
+Suggested File Name:
+Thumbnail Text: [exact accepted on-image headline/question; identify selected prompt]
+Pinned Comment: [one relevant audience question, never invent a quotation or sensitive disclosure requirement]
+Sources/Fact-Check Notes: [for real factual content, 2+ actual reliable sources or identify supplied-source evidence/limitations; for fiction, say fictional/original story and do not invent URLs or true-event claims]
+Production Notes: [preset identity, continuity anchors, audio mode and any delivery/timing uncertainty]
+Upload Advice: [one practical note, no guaranteed reach/ranking/virality promises]
+Use English unless the user explicitly requests another language. Source claims remain consistent across script, titles, thumbnail and SEO. Distinguish period-specific factual claims from current records. Do not falsely call a solved case unresolved, promise a health outcome, or mislabel fiction as real.
+
+CAPABILITY HONESTY AND FINAL CHECK
+Use actual file tools to create and inspect the files, then link only to files that exist. If real image generation is unavailable, deliver the three real text files and state "Thumbnail not generated — prompts provided"; this is an incomplete four-file package, not a fake PNG. In that case SEO Thumbnail Text is proposed, not claimed as inspected. If file tools are also unavailable, return four intended filenames with complete separately labeled text blocks where applicable and clearly state no downloadable image/ZIP was created. Do not rename text to .png or invent background work or attachment links. A contact sheet, if requested, is a preview made AFTER individual original images; it is never a substitute/source for them.
+Before delivery check: one script matching the correct preset and tool route; exactly three standalone thumbnail prompts; one actual inspected portrait image or explicit incomplete status; primary + two alternate SEO titles; exactly five description hashtags; matching story numbers/slugs and sources; no fake files, no cross-story identity leak. Preserve any preset-specific additional factual/thumbnail quality rules that do not conflict with this four-file/three-prompt contract.
