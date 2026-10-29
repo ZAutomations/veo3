@@ -56,7 +56,7 @@ async function reconcileSources(engine, snapshot, manifest, completed, storyFile
     }
     if (through !== ready) return null;
     const jobs = story.scenes.slice(completed, through).map((scene, i) => ({
-        number:completed+i+1, scene, prompt:scene.veo3_prompt || scene.script_line || ''
+        number:completed+i+1, scene, sceneId:require('./agent_scene_ids').sceneId(story,completed+i+1), prompt:scene.veo3_prompt || scene.script_line || ''
     }));
     const inspect = options.inspect || require('./single_clip_omni_recovery').inspectProject;
     const result = await inspect(engine, jobs, {}, {log:options.log});

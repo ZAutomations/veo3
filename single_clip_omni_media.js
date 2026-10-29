@@ -36,6 +36,13 @@ function tileSnapshot(){
 }
 const norm=s=>String(s||'').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
 function promptMatches(tile,job){
+ if(job.sceneId){
+  const identity=require('./agent_scene_ids');
+  const own=identity.tileId(tile);
+  if(own)return own===job.sceneId;
+  // A shared batch source containing several IDs cannot identify one asset.
+  if(identity.ids([tile.text,tile.sourcePrompt].filter(Boolean).join('\n')).length)return false;
+ }
  if(job.silentVisual)return require('./silent_scene_identity').matches(tile.text,job.scene);
  const text=norm(tile.text),prompt=norm(job.prompt);
  if(prompt&&(text===prompt||(prompt.length>=50&&text.includes(prompt))))return true;

@@ -26,8 +26,8 @@ try{
  assert.equal(story.scenes.length,2);assert(story.fern_ready_import);assert(story.narrated);assert(story.silent_cast);
  assert.deepStrictEqual(story.scenes.map(s=>s.script_line),source.clips.map(c=>c.narration));assert.equal(story.scenes[0].shots.length,3);assert.equal(story.scenes[1].shots.length,2);
  const prompt=fs.readFileSync(path.join(path.dirname(file),'clip_prompts/clip_001.txt'),'utf8');
- for(const term of ['faceless matte mannequin','Quiet wheels','Read the complete line exactly','FACTUAL TOPIC','No music'])assert(prompt.includes(term),term);
+ for(const term of ['faceless matte mannequin','Quiet wheels','Read the complete line exactly','FACTUAL TOPIC','No music','ANIMATED DOCUMENTARY GRAPHICS','SITUATION-MATCHED BGM','SUSPECT'])assert(prompt.includes(term),term);
  assert(story.imported_sources.includes('Supplied'));assert(fs.readFileSync(path.join(path.dirname(file),'agent_prompt.txt'),'utf8').includes('FRAMING 3'));
 }finally{console.log=log;fs.rmSync(temp,{recursive:true,force:true});}
 for(const name of fs.readdirSync('Master prompts').filter(n=>n.endsWith('.txt')))assert(fs.readFileSync(path.join('Master prompts',name),'utf8').includes('SHARED PRODUCTION STANDARD — 2026-10 UPDATE'),name);
-console.log('PASS: Fern local import metadata, variable clip count, 2/3 shots, exact narration, faceless style, no-music audio, round trip, Agent/individual exports and shared master standards.');
+console.log('PASS: Fern local import metadata, variable clip count, 2/3 shots, exact narration, faceless style, timed callouts, mood BGM and explicit no-music override, round trip, Agent/individual exports and shared master standards.');

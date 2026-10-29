@@ -1,5 +1,5 @@
 const media=require('./single_clip_omni_media');
-const {installGridScroller}=require('./flow_grid_scroll');
+const {installGridScroller,wheelGrid}=require('./flow_grid_scroll');
 const bg=require('./single_clip_omni_background');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function reuseForInspection({key,assetId}){
@@ -52,7 +52,7 @@ async function inspectProjectOnce(engine,jobs,receipts={},options={}){
    if(jobs.length&&Object.values(findSources()).every(Boolean)){targetsVerified=true;break;}
    const frame=await page.evaluate(bg.metrics);
    if(round%5===0)log(`Resume inspection: ${records.size} rows, position ${Math.round(frame.top)}/${Math.max(0,frame.scroll-frame.client)}.`);
-   if(frame.top>=frame.scroll-frame.client-2){
+   if(atMediaEnd(frame)){
     await wait(1000);
     const before=records.size;
     for(const tile of await media.snapshot(page)){
@@ -62,12 +62,16 @@ async function inspectProjectOnce(engine,jobs,receipts={},options={}){
      records.set(id,tile);
     }
     const next=await page.evaluate(bg.metrics);
-    if(next.top>=next.scroll-next.client-2&&next.visible&&records.size===before){if(++quiet>=2){exhaustive=true;break;}}
+    if(atMediaEnd(next)&&next.visible&&records.size===before){if(++quiet>=2){exhaustive=true;break;}}
     else quiet=0;
    }else{
     quiet=0;await page.evaluate(bg.scrollToPosition,frame.top+Math.floor(frame.client*0.75));await wait(1000);
-    const after=await page.evaluate(bg.metrics);
-    if(after.top<=frame.top+2)throw Error('Background project scroll did not advance. No checkpoint cleared.');
+    let after=await page.evaluate(bg.metrics);
+    if(after.top<=frame.top+2&&!atMediaEnd(after)){
+     await wheelGrid(page,Math.max(120,Math.floor(frame.client*0.75)));await wait(1000);
+     after=await page.evaluate(bg.metrics);
+     if(after.top<=frame.top+2&&!atMediaEnd(after))throw Error('Background project scroll did not advance. No checkpoint cleared.');
+    }
    }
   }
   const tiles=[...records.values()],found={};
@@ -134,4 +138,7 @@ async function readSourcePrompt(page,tile){
  await page.waitForFunction(previous=>{const text=document.querySelector('.ProseMirror')?.innerText||'';return text.trim()&&text!==previous;},{timeout:10000},copied.previous);
  return page.evaluate(()=>document.querySelector('.ProseMirror')?.innerText||'');
 }
-module.exports={inspectProject,reconcilePending,confirmSubmission,readSourcePrompt};
+function atMediaEnd(frame){
+ return frame.top>=frame.scroll-frame.client-2 || (frame.mediaCovered===true&&Number.isFinite(frame.mediaEnd)&&frame.top+frame.client>=frame.mediaEnd-4);
+}
+module.exports={inspectProject,reconcilePending,confirmSubmission,readSourcePrompt,atMediaEnd};

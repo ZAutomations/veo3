@@ -305,6 +305,12 @@ function main() {
         + `${wanted.filter(w => w.from === 'script_line').length} on the narrator's line, `
         + `${wanted.filter(w => w.from === 'none').length} with neither)`);
 
+    const sourceMapped=manifest?.clips||[];
+    if(manifest?.complete===true&&sourceMapped.length===wanted.length
+      &&new Set(sourceMapped.map(c=>c.file)).size===wanted.length
+      &&wanted.every(w=>sourceMapped.some(c=>c.matched_scene===w.n&&c.order_verified===true&&c.got!==false&&clips.includes(c.file)))){
+        log('Existing verified scene mapping preserved. Speech transcription cannot overwrite verified source order.');return;
+    }
     if(require('./silent_scene_identity').isSilent(story)){
         const mapped=manifest?.clips||[];
         const verified=manifest?.complete===true&&mapped.length===wanted.length

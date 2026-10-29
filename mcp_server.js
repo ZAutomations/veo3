@@ -1479,7 +1479,7 @@ const TOOLS = [
                                     }
                                 }
                                 log(`[batch ${i}] joined`);
-                            } else { bad('join_clips', j); }
+                            } else { bad('join_clips', j); break; }
                         }
                     }
                 }

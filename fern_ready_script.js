@@ -5,12 +5,14 @@ function scene(story,index,options={}){
  return [`Generate ONE ${options.seconds||8}-second clip for scene ${index+1}; the timed framing beats are not extra clips. Aspect ${options.aspect||story.aspect_ratio}.`,
  `FACTUAL TOPIC: ${story.title}. ${story.imported_brief||''}`,
  require('./fern_topic_visuals').CONTRACT,
+ require('./fern_topic_visuals').GRAPHICS,
+ require('./fern_topic_visuals').MUSIC,
  `STYLE: ${story.style}. PALETTE: ${story.palette}. Every human, including background people, is a completely faceless matte mannequin with realistic adult proportions, blank smooth head, no eyes/nose/mouth/hair, consistent role-specific clothing. No real-person likeness.`,
  `REFERENCES: ${[...(s.characters||[]),story.place.name].map(n=>'@'+n).join(', ')}. These lock designs, not a universal background. Use the actual location named in each framing beat. LOCATION CATALOG: ${JSON.stringify(story.imported_locations)}.`,
  `CONTINUITY: ${story.visual_continuity||'Keep the same role-specific wardrobe, relevant props and revisited architecture. Location/time changes must match the narration.'}`,
  'CAMERA: Choose an explicit readable path between spatially connected objects; name departure, travel and destination, then settle briefly. No generic camera filler or invented actions. Factual changes in place/time may use motivated cuts. Honor supplied shot contents and explicit cuts; do not invent geography to force an impossible unbroken take.',
  visual(s),`EFFECT: ${s.effect||'None'}`,
- `NATIVE AUDIO: One consistent off-screen narrator: ${story.narrator_voice}. Read the complete line exactly: ${JSON.stringify(s.script_line)}. All mannequins silent, mouths absent, no dialogue or lip-sync. Sound: ${s.sound||'Quiet scene ambience only'}. Narration stays clear above ambience. No music, lyrics or competing voices.`,
+ `NATIVE AUDIO: One consistent off-screen narrator: ${story.narrator_voice}. Read the complete line exactly: ${JSON.stringify(s.script_line)}. All mannequins silent, mouths absent, no dialogue or lip-sync. Sound: ${s.sound||'Quiet scene ambience and restrained situation-matched instrumental BGM'}. Narration stays clear above music and ambience. No lyrics or competing voices.`,
  'No invented archival document, quotation, evidence, entry method, medical mechanism or outcome. Depict non-graphic illustrative reconstruction, never claim generated footage is archival.',
  `AVOID: ${story.avoid}`].join('\n\n')+'\n';
 }

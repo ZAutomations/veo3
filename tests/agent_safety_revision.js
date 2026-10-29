@@ -10,3 +10,6 @@ assert(mode.indexOf("require('./agent_safety_revision')")<mode.indexOf('pasteAge
 assert(!mode.includes('Report a policy refusal without changing the script.'));
 assert(!fs.readFileSync(require.resolve('../agent_missing_scenes'),'utf8').includes('Report any refusal without changing the script.'));
 console.log('PASS: initial and missing-scene prompts receive bounded safety revision instructions; repeated refusal, rights restrictions and substantive narration changes require review.');
+
+for (const term of ['PROMINENT-PEOPLE REFUSAL','not conceal the same identity','stop for review','completed and generating scenes untouched']) assert(instructions.includes(term), term);
+for (const name of fs.readdirSync('Master prompts').filter(n=>n.endsWith('.txt'))) assert(fs.readFileSync('Master prompts/'+name,'utf8').includes('VEO POLICY-AWARE AUTHORING'),name);

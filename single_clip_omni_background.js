@@ -1,7 +1,8 @@
 function metrics(){
  const s=window.__veoGridScroller?.()||document.scrollingElement;
  const visible=[...document.querySelectorAll('flow-video-tile,flow-image-tile')].some(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&r.y+r.height>100&&r.y<innerHeight;});
- return {top:s?.scrollTop||0,client:s?.clientHeight||innerHeight,scroll:s?.scrollHeight||document.documentElement.scrollHeight,visible};
+ const extent=window.__veoGridExtent?.();
+ return {top:s?.scrollTop||0,client:s?.clientHeight||innerHeight,scroll:s?.scrollHeight||document.documentElement.scrollHeight,visible,mediaEnd:extent?.end,mediaCovered:extent?.covered===true};
 }
 function scrollToPosition(top){
  const s=window.__veoGridScroller?.()||document.scrollingElement;

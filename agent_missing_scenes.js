@@ -2,12 +2,12 @@ const fs=require('fs'),crypto=require('crypto');
 const media=require('./single_clip_omni_media');
 function planMissing(story,intent,result){
  if((!result.exhaustive&&!result.targetsVerified)||result.generatingSeen||result.unidentifiedSources)throw Error('Missing-scene recovery needs a complete, idle project with identified source prompts. Nothing resubmitted.');
- const jobs=story.scenes.slice(0,intent.to).map((scene,i)=>({number:i+1,scene,prompt:scene.veo3_prompt||scene.script_line||''}));
+ const jobs=story.scenes.slice(0,intent.to).map((scene,i)=>({number:i+1,scene,sceneId:require('./agent_scene_ids').sceneId(story,i+1),prompt:scene.veo3_prompt||scene.script_line||''}));
  const completed=[],missing=[],byScene=new Map();
  for(const tile of result.tiles){
   if(tile.busy||!tile.assetId)throw Error('A video is pending or unidentified. No scene will be resubmitted.');
   const matches=jobs.filter(job=>media.promptMatches(tile,job));
-  if(matches.length!==1)throw Error('Existing clips do not map uniquely to story scenes. Nothing resubmitted.');
+  if(matches.length!==1)throw Error(`RECOVERY_REVIEW_REQUIRED: Existing clip ${tile.assetId} does not map uniquely to story scenes (matches: ${matches.map(j=>j.number).join(', ')||'none'}). Nothing resubmitted.`);
   const number=matches[0].number,record=byScene.get(number)||{ready:0,failed:0};
   if(tile.failed)record.failed++;
   else if(tile.ready)record.ready++;
@@ -22,8 +22,10 @@ function planMissing(story,intent,result){
  return {completed:completed.sort((a,b)=>a-b),missing};
 }
 function missingPrompt(text,numbers){
- const matches=[...text.matchAll(/^Scene (\d+)\s+[-\u2014\u2013]\s+/gm)];
+ const matches=[...text.matchAll(/^Scene[ \t]+(\d+)(?:[ \t]*:[ \t]*|[ \t]+[-\u2014\u2013][ \t]+[^\r\n]*|[ \t]*)\r?$/gm)];
  if(!matches.length)throw Error('Numbered scene instructions unavailable.');
+ const ids=matches.map(m=>Number(m[1]));
+ if(new Set(ids).size!==ids.length)throw Error('Duplicate numbered scene instructions; recovery stopped.');
  const selected=numbers.map(n=>{
   const i=matches.findIndex(m=>Number(m[1])===n);if(i<0)throw Error(`Saved scene ${n} instructions missing.`);
   return text.slice(matches[i].index,i+1<matches.length?matches[i+1].index:text.length);
@@ -34,7 +36,7 @@ function missingPrompt(text,numbers){
 async function prepare({engine,storyFile,submissionFile,text,inspect,wait}){
  const source=fs.readFileSync(storyFile,'utf8'),story=JSON.parse(source),intent=JSON.parse(fs.readFileSync(submissionFile,'utf8'));
  if(crypto.createHash('sha256').update(source).digest('hex')!==intent.fingerprint)throw Error('Story fingerprint changed; missing-scene recovery stopped.');
- const jobs=story.scenes.slice(0,intent.to).map((scene,i)=>({number:i+1,scene,prompt:scene.veo3_prompt||scene.script_line||''}));
+ const jobs=story.scenes.slice(0,intent.to).map((scene,i)=>({number:i+1,scene,sceneId:require('./agent_scene_ids').sceneId(story,i+1),prompt:scene.veo3_prompt||scene.script_line||''}));
  const first=planMissing(story,intent,await inspect(engine,jobs));
  if(!first.missing.length)return null;
  await wait(8000);
