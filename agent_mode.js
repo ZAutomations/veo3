@@ -563,7 +563,7 @@ async function reviewFailedBatch(page, snapshot) {
         inspect:(engine,jobs)=>require('./single_clip_omni_recovery').inspectProject(engine,jobs,{}, {log,page:engine.page,sourceCache:cache}),
     });
     if(!plan){log('Retry preflight: all scenes in the saved batch already have a verified ready asset. No retry submitted.');return false;}
-    const prompt=plan.prompt+'\n\nRETRY SAFETY: The project was fully inspected twice immediately before this request. Generate ONLY the numbered scenes listed above that are still missing. Preserve every verified completed scene, even if multiple completed retry versions exist. Never repeat the original batch. For a policy-refused missing scene, make one substantive, policy-compliant revision to that scene only; if it still cannot be generated, stop and report it.';
+    const prompt=plan.prompt+'\n\n'+require('./agent_safety_revision')+'\n\nRECOVERY AUDIT AND REFERENCE TOOLS: First inspect this current batch and report each requested scene ID as completed, generating, failed (with its actual error), or missing. Recheck immediately before generation. Keep all completed and generating clips. For ONLY an identified policy-failed scene, revise its visual treatment to comply: for example, explicitly generic featureless 3D mannequins without personal likenesses when consistent with the preset. Do not simply replay the rejected prompt or disguise a restricted identity. Preserve approved facts, appropriate narration, scene ID, model, resolution, ratio and duration. Use the original numbered scene instructions above. Using available Flow asset tools, inspect the project reference library and attach the character and location image ingredients required by that scene, plus its established voice if applicable; verify actual attachments before the video tool call. Reuse existing matching references; do not create duplicates or attach irrelevant locations. Do not reuse a reference that itself requires restricted likeness or rights review. If a required safe reference cannot be found/attached, report the exact missing reference rather than claim success. Submit each eligible revised failed scene once within the existing safety-review limit, track its result, and report generated asset IDs. Do not repeat the original batch. If refused again, stop for review.';
     log(`Retry preflight verified existing assets twice. Keeping completed scenes ${plan.completed.join(', ')||'(none)'}; submitting ONLY missing scenes ${plan.missing.join(', ')} from batch ${plan.from}-${plan.to}.`);
     await require('./agent_composer').pasteAgentPrompt(page,installAgentEditor,prompt,{log,wait});
     const target=await page.evaluate(require('./agent_submission').verifiedSubmissionTarget,{text:prompt,references:0});
@@ -847,6 +847,7 @@ async function uploadRefThroughPicker(page, box, file) {
         process.exit(1);
     }
     const projectId = m[1];
+    await require('./flow_composer_layout').normalize(page,log);
     const homeUrl = `https://flow.google.com/project/${projectId}`;
 
     if (/\/edit\//i.test(page.url()) || /\/scene\//i.test(page.url())) {

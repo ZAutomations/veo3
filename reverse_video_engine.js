@@ -16,6 +16,19 @@ function validateRequest(r){
 function probe(file){const data=JSON.parse(execFileSync('ffprobe',['-v','error','-show_format','-show_streams','-of','json',file],{encoding:'utf8',windowsHide:true,timeout:60000,maxBuffer:4e6}));const video=data.streams.find(s=>s.codec_type==='video');const duration=Number(data.format.duration||video?.duration);if(!video||!Number.isFinite(duration)||duration<=0)throw Error('Video has no measurable duration.');return {duration_seconds:duration,width:video.width,height:video.height,frame_rate:video.avg_frame_rate,video_codec:video.codec_name,audio_streams:data.streams.filter(s=>s.codec_type==='audio').map(s=>({codec:s.codec_name,sample_rate:s.sample_rate,channels:s.channels}))};}
 function validateReport(data,meta){if(!Array.isArray(data.shots)||!data.shots.length||!data.audio||!data.style||!data.story)throw Error('Analysis omitted shots, audio, style or story.');let previous=0;for(const s of data.shots){if(typeof s.start_seconds!=='number'||typeof s.end_seconds!=='number'||s.start_seconds<previous-.1||s.end_seconds<=s.start_seconds||s.end_seconds>meta.duration_seconds+.5)throw Error('Analysis has invalid or overlapping shot timestamps.');previous=s.end_seconds;}const covered=data.shots.reduce((sum,s)=>sum+s.end_seconds-s.start_seconds,0);data.local_coverage={covered_seconds:covered,measured_duration:meta.duration_seconds,fraction:Math.min(1,covered/meta.duration_seconds),timing_is_model_estimate:true};if(covered/meta.duration_seconds<.8)throw Error('Shot analysis covers less than 80% of the video; incomplete report was not accepted.');return data;}
 async function run(request,deps={}){
+ if(!Array.isArray(request.videos)||request.videos.length<1||request.videos.length>3)throw Error('Select one to three reference files or YouTube links in total.');
+ const local=[];
+ for(const source of request.videos||[]){
+  if(V.isYouTube(source)){
+   const cache=path.join(deps.root||ROOT,'_youtube',crypto.createHash('sha256').update(source).digest('hex').slice(0,24));
+   fs.mkdirSync(cache,{recursive:true});
+   const existing=fs.readdirSync(cache).find(n=>/^source\.(mp4|webm|mkv|mov)$/i.test(n));
+   log('Preparing YouTube reference for measured audiovisual analysis.');
+   const downloaded=existing?{path:path.join(cache,existing)}:await (deps.downloadVideo||V.downloadVideo)(source,{dir:cache,log});
+   local.push(downloaded.path);
+  }else local.push(source);
+ }
+ request={...request,videos:local};
  const {videos,opts}=validateRequest(request),W=deps.writer||require('./write_story'),keys=deps.keys||W.apiKeys();if(!keys.length)throw Error('RECOVERY_REVIEW_REQUIRED: Add Gemini API keys in Settings first.');
  const hashes=await Promise.all(videos.map(digest));const id=crypto.createHash('sha256').update(JSON.stringify({VERSION,hashes,opts})).digest('hex').slice(0,24),dir=path.join(deps.root||ROOT,id);
  fs.mkdirSync(dir,{recursive:true});save(path.join(dir,'request.json'),{version:VERSION,id,videos,hashes,options:opts});

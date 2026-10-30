@@ -17,7 +17,7 @@ function tileSnapshot(){
   // preview URL. Retain both identities instead of discarding the raw one.
   const sources=[...tile.querySelectorAll('video,source,img')].flatMap(e=>[e.currentSrc||'',e.getAttribute('src')||'',e.getAttribute('poster')||'']).filter(Boolean);
   const assetId=(sources.join(' ').match(/\/video\/([^=?/#\s]+)/)||sources.join(' ').match(/\/(?:image|asb)\/([^=?/#\s]+)/)||[])[1]||'';
-  const failed=/audio generation failed|failed to generate|generation failed|you have not been charged|unusual activity/i.test(text)
+  const failed=/audio generation failed|failed to generate|generation failed|you have not been charged|unusual activity|prompt might violate|policies about generating|content policy|violates? (?:our |the )?(?:polic|guidelines)/i.test(text)
    ||!!scope.querySelector('[class*="generation-error"]');
   const videoSources=[...tile.querySelectorAll('video')].some(e=>!!(e.currentSrc||e.getAttribute('src')));
   const completedPreview=/play_circle|play_arrow/i.test(tile.textContent||'')
@@ -31,7 +31,8 @@ function tileSnapshot(){
    ||sources.some(s=>/^https?:/i.test(s)&&! /placeholder|loading|\.svg(?:[?#]|$)/i.test(s)));
   const r=tile.getBoundingClientRect();
   const assetIds=[...new Set(sources.map(s=>(s.match(/\/(?:video|image|asb)\/([^=?/#\s]+)/)||[])[1]).filter(Boolean))];
-  return {key:store.keys.get(tile),assetId,assetIds,text,failed,busy,ready,x:r.x,y:r.y,width:r.width,height:r.height};
+  const assetTitle=scope.querySelector('.asset-title,[data-asset-title]')?.textContent?.trim()||'';
+  return {key:store.keys.get(tile),assetId,assetIds,assetTitle,text,failed,busy,ready,x:r.x,y:r.y,width:r.width,height:r.height};
  });
 }
 const norm=s=>String(s||'').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');

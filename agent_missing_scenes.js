@@ -5,7 +5,9 @@ function planMissing(story,intent,result){
  const jobs=story.scenes.slice(0,intent.to).map((scene,i)=>({number:i+1,scene,sceneId:require('./agent_scene_ids').sceneId(story,i+1),prompt:scene.veo3_prompt||scene.script_line||''}));
  const completed=[],missing=[],byScene=new Map();
  for(const tile of result.tiles){
-  if(tile.busy||!tile.assetId)throw Error('A video is pending or unidentified. No scene will be resubmitted.');
+  // A refused generation has no playable asset URL. Its exact scene/source
+  // identity is still required below before authorizing a safety revision.
+  if(tile.busy||(!tile.assetId&&!tile.failed))throw Error('A video is pending or unidentified. No scene will be resubmitted.');
   const matches=jobs.filter(job=>media.promptMatches(tile,job));
   if(matches.length!==1)throw Error(`RECOVERY_REVIEW_REQUIRED: Existing clip ${tile.assetId} does not map uniquely to story scenes (matches: ${matches.map(j=>j.number).join(', ')||'none'}). Nothing resubmitted.`);
   const number=matches[0].number,record=byScene.get(number)||{ready:0,failed:0};

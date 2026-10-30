@@ -803,6 +803,7 @@ async function generateRefs(page, refs, opts = {}) {
     // A plain prompt can still be in VIDEO mode with Agent off. Require both
     // the Agent chip and the compact Image controls to read back correctly.
     const prepare = async () => {
+        await require('./flow_composer_layout').normalize(page,log);
         const off = await setAgent(page, false);
         if (!off.ok) throw new Error(`Cannot prepare reference images: ${off.why}. Nothing submitted.`);
         await RI.configureReferenceImages(page, log);

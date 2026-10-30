@@ -98,7 +98,7 @@ async function updateStoryInfo(path){if(!$('story-info'))return;try{const s=awai
 let masterPromptLoad=0;
 function renderPrompts(){
  $('main').innerHTML=heading('Master prompts','Choose a preset and copy its saved master prompt into ChatGPT.','PROMPT LIBRARY')+
- `<form id="view-form">${panel('Select preset','Master prompts are read directly from the tool’s Master prompts folder.','01',field('Preset','masterPreset',forms.prompts?.masterPreset||bootstrap.presets[0]?.id,{items:bootstrap.presets}))}
+ `<form id="view-form">${panel('Select preset','Master prompts are read directly from the tool’s Master prompts folder.','01',field('Preset','masterPreset',forms.prompts?.masterPreset||bootstrap.presets[0]?.id,{items:[...bootstrap.presets,{id:'video-reverse-engineering',name:'Video Reverse Engineering (AI Studio)'}]}))}
  ${panel('Master prompt','Copy the complete text, including its format instructions.','02',`<div class="buttons"><button type="button" id="copy-master-prompt" class="button primary" disabled>Copy prompt</button><span id="master-prompt-status" role="status">Loading…</span></div><textarea id="master-prompt-text" readonly aria-label="Preset master prompt" spellcheck="false"></textarea>`)}</form>`;
 }
 async function loadMasterPrompt(){

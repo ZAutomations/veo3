@@ -16,6 +16,9 @@ def request_payload(root, payload):
         raise ValueError('Attach one to three reference videos.')
     resolved = []
     for value in videos:
+        if isinstance(value, str) and re.fullmatch(r'https://(?:www\.|m\.)?(?:youtube\.com|youtu\.be)/\S+', value):
+            resolved.append(value)
+            continue
         file = Path(value).resolve()
         if not file.is_file() or file.suffix.lower() not in {'.mp4', '.mov', '.m4v', '.webm', '.mkv', '.avi'}:
             raise ValueError('Select an existing supported video file.')

@@ -975,6 +975,7 @@ def master_prompt_list():
 @app.get('/api/master-prompt')
 def master_prompt(preset: str):
     allowed = {p['id']: p for p in presets()}
+    allowed['video-reverse-engineering'] = dict(name='Video Reverse Engineering (AI Studio)')
     if preset not in allowed:
         raise HTTPException(400, 'Select a known preset.')
     folder = (ROOT / 'Master prompts').resolve()

@@ -1,5 +1,13 @@
 const applies=s=>s?.fern_ready_import===true;
 const visual=c=>c.shots.map((shot,i)=>`FRAMING ${i+1} (${shot.start_seconds}-${shot.end_seconds}s): ${shot.visual}`).join('\n');
+function callout(c){
+ const supplied=String(c.effect||'').trim();
+ if(supplied&&!/^(none|n\/a|no effects?)\.?$/i.test(supplied))return supplied;
+ const shot=c.shots?.[0];
+ if(!shot)return 'Use one restrained animated amber pointer on the actual narrated subject; do not invent evidence or labels.';
+ const start=Number(shot.start_seconds)||0,end=Number(shot.end_seconds)||4;
+ return `REQUIRED VISIBLE 3D CALLOUT within FRAMING 1 (${start}-${end}s), on the principal narrated subject actually shown in this shot: ${JSON.stringify(shot.visual)}. At ${start+0.5}s draw an amber 3D outline ring around that subject; extend a short tracking pointer toward it, pulse once, then fade both by ${Math.max(start+1,end-0.2)}s before the next shot. Keep the subject visible. This is a designed documentary overlay, not a physical event or evidence. Use no accusation, invented numbers or text labels. Do not omit this callout or replace it with lighting alone.`;
+}
 function scene(story,index,options={}){
  const s=story.scenes[index];
  return [`Generate ONE ${options.seconds||8}-second clip for scene ${index+1}; the timed framing beats are not extra clips. Aspect ${options.aspect||story.aspect_ratio}.`,
@@ -11,7 +19,7 @@ function scene(story,index,options={}){
  `REFERENCES: ${[...(s.characters||[]),story.place.name].map(n=>'@'+n).join(', ')}. These lock designs, not a universal background. Use the actual location named in each framing beat. LOCATION CATALOG: ${JSON.stringify(story.imported_locations)}.`,
  `CONTINUITY: ${story.visual_continuity||'Keep the same role-specific wardrobe, relevant props and revisited architecture. Location/time changes must match the narration.'}`,
  'CAMERA: Choose an explicit readable path between spatially connected objects; name departure, travel and destination, then settle briefly. No generic camera filler or invented actions. Factual changes in place/time may use motivated cuts. Honor supplied shot contents and explicit cuts; do not invent geography to force an impossible unbroken take.',
- visual(s),`EFFECT: ${s.effect||'None'}`,
+ visual(s),`SHOT-LINKED GRAPHIC ANIMATION: ${callout(s)}`,
  `NATIVE AUDIO: One consistent off-screen narrator: ${story.narrator_voice}. Read the complete line exactly: ${JSON.stringify(s.script_line)}. All mannequins silent, mouths absent, no dialogue or lip-sync. Sound: ${s.sound||'Quiet scene ambience and restrained situation-matched instrumental BGM'}. Narration stays clear above music and ambience. No lyrics or competing voices.`,
  'No invented archival document, quotation, evidence, entry method, medical mechanism or outcome. Depict non-graphic illustrative reconstruction, never claim generated footage is archival.',
  `AVOID: ${story.avoid}`].join('\n\n')+'\n';
@@ -29,4 +37,4 @@ function prepare(W,p,source,aspect){
  story.scenes.forEach((s,i)=>{const c=source.clips[i];Object.assign(s,{script_line:c.narration,shots:c.shots,effect:c.effect||'None',sound:c.sound||'None'});s.veo3_prompt=scene(story,i,{aspect});});
  return {W,p,cast,story,warnings:[...source.warnings]};
 }
-module.exports={applies,scene,agent,prepare};
+module.exports={applies,scene,agent,prepare,callout};

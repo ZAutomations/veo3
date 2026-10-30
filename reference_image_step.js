@@ -60,6 +60,7 @@ function compactControls(action) {
 }
 
 async function configureReferenceImages(page, say = () => {}) {
+ await require('./flow_composer_layout').normalize(page,say);
     const state = () => page.evaluate(compactControls, 'state');
     const until = async (check, message) => {
         for (let n = 0; n < 40; n++) {
