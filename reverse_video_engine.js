@@ -4,6 +4,13 @@ const C=require('./reverse_video_contract'),V=require('./gemini_video_source');
 const ROOT=path.join(__dirname,'stories','_reverse_engineering'),VERSION=1;
 const log=s=>console.log(`[${new Date().toTimeString().slice(0,8)}] ${s}`);
 function save(file,value){fs.mkdirSync(path.dirname(file),{recursive:true});const tmp=file+'.'+crypto.randomUUID()+'.tmp';fs.writeFileSync(tmp,typeof value==='string'?value:JSON.stringify(value,null,2)+'\n');fs.renameSync(tmp,file);}
+function normalizeGeneratedPreset(p){
+ if(!p||typeof p!=='object')return p;
+ const seed=String(p.id||p.name||'custom-style');
+ let slug=seed.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/^reference[-_\s]*/,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,70).replace(/-+$/,'');
+ if(slug.length<3)slug='style-'+crypto.createHash('sha256').update(seed).digest('hex').slice(0,12);
+ return {...p,id:'reference-'+slug};
+}
 async function digest(file){const hash=crypto.createHash('sha256');for await(const chunk of fs.createReadStream(file))hash.update(chunk);return hash.digest('hex');}
 function validateRequest(r){
  if(!Array.isArray(r.videos)||r.videos.length<1||r.videos.length>3)throw Error('Select one to three local reference videos.');
@@ -37,6 +44,10 @@ async function run(request,deps={}){
  log(`ANALYSIS_ID: ${id}. ${videos.length} reference video(s); output ${opts.clips} × 8s. Completed stages are reused by content hash.`);
  async function ask(stage,prompt,index,validate){
   const file=path.join(dir,stage+'.json');if(fs.existsSync(file)){log(stage+': restored completed stage.');const data=JSON.parse(fs.readFileSync(file,'utf8'));return validate?validate(data):data;}
+  const rawFile=path.join(dir,stage+'.response.txt');
+  if(index===undefined&&fs.existsSync(rawFile)){
+   try{const parsed=W.parseJson(fs.readFileSync(rawFile,'utf8'));const restored=validate?validate(parsed):parsed;save(file,restored);log(stage+': recovered saved response locally; no repeat API call.');return restored;}catch{}
+  }
   let last;
   for(let attempt=0;attempt<Math.min(9,models.length*Math.max(1,ring.size));attempt++){
    const key=ring.current,model=models[attempt%models.length];
@@ -57,7 +68,7 @@ async function run(request,deps={}){
    const report=await ask(`video_${i+1}_analysis`,C.reportPrompt(metadata),i,v=>validateReport(v,metadata));
    const audit=await ask(`video_${i+1}_audit`,C.auditPrompt(report),i,v=>{if(!Array.isArray(v.corrections)||!Array.isArray(v.uncertainties))throw Error('Audit must include corrections and uncertainties.');return v;});reports.push({source:i+1,metadata,report,audit});
   }
-  const packageValidator=v=>{v.preset=C.validatePreset({...v.preset,...(opts.name?{name:opts.name}:{}),default_clips:opts.clips,scene_seconds:8,aspect_ratio:opts.aspect,...(opts.mode==='auto'?{}:{ready_script_mode:opts.mode})});if(!v.comparison||!v.production_bible||!Array.isArray(v.reference_prompts)||!v.quality_review)throw Error('Synthesis is incomplete.');return v;};
+  const packageValidator=v=>{v.preset=C.validatePreset({...normalizeGeneratedPreset(v.preset),...(opts.name?{name:opts.name}:{}),default_clips:opts.clips,scene_seconds:8,aspect_ratio:opts.aspect,...(opts.mode==='auto'?{}:{ready_script_mode:opts.mode})});if(!v.comparison||!v.production_bible||!Array.isArray(v.reference_prompts)||!v.quality_review)throw Error('Synthesis is incomplete.');return v;};
   const draft=await ask('synthesis',C.synthesisPrompt(reports,opts),undefined,packageValidator);
   const final=await ask('quality_review',`Review and correct this production package against the supplied evidence and audits. Resolve contradictions explicitly, remove unsupported precision and claims of hidden software. Preserve topic adaptation, output format, and measured-source/output-duration separation. Return the COMPLETE corrected package in the identical JSON shape, not a list of edits. Include quality_review.risks, unknowns, manual_checks. Evidence: ${JSON.stringify(reports)}\nDraft: ${JSON.stringify(draft)}`,undefined,packageValidator);
   const master=C.masterPrompt(final.preset);save(path.join(dir,'preset.json'),final.preset);save(path.join(dir,'MASTER_PROMPT.txt'),master);save(path.join(dir,'REPORT.json'),{id,options:opts,reports,...final});save(path.join(dir,'REFERENCE_PROMPTS.txt'),final.reference_prompts.map(r=>`${r.name} (${r.type})\n${r.prompt}`).join('\n\n'));
@@ -65,4 +76,4 @@ async function run(request,deps={}){
  }finally{for(const remote of uploads.values()){try{await transport.removeFile(remote.key,remote.name,{log});}catch(e){log('Remote upload cleanup could not be confirmed; Google file expiration still applies.');}}}
 }
 if(require.main===module)run(JSON.parse(fs.readFileSync(process.argv[2],'utf8').replace(/^\uFEFF/,''))).catch(e=>{console.error('VIDEO ANALYSIS FAILED: '+e.message);process.exitCode=1;});
-module.exports={run,probe,digest,validateRequest,validateReport,ROOT,save};
+module.exports={run,probe,digest,validateRequest,validateReport,ROOT,save,normalizeGeneratedPreset};

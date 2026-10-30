@@ -457,6 +457,74 @@
       "cast_idiom": "No characters. The subject is space itself; if a human is needed it is a distant illustrated figure in a simple suit or coat for scale only, never the subject. NOT photoreal, NOT 3D.",
       "direction": "A space DOCUMENTARY that runs on awe. Clip 1 is a COLD OPEN on the single most mind-blowing moment or discovery in the story, described vividly and without its full context, to hook before rewinding. Then the middle runs as chronological problem-breakthrough-surprise episodes: the limitation or assumption of the time, who challenged it and how - a person, an instrument, an accident - what surprising thing came out of it, and how it reshaped what followed. Use real named people, dates and concrete physical detail. Weave in two or three moments of real personal risk, failure or controversy. Climb a ladder of escalating numbers so the scale keeps growing, describe each instrument or method as a physical, almost magic machine rather than as a spec sheet, and close on what is still unknown. One narrator, no on-screen text.",
       "cast": "optional"
+    },
+    {
+      "id": "reference-wolf-dark-secrets-fable-dialogue",
+      "name": "Wolf Dark Secrets",
+      "style": "Vintage 2D storybook fable illustration, defined ink contours, textured matte watercolor background, anthropomorphic animals in mid-century attire, soft volumetric lighting.",
+      "direction": "Paced philosophical dialogue between an articulate mentor wolf and a troubled companion. Staging alternates between steady woodland walks and thoughtful pauses, ending with a direct-to-audience address at sunset. SHARED PRODUCTION AND RECOVERY: Keep each topic concretely visible, with a specific first-three-second hook and a complete payoff. Retain analyzed character identities, clothing, materials and topic-driven locations. Use motivated camera departure/travel/arrival only where spatially coherent; retain locked cameras and deliberate cuts when the style requires them. When graphics belong to the analyzed style or user request, specify the exact target, local timing, animated icon/badge/arrow/ring, tracking and fade within its Shot/Effect; never rely on a global graphics sentence or contradict it with Effect: None. Do not force graphics into a style that excludes them. Music follows the analyzed audio DNA and scene mood, quietly beneath speech; preserve no-music and silent modes. Before retrying audit requested scene IDs, ready assets, active generations, missing scenes and exact errors. Preserve completed and generating clips. For an identified policy failure only, apply a bounded substantive compliant visual revision, never conceal prohibited likenesses or bypass filters; repeated refusal stops for review. Reuse and verify required matching character/location reference images and established voice using project asset tools; never duplicate references or substitute an irrelevant location. Preserve scene IDs, approved facts, appropriate spoken lines and video settings. Do not claim attachment or generation success without verifying actual tool results.",
+      "camera": "Vertical 9:16 compositions, balanced two-shot framing, slow lateral dolly tracking during travel, static medium shots for emotional reveals, and a gentle push-in close-up on the final moral delivery.",
+      "sound_style": "Intimate dialogue-driven audio mix, resonant close-mic voice acting, gentle wind and leaf rustle ambience, accompanied by slow fingerpicked acoustic guitar and melancholic piano.",
+      "ready_script_mode": "dialogue",
+      "reference_cast": [
+        {
+          "name": "Wolf",
+          "type": "animal",
+          "gender": "male",
+          "description": "Anthropomorphic timber wolf with intelligent amber eyes, sleek grey and charcoal fur, dressed in a vintage olive-grey tailored trench coat, dark vest, white collared shirt, muted necktie, and a dark felt fedora."
+        },
+        {
+          "name": "Companion",
+          "type": "animal",
+          "gender": "male",
+          "description": "Stocky anthropomorphic brown bear with gentle brown eyes and dark muzzle, wearing an oversized cream-colored chunky cable-knit turtleneck sweater, charcoal trousers, and a brown tweed flat cap."
+        }
+      ],
+      "aspect_ratio": "9:16",
+      "default_clips": 8,
+      "scene_seconds": 8,
+      "analysis_dna": {
+        "locked": [
+          "2D illustrated animation aesthetic with dark hand-drawn outlines",
+          "Two-character anthropomorphic dialogue dynamic",
+          "Costume continuity across all clips",
+          "Cross-dissolve scene transitions",
+          "Slow acoustic guitar and piano musical underscore",
+          "Final shot direct-to-camera philosophical address at golden hour"
+        ],
+        "controlled": [
+          "Screen direction axis (Wolf on left, Companion on right)",
+          "Time of day progression from late afternoon dappled light into sunset",
+          "Pacing of speech with pauses reflecting character contemplation",
+          "Foliage and environmental density matching the narrative progression"
+        ],
+        "free": [
+          "Specific philosophical or psychological topic explored in the dialogue",
+          "Incidental background flora, bridges, boulders, and distant mountains",
+          "Subtle character gestures, hand positioning, and walking speed"
+        ],
+        "avoid": [
+          "Modern technology, vehicles, or contemporary urban structures",
+          "Fast cutting, jump cuts, or rapid montage sequences",
+          "Bright neon palettes, pop soundtrack elements, or loud sound effects",
+          "3D polygon rendering or glossy photorealistic surfaces"
+        ]
+      },
+      "label": "Wolf Dark Secrets",
+      "derived_video_preset": true,
+      "cast_types": [
+        "animal"
+      ],
+      "cast_count": 2,
+      "narration_scope": "dialogue",
+      "narrated": false,
+      "silent_cast": false,
+      "whisk": "Vintage 2D storybook fable illustration, defined ink contours, textured matte watercolor background, anthropomorphic animals in mid-century attire, soft volumetric lighting.",
+      "location_medium": "Vintage 2D storybook fable illustration, defined ink contours, textured matte watercolor background, anthropomorphic animals in mid-century attire, soft volumetric lighting.",
+      "seconds": 8,
+      "duration": 64,
+      "default_clip_count": 8,
+      "default_duration": 64
     }
   ]
 }
