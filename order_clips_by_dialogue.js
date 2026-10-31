@@ -211,6 +211,29 @@ function matchClips(clips, heard, wanted, minCover = 0.5) {
         byScene[p.scene] = p;
     }
 
+    // Flow projects may contain a prior/retried generation with the same
+    // narration in addition to the requested clip set. Identify clear audio
+    // duplicates of an already matched scene so they can be retained as
+    // alternates instead of making the whole join look ambiguous.
+    const duplicateClips = [];
+    for (const file of clips.filter(f => !byFile[f])) {
+        const said = words(heard[file]);
+        const candidates = identifiable.filter(w => byScene[w.n]).map(w => {
+            const want = [...words(w.text)].filter(x => !STOP.has(x));
+            const hit = want.filter(x => said.has(x)).length;
+            return { scene: w.n, cover: want.length ? hit / want.length : 0 };
+        }).sort((a,b) => b.cover - a.cover);
+        const first = candidates[0], second = candidates[1];
+        // Require a strong match and a clear lead over other already-filled
+        // scenes. This only marks extras; it never fills a missing scene.
+        if (first && first.cover >= Math.max(minCover, 0.8)
+            && (!second || first.cover - second.cover >= 0.2)) {
+            byFile[file] = { scene:first.scene, cover:first.cover, duplicate:true,
+                duplicateOfScene:first.scene, method:'duplicate_narration' };
+            duplicateClips.push(file);
+        }
+    }
+
     const unresolved = [];
     const leftClips = clips.filter(f => !byFile[f]);
     const leftScenes = identifiable.filter(w => !byScene[w.n]).map(w => w.n);
@@ -220,7 +243,7 @@ function matchClips(clips, heard, wanted, minCover = 0.5) {
         byFile[leftClips[i]] = rec;
         unresolved.push(leftClips[i]);
     }
-    return { byFile, unresolved };
+    return { byFile, unresolved, duplicateClips };
 }
 
 // Clips in story order. An unidentified clip has no scene number, so it sorts to
@@ -376,7 +399,7 @@ function main() {
         heard[f] = fs.existsSync(t) ? fs.readFileSync(t, 'utf8').trim() : '';
     }
 
-    const { byFile, unresolved } = matchClips(clips, heard, wanted, MIN_COVER);
+    const { byFile, unresolved, duplicateClips } = matchClips(clips, heard, wanted, MIN_COVER);
     if (!Object.values(byFile).some(m => m.cover !== null)) {
         console.error('\nNo clip matched any scene - the transcripts hold nothing recognisable.');
         console.error('Check that the story is the one these clips were generated from.');
@@ -393,12 +416,13 @@ function main() {
         const said = heard[f].replace(/\s+/g, ' ').slice(0, 44);
         const cover = m.cover === null ? '  ??  ' : `${(m.cover * 100).toFixed(0).padStart(3)}%  `;
         console.log(`  scene ${String(m.scene === null ? '--' : m.scene).padStart(2)}  ${cover}`
-            + `${f.padEnd(15)} ${sc ? sc.title.slice(0, 22).padEnd(23) : 'UNIDENTIFIED'.padEnd(23)} ${said}`);
+            + `${f.padEnd(15)} ${byFile[f].duplicate ? `DUPLICATE of Scene ${byFile[f].duplicateOfScene}`.padEnd(23) : sc ? sc.title.slice(0, 22).padEnd(23) : 'UNIDENTIFIED'.padEnd(23)} ${said}`);
     }
 
     console.log('');
-    const resolved = ordered.filter(f => byFile[f].cover !== null).length;
-    log(`Resolved: ${resolved} of ${clips.length} clip(s) matched a scene by ear.`);
+    const resolved = ordered.filter(f => byFile[f].cover !== null && !byFile[f].duplicate).length;
+    log(`Resolved: ${resolved} of ${clips.length - duplicateClips.length} story clip(s) matched by ear.`);
+    for (const file of duplicateClips) log(`EXTRA duplicate kept as alternate: ${file} repeats Scene ${byFile[file].duplicateOfScene}.`);
     const partial=ordered.filter(f=>byFile[f].partial);
     for(const file of partial)log(`WARNING: Scene ${byFile[file].scene} (${file}) identified from distinctive partial wording (${byFile[file].method}). The transcript differs from the expected narration; check the audio before publishing.`);
     if (unresolved.length) {
@@ -411,7 +435,7 @@ function main() {
     console.log('');
     log(`${unresolved.length ? 'Provisional order (NOT verified)' : 'Story order'}: ${orderString(ordered)}`);
     console.log('');
-    if (!unresolved.length) log(`Or without touching the manifest:  node join_clips.js "${path.relative(process.cwd(), CLIPS_DIR)}" --order ${orderString(ordered)}`);
+    if (!unresolved.length) log(`Or without touching the manifest:  node join_clips.js "${path.relative(process.cwd(), CLIPS_DIR)}" --order ${orderString(ordered.filter(f => !byFile[f].duplicate))}`);
     else log('No verified --order command is available: unidentified clips must be checked or replaced.');
 
     // ── write ────────────────────────────────────────────────────────────────
@@ -434,7 +458,7 @@ function main() {
         ...(manifest || {}),
         projectUrl: (manifest && manifest.projectUrl) || null,
         clips: ordered.map((f, i) => Object.assign({}, meta.get(f) || { file: f }, {
-            order: i + 1,
+            order: byFile[f].duplicate ? null : i + 1,
             file: f,
             matched_scene: byFile[f].scene,
             match_cover: byFile[f].cover === null ? null : Number(byFile[f].cover.toFixed(2)),
@@ -443,6 +467,7 @@ function main() {
             order_verified: byFile[f].cover !== null,
             partial_narration_match: !!byFile[f].partial,
             match_method: byFile[f].method || (byFile[f].cover !== null ? 'word_coverage' : null),
+            ...(byFile[f].duplicate ? { duplicate:true, duplicate_of_scene:byFile[f].duplicateOfScene } : {}),
         })),
         orderResolvedBy: 'dialogue',
         orderResolvedAt: new Date().toISOString(),
@@ -463,6 +488,7 @@ function main() {
         const candidate = matchClips([file], heard, wanted, MIN_COVER).byFile[file];
         return {file, transcript:heard[file], repeats_scene:candidate.cover !== null ? candidate.scene : null};
     });
+    out.duplicateClips = duplicateClips.map(file => ({file,duplicate_of_scene:byFile[file].duplicateOfScene}));
     if (fs.existsSync(MANIFEST)) {
         const bak = MANIFEST + '.before-order-backup';
         if (!fs.existsSync(bak)) fs.copyFileSync(MANIFEST, bak);
@@ -470,6 +496,7 @@ function main() {
     }
     fs.writeFileSync(MANIFEST, JSON.stringify(out, null, 2));
     const report = ['STORY CLIP ORDER', ...out.narrationWarnings.map(w=>`AUDIO CHECK Scene ${w.scene}: ${w.file} — partial narration transcript: ${w.transcript.replace(/\s+/g,' ')}`), ...out.clips.filter(c => c.order_verified).map(c => `Scene ${c.matched_scene}: ${c.file}`),
+        ...(out.duplicateClips || []).map(c => `EXTRA duplicate of Scene ${c.duplicate_of_scene} (kept as alternate): ${c.file}`),
         ...(out.missingScenes.length ? [`Missing verified scenes: ${out.missingScenes.join(', ')}`] : []),
         ...out.unidentifiedClips.map(c => `${c.file}: ${c.repeats_scene ? 'repeats narration from Scene '+c.repeats_scene : 'unidentified narration'} — ${c.transcript.replace(/\s+/g,' ')}`)];
     fs.writeFileSync(path.join(CLIPS_DIR, 'CLIP_ORDER.txt'), report.join('\n')+'\n');
