@@ -53,7 +53,7 @@ function adoptVerified(d,entries,downloadVersion,priorFile,expectedHash){
   }catch{}
  }
 }
-async function download(browser,page,{storyFile,outDir,project,tiles,downloadVersion='upscaled',log=()=>{}}){
+async function download(browser,page,{storyFile,outDir,project,tiles,thumbnailTile=null,thumbnailRequired=false,thumbnailOutputDir=null,downloadVersion='upscaled',log=()=>{}}){
  if(!storyFile||!fs.existsSync(storyFile))throw Error('Upscaled Agent download needs the story JSON to map scenes safely.');
  const story=JSON.parse(fs.readFileSync(storyFile,'utf8'));
  const silent=require('./silent_scene_identity').isSilent(story);
@@ -105,6 +105,10 @@ async function download(browser,page,{storyFile,outDir,project,tiles,downloadVer
  }
  try{
   await d.group(jobs,receipts);
+  if(thumbnailRequired){
+   const target=thumbnailOutputDir||folder;
+   await require('./flow_thumbnail_download').downloadThumbnail(page,thumbnailTile,target,log);
+  }
   if(silent&&unresolved){
    fs.writeFileSync(path.join(d.out,'CLIP_ORDER.txt'),'SILENT STORY: all verified video assets saved. Scene order needs visual/source review; music and meows cannot establish order.\n'+story.scenes.map((s,i)=>`Scene ${i+1}: ${s.shots?.map(v=>v.visual).join(' ')||s.narrative_context||''}`).join('\n')+'\n');
   }

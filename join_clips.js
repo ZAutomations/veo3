@@ -75,11 +75,14 @@ const REVERSE   = !!flag('--reverse', false);
 const REENCODE  = !!flag('--reencode', false);
 const DRY_RUN   = !!flag('--dry-run', false);
 const ALLOW_PARTIAL = !!flag('--allow-partial', false);
+const NO_THUMBNAIL = !!flag('--no-thumbnail', false);
+const THUMBNAIL_SECONDS = Math.max(1, Math.min(10, Number(flag('--thumbnail-seconds', '3')) || 3));
 
 // ── collect the clip files ---------------------------------------------------
 const SKIP = /(_final|_joined|_concat)\.mp4$/i;
 const files = fs.readdirSync(DIR)
     .filter(f => /\.mp4$/i.test(f) && !SKIP.test(f))
+    .filter(f => !/^\.thumbnail_endcard_/i.test(f))
     .filter(f => !/\.part$/i.test(f));
 
 if (!files.length) {
@@ -290,6 +293,16 @@ ordered.forEach((f, i) => {
 });
 log('');
 log(`Total      : ${total ? total.toFixed(2) + 's (about ' + Math.round(total) + 's)' : 'unknown'}`);
+const thumbnailCandidates = NO_THUMBNAIL ? [] : ['thumbnail_downloaded.png','thumbnail_downloaded.jpg','thumbnail_downloaded.jpeg','thumbnail_downloaded.webp']
+    .map(name => path.join(path.dirname(path.resolve(DIR)), name)).concat(
+        NO_THUMBNAIL ? [] : ['thumbnail_downloaded.png','thumbnail_downloaded.jpg','thumbnail_downloaded.jpeg','thumbnail_downloaded.webp'].map(name => path.join(path.resolve(DIR),name)));
+const thumbnailPath = thumbnailCandidates.find(file => fs.existsSync(file) && fs.statSync(file).size > 2048) || null;
+if (thumbnailPath) {
+    log(`End card   : ${thumbnailPath} (${THUMBNAIL_SECONDS}s, appended after the final clip)`);
+    total += THUMBNAIL_SECONDS;
+} else if (!NO_THUMBNAIL) {
+    log('End card   : no downloaded thumbnail found; joining clips only.');
+}
 if (files.length !== ordered.length) {
     log(`NOTE       : ${files.length - ordered.length} clip(s) excluded by the order above.`);
 }
@@ -316,7 +329,7 @@ if (storyFiles.length === 1) {
     try { dialogueStory = JSON.parse(fs.readFileSync(path.join(storyFolder, storyFiles[0]), 'utf8')).narration_scope === 'dialogue'; } catch {}
 }
 const normalizeAudio = !FORCE_COPY && !flag('--no-normalize-audio', false) && (dialogueStory || !!flag('--normalize-audio', false));
-const mustEncode = REENCODE || normalizeAudio || (MISMATCH && !FORCE_COPY);
+const mustEncode = REENCODE || normalizeAudio || (MISMATCH && !FORCE_COPY) || !!thumbnailPath;
 if (normalizeAudio) log('Dialogue loudness will be balanced per clip to -16 LUFS before joining.');
 if (MISMATCH && FORCE_COPY) log('         --copy given: stream copy forced anyway. Expect a broken file.');
 
@@ -324,6 +337,34 @@ if (DRY_RUN) {
     log('');
     log('--dry-run: nothing written. Re-run without --dry-run to join.');
     process.exit(0);
+}
+
+// Convert the downloaded still into a short aspect-matched video segment. The
+// normalized join appends it after the last story clip without changing scene
+// IDs or the clip manifest.
+let thumbnailSegmentName = null;
+if (thumbnailPath) {
+    thumbnailSegmentName = `.thumbnail_endcard_${process.pid}.mp4`;
+    const segmentPath = path.join(DIR, thumbnailSegmentName);
+    const first = probes.get(ordered[0]);
+    if (!first?.width || !first.height) throw new Error('Cannot size the thumbnail end card without a valid first clip.');
+    const imageInfo = JSON.parse(execFileSync('ffprobe',['-v','error','-select_streams','v:0','-show_entries','stream=width,height','-of','json',thumbnailPath],{encoding:'utf8',timeout:30000,windowsHide:true}));
+    const imageStream=(imageInfo.streams||[])[0];
+    if (!imageStream?.width || !imageStream.height || Math.abs(imageStream.width/imageStream.height-first.width/first.height)>0.015) {
+        throw new Error('Downloaded thumbnail ratio does not match the video clips; original clips and thumbnail were preserved. Regenerate the thumbnail with the selected video aspect ratio.');
+    }
+    const fps = first.fps || '24';
+    const segmentArgs = ['-y','-loop','1','-framerate',fps,'-i',thumbnailPath,
+        '-f','lavfi','-i','anullsrc=r=48000:cl=stereo','-t',String(THUMBNAIL_SECONDS),
+        '-vf',`scale=${first.width}:${first.height}:force_original_aspect_ratio=decrease,pad=${first.width}:${first.height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${fps},format=yuv420p`,
+        '-c:v','libx264','-preset','veryfast','-crf','18','-c:a','aac','-ar','48000','-ac','2','-b:a','192k','-shortest',segmentPath];
+    execFileSync('ffmpeg',segmentArgs,{stdio:'ignore',timeout:120000,windowsHide:true});
+    const p=probe(segmentPath);
+    if (!p?.vcodec || !p.acodec || Math.abs((p.duration||0)-THUMBNAIL_SECONDS)>0.25) {
+        throw new Error('Thumbnail end card failed media validation; original clips and image were preserved.');
+    }
+    probes.set(thumbnailSegmentName,p);
+    ordered.push(thumbnailSegmentName);
 }
 
 // ── concat ------------------------------------------------------------------
@@ -354,6 +395,7 @@ log(`Output: ${outPath}`);
 
 const copyArgs = ['-y', '-f', 'concat', '-safe', '0', '-i', listPath, '-c', 'copy', workingPath];
 const audioFilters = normalizeAudio ? ordered.map(f => {
+    if (f === thumbnailSegmentName) return '';
     if (!probes.get(f).acodec) return '';
     const { measureLoudness, loudnessFilter } = require('./audio_loudness');
     const measured = measureLoudness(path.resolve(DIR, f));
@@ -417,9 +459,11 @@ catch (e) {
     console.error(`The joined video is complete, but the final filename is open or unavailable. Close it in your player and use ${workingPath}. ${e.message}`);
     process.exit(1);
 }
+if (thumbnailSegmentName) fs.rmSync(path.join(DIR,thumbnailSegmentName),{force:true});
 let start = 0;
 const orderReport = ordered.map((file, i) => {
-    const row = `${String(i + 1).padStart(2, '0')} | ${start.toFixed(2)}s | ${file}`;
+    const label = file === thumbnailSegmentName ? `${path.basename(thumbnailPath)} (thumbnail end card)` : file;
+    const row = `${String(i + 1).padStart(2, '0')} | ${start.toFixed(2)}s | ${label}`;
     start += probes.get(file)?.videoDuration || probes.get(file)?.duration || 0;
     return row;
 });

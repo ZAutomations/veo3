@@ -111,6 +111,20 @@ function loadRefs() {
         source = loaded.source;
         log(`No refs.json - read ${source} instead.`);
     }
+    // Wolf Dark Secrets gets one generated end-card image after its character
+    // and place references. Keep it out of refs.json so it is never @-mentioned
+    // as a character/location in Veo clips.
+    const storyDir = fs.statSync(f).isDirectory() ? f : path.dirname(f);
+    const storyName = fs.readdirSync(storyDir).find(name => /_story\.json$/i.test(name));
+    if (storyName) {
+        const story = JSON.parse(fs.readFileSync(path.join(storyDir, storyName), 'utf8'));
+        const promptFile = path.join(storyDir, 'thumbnail_prompt.txt');
+        if (story.preset_id === 'reference-wolf-dark-secrets-fable-dialogue' && fs.existsSync(promptFile)) {
+            const aspect = ['9:16','16:9','1:1'].includes(story.aspect_ratio) ? story.aspect_ratio : '9:16';
+            refs.push({ name: 'Thumbnail', file: 'thumbnail_downloaded.png', kind: 'thumbnail',
+                aspect, prompt: fs.readFileSync(promptFile, 'utf8').trim() });
+        }
+    }
     if (!refs.length) {
         console.error(`No reference images found for ${f}.`);
         console.error('Write the story first (`node write_story.js ...`), which writes refs.json.');
@@ -802,11 +816,11 @@ async function generateRefs(page, refs, opts = {}) {
 
     // A plain prompt can still be in VIDEO mode with Agent off. Require both
     // the Agent chip and the compact Image controls to read back correctly.
-    const prepare = async () => {
+    const prepare = async (aspect = '16:9') => {
         await require('./flow_composer_layout').normalize(page,log);
         const off = await setAgent(page, false);
         if (!off.ok) throw new Error(`Cannot prepare reference images: ${off.why}. Nothing submitted.`);
-        await RI.configureReferenceImages(page, log);
+        await RI.configureReferenceImages(page, log, aspect);
     };
 
     let made = 0, failed = 0;
@@ -826,7 +840,7 @@ async function generateRefs(page, refs, opts = {}) {
         const result = recovered || await RI.withActivityWait(async () => {
             // Recheck before every sheet and retry, so a stale Video selection
             // never silently turns a character sheet into a video.
-            await prepare();
+            await prepare(r.aspect || '16:9');
             if (!await insertPrompt(page, String(r.prompt).trim())) {
                 return { ok: false, why: 'Reference prompt did not land.' };
             }

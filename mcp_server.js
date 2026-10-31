@@ -469,11 +469,16 @@ async function doGenerateRefs(a) {
     pushOpt(args, '--only', a.only);
     pushOpt(args, '--cdp', a.cdp);
     pushOpt(args, '--wait', a.wait);
-    // References always use Image / 16:9 / Nano Banana Pro. doRunAgent applies
-    // the film's video model later, after the sheets have been made.
+    // Character/place plates use Image / 16:9; the Wolf thumbnail is generated
+    // last at the video's aspect ratio. The film model is selected afterward.
     if (a.dry) args.push('--dry');
     const perImage = Number(a.wait) > 0 ? Number(a.wait) : 180;
-    const refCount = require('./refs_for_scene.js').loadStoryRefs(path.resolve(HERE, target), null).refs.length || 8;
+    let refCount = require('./refs_for_scene.js').loadStoryRefs(path.resolve(HERE, target), null).refs.length || 8;
+    if (sJson) {
+        const story = readJson(sJson, {});
+        if (story.preset_id === 'reference-wolf-dark-secrets-fable-dialogue'
+            && fs.existsSync(path.join(storyDirOf(sJson), 'thumbnail_prompt.txt'))) refCount += 1;
+    }
     const r = await runNode('generate_refs.js', args, { timeoutMs: referenceTimeoutMs(refCount, perImage) });
     return {
         ok: r.code === 0,
@@ -660,7 +665,9 @@ async function doDownloadClips(a) {
         const manifest = readJson(path.join(path.resolve(HERE, String(out)), 'manifest.json'), null);
         const clips = manifest && Array.isArray(manifest.clips) ? manifest.clips : [];
         const ready = clips.filter(c => c.got).length;
-        failure = `\nDOWNLOAD FAILED: ${ready}/${manifest && manifest.expected || '?'} playable clips saved; ${clips.filter(c => !c.got).length} transfers failed. See logs/agent_download_*/download.log for each source/menu error.`;
+        failure = r.out.includes('THUMBNAIL DOWNLOAD FAILED')
+            ? '\nTHUMBNAIL DOWNLOAD FAILED: story clips were preserved, but the required Wolf thumbnail is missing. Retry the thumbnail/reference image download before joining.'
+            : `\nDOWNLOAD FAILED: ${ready}/${manifest && manifest.expected || '?'} playable clips saved; ${clips.filter(c => !c.got).length} transfers failed. See logs/agent_download_*/download.log for each source/menu error.`;
         if (r.killed) failure += ' Downloader exceeded the allotted time.';
     }
     return { ok: r.code === 0, storyJson, text: r.out + (r.err ? '\n[stderr]\n' + r.err : '') + failure };
@@ -940,7 +947,7 @@ const TOOLS = [
     },
     {
         name: 'download_clips',
-        description: 'Download the generated clips from the Flow project grid into a local folder, and write a contact sheet to check scene order.',
+        description: 'Download generated clips from the Flow project grid and write a contact sheet. For Wolf Dark Secrets, also download the generated Thumbnail image separately for the final end card.',
         inputSchema: {
             type: 'object',
             required: ['story'],
@@ -964,7 +971,7 @@ const TOOLS = [
     },
     {
         name: 'join_clips',
-        description: 'Concatenate the downloaded clips into one final .mp4 with ffmpeg. Use dry_run:true to print the join order first.',
+        description: 'Concatenate downloaded clips into one final .mp4 with ffmpeg. Automatically append the downloaded Wolf Dark Secrets thumbnail as a 3-second, video-ratio end card when present. Use dry_run:true to inspect the plan first.',
         inputSchema: {
             type: 'object',
             required: ['story'],

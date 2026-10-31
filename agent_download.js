@@ -196,7 +196,7 @@ function srcFn(idx) {
             .filter((el, i, a) => el && a.indexOf(el) === i);
     }
     const t = typeof idx === 'object' ? tiles.find(tile =>
-        tile.tagName.toLowerCase() === 'flow-video-tile' && [...tile.querySelectorAll('video, source, img')]
+        [...tile.querySelectorAll('video, source, img')]
             .some(media => ((media.currentSrc || media.getAttribute('src') || '').match(/\/(?:video|image|asb)\/([^=?/#]+)/) || [])[1] === idx.assetId)) : tiles[idx];
     if (!t) return { ok: false, why: 'tile missing' };
     const v = t.querySelector('video');
@@ -273,7 +273,7 @@ function openMenuFn(idx) {
             .filter((el, i, a) => el && a.indexOf(el) === i);
     }
     const t = typeof idx === 'object' ? tiles.find(tile =>
-        tile.tagName.toLowerCase() === 'flow-video-tile' && [...tile.querySelectorAll('video, source, img')]
+        [...tile.querySelectorAll('video, source, img')]
             .some(media => ((media.currentSrc || media.getAttribute('src') || '').match(/\/(?:video|image|asb)\/([^=?/#]+)/) || [])[1] === idx.assetId)) : tiles[idx];
     if (!t) return { ok: false, why: 'tile missing' };
     // Scoped to THIS tile - a global nth match would click a neighbour's menu.
@@ -620,14 +620,14 @@ async function activateVideoTile(page, tile, needSource = true) {
     if (!located) return { ok: false, why: 'tile missing while activating', domIndex: null };
     await wait(500);
     if (tile.assetId) {
-        const position = await page.evaluate(id => {
-            const hit = [...document.querySelectorAll('flow-video-tile')].find(el =>
+        const position = await page.evaluate(({id, sel}) => {
+            const hit = [...document.querySelectorAll(sel)].find(el =>
                 [...el.querySelectorAll('video, source, img')].some(media =>
                     ((media.currentSrc || media.getAttribute('src') || '').match(/\/(?:video|image|asb)\/([^=?/#]+)/) || [])[1] === id));
             if (!hit) return null;
             const r = hit.getBoundingClientRect();
             return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
-        }, tile.assetId);
+        }, { id: tile.assetId, sel: TILE_SEL });
         if (!position) return { ok: false, why: 'target asset unmounted after scrolling', domIndex: null };
         located = { ...located, ...position };
     }
@@ -709,13 +709,27 @@ async function activateVideoTile(page, tile, needSource = true) {
     const failedVideoTiles = inv.tiles.filter(t => isVideoRecord(t) && isFailedRecord(t));
     const videoTiles = inv.tiles.filter(t => isVideoRecord(t) && !isFailedRecord(t));
     const imageTiles = inv.tiles.filter(t => !isVideoRecord(t));
+    const thumbnailTiles = imageTiles.filter(t => /\bthumbnail\b/i.test([t.assetTitle,t.text,t.aria,t.title].filter(Boolean).join(' ')))
+        .sort((a,b) => a.gridY - b.gridY || a.gridX - b.gridX);
+    const thumbnailTile = thumbnailTiles[0] || null;
+    const storyMeta = STORY_FILE && fs.existsSync(STORY_FILE) ? JSON.parse(fs.readFileSync(STORY_FILE, 'utf8')) : null;
+    const thumbnailRequired = storyMeta?.preset_id === 'reference-wolf-dark-secrets-fable-dialogue'
+        && fs.existsSync(path.join(path.dirname(path.resolve(STORY_FILE)), 'thumbnail_prompt.txt'));
+    const thumbnailOutputDir = STORY_FILE ? path.dirname(path.resolve(STORY_FILE)) : OUT_DIR;
+    const thumbnailReceiptPath = path.join(thumbnailOutputDir,'thumbnail_downloaded.json');
+    let thumbnailReceipt={};
+    try{thumbnailReceipt=JSON.parse(fs.readFileSync(thumbnailReceiptPath,'utf8'));}catch{}
+    const existingThumbnail = thumbnailReceipt.assetId && thumbnailReceipt.assetId===thumbnailTile?.assetId
+        ? ['.png','.jpg','.jpeg','.webp'].map(ext => path.join(thumbnailOutputDir,'thumbnail_downloaded'+ext))
+            .find(file => fs.existsSync(file) && fs.statSync(file).size > 2048)
+        : null;
     const withSrc  = videoTiles.filter(t => (t.videoSrcs[0] || {}).src).length;
     const withMenu = videoTiles.filter(t => t.hasMoreOptions).length;
 
     log('');
     log(`Ready video tiles: ${videoTiles.length}    failed video tiles (skipped): ${failedVideoTiles.length}    image tiles (skipped): ${imageTiles.length}`);
     if ((flag('--upscaled') || flag('--original')) && !PROBE) {
-        await require('./agent_upscaled_download').download(browser,page,{storyFile:STORY_FILE,outDir:OUT_DIR,project:homeUrl,tiles:videoTiles,downloadVersion:flag('--original')?'original':'upscaled',log});
+        await require('./agent_upscaled_download').download(browser,page,{storyFile:STORY_FILE,outDir:OUT_DIR,project:homeUrl,tiles:videoTiles,thumbnailTile,thumbnailRequired:thumbnailRequired&&!existingThumbnail,thumbnailOutputDir,downloadVersion:flag('--original')?'original':'upscaled',log});
         await browser.disconnect();
         return;
     }
@@ -727,7 +741,7 @@ async function activateVideoTile(page, tile, needSource = true) {
         const names = imageTiles.map(t => (t.text || '')
             .replace(/play_circle|favorite|more_vert|redo|image|add_2|download/g, ' ')
             .replace(/\s+/g, ' ').trim().slice(0, 30) || '(unnamed)');
-        log(`  not clips, so not downloaded: ${names.join(', ')}`);
+        log(`  image assets (not story clips): ${names.join(', ')}`);
     }
     log(`Direct <video src> available on : ${withSrc}/${videoTiles.length} video tiles`);
     log(`"More options" menu available on: ${withMenu}/${videoTiles.length} video tiles`);
@@ -838,7 +852,8 @@ async function activateVideoTile(page, tile, needSource = true) {
     const existing = flag('--redownload') ? new Map() : require('./download_resume').existingDownloads(
         OUT_DIR, homeUrl, targets.map(idx => byIndex.get(idx)), playableVideo, log);
     log(`Resume downloads: ${existing.size} verified clip(s) already saved; ${targets.length - existing.size} need downloading.`);
-    if (targets.length && targets.every(idx => existing.get(byIndex.get(idx).assetId)?.outputFile)) {
+    if (targets.length && targets.every(idx => existing.get(byIndex.get(idx).assetId)?.outputFile)
+        && (!thumbnailRequired || existingThumbnail)) {
         log('All project clips already have verified local files. No network download, file rewrite or manifest reorder needed.');
         await browser.disconnect();
         return;
@@ -1105,6 +1120,28 @@ async function activateVideoTile(page, tile, needSource = true) {
             log('  clip 01 really is scene 1 before joining.');
         } else {
             log('Contact sheet could not be built (ffmpeg missing, or no frames read).');
+        }
+    }
+
+    // Download one separately named Wolf thumbnail; it is deliberately omitted
+    // from manifest.json so it can never be mistaken for a generated scene.
+    if (thumbnailRequired) {
+        if (existingThumbnail) {
+            log(`Thumbnail already downloaded: ${existingThumbnail}`);
+        } else {
+        if (!thumbnailTile) {
+            log('THUMBNAIL DOWNLOAD FAILED: no image tile named "Thumbnail" was found. Clips are preserved; generate the thumbnail after the reference images, then retry.');
+            process.exitCode = 2;
+        } else {
+            try {
+                log('Downloading the generated end-card thumbnail...');
+                const downloaded = await require('./flow_thumbnail_download').downloadThumbnail(page,thumbnailTile,thumbnailOutputDir,log,SETTLE);
+                fs.writeFileSync(thumbnailReceiptPath,JSON.stringify({assetId:thumbnailTile.assetId,file:path.basename(downloaded),downloadedAt:new Date().toISOString()},null,2)+'\n');
+            } catch(e) {
+                log(`THUMBNAIL DOWNLOAD FAILED: ${e.message}. Clips are preserved; retry the thumbnail download before joining.`);
+                process.exitCode = 2;
+            }
+        }
         }
     }
 

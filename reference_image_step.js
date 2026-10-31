@@ -10,6 +10,7 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 // Runs inside the page. Match the stable labels supplied by Flow, not Angular's
 // numbered IDs. Ignore hidden copies and icon ligatures such as crop_16_9.
 function compactControls(action) {
+    const wantedRatio = typeof action === 'object' && action.ratio ? String(action.ratio) : IMAGE_RATIO;
     const activate=typeof action==='object' && action.activate;
     action=typeof action==='object'?action.action:action;
     const visible = el => {
@@ -30,7 +31,7 @@ function compactControls(action) {
     const panel = image && image.closest('.cdk-overlay-pane');
     const scope = panel || document;
     const ratio = [...scope.querySelectorAll('button[role="radio"]')]
-        .find(el => visible(el) && label(el) === '16:9');
+        .find(el => visible(el) && label(el) === wantedRatio);
     const picker = [...scope.querySelectorAll('button[aria-label="Select model family"]')].find(visible);
     const summary = [...document.querySelectorAll('.settings-summary')].find(visible);
     if (action === 'state') return {
@@ -40,6 +41,7 @@ function compactControls(action) {
         summary: text(summary),
         summaryLandscape: !!summary && [...summary.querySelectorAll('mat-icon')]
             .some(i => (i.textContent || '').trim() === 'crop_16_9'),
+        summaryText: text(summary),
         open: !!image,
     };
     let target;
@@ -59,9 +61,9 @@ function compactControls(action) {
     return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
 }
 
-async function configureReferenceImages(page, say = () => {}) {
+async function configureReferenceImages(page, say = () => {}, aspect = IMAGE_RATIO) {
  await require('./flow_composer_layout').normalize(page,say);
-    const state = () => page.evaluate(compactControls, 'state');
+    const state = () => page.evaluate(compactControls, { action: 'state', ratio: aspect });
     const until = async (check, message) => {
         for (let n = 0; n < 40; n++) {
             if (await check()) return;
@@ -71,7 +73,7 @@ async function configureReferenceImages(page, say = () => {}) {
     };
     const click = async action => {
         let point;
-        await until(async () => !!(point = await page.evaluate(compactControls, {action,activate:true})), `cannot find ${action} control`);
+        await until(async () => !!(point = await page.evaluate(compactControls, {action,activate:true,ratio:aspect})), `cannot find ${action} control`);
     };
     // A fresh project's composer can remount just after Agent is turned off.
     // Re-open if that remount discarded the first click, before touching Image.
@@ -82,13 +84,13 @@ async function configureReferenceImages(page, say = () => {}) {
     await click('image');
     await until(async () => (await state()).image, 'Image mode did not become selected');
     await click('ratio');
-    await until(async () => (await state()).ratio, '16:9 did not become selected');
+    await until(async () => (await state()).ratio, `${aspect} did not become selected`);
     await click('model');
     await click('pro');
     await until(async () => {
         const s = await state();
         return s.image && s.ratio && s.model.toLowerCase().replace(/[^a-z0-9]/g, '') === 'nanobananapro';
-    }, 'Image / 16:9 / Nano Banana Pro could not be verified');
+    }, `Image / ${aspect} / Nano Banana Pro could not be verified`);
     // This compact popover applies immediately; it has no full-drawer Save.
     // Escape closes the compact menu on the current Flow layout. Do not click
     // the summary again here: on some builds that immediately reopens the menu
@@ -97,9 +99,9 @@ async function configureReferenceImages(page, say = () => {}) {
     await sleep(500);
     await until(async () => {
         const s = await state();
-        return /nano\s+banana\s+pro/i.test(s.summary) && s.summaryLandscape;
-    }, 'settings summary did not confirm Nano Banana Pro and 16:9');
-    say('Reference settings verified: Image / 16:9 / Nano Banana Pro.');
+        return /nano\s+banana\s+pro/i.test(s.summary) && (aspect === '16:9' ? s.summaryLandscape : true);
+    }, `settings summary did not confirm Nano Banana Pro and ${aspect}`);
+    say(`Reference settings verified: Image / ${aspect} / Nano Banana Pro.`);
 }
 
 // A failed tile can have More options too. Count only completed image media,

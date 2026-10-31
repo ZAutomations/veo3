@@ -2980,7 +2980,8 @@ Return ONLY {"scenes":[{"script_line":"corrected factual narration"},...]} in th
 
         console.log(`\n  wrote  ${storyPath}`);
         console.log(`  wrote  ${path.join(dir, 'style_bible.md')}`);
-        console.log(`  wrote  ${path.join(dir, 'thumbnail_prompt.txt')} (16:9)`);
+        const thumbnailAspect = ['9:16','16:9','1:1'].includes(story.aspect_ratio) ? story.aspect_ratio : '9:16';
+        console.log(`  wrote  ${path.join(dir, 'thumbnail_prompt.txt')} (${thumbnailAspect})`);
         console.log(`  wrote  ${path.join(dir, 'thumbnail_prompt_vertical.txt')} (9:16)`);
         const hasPlace = !!(story.place && story.place.description);
         // A place with no name of its own happens - it is asked of call 1, and an

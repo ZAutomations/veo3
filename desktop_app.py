@@ -18,6 +18,36 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from mcp_client import MCPClient
 
+def editing_python():
+    """Choose an installed interpreter with the local editing dependencies."""
+    candidates = [sys.executable]
+    if os.name == 'nt':
+        try:
+            found = subprocess.run(['py', '-0p'], capture_output=True, text=True, timeout=10)
+            for line in found.stdout.splitlines():
+                match = re.search(r'([A-Za-z]:\\.*?python(?:w)?\.exe)\s*$', line, re.I)
+                if match and match.group(1) not in candidates:
+                    candidates.append(match.group(1))
+        except (OSError, subprocess.SubprocessError):
+            pass
+        roots = [Path(os.environ.get('USERPROFILE', '')) / 'AppData' / 'Local' / 'Programs' / 'Python',
+                 Path(os.environ.get('LOCALAPPDATA', '')) / 'Programs' / 'Python']
+        for root in roots:
+            try:
+                for candidate in sorted(root.glob('Python*/python.exe')):
+                    if str(candidate) not in candidates:
+                        candidates.append(str(candidate))
+            except OSError:
+                pass
+    probe = 'import numpy, PIL, moviepy, scipy, whisper'
+    for candidate in candidates:
+        try:
+            check = subprocess.run([candidate, '-c', probe], capture_output=True, timeout=20)
+            if check.returncode == 0:
+                return candidate
+        except (OSError, subprocess.SubprocessError):
+            continue
+    return sys.executable
 ROOT = Path(__file__).resolve().parent
 UI = ROOT / 'desktop_ui'
 STATE = ROOT / 'desktop_settings.json'
@@ -622,7 +652,7 @@ class Job:
         mode = self.payload.get('view', 'agent')
         enabled = self.payload.get('usePresetRefs', reference_library_settings()['modes'].get(mode, True))
         env['VEO_PRESET_REFS'] = '1' if enabled else '0'
-        env['VEO_PYTHON'] = sys.executable
+        env['VEO_PYTHON'] = editing_python()
         policy=self.payload.get('_globalWorkflow',GLOBAL_WORKFLOW_DEFAULTS)
         env['VEO_ACTIVITY_WAIT_SECONDS']=str(policy['activityCooldownSeconds'])
         env['VEO_ACTIVITY_MAX_ATTEMPTS']=str(policy['activityMaxAttempts'])
@@ -657,7 +687,8 @@ class Job:
                 filename, request = spec
                 requestfile = ROOT / 'logs' / 'desktop' / (self.id + '.json')
                 save_json(requestfile, request)
-                kind, spec = 'cli', ([sys.executable, str(ROOT / filename), str(requestfile)] if filename.endswith('.py') else command(filename, requestfile))
+                python = editing_python() if filename == 'video_editing.py' else sys.executable
+                kind, spec = 'cli', ([python, str(ROOT / filename), str(requestfile)] if filename.endswith('.py') else command(filename, requestfile))
             if kind == 'cli':
                 self.log('Starting ' + Path(spec[1]).name)
                 with lock:

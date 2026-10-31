@@ -462,9 +462,9 @@
       "id": "reference-wolf-dark-secrets-fable-dialogue",
       "name": "Wolf Dark Secrets",
       "style": "Vintage 2D storybook fable illustration, defined ink contours, textured matte watercolor background, anthropomorphic animals in mid-century attire, soft volumetric lighting.",
-      "direction": "Paced philosophical dialogue between an articulate mentor wolf and a troubled companion. Staging alternates between steady woodland walks and thoughtful pauses, ending with a direct-to-audience address at sunset. SHARED PRODUCTION AND RECOVERY: Keep each topic concretely visible, with a specific first-three-second hook and a complete payoff. Retain analyzed character identities, clothing, materials and topic-driven locations. Use motivated camera departure/travel/arrival only where spatially coherent; retain locked cameras and deliberate cuts when the style requires them. When graphics belong to the analyzed style or user request, specify the exact target, local timing, animated icon/badge/arrow/ring, tracking and fade within its Shot/Effect; never rely on a global graphics sentence or contradict it with Effect: None. Do not force graphics into a style that excludes them. Music follows the analyzed audio DNA and scene mood, quietly beneath speech; preserve no-music and silent modes. Before retrying audit requested scene IDs, ready assets, active generations, missing scenes and exact errors. Preserve completed and generating clips. For an identified policy failure only, apply a bounded substantive compliant visual revision, never conceal prohibited likenesses or bypass filters; repeated refusal stops for review. Reuse and verify required matching character/location reference images and established voice using project asset tools; never duplicate references or substitute an irrelevant location. Preserve scene IDs, approved facts, appropriate spoken lines and video settings. Do not claim attachment or generation success without verifying actual tool results.",
-      "camera": "Vertical 9:16 compositions, balanced two-shot framing, slow lateral dolly tracking during travel, static medium shots for emotional reveals, and a gentle push-in close-up on the final moral delivery.",
-      "sound_style": "Intimate dialogue-driven audio mix, resonant close-mic voice acting, gentle wind and leaf rustle ambience, accompanied by slow fingerpicked acoustic guitar and melancholic piano.",
+      "direction": "Companion is the bear processing relationship hurt, betrayal, friendship problems, rejection, or feeling unappreciated. Wolf is his calm, wise friend. For the standard 8-clip story, use this fixed arc: clips 1–4 are their conversation, with Companion explaining the issue and Wolf listening, asking thoughtful questions, and briefly reflecting what he hears; clips 5–6 are Wolf's focused, caring, practical counsel to Companion; clips 7–8 have Wolf turn to camera and address the audience directly with concrete advice for avoiding this situation and steps to take if they are already facing it. In other durations, preserve the same phases and reserve the final two clips for Wolf's audience advice. Keep all scenes in one calm setting; Wolf and Companion may sit together or walk slowly, and only use natural listening gestures and expressions. Do not enact the topic as a plot, mystery, confrontation, rescue, task, journey or physical demonstration. No topic props, clues, evidence, absent partners or additional visible/speaking characters. No narrator or third-party speaker. Keep dialogue concise, empathetic and distinct; avoid repetitive morals and long monologues.",
+      "camera": "Quiet conversational coverage in one calm setting. In the opening conversation and counsel, use stable two-shots, speaker close-ups and brief listener reactions, with consistent wardrobe, spatial direction and unhurried pace. In the final two clips, frame Wolf in a steady medium close-up looking into the camera as he gives direct audience advice; Companion may remain quietly beside him or out of frame. No action coverage, prop inserts, dramatic camera moves or montage.",
+      "sound_style": "Native in-scene dialogue with two original, clearly distinct male character voices. Wolf: calm, articulate lower-mid voice with measured pacing; Companion: warmer, slightly lighter voice with a thoughtful, vulnerable tone. Keep each voice stable and separate in every clip; only the labelled speaker talks, never swap, merge, double, overlap or blend voices. No narrator. Use one continuous, identical instrumental BGM bed in every clip: soft acoustic guitar and gentle piano, same melody/motif, instrumentation, tempo, mood, mix level and texture from the first clip through the last. Do not restart, replace, vary, swell or stop the music between clips. Quiet consistent woodland or room ambience; dialogue remains clear over the music.",
       "ready_script_mode": "dialogue",
       "reference_cast": [
         {
@@ -485,29 +485,31 @@
       "scene_seconds": 8,
       "analysis_dna": {
         "locked": [
-          "2D illustrated animation aesthetic with dark hand-drawn outlines",
-          "Two-character anthropomorphic dialogue dynamic",
-          "Costume continuity across all clips",
-          "Cross-dissolve scene transitions",
-          "Slow acoustic guitar and piano musical underscore",
-          "Final shot direct-to-camera philosophical address at golden hour"
+          "Conversation-only emotional storytelling; no dramatized plot or topic-related physical action",
+          "Only Wolf and Companion appear; Companion is the person sharing the hurt and Wolf is the attentive counselor",
+          "Clips 1–4 are the Companion and Wolf conversation; clips 5–6 are Wolf's practical counsel; final 2 clips are Wolf's direct advice to the audience",
+          "Two separate native voices: Wolf calm and lower-mid; Companion warmer and slightly lighter",
+          "Stable original character designs, costumes and one calm setting throughout a story",
+          "Quiet 2D storybook illustration style and the exact same acoustic guitar/piano BGM bed, motif, tempo and mix in every clip"
         ],
         "controlled": [
-          "Screen direction axis (Wolf on left, Companion on right)",
-          "Time of day progression from late afternoon dappled light into sunset",
-          "Pacing of speech with pauses reflecting character contemplation",
-          "Foliage and environmental density matching the narrative progression"
+          "Both characters sit together or walk slowly side by side",
+          "Turn-taking, speaker focus and listening reactions",
+          "Soft late-afternoon, evening or moonlit lighting suited to the chosen setting",
+          "Subtle expressions, pauses and small natural gestures"
         ],
         "free": [
-          "Specific philosophical or psychological topic explored in the dialogue",
-          "Incidental background flora, bridges, boulders, and distant mountains",
-          "Subtle character gestures, hand positioning, and walking speed"
+          "The relationship, betrayal, friendship, acceptance or self-worth topic",
+          "The calm setting chosen for the conversation",
+          "The specific advice, boundary or insight reached through dialogue"
         ],
         "avoid": [
-          "Modern technology, vehicles, or contemporary urban structures",
-          "Fast cutting, jump cuts, or rapid montage sequences",
-          "Bright neon palettes, pop soundtrack elements, or loud sound effects",
-          "3D polygon rendering or glossy photorealistic surfaces"
+          "Literal reenactment of betrayal or relationship problems",
+          "Clue-finding, letters, secret objects, evidence, ledgers, keys or property tasks",
+          "Confrontations, absent partners, extra villagers, witnesses or other visible characters",
+          "Running, rushing, grabbing, packing, leaving, building, repairing or solving a physical task",
+          "Voice swapping, same-sounding shared voices, overlapping speech, mixed dialogue or narrator",
+          "Direct-to-camera address before the final two clips, dramatic montage, fast cutting, changing music or action staging"
         ]
       },
       "label": "Wolf Dark Secrets",
@@ -524,7 +526,15 @@
       "seconds": 8,
       "duration": 64,
       "default_clip_count": 8,
-      "default_duration": 64
+      "default_duration": 64,
+      "story_shapes": [
+        "Companion asks why their sincere effort is not appreciated; Wolf listens and helps separate self-worth from other people’s approval.",
+        "Companion describes feeling betrayed by a friend; Wolf listens, explores trust and boundaries, and offers a calm perspective.",
+        "Companion wonders whether forgiving a friend means restoring the same closeness; Wolf distinguishes forgiveness from access.",
+        "Companion feels excluded or misunderstood; Wolf helps consider belonging, honest communication and self-respect.",
+        "Companion worries that loyalty is one-sided; Wolf discusses reciprocity without condemning or confronting anyone.",
+        "Companion regrets trusting someone; Wolf offers compassion and a grounded lesson about learning without becoming bitter."
+      ]
     }
   ]
 }

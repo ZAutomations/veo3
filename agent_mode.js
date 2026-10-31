@@ -224,10 +224,6 @@ let EXPECTED_CLIPS = (() => {
 })();
 const MANUAL_ADD_COUNT = Math.max(0, parseInt(flag('--manual-add-count', '0'), 10) || 0);
 let manualBaselineFailures = 0;
-// Agent batches use the user's fixed narrator asset, including manual and
-// resumed runs whose saved commands do not contain a --voice argument.
-const VOICES = (() => { return ['Alnilam']; })();
-
 // ---- character reference sheets --------------------------------------------
 // A raw Image tile is what keeps the cast stable, and Flow only offers one if
 // the sheet is already in the project's asset list. --refs puts them there
@@ -238,6 +234,23 @@ const VOICES = (() => { return ['Alnilam']; })();
 //   --refs a.jpg,b.jpg        upload named files
 //   --no-upload-refs          never upload; only prefer Image tiles if present
 const REFS_RAW    = flag('--refs');
+const STORY_AUDIO = (() => {
+    if (typeof REFS_RAW !== 'string' || !/\.json$/i.test(REFS_RAW) || !fs.existsSync(REFS_RAW)) return null;
+    try { return JSON.parse(fs.readFileSync(REFS_RAW, 'utf8')); } catch { return null; }
+})();
+const DIALOGUE_SPEAKERS = [...new Set((STORY_AUDIO?.scenes || []).flatMap(s => (s.dialogue || []).map(t => String(t.speaker || '').trim())).filter(Boolean))];
+const AUTO_NATIVE_DIALOGUE_VOICES = STORY_AUDIO?.narration_scope === 'dialogue' && DIALOGUE_SPEAKERS.length > 0;
+// Flow voice ingredients apply to the whole prompt. They cannot be bound to
+// individual dialogue speakers, so dialogue stories use Veo's native voices.
+const VOICES = AUTO_NATIVE_DIALOGUE_VOICES ? [] : ['Alnilam'];
+if (AUTO_NATIVE_DIALOGUE_VOICES && SEND_TEXT) {
+    let voiceDirection = `NATIVE CHARACTER DIALOGUE VOICES: Generate original in-scene speech for each named character. Use a clearly distinct vocal identity for each speaker and keep each identity consistent across every clip. Do not use a narrator or a shared voice for different characters. Do not attach or apply one Flow voice asset to the whole cast. Never swap, merge, double, blend, or overlap the speakers or their lines. Only the named speaker delivers their own line and moves their lips; all listeners stay silent with mouths closed. Speakers: ${DIALOGUE_SPEAKERS.join(', ')}.`;
+    const speakerNames = DIALOGUE_SPEAKERS.map(s => s.toLowerCase());
+    if (speakerNames.includes('wolf') && speakerNames.includes('companion')) {
+        voiceDirection += ' Wolf has a calm, articulate, lower-mid masculine voice with measured pacing. Companion has a warmer, slightly lighter masculine voice with more tentative pacing. Keep the contrast natural, not exaggerated. In this preset, clips 1–4 are their issue conversation, clips 5–6 are Wolf counseling Companion, and the final two clips are Wolf speaking directly to the audience; keep Wolf’s voice identity unchanged and never attach one shared Flow voice asset.';
+    }
+    SEND_TEXT += '\n\n' + voiceDirection;
+}
 const UPLOAD_REFS = !flag('--no-upload-refs', false);
 const REFS = (() => {
     const out = [];
@@ -1252,8 +1265,20 @@ async function uploadRefThroughPicker(page, box, file) {
     }
 
     // ---- 5c. Voice asset(s) ------------------------------------------------
-    // One voice for a narrator, two for a two-hander. Attached last so the
-    // chips sit alongside the mentions and before the final submit.
+    // Flow voice ingredients apply to the whole prompt, not individual turns.
+    // Dialogue stories clear stale shared voices and use Veo-native speakers.
+    if (AUTO_NATIVE_DIALOGUE_VOICES) {
+        banner('NATIVE DIALOGUE VOICES');
+        await page.evaluate(require('./agent_voice_chip').agentVoiceChipState, { phase: 'clear' });
+        let remaining = 0;
+        for (let poll = 0; poll < 20; poll++) {
+            remaining = (await page.evaluate(require('./agent_voice_chip').agentVoiceChipState, {})).count;
+            if (!remaining) break;
+            await wait(250);
+        }
+        if (remaining) throw Error(`Could not clear ${remaining} shared voice ingredient(s). No batch submitted.`);
+        log(`No voice asset attached. Veo will generate distinct native voices for: ${DIALOGUE_SPEAKERS.join(', ')}.`);
+    }
     if (VOICES.length) {
         banner(`VOICE (${VOICES.join(', ')})`);
         for (const v of VOICES) {
