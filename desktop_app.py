@@ -11,6 +11,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.request
 import uuid
 
 from fastapi import FastAPI, HTTPException, Request, Header
@@ -187,6 +188,13 @@ def active_account():
     accounts = data.get('accounts', [])
     index = data.get('current', 0)
     return accounts[index].get('label', '') if accounts and 0 <= index < len(accounts) else ''
+
+
+def active_account_details():
+    data = read_json(ROOT / 'accounts.json')
+    accounts = data.get('accounts', [])
+    index = data.get('current', 0)
+    return accounts[index] if accounts and isinstance(index, int) and 0 <= index < len(accounts) else {}
 
 
 def command(filename, *args):
@@ -579,6 +587,96 @@ class Job:
         self.phase = 'starting'
         self.operation_projects = {}
         self.operation_phases = {}
+        self.current_story = payload.get('story') or (payload.get('queue') or [''])[0]
+        self.current_project_url = payload.get('project', '')
+        self.project_account_email = str(active_account_details().get('email') or '').strip()
+
+    def _story_for_operation(self, index):
+        def extract(kind, spec):
+            if kind == 'request' and isinstance(spec, (list, tuple)) and len(spec) == 2:
+                request = spec[1]
+                if isinstance(request, dict):
+                    return request.get('story') or next(iter(request.get('stories', [])), '')
+            if kind == 'mcp' and isinstance(spec, (list, tuple)) and len(spec) == 2:
+                args = spec[1]
+                if isinstance(args, dict):
+                    return args.get('story') or next(iter(args.get('stories', [])), '')
+            if kind == 'cli' and isinstance(spec, (list, tuple)):
+                for value in spec:
+                    text = str(value)
+                    if text.lower().endswith('_story.json'):
+                        return text
+            return ''
+
+        for offset in range(index, len(self.operations)):
+            kind, spec = self.operations[offset]
+            if offset > index and kind == 'cli' and any(str(x).endswith('queue_account.js') for x in spec):
+                break
+            found = extract(kind, spec)
+            if found:
+                return str(found)
+        return ''
+
+    def mark_incomplete_and_stop(self):
+        if self.status == 'completed':
+            raise ValueError('This job is already completed.')
+        story_value = self.current_story or self.payload.get('story')
+        if not story_value:
+            raise ValueError('Could not identify the story folder for this project.')
+        source, _ = story_path(story_value)
+        project_url = self._project_url_from_browser(source)
+        email = self.project_account_email or str(active_account_details().get('email') or '').strip()
+        if not email:
+            label = str(active_account_details().get('label') or active_account()).strip()
+            raise ValueError('Add the Gmail address for the active Flow account in Settings → Accounts first.' + (f' Active profile: {label}.' if label else ''))
+        marker = source.parent / 'incomplete project.txt'
+        temp = marker.with_name(marker.name + '.' + uuid.uuid4().hex + '.tmp')
+        try:
+            temp.write_text(f'Google account (Gmail): {email}\nFlow project URL: {project_url}\n', encoding='utf-8')
+            temp.replace(marker)
+        finally:
+            temp.unlink(missing_ok=True)
+        self.log('INCOMPLETE PROJECT: saved the active Flow account Gmail and Flow project URL in ' + str(marker) + '.')
+        if self.status == 'running':
+            self.stop()
+        return dict(file=str(marker), email=email, project=project_url)
+
+    def _project_url_from_browser(self, source):
+        port = self.payload.get('cdp') or self.payload.get('_globalWorkflow', {}).get('automationCdp') or GLOBAL_WORKFLOW_DEFAULTS['automationCdp']
+        candidates = set()
+        try:
+            with urllib.request.urlopen(f'http://127.0.0.1:{int(port)}/json/list', timeout=3) as response:
+                targets = json.loads(response.read().decode('utf-8', errors='replace'))
+            for target in targets:
+                if target.get('type') != 'page':
+                    continue
+                match = re.search(r'https://flow\.google\.com/project/([\w-]+)', str(target.get('url') or ''))
+                if match:
+                    candidates.add('https://flow.google.com/project/' + match[1])
+        except (OSError, ValueError, TypeError):
+            pass
+
+        # Prefer the project checkpoint bound to this exact story when more
+        # than one Flow project tab is open in the automation browser.
+        fingerprint = hashlib.sha256(source.read_bytes()).hexdigest()
+        for checkpoint in source.parent.glob('agent_batches_*.json'):
+            state = read_json(checkpoint)
+            project_id = str(state.get('project') or '')
+            if state.get('fingerprint') == fingerprint and project_id:
+                matched = 'https://flow.google.com/project/' + project_id
+                if not candidates or matched in candidates:
+                    return matched
+        if self.current_project_url:
+            match = re.search(r'https://flow\.google\.com/project/([\w-]+)', self.current_project_url)
+            if match:
+                known = 'https://flow.google.com/project/' + match[1]
+                if not candidates or known in candidates:
+                    return known
+        if len(candidates) == 1:
+            return next(iter(candidates))
+        if not candidates:
+            raise ValueError(f'No Flow project tab found in the automation browser on port {port}. Open this project in that browser, then press again.')
+        raise ValueError('Several Flow project tabs are open and this story has no matching project checkpoint. Leave only the intended project open, then press again.')
 
     def save_progress(self):
         view = self.payload.get('view', 'writer' if self.lane == 'writer' else '')
@@ -605,6 +703,8 @@ class Job:
             changed = True
         if match and ('PROJECT_URL:' in line or re.search(r'\bproject\s*(?:->|:)', line, re.I)):
             self.payload['project'] = 'https://flow.google.com/project/' + match[1]
+            self.current_project_url = self.payload['project']
+            self.project_account_email = str(active_account_details().get('email') or '').strip()
             self.operation_projects[str(self.operation_index)] = self.payload['project']
             changed = True
         if re.search(r'Download >|Downloading|downloads? finished|upscaled download', line, re.I) and self.phase != 'download':
@@ -679,7 +779,11 @@ class Job:
             self.phase = 'running operation ' + str(index + 1)
             self.save_progress()
             if self.action == 'generate_queue':
-                story = spec[1].get('story') if kind == 'request' else spec[1].get('stories', [''])[0] if kind == 'mcp' else next((str(x) for x in spec if str(x).endswith('.json')), '')
+                story = self._story_for_operation(index) or (self.current_story if index == 0 else '')
+                if story and story != self.current_story:
+                    self.current_story = story
+                    self.current_project_url = ''
+                    self.project_account_email = ''
                 self.log('STORY QUEUE: starting ' + str(story))
             if self.stopped:
                 break
@@ -1149,6 +1253,17 @@ def stop_job(job_id: str):
         raise HTTPException(404, 'Job not found.')
     jobs[job_id].stop()
     return {'ok': True}
+
+
+@app.post('/api/jobs/{job_id}/mark-incomplete')
+def mark_job_incomplete(job_id: str):
+    if job_id not in jobs:
+        raise HTTPException(404, 'Job not found.')
+    try:
+        result = jobs[job_id].mark_incomplete_and_stop()
+        return dict(ok=True, **result)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc))
 
 
 @app.get('/api/jobs/{job_id}/log')
