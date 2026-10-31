@@ -256,6 +256,7 @@ $('job-picker').onchange=()=>{selectedJob=$('job-picker').value;cursor=0;logLine
 $('pause-log').onclick=()=>{logPaused=logView.pause(!logPaused);$('pause-log').textContent=logPaused?'Resume log':'Pause log';};
 $('copy-log').onclick=async()=>{let full=logLines.join('\n');try{if(selectedJob)full=(await api(`jobs/${selectedJob}/log`)).text||full;await navigator.clipboard.writeText(full);toast('Full job log copied.');}catch(_){$('prompt-title').textContent='Full job log';$('prompt-text').value=full;$('prompt-dialog').showModal();$('prompt-text').focus();$('prompt-text').select();toast('Press Ctrl+C to copy the selected log.');}};
 $('stop-job').onclick=async()=>{if(selectedJob){await api(`jobs/${selectedJob}/stop`,{});pollJobs();}};
+$('mark-incomplete').onclick=async()=>{if(!selectedJob)return;const button=$('mark-incomplete');button.disabled=true;try{const result=await api(`jobs/${selectedJob}/mark-incomplete`,{});toast(`Saved account and Flow project URL to ${result.file}; job stopped.`);await pollJobs();}catch(e){toast(e.message,true);await pollJobs();}};
 async function refreshData(){[library,accounts]=await Promise.all([api('library'),api('accounts')]);}
 let polling=false;
 async function pollJobs(){
@@ -264,7 +265,7 @@ async function pollJobs(){
   const previous=knownJobs;knownJobs=(await api('jobs')).filter(j=>!writerOnly||j.lane==='writer');const active=knownJobs.filter(j=>j.status==='running');$('running-pill').textContent=active.length?`${active.length} active job${active.length===1?'':'s'}`:'No active jobs';$('running-pill').classList.toggle('busy',active.length>0);$('activity').classList.toggle('busy',active.length>0);
   if(!selectedJob&&knownJobs.length)selectedJob=knownJobs[0].id;
   const pickerHTML=knownJobs.length?knownJobs.map(j=>`<option value="${j.id}" ${j.id===selectedJob?'selected':''}>${esc(j.lane+' · '+j.action+' · '+j.status)}</option>`).join(''):'<option>No jobs yet</option>';if($('job-picker').innerHTML!==pickerHTML)$('job-picker').innerHTML=pickerHTML;
-  if(selectedJob){const data=await api(`jobs/${selectedJob}?after=${cursor}`);cursor=data.cursor;logLines.push(...data.logs.map(x=>x.text));logView.append(data.logs.map(x=>x.text));$('stop-job').disabled=data.status!=='running';$('activity-status').textContent=`${data.lane==='writer'?'Writing':data.lane==='editing'?'Video editing':'Flow'} · ${data.status}`;}
+  if(selectedJob){const data=await api(`jobs/${selectedJob}?after=${cursor}`);cursor=data.cursor;logLines.push(...data.logs.map(x=>x.text));logView.append(data.logs.map(x=>x.text));$('stop-job').disabled=data.status!=='running';$('mark-incomplete').disabled=data.status==='completed';$('activity-status').textContent=`${data.lane==='writer'?'Writing':data.lane==='editing'?'Video editing':'Flow'} · ${data.status}`;}else $('mark-incomplete').disabled=true;
   if(knownJobs.some(j=>j.status!=='running'&&previous.find(p=>p.id===j.id)?.status==='running')){await refreshData();if(['home','library','accounts'].includes(current))render();}
  }catch(e){$('activity-status').textContent='Connection interrupted';}finally{polling=false;}
 }
