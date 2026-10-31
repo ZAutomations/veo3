@@ -709,7 +709,19 @@ async function activateVideoTile(page, tile, needSource = true) {
     const failedVideoTiles = inv.tiles.filter(t => isVideoRecord(t) && isFailedRecord(t));
     const videoTiles = inv.tiles.filter(t => isVideoRecord(t) && !isFailedRecord(t));
     const imageTiles = inv.tiles.filter(t => !isVideoRecord(t));
-    const thumbnailTiles = imageTiles.filter(t => /\bthumbnail\b/i.test([t.assetTitle,t.text,t.aria,t.title].filter(Boolean).join(' ')))
+    const thumbnailTiles = imageTiles.filter(t => {
+        // Flow's virtual grid can concatenate Material icon ligatures directly
+        // with the asset name (e.g. "favoriteredomore_vertimageThumbnail"),
+        // so word-boundary matching the visible text misses a real Thumbnail
+        // tile. The tile's accessible footer button is the most reliable label.
+        const labels = [t.assetTitle,t.text,t.aria,t.title,
+            ...(Array.isArray(t.buttons) ? t.buttons.flatMap(b => [b.aria,b.text]) : [])]
+            .filter(Boolean).join(' ');
+        const normalized = labels.replace(/([a-z])([A-Z])/g, '$1 $2')
+            .replace(/(?:favorite|more_vert|redo|image|add_2|download)/gi, ' ')
+            .replace(/\s+/g, ' ').trim();
+        return /\bthumbnail\b/i.test(normalized);
+    })
         .sort((a,b) => a.gridY - b.gridY || a.gridX - b.gridX);
     const thumbnailTile = thumbnailTiles[0] || null;
     const storyMeta = STORY_FILE && fs.existsSync(STORY_FILE) ? JSON.parse(fs.readFileSync(STORY_FILE, 'utf8')) : null;
