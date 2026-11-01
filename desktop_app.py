@@ -19,9 +19,10 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from mcp_client import MCPClient
 
-def editing_python():
+def editing_python(require_whisper=False):
     """Choose an installed interpreter with the local editing dependencies."""
-    candidates = [sys.executable]
+    app_venv = Path(__file__).resolve().parent / '.venv' / 'Scripts' / 'python.exe'
+    candidates = [str(app_venv), sys.executable]
     if os.name == 'nt':
         try:
             found = subprocess.run(['py', '-0p'], capture_output=True, text=True, timeout=10)
@@ -48,6 +49,11 @@ def editing_python():
                 return candidate
         except (OSError, subprocess.SubprocessError):
             continue
+    if require_whisper:
+        raise RuntimeError(
+            'Video editing Python dependencies are missing. Run Setup\\INSTALL.bat once '
+            'to install the app environment, including openai-whisper, then restart Studio.'
+        )
     return sys.executable
 ROOT = Path(__file__).resolve().parent
 UI = ROOT / 'desktop_ui'
@@ -791,7 +797,7 @@ class Job:
                 filename, request = spec
                 requestfile = ROOT / 'logs' / 'desktop' / (self.id + '.json')
                 save_json(requestfile, request)
-                python = editing_python() if filename == 'video_editing.py' else sys.executable
+                python = editing_python(require_whisper=True) if filename == 'video_editing.py' else sys.executable
                 kind, spec = 'cli', ([python, str(ROOT / filename), str(requestfile)] if filename.endswith('.py') else command(filename, requestfile))
             if kind == 'cli':
                 self.log('Starting ' + Path(spec[1]).name)

@@ -656,6 +656,13 @@ def extract_word_timestamps(audio_path: str, model_size: str = "medium",
     except ImportError:
         _log("[WHISPER] faster-whisper not installed — falling back to "
              "openai-whisper")
+        try:
+            import whisper  # noqa: F401
+        except ImportError as exc:
+            raise RuntimeError(
+                "Speech transcription needs openai-whisper. Run Setup\\INSTALL.bat "
+                "from the tool folder, then restart Studio."
+            ) from exc
         return _extract_openai_whisper(audio_path, model_size, language)
 
     last_err = None

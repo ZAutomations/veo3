@@ -70,7 +70,7 @@ function refreshEditingButtons(){
  }
 
  for(const b of document.querySelectorAll('[data-edit-style]')){const s=editingStyles.find(x=>x.id===b.dataset.editStyle);const selected=s.preset===cfg.clipper_caption_preset&&s.animation===cfg.clipper_caption_animation;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',selected);}
- for(const b of document.querySelectorAll('[data-edit-swatch]'))b.classList.toggle('selected',b.dataset.editSwatch.toLowerCase()===(cfg.clipper_override_highlight_color||editingData.presets.find(p=>p.id===cfg.clipper_caption_preset)?.highlight_color||'').toLowerCase());
+ for(const b of document.querySelectorAll('[data-edit-swatch]'))b.classList.toggle('selected',b.dataset.editSwatch.toLowerCase()===(cfg.clipper_override_primary_color||cfg.clipper_override_highlight_color||editingData.presets.find(p=>p.id===cfg.clipper_caption_preset)?.primary_color||editingData.presets.find(p=>p.id===cfg.clipper_caption_preset)?.highlight_color||'').toLowerCase());
  for(const b of document.querySelectorAll('[data-edit-position]'))b.classList.toggle('selected',b.dataset.editPosition===cfg.caption_position);
  for(const b of document.querySelectorAll('[data-edit-size]'))b.classList.toggle('selected',Number(b.dataset.editSize)===Number(cfg.caption_font_size));
 }
@@ -102,7 +102,7 @@ function bindVideoEditing(){
  document.querySelectorAll('[data-edit-color]').forEach(el=>el.oninput=()=>{setEditingValue(el.dataset.editColor,el.value);queueEditingPreview();});
  document.querySelectorAll('[data-edit-reset]').forEach(b=>b.onclick=()=>{setEditingValue(b.dataset.editReset,'');queueEditingPreview();});
  document.querySelectorAll('[data-edit-style]').forEach(b=>b.onclick=()=>{const style=editingStyles.find(s=>s.id===b.dataset.editStyle),p=editingData.presets.find(p=>p.id===style.preset);setEditingValue('clipper_caption_preset',style.preset);setEditingValue('clipper_caption_animation',style.animation);setEditingValue('clipper_override_bg_enabled',!!p.background_enabled);setEditingValue('clipper_override_font_family','');setEditingValue('caption_font_size',72);setEditingValue('caption_text_case',['frameloom_karaoke','frameloom_smooth_rise'].includes(style.preset)?'Normal':'ALL CAPS');queueEditingPreview();});
- document.querySelectorAll('[data-edit-swatch]').forEach(b=>b.onclick=()=>{setEditingValue('clipper_override_highlight_color',b.dataset.editSwatch);if($('edit-clipper_override_bg_enabled').checked)setEditingValue('clipper_override_bg_color',b.dataset.editSwatch);queueEditingPreview();});
+ document.querySelectorAll('[data-edit-swatch]').forEach(b=>b.onclick=()=>{setEditingValue('clipper_override_primary_color',b.dataset.editSwatch);setEditingValue('clipper_override_highlight_color',b.dataset.editSwatch);if($('edit-clipper_override_bg_enabled').checked)setEditingValue('clipper_override_bg_color',b.dataset.editSwatch);queueEditingPreview();});
  document.querySelectorAll('[data-edit-position]').forEach(b=>b.onclick=()=>{setEditingValue('caption_position',b.dataset.editPosition);queueEditingPreview();});
  document.querySelectorAll('[data-edit-size]').forEach(b=>b.onclick=()=>{setEditingValue('caption_font_size',Number(b.dataset.editSize));queueEditingPreview();});
  $('editingPreviewText').oninput=queueEditingPreview;

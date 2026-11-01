@@ -373,12 +373,34 @@ def crossfade_silence_segments(source,output,segments,cfg):
             except Exception:pass
 
 
+def whisper_python():
+    """Pick the app environment for caption transcription, including live previews."""
+    candidates=[ROOT/'.venv'/'Scripts'/'python.exe',Path(sys.executable)]
+    if os.name=='nt':
+        try:
+            found=subprocess.run(['py','-0p'],capture_output=True,text=True,timeout=10)
+            for line in found.stdout.splitlines():
+                match=re.search(r'([A-Za-z]:\\.*?python(?:w)?\.exe)\s*$',line,re.I)
+                if match:candidates.append(Path(match.group(1)))
+        except (OSError,subprocess.SubprocessError):pass
+    seen=set()
+    for candidate in candidates:
+        key=str(candidate).lower()
+        if key in seen or not candidate.is_file():continue
+        seen.add(key)
+        try:
+            check=subprocess.run([str(candidate),'-c','import whisper'],capture_output=True,timeout=20)
+            if check.returncode==0:return candidate
+        except (OSError,subprocess.SubprocessError):continue
+    raise RuntimeError('Speech caption preview needs openai-whisper in the Studio Python environment. Run Setup\\INSTALL.bat once, then restart Studio.')
+
+
 def transcribe(source,folder,cfg):
     fingerprint=hashlib.sha256((str(source.resolve())+str(source.stat().st_size)+str(source.stat().st_mtime_ns)+cfg['editing_whisper_model']+str(cfg['caption_language'])).encode()).hexdigest()[:16]
     target=folder/f'words_{fingerprint}.json'
     if not target.is_file():
         log('Transcribing final edited speech locally for word-level caption timing...')
-        command=[sys.executable,PORT/'_whisper_word_timestamps.py',source,'--output',target,'--model',cfg['editing_whisper_model']]
+        command=[whisper_python(),PORT/'_whisper_word_timestamps.py',source,'--output',target,'--model',cfg['editing_whisper_model']]
         lang={'english':'en','russian':'ru','arabic':'ar','urdu':'ur','japanese':'ja','chinese':'zh','korean':'ko','hindi':'hi','thai':'th'}.get(cfg['caption_language'])
         if lang:command+=['--language',lang]
         run(command,timeout=3600)
@@ -405,7 +427,8 @@ def build_captions(words,path,info,cfg):
             text=str(word['word'])
             if cfg['caption_text_case']=='Title Case':text=text.title()
             if end>start:timed.append(dict(word=text,start=start,end=end))
-        overrides=dict(highlight_color=cfg.get('clipper_override_highlight_color') or '#2BFF5A',
+        overrides=dict(primary_color=cfg.get('clipper_override_primary_color') or '',
+            highlight_color=cfg.get('clipper_override_highlight_color') or '#2BFF5A',
             size_scale=float(cfg['caption_font_size'])/72,words_per_phrase=int(cfg['caption_words_per_line']),
             font_family=cfg.get('clipper_override_font_family') or fc.STYLES[name][1],
             uppercase=cfg['caption_text_case']=='ALL CAPS',y_offset=cfg['caption_y_offset'])

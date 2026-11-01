@@ -199,7 +199,7 @@ def build_ass(pid_dir, width, height, setting=None, *, word_items=None, override
     label, latin_font, per = STYLES[style_id]
     overrides = overrides or {}
     accent = overrides.get("highlight_color") or COLORS[s["color"]]
-    base = "#FFFFFF" if s["color"] != "white" else "#C9CED8"
+    base = overrides.get("primary_color") or ("#FFFFFF" if s["color"] != "white" else "#C9CED8")
     words = [(str(w["word"]),float(w["start"]),float(w["end"])) for w in word_items] if word_items is not None else _words(pid_dir)
     if not words:
         return ""
