@@ -76,7 +76,7 @@ const REENCODE  = !!flag('--reencode', false);
 const DRY_RUN   = !!flag('--dry-run', false);
 const ALLOW_PARTIAL = !!flag('--allow-partial', false);
 const NO_THUMBNAIL = !!flag('--no-thumbnail', false);
-const THUMBNAIL_SECONDS = Math.max(1, Math.min(10, Number(flag('--thumbnail-seconds', '3')) || 3));
+const THUMBNAIL_SECONDS = Math.max(2, Math.min(10, Number(flag('--thumbnail-seconds', '4')) || 4));
 
 // ── collect the clip files ---------------------------------------------------
 const SKIP = /(_final|_joined|_concat)\.mp4$/i;
@@ -348,15 +348,13 @@ if (thumbnailPath) {
     const segmentPath = path.join(DIR, thumbnailSegmentName);
     const first = probes.get(ordered[0]);
     if (!first?.width || !first.height) throw new Error('Cannot size the thumbnail end card without a valid first clip.');
-    const imageInfo = JSON.parse(execFileSync('ffprobe',['-v','error','-select_streams','v:0','-show_entries','stream=width,height','-of','json',thumbnailPath],{encoding:'utf8',timeout:30000,windowsHide:true}));
-    const imageStream=(imageInfo.streams||[])[0];
-    if (!imageStream?.width || !imageStream.height || Math.abs(imageStream.width/imageStream.height-first.width/first.height)>0.015) {
-        throw new Error('Downloaded thumbnail ratio does not match the video clips; original clips and thumbnail were preserved. Regenerate the thumbnail with the selected video aspect ratio.');
-    }
     const fps = first.fps || '24';
     const segmentArgs = ['-y','-loop','1','-framerate',fps,'-i',thumbnailPath,
         '-f','lavfi','-i','anullsrc=r=48000:cl=stereo','-t',String(THUMBNAIL_SECONDS),
-        '-vf',`scale=${first.width}:${first.height}:force_original_aspect_ratio=decrease,pad=${first.width}:${first.height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${fps},format=yuv420p`,
+        // Fill the video frame while preserving the thumbnail's proportions.
+        // Center-crop any excess so mismatched source ratios never add bars or
+        // cause the end card to be rejected.
+        '-vf',`scale=${first.width}:${first.height}:force_original_aspect_ratio=increase,crop=${first.width}:${first.height},setsar=1,fps=${fps},format=yuv420p`,
         '-c:v','libx264','-preset','veryfast','-crf','18','-c:a','aac','-ar','48000','-ac','2','-b:a','192k','-shortest',segmentPath];
     execFileSync('ffmpeg',segmentArgs,{stdio:'ignore',timeout:120000,windowsHide:true});
     const p=probe(segmentPath);

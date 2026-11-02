@@ -149,7 +149,18 @@ def original_boundaries(source, report=None):
     return sorted(set(float(x) for x in re.findall(r'^\d+\s*\|\s*([\d.]+)s\s*\|',text,re.M) if float(x)>0))
 
 
-def remove_silence(source, output, cfg, info):
+def original_end_card_start(source, report=None):
+    """Return the source-timeline start of the appended thumbnail, if recorded."""
+    report=Path(report) if report else source.parent/'JOINED_CLIP_ORDER.txt'
+    if not report.is_file(): return None
+    text=report.read_text(encoding='utf-8-sig')
+    match=re.search(r'^Completed video:\s*(.+)$',text,re.M)
+    if not match or Path(match.group(1).strip()).resolve()!=source.resolve(): return None
+    card=re.search(r'^\s*\d+\s*\|\s*([\d.]+)s\s*\|.*\(thumbnail end card\)\s*$',text,re.M|re.I)
+    return float(card.group(1)) if card else None
+
+
+def remove_silence(source, output, cfg, info, protect_from=None):
     if not info['audio']:
         log('Silence removal skipped: video has no audio stream.')
         shutil.copy2(source,output);return [(0,info['duration'])]
@@ -158,6 +169,19 @@ def remove_silence(source, output, cfg, info):
         f"silencedetect=noise={cfg['silence_threshold']}dB:d={cfg['silence_min_duration']}",'-f','null','-'],timeout=600)
     starts=[float(s) for s in re.findall(r'silence_start:\s+([\d.]+)',result.stderr)]
     ends=[float(s) for s in re.findall(r'silence_end:\s+([\d.]+)',result.stderr)]
+    if protect_from is not None and 0 < protect_from < info['duration']:
+        # The thumbnail end card has a deliberately silent audio bed. Do not
+        # let silence removal interpret that designed ending as dead air.
+        clipped=[]; end_index=0
+        for start in starts:
+            while end_index < len(ends) and ends[end_index] < start: end_index+=1
+            if start >= protect_from: continue
+            end=ends[end_index] if end_index < len(ends) else info['duration']
+            if end_index < len(ends): end_index+=1
+            clipped.append((start,min(end,protect_from)))
+        starts=[start for start,_ in clipped]
+        ends=[end for _,end in clipped]
+        log(f"Preserving appended thumbnail end card from {protect_from:.2f}s to the end of the video.")
     if not starts:
         log('No qualifying silence; preserving video.');shutil.copy2(source,output)
         return [(0,info['duration'])]
@@ -504,7 +528,7 @@ def edit(source,values=None,report=None,output=None):
     final=Path(output).resolve() if output else source.with_name(source.stem+'_edited.mp4')
     if final==source:raise ValueError('Edited output must be a different file from the original.')
     folder=source.parent/'video_editing';folder.mkdir(exist_ok=True)
-    signature=hashlib.sha256((str(source)+str(source.stat().st_size)+str(source.stat().st_mtime_ns)+json.dumps(cfg,sort_keys=True)).encode()).hexdigest()
+    signature=hashlib.sha256(('thumbnail_end_card_preservation_v1'+str(source)+str(source.stat().st_size)+str(source.stat().st_mtime_ns)+json.dumps(cfg,sort_keys=True)).encode()).hexdigest()
     receipt=folder/'last_edit.json'
     if receipt.is_file():
         saved=json.loads(receipt.read_text(encoding='utf-8'))
@@ -513,10 +537,13 @@ def edit(source,values=None,report=None,output=None):
     work=folder/signature[:16];work.mkdir(exist_ok=True)
     current=source;segments=[(0,info['duration'])]
     boundaries=original_boundaries(source,report)
+    end_card_start=original_end_card_start(source,report)
+    if end_card_start is not None:
+        log(f'Thumbnail end card detected at {end_card_start:.2f}s; its full duration is protected during editing.')
     log(f'Dissolve: {"ON" if cfg["editing_transitions_enabled"] else "OFF"}; {len(boundaries)} verified clip join(s).')
     log(f'Camera transitions: {"ON" if cfg["editing_camera_enabled"] else "OFF"}.')
     if cfg['silence_removal_enabled']:
-        current=work/'silence_removed.mp4';segments=remove_silence(source,current,cfg,info)
+        current=work/'silence_removed.mp4';segments=remove_silence(source,current,cfg,info,protect_from=end_card_start)
     mapped=sorted(set(map_time(t,segments) for t in boundaries))
     cut_times=[sum(e-s for s,e in segments[:i]) for i in range(1,len(segments))]
     if cfg['silence_transition_enabled']:
