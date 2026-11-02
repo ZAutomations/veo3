@@ -461,8 +461,8 @@
     {
       "id": "reference-wolf-dark-secrets-fable-dialogue",
       "name": "Wolf Dark Secrets",
-      "style": "Vintage 2D storybook fable illustration, defined ink contours, textured matte watercolor background, anthropomorphic animals in mid-century attire, soft volumetric lighting.",
-      "direction": "Companion is the bear processing relationship hurt, betrayal, friendship problems, rejection, or feeling unappreciated. Wolf is his calm, wise friend. For the standard 8-clip story, use this fixed arc: clips 1–4 are their conversation, with Companion explaining the issue and Wolf listening, asking thoughtful questions, and briefly reflecting what he hears; clips 5–6 are Wolf's focused, caring, practical counsel to Companion; clips 7–8 have Wolf turn to camera and address the audience directly with concrete advice for avoiding this situation and steps to take if they are already facing it. In other durations, preserve the same phases and reserve the final two clips for Wolf's audience advice. Keep all scenes in one calm setting; Wolf and Companion may sit together or walk slowly, and only use natural listening gestures and expressions. Do not enact the topic as a plot, mystery, confrontation, rescue, task, journey or physical demonstration. No topic props, clues, evidence, absent partners or additional visible/speaking characters. No narrator or third-party speaker. Keep dialogue concise, empathetic and distinct; avoid repetitive morals and long monologues.",
+      "style": "Original hand-painted 2D gouache and colored-pencil animation with visible paper grain, bold irregular contours, asymmetrical character silhouettes, deep-teal, warm-ochre and cream accents, and soft cinematic lamplight. Preserve the two characters’ distinct facial markings, silhouettes and simple garments.",
+      "direction": "Companion is the bear processing relationship hurt, betrayal, friendship problems, rejection, or feeling unappreciated. Wolf is his calm, wise friend. For the standard 8-clip story, use this fixed arc: clips 1–4 are their conversation, with Companion explaining the issue and Wolf listening, asking thoughtful questions, and briefly reflecting what he hears; clips 5–6 are Wolf's focused, caring, practical counsel to Companion; clips 7–8 have Wolf turn to camera and address the audience directly with concrete advice for avoiding this situation and steps to take if they are already facing it. In other durations, preserve the same phases and reserve the final two clips for Wolf's audience advice. Keep all scenes in one calm setting; Wolf and Companion may sit together or walk slowly, and only use natural listening gestures and expressions. Do not enact the topic as a plot, mystery, confrontation, rescue, task, journey or physical demonstration. No topic props, clues, evidence, absent partners or additional visible/speaking characters. Only Wolf and Companion may appear or speak; neither is a narrator. Keep dialogue concise, empathetic and distinct; avoid repetitive morals and long monologues.",
       "camera": "Quiet conversational coverage in one calm setting. In the opening conversation and counsel, use stable two-shots, speaker close-ups and brief listener reactions, with consistent wardrobe, spatial direction and unhurried pace. In the final two clips, frame Wolf in a steady medium close-up looking into the camera as he gives direct audience advice; Companion may remain quietly beside him or out of frame. No action coverage, prop inserts, dramatic camera moves or montage.",
       "sound_style": "Native in-scene dialogue with two original, clearly distinct male character voices. Wolf: calm, articulate lower-mid voice with measured pacing; Companion: warmer, slightly lighter voice with a thoughtful, vulnerable tone. Keep each voice stable and separate in every clip; only the labelled speaker talks, never swap, merge, double, overlap or blend voices. No narrator. Use one continuous, identical instrumental BGM bed in every clip: soft acoustic guitar and gentle piano, same melody/motif, instrumentation, tempo, mood, mix level and texture from the first clip through the last. Do not restart, replace, vary, swell or stop the music between clips. Quiet consistent woodland or room ambience; dialogue remains clear over the music.",
       "ready_script_mode": "dialogue",
@@ -471,13 +471,13 @@
           "name": "Wolf",
           "type": "animal",
           "gender": "male",
-          "description": "Anthropomorphic timber wolf with intelligent amber eyes, sleek grey and charcoal fur, dressed in a vintage olive-grey tailored trench coat, dark vest, white collared shirt, muted necktie, and a dark felt fedora."
+          "description": "Original anthropomorphic slate-grey timber wolf with amber eyes, a pale silver muzzle, a small natural notch in the left ear and a swept cheek-fur silhouette. He wears a short deep-teal knitted vest with two large ochre wooden toggles and a soft rust-orange neck scarf. Keep his distinctive ear notch, cheek shape and colors consistent."
         },
         {
           "name": "Companion",
           "type": "animal",
           "gender": "male",
-          "description": "Stocky anthropomorphic brown bear with gentle brown eyes and dark muzzle, wearing an oversized cream-colored chunky cable-knit turtleneck sweater, charcoal trousers, and a brown tweed flat cap."
+          "description": "Original round-built anthropomorphic cinnamon-brown bear with gentle dark eyes, a broad cream muzzle and one small cream crescent marking above the right eye. He wears a simple cream crew-neck sweater with a single visible sage-green elbow patch and muted charcoal trousers. Keep his round muzzle, eye marking and sweater patch consistent."
         }
       ],
       "aspect_ratio": "9:16",
@@ -490,7 +490,7 @@
           "Clips 1–4 are the Companion and Wolf conversation; clips 5–6 are Wolf's practical counsel; final 2 clips are Wolf's direct advice to the audience",
           "Two separate native voices: Wolf calm and lower-mid; Companion warmer and slightly lighter",
           "Stable original character designs, costumes and one calm setting throughout a story",
-          "Quiet 2D storybook illustration style and the exact same acoustic guitar/piano BGM bed, motif, tempo and mix in every clip"
+          "Original gouache and colored-pencil animation with paper grain, asymmetrical character silhouettes and the exact same acoustic guitar/piano BGM bed in every clip"
         ],
         "controlled": [
           "Both characters sit together or walk slowly side by side",
@@ -521,8 +521,8 @@
       "narration_scope": "dialogue",
       "narrated": false,
       "silent_cast": false,
-      "whisk": "Vintage 2D storybook fable illustration, defined ink contours, textured matte watercolor background, anthropomorphic animals in mid-century attire, soft volumetric lighting.",
-      "location_medium": "Vintage 2D storybook fable illustration, defined ink contours, textured matte watercolor background, anthropomorphic animals in mid-century attire, soft volumetric lighting.",
+      "whisk": "Original hand-painted 2D gouache and colored-pencil animation with visible paper grain, irregular ink contours, deep-teal and warm-ochre accents, and soft lamplight.",
+      "location_medium": "Original hand-painted 2D gouache and colored-pencil animation with visible paper grain, irregular ink contours, deep-teal and warm-ochre accents, and soft lamplight.",
       "seconds": 8,
       "duration": 64,
       "default_clip_count": 8,

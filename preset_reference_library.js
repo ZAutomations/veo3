@@ -3,6 +3,12 @@ const path = require('path');
 const ROOT = __dirname;
 const DEFAULT = path.join(ROOT, 'Preset References');
 const key = s => String(s || '').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+const LEGACY_PRESET_REFERENCE_HASHES = {
+    'reference-wolf-dark-secrets-fable-dialogue': new Set([
+        '116669ca560ca79e1d96ccfd2a5026b0e8dc6fe2c47109a36eb9ff1a3278fe21', // original Wolf fedora/long-coat sheet
+        '71d863a7db7a3d67d536a8d431d0736a9982a4be55052c2130d3e40e9d2fecfa', // original Companion flat-cap sheet
+    ]),
+};
 function presets() {
     return ['styles.json', 'genai_styles.json'].flatMap(file => {
         const db = JSON.parse(fs.readFileSync(path.join(ROOT, file), 'utf8'));
@@ -37,9 +43,13 @@ function load(mode, settings, source) {
     const config = settings.preset_reference_library?.[id];
     const folder = typeof config === 'string' ? config : config?.folder || path.join(DEFAULT,id);
     if (!fs.existsSync(folder)) throw Error(`Preset reference folder does not exist: ${folder}`);
-    const result = fs.readdirSync(folder, {withFileTypes:true}).filter(f=>f.isFile() && /\.(png|jpe?g|webp)$/i.test(f.name)).map(f=>({
-        name:path.parse(f.name).name, localFile:path.resolve(folder,f.name), presetReference:true
-    }));
+    const blockedHashes = LEGACY_PRESET_REFERENCE_HASHES[id] || new Set();
+    const result = fs.readdirSync(folder, {withFileTypes:true}).filter(f=>f.isFile() && /\.(png|jpe?g|webp)$/i.test(f.name)).flatMap(f=>{
+        const localFile=path.resolve(folder,f.name);
+        const hash=require('crypto').createHash('sha256').update(fs.readFileSync(localFile)).digest('hex');
+        if(blockedHashes.has(hash))return [];
+        return [{name:path.parse(f.name).name,localFile,presetReference:true}];
+    });
     // Migrate the former approved couple only into its original realistic preset.
     if (id === (/^relationship-dialogue(?:-(?:real|ghibli|3d|colorful-cartoon))?$/.test(settings.gen_preset || '') ? settings.gen_preset : 'relationship-dialogue-real') && !settings.preset_reference_library && settings.agent_saved_couple !== false) {
         for (const name of ['Sarah','SAM']) {

@@ -23,3 +23,10 @@ On resume, existing upload receipts and reference generation receipts are reused
 
 Personal images are ignored by Git. The empty preset folder structure is included
 in the repository. Copy your images separately when moving to another laptop.
+
+Wolf Dark Secrets has a refreshed original character design. Two older sheets
+with a wolf in a long green coat/fedora and a bear in a flat cap are excluded by
+their exact file hashes, even if they remain in a local preset folder. For new
+projects, generate fresh Wolf and Companion sheets from the story's `refs.json`;
+new replacement images with those names are accepted. Existing Flow projects
+keep their uploaded assets and need replacement references in a new project.

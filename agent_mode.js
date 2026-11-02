@@ -190,7 +190,7 @@ let SEND_TEXT = PROMPT_TEXT == null ? null : require('./agent_video_contract').w
 if(SEND_TEXT){const source=flag('--refs');if(typeof source==='string'&&/\.json$/i.test(source)&&fs.existsSync(source))SEND_TEXT=require('./agent_scene_ids').inject(SEND_TEXT,JSON.parse(fs.readFileSync(source,'utf8')));}
 if (SEND_TEXT) SEND_TEXT = require('./reference_identity').forAgent(SEND_TEXT, flag('--refs'), MENTIONS.map(m=>typeof m==='string'?m:m.name));
 if (SEND_TEXT !== PROMPT_TEXT) log('Video settings and reference identity instructions applied before sending.');
-if (SEND_TEXT) SEND_TEXT += '\nBATCH TRACKING: Track each requested scene number separately until its video finishes. Preserve completed clips. Retry only the individual failed or missing scene using its exact instructions, references, voice and video settings. Never repeat successful scenes or the whole batch. Follow BLOCKED SCENE HANDLING for a content-policy refusal. Do not report completion while scenes are missing.';
+if (SEND_TEXT) SEND_TEXT += '\nBATCH TRACKING: Track each requested scene number separately until its video finishes. Preserve completed clips. Retry only an individually verified failed or missing scene using its exact instructions, references, voice and video settings. Never repeat successful scenes or the whole batch. If a scene fails, report its exact result and stop if its identity or cause is uncertain. Do not report completion while scenes are missing.';
 if (SEND_TEXT) SEND_TEXT += '\nMANDATORY RETRY PREFLIGHT: Before responding to ANY retry, reword, or “generate again” request, inspect the current project assets and identify which numbered scenes already have a completed video. Keep every completed scene unchanged. Generate only the exact missing or failed scene numbers; never regenerate a whole batch because one scene failed. If scene-to-asset mapping is ambiguous, stop and report the ambiguity instead of submitting another generation. Ignore conversation-level Try again when it would repeat successful scenes.';
 
 // A long prompt must NOT be typed key by key - a 3000-character story at 45ms a
@@ -560,6 +560,15 @@ async function reviewFailedBatch(page, snapshot) {
     if(typeof submissionFile!=='string'||typeof storyFile!=='string'){
         log('Retry preflight unavailable: story/checkpoint files were not supplied. No batch-level recovery prompt submitted.');
         return false;
+    }
+    const refusal=require('./agent_recovery_control').latestRefusal(snapshot);
+    if(/third.party content providers/i.test(refusal)){
+        let wolfPreset=false;
+        try{wolfPreset=JSON.parse(fs.readFileSync(storyFile,'utf8')).preset_id==='reference-wolf-dark-secrets-fable-dialogue';}catch{}
+        if(wolfPreset){
+            log('THIRD_PARTY_PROVIDER_REVIEW_REQUIRED: Flow refused a Wolf Dark Secrets clip. This message does not identify whether text or an attached reference caused it. The unchanged scene and references will not be resubmitted. Review the exact failed scene and its attached images; use freshly generated original references in a new project if an image may be implicated.');
+            return false;
+        }
     }
     let sourceText=SEND_TEXT;
     if(!sourceText){
@@ -1032,7 +1041,9 @@ async function uploadRefThroughPicker(page, box, file) {
         }
     }
 
-    if (SEND_TEXT) SEND_TEXT += '\n' + require('./agent_safety_revision');
+    // Keep refusal/rights vocabulary out of ordinary creation requests. The
+    // detailed safety instructions are added only to a verified failed-scene
+    // review, after Flow has actually returned a refusal.
 
     // ---- 4. Optional: dump the settings menu -------------------------------
     // The "never ask for confirmation" toggle lives behind this button. We open
