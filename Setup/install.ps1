@@ -28,6 +28,24 @@ function Test-Python([string]$Exe) {
     & $Exe -c 'import sys,tkinter,venv; assert (3,10) <= sys.version_info[:2] <= (3,12)' 2>$null
     return $LASTEXITCODE -eq 0
 }
+function Test-PythonImports([string[]]$Modules,[switch]$LoadWhisperBase) {
+    $checkFile = Join-Path ([IO.Path]::GetTempPath()) ('veo3_python_check_' + [guid]::NewGuid().ToString('N') + '.py')
+    $lines = @($Modules | ForEach-Object { "import $_" })
+    if ($LoadWhisperBase) {
+        $lines += 'import whisper'
+        $lines += 'whisper.load_model("base", device="cpu")'
+    }
+    $previousPreference = $ErrorActionPreference
+    try {
+        [IO.File]::WriteAllLines($checkFile,[string[]]$lines,[Text.UTF8Encoding]::new($false))
+        $ErrorActionPreference = 'Continue'
+        & $python $checkFile
+        return $LASTEXITCODE -eq 0
+    } finally {
+        $ErrorActionPreference = $previousPreference
+        Remove-Item -LiteralPath $checkFile -Force -ErrorAction SilentlyContinue
+    }
+}
 function Get-Python {
     $ErrorActionPreference = 'Continue'
     $candidates = @($venvPython, "$tools\python\python.exe")
@@ -187,7 +205,18 @@ try {
     $ErrorActionPreference = 'Stop'
     if ($probeExit -ne 0) { Run-Checked $python @('-m','pip','install','torch','--index-url','https://download.pytorch.org/whl/cpu') }
     Run-Checked $python @('-m','pip','install','-r',(Join-Path $PSScriptRoot 'requirements.txt'))
-    Run-Checked $python @('-c','import tkinter,openpyxl,whisper,yt_dlp; import whisper as w; w.load_model("base",device="cpu"); print("Python packages and Whisper base model ready.")')
+    if (-not (Test-PythonImports -Modules @('whisper'))) {
+        Write-Host 'Whisper import is missing; repairing the package without pip cache...'
+        Run-Checked $python @('-m','pip','install','--index-url','https://pypi.org/simple','--no-cache-dir','--force-reinstall','--no-deps','openai-whisper>=20240930')
+    }
+    if (-not (Test-PythonImports -Modules @('webview','proxy_tools'))) {
+        Write-Host 'Desktop interface imports are incomplete; repairing pywebview and proxy_tools without pip cache...'
+        Run-Checked $python @('-m','pip','install','--index-url','https://pypi.org/simple','--no-cache-dir','--force-reinstall','--no-deps','pywebview>=5.4,<7','proxy_tools')
+    }
+    if (-not (Test-PythonImports -Modules @('tkinter','openpyxl','whisper','yt_dlp','fastapi','uvicorn','webview','proxy_tools') -LoadWhisperBase)) {
+        throw 'Final Python verification failed. Setup repaired incomplete Whisper/desktop installs where possible; see the import error above and rerun setup.'
+    }
+    Write-Host 'Python imports and Whisper base model verified.'
     Write-Host '[7/7] Updating copied paths and verifying the tool...'
     Relocate-Data
     Run-Checked $node @('--check','veo3_flow_new_ui.js')

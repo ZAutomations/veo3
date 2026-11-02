@@ -15,6 +15,7 @@ def excluded(path):
     parts = path.parts
     name = path.name.lower()
     return (any(p.lower() in {'writing_progress', 'extra files', 'clips', 'logs', 'backups', '__pycache__', 'node_modules', '.git', '_answers', 'downloads', '.venv', 'tests'} for p in parts)
+            or (parts and parts[0].lower() == 'tools')
             or name.startswith(('test_', 'probe_', '.tmp_', 'debug_flow_'))
             or ('stories' in parts and name.startswith(('agent_batches_', 'agent_batch_')))
             or name.endswith(('.mp4', '.webm', '.mov', '.pyc', '.bak', '_failed.txt'))
@@ -24,8 +25,16 @@ def excluded(path):
 
 def main():
     DEST.mkdir()
-    tracked = subprocess.check_output(['git', 'ls-files', '-z'], cwd=ROOT).decode().split('\0')
-    paths = {pathlib.Path(p) for p in tracked if p}
+    git_root = subprocess.run(['git', 'rev-parse', '--show-toplevel'], cwd=ROOT,
+                              stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                              text=True, check=False)
+    if git_root.returncode == 0:
+        tracked = subprocess.check_output(['git', 'ls-files', '-z'], cwd=ROOT).decode().split('\0')
+        paths = {pathlib.Path(p) for p in tracked if p}
+    else:
+        # Source ZIP extractions have no Git index. Package the same clean source
+        # set from disk, with generated dependencies and runtime tools excluded.
+        paths = {p.relative_to(ROOT) for p in ROOT.rglob('*') if p.is_file()}
     paths.update(p.relative_to(ROOT) for pattern in ('*.js', '*.py', '*.bat') for p in ROOT.glob(pattern))
     for name in ('Setup', 'stories', 'AI-STUDIO-WORKFLOW', 'GEMINI-BY-HAND', 'desktop_ui'):
         directory = ROOT / name

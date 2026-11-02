@@ -4,9 +4,13 @@ VEO3 PORTABLE SETUP - Windows 10/11, 64 bit
    Use a normal writable folder, for example D:\Veo3. Do not run inside a ZIP.
 2. Double-click Setup\INSTALL.bat (or the root SETUP.bat).
    Internet is required. Setup checks Node, Python with Tkinter, Chrome,
-   FFmpeg/FFprobe, Node packages, openpyxl, yt-dlp and CPU Whisper.
-   Missing runtimes are downloaded. Python packages and the Whisper base
-   speech model are installed locally. The first setup can take several
+   FFmpeg/FFprobe, Node packages, and the Python imports needed by Studio
+   and transcription (Tkinter, openpyxl, Whisper, yt-dlp, FastAPI, Uvicorn,
+   pywebview and proxy_tools). Setup imports each module and loads Whisper's
+   base speech model. If pip reports a package installed but its import files
+   are incomplete, setup repairs Whisper or the desktop interface packages
+   from PyPI without using pip's cache. Missing runtimes are downloaded and
+   Python packages are installed locally. The first setup can take several
    minutes and substantial download space, especially PyTorch.
 3. Double-click START_GUI.bat. In Accounts, open the automation browser
    and sign in to Google Flow. Repeat login for each account you use.
