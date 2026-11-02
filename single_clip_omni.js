@@ -105,7 +105,7 @@ async function run(request){
   };
   const wantDownloads=!!((request.download||request.join||request.downloadOnly)&&!request.inspectOnly);
   if(wantDownloads)downloader=new UpscaledDownloader(engine,{folder,total:story.scenes.length,downloadVersion:request.downloadVersion,ledgerPrefix:`omni_${request.downloadVersion}`,targetResolution:request.downloadVersion==='original'?parseInt(request.resolution,10):(request.resolution==='720p'?1080:720),storyHash:crypto.createHash('sha256').update(JSON.stringify(allJobs.map(j=>j.prompt))).digest('hex'),log,checkGeneration});
-  if(request.downloadOnly){await downloader.group(allJobs,state.receipts);log(`All story ${request.downloadVersion} downloads finished.`);return;}
+  if(request.downloadOnly){await downloader.group(allJobs,state.receipts);await require('./flow_thumbnail_project').downloadStoryThumbnail(downloader.page||engine.page,file,engine.projectUrl,log);log(`All story ${request.downloadVersion} downloads finished.`);return;}
   const waitAll=async receipts=>{
    const batch=receipts.map(r=>allJobs.find(j=>j.number===(r.scene||r))).filter(Boolean);
    activeJobs=batch;
@@ -276,6 +276,7 @@ async function run(request){
    afterAll:async final=>{activeJobs=[];if(downloader)await downloader.group(final,state.receipts);}
   });
   else if(downloader){activeJobs=[];await downloader.group(previous,state.receipts);}
+  if(downloader)await require('./flow_thumbnail_project').downloadStoryThumbnail(downloader.page||engine.page,file,engine.projectUrl,log);
   log('All selected Omni clips completed'+(downloader?` and downloaded as verified ${request.downloadVersion}.`:'.'));
   if(request.join){
    if(!downloader.ledger.clips.length||!downloader.ledger.clips.every(e=>fs.existsSync(path.join(folder,'clips',e.file))))throw Error('Selected downloads are incomplete; join stopped.');

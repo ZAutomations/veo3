@@ -2435,6 +2435,7 @@ ${'='.repeat(70)}
                 this.okScenes.length !== (this.freshProject ? this.toScene - this.fromScene + 1 : this.toScene)) {
                 throw Error('Cannot join an incomplete export or an uncertain scene order.');
             }
+            await require('./flow_thumbnail_project').downloadStoryThumbnail(this.page, this.jsonFilePath, this.projectUrl, log);
             execFileSync(process.execPath, [path.join(__dirname, 'join_clips.js'), this.outputDir,
                 '--order', parts.map(p => path.basename(p)).sort().join(','),
                 '--out', path.join(path.dirname(this.jsonFilePath), 'ingredients_final.mp4')],

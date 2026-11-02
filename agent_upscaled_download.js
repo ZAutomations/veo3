@@ -107,7 +107,8 @@ async function download(browser,page,{storyFile,outDir,project,tiles,thumbnailTi
   await d.group(jobs,receipts);
   if(thumbnailRequired){
    const target=thumbnailOutputDir||folder;
-   await require('./flow_thumbnail_download').downloadThumbnail(page,thumbnailTile,target,log);
+   const downloaded=await require('./flow_thumbnail_download').downloadThumbnail(page,thumbnailTile,target,log);
+   fs.writeFileSync(path.join(target,'thumbnail_downloaded.json'),JSON.stringify({assetId:thumbnailTile.assetId,file:path.basename(downloaded),downloadedAt:new Date().toISOString()},null,2)+'\n');
   }
   if(silent&&unresolved){
    fs.writeFileSync(path.join(d.out,'CLIP_ORDER.txt'),'SILENT STORY: all verified video assets saved. Scene order needs visual/source review; music and meows cannot establish order.\n'+story.scenes.map((s,i)=>`Scene ${i+1}: ${s.shots?.map(v=>v.visual).join(' ')||s.narrative_context||''}`).join('\n')+'\n');

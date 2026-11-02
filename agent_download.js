@@ -725,7 +725,7 @@ async function activateVideoTile(page, tile, needSource = true) {
         .sort((a,b) => a.gridY - b.gridY || a.gridX - b.gridX);
     const thumbnailTile = thumbnailTiles[0] || null;
     const storyMeta = STORY_FILE && fs.existsSync(STORY_FILE) ? JSON.parse(fs.readFileSync(STORY_FILE, 'utf8')) : null;
-    const thumbnailRequired = storyMeta?.preset_id === 'reference-wolf-dark-secrets-fable-dialogue'
+    const thumbnailRequired = require('./thumbnail_prompt').isFlowEndcardPreset(storyMeta)
         && fs.existsSync(path.join(path.dirname(path.resolve(STORY_FILE)), 'thumbnail_prompt.txt'));
     const thumbnailOutputDir = STORY_FILE ? path.dirname(path.resolve(STORY_FILE)) : OUT_DIR;
     const thumbnailReceiptPath = path.join(thumbnailOutputDir,'thumbnail_downloaded.json');
@@ -1203,8 +1203,8 @@ async function activateVideoTile(page, tile, needSource = true) {
         }
     }
 
-    // Download one separately named Wolf thumbnail; it is deliberately omitted
-    // from manifest.json so it can never be mistaken for a generated scene.
+    // Download one separately named preset thumbnail; it is deliberately
+    // omitted from manifest.json so it cannot be mistaken for a generated scene.
     if (thumbnailRequired) {
         if (existingThumbnail) {
             log(`Thumbnail already downloaded: ${existingThumbnail}`);

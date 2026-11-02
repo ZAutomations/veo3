@@ -111,20 +111,9 @@ function loadRefs() {
         source = loaded.source;
         log(`No refs.json - read ${source} instead.`);
     }
-    // Wolf Dark Secrets gets one generated end-card image after its character
-    // and place references. Keep it out of refs.json so it is never @-mentioned
-    // as a character/location in Veo clips.
-    const storyDir = fs.statSync(f).isDirectory() ? f : path.dirname(f);
-    const storyName = fs.readdirSync(storyDir).find(name => /_story\.json$/i.test(name));
-    if (storyName) {
-        const story = JSON.parse(fs.readFileSync(path.join(storyDir, storyName), 'utf8'));
-        const promptFile = path.join(storyDir, 'thumbnail_prompt.txt');
-        if (story.preset_id === 'reference-wolf-dark-secrets-fable-dialogue' && fs.existsSync(promptFile)) {
-            const aspect = ['9:16','16:9','1:1'].includes(story.aspect_ratio) ? story.aspect_ratio : '9:16';
-            refs.push({ name: 'Thumbnail', file: 'thumbnail_downloaded.png', kind: 'thumbnail',
-                aspect, prompt: fs.readFileSync(promptFile, 'utf8').trim() });
-        }
-    }
+    // End-card art is generated after character/location references. The
+    // thumbnail stays out of refs.json and is never attached to Veo prompts.
+    refs = require('./thumbnail_prompt').withFlowThumbnail(refs, STORY || f);
     if (!refs.length) {
         console.error(`No reference images found for ${f}.`);
         console.error('Write the story first (`node write_story.js ...`), which writes refs.json.');
@@ -802,6 +791,8 @@ async function renameNewest(page, name, tileIndex = 0) {
 // port, only the caller differs. `page` must be a Flow PROJECT page.
 // Returns { made, failed, total }.
 async function generateRefs(page, refs, opts = {}) {
+    refs = require('./thumbnail_prompt').withFlowThumbnail(refs,
+        opts.story || STORY || REFS_FILE || '');
     refs = require('./saved_couple').applySavedRefs(refs,
         opts.savedCouple === undefined ? require('./saved_couple').loadSavedCouple('agent', undefined, opts.story || STORY) : opts.savedCouple);
     // Shadowing `log` with the caller's sink; the body's log() calls need no
@@ -925,7 +916,7 @@ if (require.main === module) (async () => {
     log(`Project: ${page.url()}`);
 
     const r = await generateRefs(page, refs, {
-        waitS: WAIT_S, keepAgentOn: KEEP_AGENT, savedCouple: couple,
+        waitS: WAIT_S, keepAgentOn: KEEP_AGENT, savedCouple: couple, story: STORY || REFS_FILE,
     });
     log('Next: run agent_mode (or the MCP run_agent) with --no-upload-refs so it');
     log('@-mentions the tiles just made instead of uploading local files.');

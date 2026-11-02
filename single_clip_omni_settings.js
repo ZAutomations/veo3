@@ -50,10 +50,11 @@ async function prepareReferences(engine, deps = {}) {
     log(`project_url: ${engine.projectUrl}`);
     if (!engine.genRefs) return;
     if (!engine.storyRefs.length) throw Error('No reference prompts found in refs.json. No clips were submitted.');
-    const result = await generate(engine.page, engine.storyRefs, { log, keepAgentOn: true,
+    const refs = require('./thumbnail_prompt').withFlowThumbnail(engine.storyRefs, engine.jsonFilePath);
+    const result = await generate(engine.page, refs, { log, keepAgentOn: true, story: engine.jsonFilePath,
         savedCouple: engine.savedCouple === undefined ? require('./saved_couple').loadSavedCouple('ingredients') : engine.savedCouple });
-    if (result.blocked || result.failed || result.made !== engine.storyRefs.length) {
-        throw Error(`Reference phase incomplete: ${result.made || 0}/${engine.storyRefs.length} made and renamed.`
+    if (result.blocked || result.failed || result.made !== refs.length) {
+        throw Error(`Reference phase incomplete: ${result.made || 0}/${refs.length} made and renamed.`
             + (result.blocked ? ' Flow still reports unusual activity; retry after the restriction clears.' : '')
             + ' Clip generation stopped.');
     }
