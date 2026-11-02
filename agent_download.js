@@ -854,9 +854,61 @@ async function activateVideoTile(page, tile, needSource = true) {
     });
     const duplicateAssets = videoTiles.length - videoVisual.length;
     if (duplicateAssets > 0) log(`Duplicate generated assets skipped: ${duplicateAssets}`);
-    const order = REVERSE ? [...videoVisual].reverse() : videoVisual;
-    if (REVERSE) log('--reverse: numbering newest-first.');
+    // Agent Mode asks Flow to retain a stable scene ID on every generated
+    // video. Use that metadata to assign scene filenames before downloading;
+    // Flow's grid is completion order and cannot identify story order.
+    let sceneMapping = null;
+    if (storyMeta?.scenes?.length && !LIMIT) {
+        const sceneIds = require('./agent_scene_ids');
+        try {
+            const named = sceneIds.plan(videoTiles, storyMeta);
+            if (named) {
+                sceneMapping = named.map(entry => ({
+                    tile: videoTiles.find(t => t.assetId === entry.receipt.assetId),
+                    scene: entry.job.number,
+                    sceneId: entry.receipt.sceneId,
+                    matchFrom: 'scene_id',
+                }));
+                if (sceneMapping.some(item => !item.tile)) sceneMapping = null;
+                else log('Verified Agent scene IDs map generated assets. Downloads will be named in story order; Whisper is not needed.');
+            }
+        } catch (error) {
+            log(`Scene ID metadata is ambiguous: ${error.message}`);
+        }
+
+        // Some Flow layouts do not expose the asset title in the grid. In that
+        // case read each tile's original prompt with Reuse (never Generate),
+        // then match its source dialogue to the story before downloading.
+        if (!sceneMapping) {
+            try {
+                log('Scene IDs are not exposed on all tiles; checking original Flow prompts to map scenes before downloading.');
+                const jobs = storyMeta.scenes.map((scene, i) => ({number:i + 1, scene, prompt:scene.veo3_prompt || scene.script_line || ''}));
+                const inspected = await require('./single_clip_omni_recovery').inspectProject(
+                    {browser, page, projectUrl:homeUrl}, jobs, {}, {log, page, sourceCache:new Map()});
+                const mapped = require('./agent_upscaled_download').plan(
+                    inspected.tiles.map((tile, index) => ({...tile, index, prompt:tile.sourcePrompt || tile.text})), storyMeta);
+                sceneMapping = mapped.map(entry => ({
+                    tile: videoTiles.find(t => t.assetId === entry.receipt.assetId),
+                    scene: entry.job.number,
+                    sceneId: sceneIds.sceneId(storyMeta, entry.job.number),
+                    matchFrom: 'source_prompt',
+                }));
+                if (sceneMapping.some(item => !item.tile)) throw new Error('A matched source prompt did not resolve to a tile in the download inventory.');
+                log('Verified original prompts map generated assets. Downloads will be named in story order; Whisper is not needed.');
+            } catch (error) {
+                sceneMapping = null;
+                log(`Could not verify every scene from asset IDs or original prompts: ${error.message}`);
+                log('Keeping the legacy download path; scene order will require review before joining.');
+            }
+        }
+    }
+    const order = sceneMapping
+        ? sceneMapping.map(item => item.tile.index)
+        : (REVERSE ? [...videoVisual].reverse() : videoVisual);
+    if (REVERSE && !sceneMapping) log('--reverse: numbering newest-first.');
+    else if (REVERSE && sceneMapping) log('--reverse ignored: verified story scene IDs take precedence over grid direction.');
     const targets = LIMIT ? order.slice(0, LIMIT) : order;
+    const sceneByTile = new Map((sceneMapping || []).map(item => [item.tile.index, item]));
     // Older interrupted passes could overwrite scene filenames without updating
     // their manifest. Never use those unverified bytes to declare success.
     const cacheDir = path.join(OUT_DIR, '.download-cache', m[1]);
@@ -917,14 +969,16 @@ async function activateVideoTile(page, tile, needSource = true) {
         const tileIdx = targets[n];
         const t = byIndex.get(tileIdx);
         const savedClip = existing.get(t.assetId);
-        const name = savedClip?.outputFile || require('./download_resume').nextFilename(OUT_DIR, reservedFiles);
+        const mappedScene = sceneByTile.get(tileIdx);
+        const sceneFile = mappedScene ? `scene-${String(mappedScene.scene).padStart(2, '0')}.mp4` : null;
+        const name = sceneFile || savedClip?.outputFile || require('./download_resume').nextFilename(OUT_DIR, reservedFiles);
         const dest = path.join(OUT_DIR, name);
         log('');
         log(`[${n + 1}/${targets.length}] tile#${tileIdx} -> ${name}`);
 
         let wrote = false;
         if (savedClip) {
-            if (!savedClip.outputFile) fs.copyFileSync(savedClip.file, dest);
+            if (!savedClip.outputFile || (sceneFile && path.resolve(savedClip.file) !== path.resolve(dest))) fs.copyFileSync(savedClip.file, dest);
             t.caption = savedClip.caption || t.caption;
             t.prompt = savedClip.prompt || t.prompt;
             log('   SKIPPED download: verified playable clip already exists (same Flow asset).');
@@ -1065,6 +1119,12 @@ async function activateVideoTile(page, tile, needSource = true) {
             file: name,
             tileIndex: tileIdx,
             order: n + 1,
+            ...(sceneByTile.has(tileIdx) ? {
+                scene: sceneByTile.get(tileIdx).scene,
+                matched_scene: sceneByTile.get(tileIdx).scene,
+                sceneId: sceneByTile.get(tileIdx).sceneId,
+                match_from: sceneByTile.get(tileIdx).matchFrom,
+            } : {}),
             rect: t.rect,
             // The caption is the closest thing this grid has to a scene label -
             // it is what makes the numbering checkable after the fact.
@@ -1083,7 +1143,11 @@ async function activateVideoTile(page, tile, needSource = true) {
     // the join follows what this script actually did rather than re-deriving an
     // order from filenames and hoping.
     const selection = STORY_FILE ? selectStoryClips(clips, JSON.parse(fs.readFileSync(STORY_FILE, 'utf8'))) : null;
-    const resolved = selection && !selection.missing.length;
+    const idsResolved = !!sceneMapping && clips.filter(c => c.got).length === storyMeta.scenes.length;
+    const resolved = idsResolved || (selection && !selection.missing.length);
+    const resolvedClips = idsResolved
+        ? [...clips].filter(c => c.got).sort((a,b) => a.scene - b.scene)
+        : (resolved ? selection.selected : clips);
     const storyReady = resolved || (!selection && (!EXPECTED || ok === EXPECTED));
     const downloadState = require('./download_tile_logic').downloadCompletion(clips, EXPECTED, storyReady, failed);
     const manifest = {
@@ -1094,9 +1158,12 @@ async function activateVideoTile(page, tile, needSource = true) {
         complete: failed === 0 && storyReady,
         downloadComplete: downloadState.downloadComplete,
         needsSceneOrdering: downloadState.needsSceneOrdering,
-        ...(resolved ? {orderResolvedBy:'project_prompt', alternateClips:selection.extras} : {}),
+        ...(idsResolved ? {orderResolvedBy:sceneMapping[0]?.matchFrom || 'scene_id'} : {}),
+        ...(resolved && selection ? {alternateClips:selection.extras} : {}),
         reversed: REVERSE,
-        gridOrderNote: `Files are numbered in ${REVERSE ? 'REVERSE on-screen' : 'on-screen'} order `
+        gridOrderNote: idsResolved
+            ? 'Files are numbered by verified Agent scene IDs or original per-tile source prompts, in story order.'
+            : `Files are numbered in ${REVERSE ? 'REVERSE on-screen' : 'on-screen'} order `
             + '(top-to-bottom, left-to-right). But a tile is NOT a scene: Flow renders an '
             + 'Agent-Mode batch as its queue drains, so the grid is in COMPLETION order and these '
             + 'numbers say nothing about which scene a clip is - measured on one real run, grid '
@@ -1104,7 +1171,7 @@ async function activateVideoTile(page, tile, needSource = true) {
             + 'Run order_clips_by_dialogue.js (npm run agent:order, or the order_clips MCP tool) to '
             + 'establish the real order from what each clip says, which rewrites this manifest into '
             + 'story order for join_clips.js to follow. Only --order or --reverse by hand otherwise.',
-        clips: resolved ? selection.selected : clips,
+        clips: resolvedClips,
     };
     fs.writeFileSync(path.join(OUT_DIR, 'manifest.json'), JSON.stringify(manifest, null, 2));
 
@@ -1112,13 +1179,14 @@ async function activateVideoTile(page, tile, needSource = true) {
     log(`Route     : ${method}`);
     log(`Saved     : ${ok} clip(s) to ${OUT_DIR}`);
     if (failed) log(`Failed    : ${failed} clip(s) - see the log above for why`);
-    if (resolved) log(`Story      : ${selection.selected.length} scenes in story order; ${selection.extras.length} alternate clips retained separately in the manifest.`);
+    if (idsResolved) log(`Story      : ${resolvedClips.length} scenes mapped from ${sceneMapping[0]?.matchFrom || 'Agent IDs'} in story order.`);
+    else if (resolved) log(`Story      : ${selection.selected.length} scenes in story order; ${selection.extras.length} alternate clips retained separately in the manifest.`);
     if (!downloadState.downloadComplete) log(`DOWNLOAD INCOMPLETE: story expects ${EXPECTED} clips; ${ok} playable files saved. Recover missing downloads/generations before joining.`);
     else if (downloadState.needsSceneOrdering) log(`DOWNLOAD COMPLETE: ${ok} playable clips saved. Scene order is pending; the pipeline will match their spoken dialogue before joining.`);
     log(`Manifest  : ${path.join(OUT_DIR, 'manifest.json')}`);
     log('');
     log('Order (as numbered):');
-    for (const c of clips) log(`  ${String(c.order).padStart(2, '0')}. ${c.file}  ${c.got ? '' : '(FAILED) '}${c.caption.slice(0, 70)}`);
+    for (const c of resolvedClips) log(`  ${String(c.order).padStart(2, '0')}. ${c.file}  ${c.got ? '' : '(FAILED) '}${c.caption.slice(0, 70)}`);
 
     // The grid carries no scene labels, so this image is the only cheap way to
     // confirm the numbering before joining. Build it whenever clips landed.
