@@ -174,7 +174,12 @@ function matchClips(clips, heard, wanted, minCover = 0.5) {
     // threshold. A fragment must independently identify exactly one scene.
     if(minCover<=0.5)for(const file of clips){
         if(pairs.some(p=>p.file===file&&p.cover>=minCover))continue;
-        const candidates=identifiable.filter(w=>fragmentEvidence(heard[file],w.text));
+        // Speech recognition often gets the scene's opening line right, then
+        // hallucinates or mishears later turns. A long, distinctive ordered
+        // phrase that belongs to exactly one scene is still valid identity
+        // evidence; do not reject it solely because unrelated ASR noise lowers
+        // whole-transcript precision.
+        const candidates=identifiable.filter(w=>fragmentEvidence(heard[file],w.text,true));
         if(candidates.length!==1)continue;
         const pair=pairs.find(p=>p.file===file&&p.scene===candidates[0].n);
         if(pair)pair.partial=true;
