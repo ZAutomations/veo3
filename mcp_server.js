@@ -398,7 +398,7 @@ async function doAnalyzeVideo(a) {
             log(`[analyze] rejected stretched cached analysis (${hit.cm.format?.source_duration_s}s versus verified ${sourceMetadata.duration_s}s). Preserved as ${path.basename(backup)}; analysing the actual video again.`);
         } else if (hit && isRelationshipDialoguePreset(a.preset) && (!contentMapHasSourceDialogue(hit.cm) || !verifiedSpeakers)) {
             log(`[analyze] cached relationship analysis lacks verified dialogue speakers - reading the video again with gender attribution.`);
-        } else if (hit && ['fern-documentary', '3d-zack-style'].includes(a.preset) && !require('./source_narration').hasNarration(hit.cm)) {
+        } else if (hit && ['fern-documentary', '3d-zack-style', 'intimacy-health-3d'].includes(a.preset) && !require('./source_narration').hasNarration(hit.cm)) {
             log('[analyze] cached narration analysis contains summaries only - reading the video again to capture the complete source narration.');
         } else if (hit) {
             if (sourceMetadata) {

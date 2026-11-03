@@ -79,6 +79,7 @@ try {
     if (typeof net.setDefaultAutoSelectFamily === 'function') net.setDefaultAutoSelectFamily(false);
 } catch (e) { /* older Node: keep the defaults */ }
 
+const isZackPreset = id => ['3d-zack-style','intimacy-health-3d'].includes(id);
 const HERE = __dirname;
 const STORIES_DIR = path.join(HERE, 'stories');
 const STYLES_FILE = path.join(HERE, 'styles.json');
@@ -762,7 +763,7 @@ function contentMapBlock(cm) {
             'DOCUMENTARY FIDELITY: preserve the source opening, presentation order and ending.',
             'Report the actual event and its people; do not put the viewer into a hypothetical scenario.',
             'Lightly reword the narration in easy English. No new plot, advice, metaphor or extra CTA.',
-        ] : PRESET_ID === '3d-zack-style' ? [
+        ] : isZackPreset(PRESET_ID) ? [
             'SOURCE FIDELITY: preserve the source subject, tense, cause and outcome.',
             'The hook makes the FIRST source event interesting without changing or reordering it.',
             'Finish every source event and the complete original ending. Do not append an unrequested CTA clip.',
@@ -1672,7 +1673,7 @@ WHAT EACH LINE HAS TO DO - this matters more than the word count:
 `;
     const skeleton = dialogue
         ? `{"scenes":[{"scene_title":"","dialogue":[{"speaker":"","line":""}],"narrative_context":"","characters":[]}]}`
-        : (intro || p.id === '3d-zack-style')
+        : (intro || isZackPreset(p.id))
         ? `{"scenes":[{"scene_title":"","script_line":"","sound_context":"","narrative_context":"","characters":[]}]}`
         : `{"scenes":[{"scene_title":"","script_line":"","narrative_context":"","characters":[]}]}`;
 
@@ -1682,7 +1683,7 @@ TITLE: ${TITLE}
 DETAIL FROM THE CREATOR: ${DETAIL || '(none given)'}
 ${lookBlock(p, fixed)}
 ${arrangementBlock}${audioBlock}${sourceDialogueBlock}
-${p.id === '3d-zack-style' ? require('./zack_native_audio').DIRECTION + ' Add sound_context to EVERY scene: SFX: timed justified effects or None; BGM: the same concise story-level musical identity with current intensity; Mix: narration foreground, quiet instrumental music, restrained effects.' : ''}
+${isZackPreset(p.id) ? require('./zack_native_audio').DIRECTION + ' Add sound_context to EVERY scene: SFX: timed justified effects or None; BGM: the same concise story-level musical identity with current intensity; Mix: narration foreground, quiet instrumental music, restrained effects.' : ''}
 ${castBlock}
 ${prev}
 THE BEATS FOR THESE CLIPS (one clip each, same order):
@@ -1903,12 +1904,12 @@ function buildStory(p, cast, meta, scenes) {
         niche: p.label,
         preset_id: p.id,
         style: p.style,
-        ...(p.id === '3d-zack-style' ? { sound_style: p.sound_style } : {}),
+        ...(isZackPreset(p.id) ? { sound_style: p.sound_style } : {}),
         ...(p.narrative_mode?{narrative_mode:p.narrative_mode}:{}),
         ...(require('./dog_couple').applies(p)?{character_species:'dog'}:{}),
         ...(require('./motivational_metaphor').applies(p)?{visual_direction:require('./motivational_metaphor').LOCK,requested_duration_seconds:DURATION,trim_target_seconds:DURATION<=16?15:30}:{}),
         ...(p.id === 'fern-documentary' ? { visual_shot_format: 'documentary-internal-cuts', visual_direction: require('./fern_topic_visuals').CONTRACT } : {}),
-        ...(p.id === '3d-zack-style' ? { visual_shot_format: 'zack-internal-cuts', visual_direction: require('./zack_shot_contract').DIRECTION } : {}),
+        ...(isZackPreset(p.id) ? { visual_shot_format: 'zack-internal-cuts', visual_direction: require('./zack_shot_contract').DIRECTION } : {}),
         // The one place the whole film happens in, so the agent prompt builder
         // can @-mention its reference image and the sheet writer can print its
         // prompt. `name` is the asset name the image must be given in Flow -
@@ -1964,7 +1965,7 @@ function buildStory(p, cast, meta, scenes) {
             // The sound brief only exists for sound-led presets. Naming the
             // literal sounds of the place is what stops a clip with no
             // voice-over from arriving with nothing on the audio track at all.
-            ...((intro || p.id === '3d-zack-style') ? { sound_context: s.sound_context || '' } : {}),
+            ...((intro || isZackPreset(p.id)) ? { sound_context: s.sound_context || '' } : {}),
             narrative_context: sanitizeForPolicy(require('./cartoon_narration_prompt').applies(p)?shot({...s,narrative_context:require('./cartoon_narration_prompt').visual(s)}):shot(s)),
             // A clip with no narration carries its sound brief in the AUDIO slot
             // instead of an empty narrator line, which the video model would
@@ -1978,7 +1979,7 @@ function buildStory(p, cast, meta, scenes) {
                         : 'No dialogue in this clip. Room tone and the ambient sound of the place only.')
                     : (intro && !String(s.script_line || '').trim())
                         ? `No voice-over in this clip. Natural sound only: ${s.sound_context}`
-                        : require('./cartoon_narration_prompt').applies(p) ? require('./cartoon_narration_prompt').audio(p,s) : `Narrator (V.O., ${p.narration_voice}): "${s.script_line}"` + (p.id === '3d-zack-style' ? '\n'+require('./zack_native_audio').instructions({sound_style:p.sound_style},s) : ''))),
+                        : require('./cartoon_narration_prompt').applies(p) ? require('./cartoon_narration_prompt').audio(p,s) : `Narrator (V.O., ${p.narration_voice}): "${s.script_line}"` + (isZackPreset(p.id) ? '\n'+require('./zack_native_audio').instructions({sound_style:p.sound_style},s) : ''))),
             characters: (s.characters || []).map(x => String(x).toLowerCase()),
         })),
         character_descriptions: descriptions,

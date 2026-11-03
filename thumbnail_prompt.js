@@ -6,6 +6,7 @@ const FLOW_ENDCARD_PRESETS = new Set([
     'reference-wolf-dark-secrets-fable-dialogue',
     'fern-documentary',
     '3d-zack-style',
+    'intimacy-health-3d',
 ]);
 
 function isFlowEndcardPreset(story) {
@@ -36,7 +37,7 @@ function thumbnailPrompt(story, ratio = '9:16') {
         return `Create one finished YouTube thumbnail for the factual documentary "${story.title}". ${sharedLayout}\n\nFERN VISUAL IDENTITY: cinematic 3D documentary reconstruction with grounded materials, controlled dramatic lighting and the same subdued slate/teal palette with warm highlights as the video. All people must remain smooth, featureless matte mannequins with realistic adult proportions and role-appropriate clothing: no eyes, nose, mouth, hair or realistic skin. Use the supplied character reference images for consistent mannequin proportions and clothing when those people appear. Character references:\n${cast || 'Use the silent, featureless mannequin roles actually required by this story.'}\n\nDepict the exact central event, object, place or body process stated by the story. Select the most recognizable evidence or consequence as the focal image; do not add an unsupported culprit, victim, action, location or outcome. For a human-body topic, show the relevant body region or process in a clear non-graphic 3D reconstruction. Keep the source facts intact and avoid sensational gore. No unrelated generic laboratory, circuitry, gears, aircraft, police lights or technology unless the story actually concerns them.\n`;
     }
 
-    if (story.preset_id === '3d-zack-style') {
+    if (['3d-zack-style','intimacy-health-3d'].includes(story.preset_id)) {
         const cast = Object.entries(story.character_descriptions || {}).map(([name, description]) => `${name}: ${description}`).join('\n');
         return `Create one finished YouTube thumbnail for the original 3D science explainer "${story.title}". ${sharedLayout}\n\nZACK D VISUAL IDENTITY: high-end colorful 3D animated science-explainer art with polished dimensional forms, expressive but believable subjects, rich material detail, cinematic depth, and bright controlled highlights. Preserve the preset's 3D look while using the reference's bold headline scale and dramatic contrast. Recurring character/reference designs, if relevant:\n${cast || 'Use the actual person, animal, object or scientific subject named by the story; do not add an unrelated recurring character.'}\n\nShow the specific scientific subject and its real mechanism or consequence from this story, not generic technology imagery. For a body topic, make the correct organ or process large and immediately recognizable. For an object, show the actual object with one clear cutaway or cause-and-effect visual only when it explains the topic. Keep the image accurate to the story, visually simple and readable at phone size. No invented danger, false claim, brand logo or unrelated science props.\n`;
     }

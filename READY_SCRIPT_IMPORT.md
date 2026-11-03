@@ -1,4 +1,4 @@
-# Ready-script import: Zack D production profiles
+# Ready-script import: Zack D and Intimacy Health 3D
 
 ## What changed
 
@@ -15,23 +15,25 @@ The existing story JSON schema and downstream generation/checkpoints remain in
 use. New metadata is additive. Re-imports reuse matching completed packages and
 preserve their story files, prompts, downloads and checkpoints.
 
-## Strict versus legacy
+## Flexible Zack format
 
-New master prompt: `Master prompts/3d-zack-style.txt` (V5).
+Master prompts: `Master prompts/3d-zack-style.txt` and
+`Master prompts/intimacy-health-3d.txt`.
 
-Add `Production profile: zetomate-8x8` to request:
+Use `Production profile: zetomate-flex` to request:
 
-- Positive, unique `Story N` headings, title and valid preset.
-- Exactly eight clips, each eight seconds, consecutive clip numbers.
-- Exact supplied narration, exactly three sequential shots covering 0–8 seconds.
-- Effect and Sound fields; any supplied timing must fit inside the clip.
+- Positive `Story N` headings, title and valid preset.
+- A clip duration of 4, 6, 8 or 10 seconds and a script-defined clip count.
+- One to four sequential shots covering the full selected duration in each clip.
+- Exact supplied narration, plus Effect and Sound fields; any supplied timing
+  must fit inside the clip.
 - Narration word warnings: preferred 16–20, maximum target 22. Longer narration
   is preserved and warned about, never truncated. Speech duration is an estimate.
 
-Studio's **Import ready script** card has a strict 8×8 checkbox for Zack D,
-selected by default. Disable it for old variable-count/two-shot scripts. An
-explicit production profile in a script still requests strict validation.
-CLI/API imports default to legacy-compatible unless explicitly set to strict.
+The Studio importer follows the script's duration and clip count by default.
+`Production profile: zetomate-8x8` remains accepted for old scripts but no
+longer forces eight clips or eight-second timing. The optional CLI
+`--strict-8x8` flag still enforces the historic eight-clip, three-shot contract.
 Other presets retain their existing requirements.
 
 ## Preview and export

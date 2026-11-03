@@ -27,7 +27,7 @@ def request_payload(root, payload):
         resolved.append(str(file))
     if len(set(resolved)) != len(resolved):
         raise ValueError('Remove duplicate reference videos.')
-    return dict(videos=resolved, **{key: payload[key] for key in ('reverseName', 'reverseClips', 'reverseAspect', 'reverseMode', 'reverseFps', 'reverseNotes', 'reverseModel') if key in payload})
+    return dict(videos=resolved, **{key: payload[key] for key in ('reverseName', 'reverseClips', 'reverseSeconds', 'reverseAspect', 'reverseMode', 'reverseFps', 'reverseNotes', 'reverseModel') if key in payload})
 
 
 def run_folder(root, run_id):

@@ -91,7 +91,7 @@ const { applyAgentSettings } = require('./agent_settings.js');
 // The narrator's voice: which one a preset asks for, and the picker walk that
 // attaches it. Shared with the extend engine, which now attaches the same voice
 // to every clip - see flow_voice.js.
-const { attachVoice: attachVoiceShared } = require('./flow_voice.js');
+const { attachVoice: attachVoiceShared, resolveFlowVoice } = require('./flow_voice.js');
 
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
 function installAgentEditor(){
@@ -114,6 +114,13 @@ function flag(name, def = null) {
     if (i < 0) return def;
     const v = argv[i + 1];
     return (v && !v.startsWith('--')) ? v : true;
+}
+function flags(name) {
+    const values = [];
+    for (let i = 0; i < argv.length - 1; i++) {
+        if (argv[i] === name && argv[i + 1] && !argv[i + 1].startsWith('--')) values.push(argv[i + 1]);
+    }
+    return values;
 }
 const CDP_PORT   = flag('--cdp', '9222');
 const CDP_URL    = `http://127.0.0.1:${CDP_PORT}`;
@@ -166,6 +173,15 @@ const MENTION_LIST = (typeof MENTION_RAW === 'string')
     ? MENTION_RAW.split(',').map(s => s.replace(/^@/, '').trim()).filter(Boolean)
     : MT.extractMentions(PROMPT,KNOWN_REF_NAMES);
 let MENTIONS = MT.distinctMentions(MENTION_LIST);
+// Some preset-specific prompt builders (notably Geography Map) describe a
+// location through structured story fields and omit literal @Name tokens.
+// The reference is still generated or uploaded from --refs; without this
+// fallback Agent Mode skips the picker and silently runs without that image.
+// Preserve per-scene choices when present; fall back only when none were found.
+if (!MENTIONS.length && KNOWN_REF_NAMES.length) {
+    MENTIONS = MT.distinctMentions(KNOWN_REF_NAMES);
+    log(`No @mentions in the batch prompt; attaching ${MENTIONS.length} reference(s) declared by the story instead.`);
+}
 
 // Model choice in Agent Mode is PLAIN ENGLISH in the prompt - there is no menu.
 // Confirmed live 2026-09-11: telling the agent "use veo3.1 low pirority to
@@ -242,7 +258,11 @@ const DIALOGUE_SPEAKERS = [...new Set((STORY_AUDIO?.scenes || []).flatMap(s => (
 const AUTO_NATIVE_DIALOGUE_VOICES = STORY_AUDIO?.narration_scope === 'dialogue' && DIALOGUE_SPEAKERS.length > 0;
 // Flow voice ingredients apply to the whole prompt. They cannot be bound to
 // individual dialogue speakers, so dialogue stories use Veo's native voices.
-const VOICES = AUTO_NATIVE_DIALOGUE_VOICES ? [] : ['Alnilam'];
+const STORY_FLOW_VOICE = STORY_AUDIO ? resolveFlowVoice(STORY_AUDIO)?.name : null;
+const REQUESTED_FLOW_VOICES = flags('--voice');
+const VOICES = AUTO_NATIVE_DIALOGUE_VOICES ? [] : (REQUESTED_FLOW_VOICES.length
+    ? REQUESTED_FLOW_VOICES
+    : STORY_FLOW_VOICE ? [STORY_FLOW_VOICE] : ['Alnilam']);
 if (AUTO_NATIVE_DIALOGUE_VOICES && SEND_TEXT) {
     let voiceDirection = `NATIVE CHARACTER DIALOGUE VOICES: Generate original in-scene speech for each named character. Use a clearly distinct vocal identity for each speaker and keep each identity consistent across every clip. Do not use a narrator or a shared voice for different characters. Do not attach or apply one Flow voice asset to the whole cast. Never swap, merge, double, blend, or overlap the speakers or their lines. Only the named speaker delivers their own line and moves their lips; all listeners stay silent with mouths closed. Speakers: ${DIALOGUE_SPEAKERS.join(', ')}.`;
     const speakerNames = DIALOGUE_SPEAKERS.map(s => s.toLowerCase());
@@ -1006,6 +1026,7 @@ async function uploadRefThroughPicker(page, box, file) {
             if (missingRecovery) {
                 SEND_TEXT=missingRecovery.prompt;
                 MENTIONS=MT.distinctMentions(MT.extractMentions(SEND_TEXT,KNOWN_REF_NAMES));
+                if (!MENTIONS.length && KNOWN_REF_NAMES.length) MENTIONS=MT.distinctMentions(KNOWN_REF_NAMES);
                 log(`Scene recovery: preserving scenes ${missingRecovery.completed.join(', ')}; submitting ONLY missing scenes ${missingRecovery.missing.join(', ')}.`);
             } else {
                 preflightComplete=true;
@@ -1293,8 +1314,28 @@ async function uploadRefThroughPicker(page, box, file) {
     if (VOICES.length) {
         banner(`VOICE (${VOICES.join(', ')})`);
         for (const v of VOICES) {
-            if (!await attachVoice(page, v)) throw Error(`Required Agent voice ${v} was not attached. No batch submitted.`);
+            if (!await attachVoice(page, v)) throw Error(`FLOW_REVIEW_REQUIRED: Required Agent voice ${v} could not be verified. No batch submitted; do not replay this batch automatically.`);
             log(`Agent voice ${v}: attached and verified for this batch.`);
+        }
+    }
+
+    // Reference chips are deliberately attached before the voice asset. Flow's
+    // ingredient picker has changed behavior between UI versions, so audit the
+    // complete set again after the voice picker closes; checking refs only
+    // before voice selection allowed a silently dropped image to be submitted.
+    const finalReferenceCount = await page.evaluate(() => {
+        const pm = window.__veoAgentEditor?.();
+        return pm ? pm.querySelectorAll('.mention-chip').length : -1;
+    });
+    log(`Final attachment audit: references=${finalReferenceCount}/${MENTIONS.length}; voice=${VOICES.length ? VOICES.join(', ') : 'native/no asset'}.`);
+    if (finalReferenceCount !== MENTIONS.length) {
+        throw Error(`Reference images changed while attaching the voice (${finalReferenceCount}/${MENTIONS.length} remain). No batch submitted; references must be restored before retry.`);
+    }
+    if (VOICES.length) {
+        const voiceAudit = await page.evaluate(require('./agent_voice_chip').agentVoiceChipState, { name: VOICES[0] });
+        if (VOICES.length === 1 && !voiceAudit.verified) throw Error(`Voice ${VOICES[0]} is not verified after reference audit. No batch submitted.`);
+        if (VOICES.length > 1 && voiceAudit.count !== VOICES.length) {
+            throw Error(`Voice ingredient count changed during the final attachment audit (${voiceAudit.count}/${VOICES.length}). No batch submitted.`);
         }
     }
 

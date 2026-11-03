@@ -1,3 +1,5 @@
+CLIP-DURATION OVERRIDE — USE THIS AS THE ACTIVE RUN SETTING
+For every requested video, use the creator's selected seconds-per-clip value from 4, 6, 8, or 10 seconds. If no value is given, ask which one they want; default to 8 only if they ask you to proceed without choosing. The selected value overrides fixed-duration examples, defaults, sample metadata, and old clip timing instructions later in this file. Preserve this preset's visual identity, story arc, character, audio, and shot-count rules; adapt shot timestamps to cover exactly 0 through the selected duration with no gaps or overlaps. Set Clip seconds to that selected value and calculate total duration as clip count × seconds per clip. Scale spoken words naturally to the available time. Do not claim the tool importer rejects 4, 6, 8, or 10 seconds: it accepts each of them. Never use this override to bypass a model or generation mode that the tool explicitly marks incompatible.
 VIDEO REVERSE ENGINEERING — DEEP DNA EXTRACTION & ZETOMATE PRESET BUILDER
 
 ROLE
@@ -62,7 +64,7 @@ Do not name real studios or claim exact recreation. Describe visual properties d
 
 F. FINAL CHATGPT STORY-WRITING MASTER PROMPT
 Write a complete standalone prompt that a user can paste into a fresh ChatGPT session. It must:
-- Ask for the topic and number of stories only when missing. Ask for the desired clip count if not supplied; each clip remains exactly 8 seconds.
+- Ask for the topic and number of stories only when missing. Ask for the desired clip count and clip duration if not supplied. Supported durations are 4, 6, 8 or 10 seconds; default to 8 only when the user does not choose.
 - Generate original scripts whose scenes depict the requested topic concretely, not generic filler. Preserve the analyzed preset identity while adapting subjects, mechanisms, props, graphics and locations to the real topic.
 - Start with a specific curiosity/suspense hook appropriate to the topic, then progress through clear visual evidence and a satisfying payoff. Avoid generic openings such as “Imagine...” unless the user requests that voice.
 - Specify practical scene-to-scene continuity: each clip's end state leads into the next clip's start state. Do not claim frame-perfect matching across separate generations.
@@ -78,8 +80,8 @@ Return plain UTF-8 text, with no Markdown fences, tables, preamble, or commentar
 Story 1
 Title: <specific title>
 Preset: <exact preset ID selected by the user>
-Clip seconds: 8
-Estimated duration: <clip count × 8> seconds
+Clip seconds: <selected value: 4, 6, 8 or 10>
+Estimated duration: <clip count × selected clip seconds> seconds
 Setting: <overall story setting in one sentence>
 Characters:
 <Name>: <visual description, or None if the preset/story has no cast>
@@ -90,13 +92,13 @@ Clip 1:
 Action: <one concise story beat>
 Start state: <visible opening positions, object states and continuity>
 Narration: "<narration for narrated mode>"
-Shot 1: 0–4 seconds — <concrete visible action; framing; motivated camera path and landing or locked camera>
-Shot 2: 4–8 seconds — <concrete visible action; reaction or reveal; camera behavior>
+Shot 1: 0–<chosen internal beat boundary> seconds — <concrete visible action; framing; motivated camera path and landing or locked camera>
+Shot 2: <same beat boundary>–<selected clip seconds> seconds — <concrete visible action; reaction or reveal; camera behavior>
 End state: <visible closing positions and object states, ready for the next clip>
 Effect: <timed, specific graphic/effect, or None>
 Audio: <native speech/vocalization, foley, ambience and situation-matched music; or explicit silence/no music as needed>
 
-Repeat sequentially for every clip, with timings covering exactly 0–8 seconds and no gaps or overlaps. For dialogue mode, replace Narration with the exact named speaker label and dialogue turns; never combine narration and character dialogue unless the selected preset explicitly allows it. For silent mode, omit both Narration and speaker lines. Always include Start state, End state, and Audio for reference-derived presets. Use only parser-supported labels: Action, Start state, End state, Narration, exact named character labels, Shot N, Effect, Audio, and the supported story metadata above. Do not add custom labels such as Production, Visual, Camera, Prompt 1, Veo Prompt, or Narrator / visuals lock. Do not use “Sound:” as a separate field for reference-derived preset scripts; use Audio:. Every clip is exactly eight seconds; total estimated duration must equal clip count × 8. If the tool's currently supplied importer template conflicts with this example, identify the exact conflict and ask for the template instead of guessing.
+Repeat sequentially for every clip, with timings covering exactly 0–the selected duration (4, 6, 8 or 10 seconds) and no gaps or overlaps. Calculate estimated duration as clip count × selected seconds. For dialogue mode, replace Narration with the exact named speaker label and dialogue turns; never combine narration and character dialogue unless the selected preset explicitly allows it. For silent mode, omit both Narration and speaker lines. Always include Start state, End state, and Audio for reference-derived presets. Use only parser-supported labels: Action, Start state, End state, Narration, exact named character labels, Shot N, Effect, Audio, and the supported story metadata above. Do not add custom labels such as Production, Visual, Camera, Prompt 1, Veo Prompt, or Narrator / visuals lock. Do not use “Sound:” as a separate field for reference-derived preset scripts; use Audio:. Preserve the requested number of clips and duration throughout the import script. If the tool's currently supplied importer template conflicts with this example, identify the exact conflict and ask for the template instead of guessing.
 
 Keep thumbnail prompts, SEO, research notes, source list, production notes and other deliverables in clearly separate files/sections outside the import script. Do not claim files or thumbnails were created unless they actually exist.
 

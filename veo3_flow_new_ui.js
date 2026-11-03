@@ -1377,10 +1377,25 @@ async uploadRefViaSendKeys(filePath) {
                 throw Error('scene 1: not all required ingredients were attached; generation was not started');
             }
         }
+        // Capture the prompt's actual reference-chip count before adding voice.
+        // The voice picker must be the final ingredient operation so it cannot
+        // replace a character/location image in Flow's prompt box.
+        const refsBeforeVoice = await this.ingredientChipState();
+        log(`   📎 References attached before voice: ${refsBeforeVoice.count} prompt ingredient(s).`);
         // The voice is NOT opt-in the way the sheets are: clip 1 is where the
         // narrator is set for the whole film, and a clip 1 read by the wrong
         // voice makes every extend that follows it sound wrong too.
-        await this.attachVoiceToScene(1);
+        const voiceAttached = await this.attachVoiceToScene(1);
+        if (this.flowVoice && !this.noVoice && !voiceAttached) {
+            throw Error(`scene 1: required voice ${this.flowVoice.name} was not attached after references; generation was not started`);
+        }
+        if (this.flowVoice && !this.noVoice && voiceAttached) {
+            const afterVoice = await this.ingredientChipState();
+            log(`   🔎 Final attachment audit: ${refsBeforeVoice.count} reference ingredient(s) before voice; ${afterVoice.count} total after voice.`);
+            if (afterVoice.disabled || afterVoice.count < refsBeforeVoice.count + 1) {
+                throw Error(`scene 1: adding voice ${this.flowVoice.name} removed or invalidated a reference ingredient (before=${refsBeforeVoice.count}, after=${afterVoice.count}, disabled=${afterVoice.disabled}); generation was not started`);
+            }
+        }
         log('');
         const firstClipBefore=await require('./ingredients_first_clip').snapshot(this.page);
         if (this.opts.autoStart) {

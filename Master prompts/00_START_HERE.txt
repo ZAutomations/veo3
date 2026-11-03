@@ -11,7 +11,7 @@ DIRECT IMPORT (no Gemini writing): realistic, Ghibli, stylized 3D, colorful cart
 OTHER PRESETS, INCLUDING FERN: use Title & details > Write stories. Their masters prepare full writing inputs, but direct-import support has not been implemented for them. Do not paste them into Import ready script. Set GUI duration/clip count to match the script before writing.
 
 DOG/HUMAN DIALOGUE LENGTHS: 30 seconds = five 6-second clips. Approximately 60 seconds = eight 8-second clips (64 seconds). Actual generated lengths depend on the selected video model; use supported settings.
-ZACK D: eight-second clips, count derived from narration, two to four timed shots. Improve the supplied hook in ChatGPT BEFORE import; import preserves spoken text.
+ZACK D / INTIMACY HEALTH 3D: choose 4, 6, 8 or 10 seconds per clip; use the requested clip count and one to four timed shots per clip. Improve the supplied hook in ChatGPT BEFORE import; import preserves spoken text.
 SOURCE LINKS: when ChatGPT cannot access a link, supply the transcript/video. Do not let it invent source analysis.
 These files preserve prompt instructions, not API keys, accounts or private stories. They can be copied to another laptop.
 
@@ -43,6 +43,7 @@ science-what-if.txt | Science What-If | STORY WRITER
 animal-kindness.txt | Animal Kindness | STORY WRITER
 geography-map.txt | Geography Map (2.5D relief) | STORY WRITER
 3d-zack-style.txt | 3D Shorts (Zack D. style) | DIRECT IMPORT
+intimacy-health-3d.txt | Intimacy Health 3D | DIRECT IMPORT
 3d-moral-story.txt | 3D Moral Story (Afrimax style) | STORY WRITER
 3d-explainer.txt | 3D Explainer | STORY WRITER
 3d-map.txt | 3D Map | STORY WRITER

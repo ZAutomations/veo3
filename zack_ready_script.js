@@ -37,18 +37,18 @@ function agent(story,{from=1,to=story.scenes.length,aspect=story.aspect_ratio,se
 }
 function prepare(W,p,s,aspect){
  require('./zack_topic_visuals').validate(s);
- if(s.seconds!==8)throw Error('Zack D ready scripts require eight-second clips.');
+ if(![4,6,8,10].includes(s.seconds))throw Error('Zack D supports 4, 6, 8 or 10 seconds per clip.');
  if(s.characters.length>2)throw Error('Zack D supports at most two recurring characters.');
  const cast=W.normaliseCast(p,s.characters.map(c=>({name:c.name,type:'human',description:`IMPORTED ZACK 3D CHARACTER. ${c.description} ${p.style}. Keep the same face, proportions, hair and fixed clothing. Silent on-screen character.`,sheet_prompt:`IMPORTED ZACK 3D CHARACTER. ${p.style}. Multi-angle character identity sheet of ${c.name}: ${c.description}. Same clothing and proportions in every view. Mouth closed, plain cyan background, no text or watermark.`})));
  const locations=s.locations.length?s.locations:[{name:'Environment',description:s.setting}];
  const place=locations.map(l=>`${l.name}: ${l.description}`).join(' ');
  const story=W.buildStory(p,cast,{description:s.title,moral:'',place_name:'Environment',place_description:place,place_prompt:`${p.style}. IMPORTED ZACK 3D ENVIRONMENT. Film topic: ${s.title}. One coherent environment design reference: ${locations[0].name}: ${locations[0].description}. Render its actual architecture and relevant props. No collage of locations, invented technology, people, animals, labels, text or watermark. Other scenes use their own specified settings; this plate is not a universal scene background.`},s.clips.map(c=>({scene_title:c.title,script_line:c.narration,narrative_context:visual(c),characters:cast.filter(a=>c.shots.some(shot=>shot.visual.toLowerCase().includes(a.name.toLowerCase()))).map(a=>a.name)})));
- story.zack_ready_import=true;story.script_import=true;story.imported_locations=locations;story.imported_cast=cast.map(c=>c.name);story.palette=p.palette;story.avoid=p.avoid;story.sound_style=p.sound_style;
+ story.zack_ready_import=true;story.script_import=true;story.scene_seconds=s.seconds;story.total_scenes=s.clips.length;story.duration=`${s.seconds*s.clips.length} seconds`;story.imported_locations=locations;story.imported_cast=cast.map(c=>c.name);story.palette=p.palette;story.avoid=p.avoid;story.sound_style=p.sound_style;
  if(s.continuity){story.visual_continuity=s.continuity;story.imported_continuity=s.continuity;}
  if(s.details)story.imported_details=s.details;
  if(s.storyNumber)story.source_story_number=s.storyNumber;
  if(s.production_profile)story.production_profile=s.production_profile;
- story.scenes.forEach((sc,i)=>{const c=s.clips[i];sc.script_line=c.narration;sc.shots=c.shots;sc.effect=c.effect||'None';sc.sound=c.sound||'None';sc.narrative_context=visual(sc);sc.veo3_prompt=scene(story,i,{aspect});});
+ story.scenes.forEach((sc,i)=>{const c=s.clips[i];sc.script_line=c.narration;sc.shots=c.shots;sc.effect=c.effect||'None';sc.sound=c.sound||'None';sc.narrative_context=visual(sc);sc.veo3_prompt=scene(story,i,{aspect,seconds:s.seconds});});
  const warnings=[...(s.warnings||[])];
  return {W,p,cast,story,warnings};
 }

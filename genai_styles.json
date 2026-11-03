@@ -540,9 +540,9 @@
       "id": "reference-babyandghost-relationship",
       "name": "BabyAndGhost-Relationship",
       "style": "3D animated philosophical drama with painterly textures, warm golden hour lighting, and melancholic cinematic framing.",
-      "direction": "Focus on emotional pacing, reflective philosophical themes, quiet contemplation, and consistent character interactions on a bench. SHARED PRODUCTION AND RECOVERY: Keep each topic concretely visible, with a specific first-three-second hook and a complete payoff. Retain analyzed character identities, clothing, materials and topic-driven locations. Use motivated camera departure/travel/arrival only where spatially coherent; retain locked cameras and deliberate cuts when the style requires them. When graphics belong to the analyzed style or user request, specify the exact target, local timing, animated icon/badge/arrow/ring, tracking and fade within its Shot/Effect; never rely on a global graphics sentence or contradict it with Effect: None. Do not force graphics into a style that excludes them. Music follows the analyzed audio DNA and scene mood, quietly beneath speech; preserve no-music and silent modes. Before retrying audit requested scene IDs, ready assets, active generations, missing scenes and exact errors. Preserve completed and generating clips. For an identified policy failure only, apply a bounded substantive compliant visual revision, never conceal prohibited likenesses or bypass filters; repeated refusal stops for review. Reuse and verify required matching character/location reference images and established voice using project asset tools; never duplicate references or substitute an irrelevant location. Preserve scene IDs, approved facts, appropriate spoken lines and video settings. Do not claim attachment or generation success without verifying actual tool results.",
-      "camera": "Medium shots, static tripod framing, shallow depth of field, subtle atmospheric particle effects.",
-      "sound_style": "Soft melancholic piano/strings background music paired with clear, calm spoken dialogue or narration.",
+      "direction": "A quiet philosophical Child-and-Guardian dialogue series. The Child asks or reflects; the Guardian answers gently and helps the Child understand. The spoken conversation alone carries the story. No physical plot actions, tasks, symbolic props, object handling, demonstrations, travel, touching, environmental events, extra characters, narrator, or decorative effects. Keep both characters seated in one calm location, with fixed positions and only restrained listening expressions. Alternate Child and Guardian turns naturally; the Guardian speaks the final answer and closing line. Keep speaker identity and voice assignment stable across every clip.",
+      "camera": "Static conversational coverage only: steady medium two-shot, then static speaker close-up and listener reaction cuts. No camera travel, pans, tilts, zooms, particles, or action inserts.",
+      "sound_style": "Native dialogue only from the named speaker, with the same quiet piano-and-strings bed kept low and consistent in every clip. Child has a gentle youthful higher-register voice; Guardian has a calm warm low adult voice. No narrator, sound effects, wind, or environmental events.",
       "ready_script_mode": "dialogue",
       "reference_cast": [
         {
@@ -563,23 +563,27 @@
       "scene_seconds": 8,
       "analysis_dna": {
         "locked": [
-          "Character designs (Child and hooded Guardian)",
-          "Core color palette (Orange, amber, dark gray)",
-          "Philosophical tone and melancholic atmosphere"
+          "Child and hooded Guardian identities and wardrobe",
+          "Quiet philosophical conversation on a simple bench",
+          "Static two-shot and speaker/listener cuts; no physical plot action",
+          "Child asks or reflects; Guardian explains and closes the conversation",
+          "Stable distinct Child and Guardian voice assignments",
+          "Soft low piano-and-strings music, unchanged across clips"
         ],
         "controlled": [
-          "Dialogue topics and questions",
-          "Subtle character gestures and physical touch",
-          "Pacing of text overlays"
+          "Question and answer subject",
+          "Which character receives the static close-up",
+          "Subtle listening expression"
         ],
         "free": [
-          "Specific philosophical questions explored in each new topic",
-          "Atmospheric particles (leaves, embers, dust)"
+          "The philosophical question and the Guardian’s reassuring explanation",
+          "Story-specific quiet bench or similarly uncluttered seated setting"
         ],
         "avoid": [
-          "Bright daylight",
-          "Fast-paced action",
-          "Real-world branding or modern elements"
+          "Props, lanterns, symbolic objects or demonstrations",
+          "Walking, touching, object handling, gestures or physical business",
+          "Weather/lighting changes, particles, action inserts, camera movement",
+          "Narration, extra characters, speaker/voice swaps"
         ]
       },
       "label": "BabyAndGhost-Relationship",

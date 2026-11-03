@@ -123,7 +123,7 @@ async function attachVoice(page, name, opts = {}) {
         const {agentVoiceChipState}=require('./agent_voice_chip');
         const existing=await page.evaluate(agentVoiceChipState,{name});
         if(existing.count) {
-            log('Replacing an unverified existing voice ingredient with the exact selected Alnilam asset; image references are retained.');
+            log(`Replacing an unverified existing voice ingredient with the requested ${name} asset; image references are retained.`);
             await page.evaluate(agentVoiceChipState,{phase:'clear',name});
             for(let poll=0;poll<20;poll++) {
                 if(!(await page.evaluate(agentVoiceChipState,{name})).count)break;
@@ -226,20 +226,62 @@ async function attachVoice(page, name, opts = {}) {
             await wait(900);
             continue;
         }
+        // Capture the prompt's current voice-chip set BEFORE selecting the
+        // library asset. Some Flow versions attach the voice as soon as its
+        // row is selected, without exposing an Add-to-prompt footer. Capturing
+        // after selection made that valid chip look like old state and caused
+        // a false "voice missing" failure before the submit step.
+        if(opts.agentMode)await page.evaluate(require('./agent_voice_chip').agentVoiceChipState,{phase:'capture',name});
         // A REAL click: a synthetic .click() selects the row but does not arm the
         // detail pane, so the "Add to prompt" button never appears.
         await page.mouse.click(item.x, item.y);
         log(`  selected voice: ${item.text}`);
         await wait(2400);
-        const addBtn = await page.evaluate(() => {
-            const b = document.querySelector('[class*=detail-add-to]')
-                || [...document.querySelectorAll('button')].find((x) => /add to prompt/i.test((x.innerText || '').trim()));
-            if (!b) return null;
-            const r = b.getBoundingClientRect();
-            return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
-        });
+        if(opts.agentMode){
+            for(let poll=0;poll<12;poll++){
+                const state=await page.evaluate(require('./agent_voice_chip').agentVoiceChipState,{phase:'mark',name});
+                if(state.verified){
+                    log(`  voice "${name}" attached directly by selection and verified as one audio ingredient.`);
+                    await page.keyboard.press('Escape');
+                    await wait(500);
+                    return true;
+                }
+                await wait(250);
+            }
+        }
+        // Flow sometimes renders the footer action as an aria-labelled or
+        // role=button control with no innerText. Wait for the selected asset's
+        // action panel and inspect all of those forms instead of assuming a
+        // button with visible text appears within a fixed 2.4 seconds.
+        let addBtn = null;
+        for (let poll = 0; poll < 24 && !addBtn; poll++) {
+            addBtn = await page.evaluate(() => {
+                const visible = e => { const r=e.getBoundingClientRect(); return r.width>0&&r.height>0; };
+                const controls=[...document.querySelectorAll('[class*=detail-add-to],button,[role=button],[mat-button]')]
+                    .filter(visible).filter(e=>!e.disabled&&e.getAttribute('aria-disabled')!=='true')
+                    .map(e=>({e,label:[e.innerText,e.textContent,e.getAttribute('aria-label'),e.getAttribute('title'),e.getAttribute('data-tooltip')].filter(Boolean).join(' ').replace(/\s+/g,' ').trim()}));
+                const phrase=controls.filter(x=>/(?:\b(?:add|use)\b.{0,48}\b(?:prompt|composer)\b|\b(?:prompt|composer)\b.{0,48}\b(?:add|use)\b)/i.test(x.label));
+                const detail=phrase.filter(x=>x.e.matches('[class*=detail-add-to]'));
+                const overlay=phrase.filter(x=>x.e.closest('.cdk-overlay-pane'));
+                // Prefer the detail-panel action; if Flow renders duplicate
+                // labels in hidden/outer composer chrome, use the picker-local
+                // action. Never click an ambiguous generic button.
+                const candidates=detail.length?detail:overlay.length?overlay:phrase;
+                if(candidates.length!==1)return null;
+                const r=candidates[0].e.getBoundingClientRect();
+                return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)};
+            });
+            // Flow has also rendered this footer inside a custom component's
+            // open shadow root; document.querySelectorAll cannot see that
+            // button. Puppeteer's accessible-role locator pierces open shadow
+            // DOM and gives us the same real button coordinates.
+            if(!addBtn)try{
+                const action=page.getByRole('button',{name:/\b(?:add|use)\b.*\b(?:prompt|composer)\b/i});
+                if(await action.count()===1){const r=await action.boundingBox();if(r)addBtn={x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)};}
+            }catch{}
+            if(!addBtn)await wait(350);
+        }
         let added = false;
-        if(opts.agentMode)await page.evaluate(require('./agent_voice_chip').agentVoiceChipState,{phase:'capture',name});
         if (addBtn) { await page.mouse.click(addBtn.x, addBtn.y); added = true; }
         await wait(1500);
         await page.keyboard.press('Escape');
@@ -254,6 +296,9 @@ async function attachVoice(page, name, opts = {}) {
         }
         if (!added) {
             if (opts.agentMode && await voiceOnPromptBox(page,name,{wait,agentMode:true})) return true;
+            if (opts.agentMode) {
+                throw Error(`FLOW_REVIEW_REQUIRED: Voice ${name} was selected but Flow exposed no usable Add-to-prompt control. Stopped before submission; do not retry the whole batch automatically.`);
+            }
             continue;
         }
         // Pressed is not the same as landed - and only the readback can tell

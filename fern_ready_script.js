@@ -29,12 +29,12 @@ function agent(story,{from=1,to=story.scenes.length,...options}={}){
  return [`Create exactly ${to-from+1} separate clips for scenes ${from}-${to}; preserve supplied narration and chronology.`,...story.scenes.slice(from-1,to).map((s,i)=>`Scene ${from+i}\n${scene(story,from+i-1,options)}`)].join('\n\n');
 }
 function prepare(W,p,source,aspect){
- if(source.seconds!==8)throw Error('Fern ready scripts currently require eight-second clips.');
+ if(![4,6,8,10].includes(source.seconds))throw Error('Fern supports 4, 6, 8 or 10 seconds per clip.');
  const cast=W.normaliseCast(p,source.characters.map(c=>({name:c.name,description:c.description,type:'human'})));
  const locations=source.locations.length?source.locations:[{name:'Reconstruction Environment',description:source.setting||source.clips[0].shots[0].visual}];
  const story=W.buildStory(p,cast,{description:source.story_brief||source.details||source.title,moral:'',place_name:locations[0].name,place_description:locations[0].description,place_prompt:`${p.style}. Empty environment design plate for this actual location: ${locations[0].description}. No people, text, collage or invented evidence. Other story locations keep their own settings.`},source.clips.map(c=>({scene_title:c.title,script_line:c.narration,narrative_context:visual(c),characters:cast.filter(a=>c.shots.some(s=>s.visual.toLowerCase().includes(a.name.toLowerCase()))).map(a=>a.name)})));
- Object.assign(story,{fern_ready_import:true,script_import:true,palette:p.palette,avoid:p.avoid,sound_style:p.sound_style,imported_locations:locations,imported_brief:source.story_brief||source.details||'',imported_sources:source.sources||'',visual_continuity:source.continuity||'',source_story_number:source.storyNumber});
- story.scenes.forEach((s,i)=>{const c=source.clips[i];Object.assign(s,{script_line:c.narration,shots:c.shots,effect:c.effect||'None',sound:c.sound||'None'});s.veo3_prompt=scene(story,i,{aspect});});
+ Object.assign(story,{fern_ready_import:true,script_import:true,scene_seconds:source.seconds,total_scenes:source.clips.length,duration:`${source.seconds*source.clips.length} seconds`,palette:p.palette,avoid:p.avoid,sound_style:p.sound_style,imported_locations:locations,imported_brief:source.story_brief||source.details||'',imported_sources:source.sources||'',visual_continuity:source.continuity||'',source_story_number:source.storyNumber});
+ story.scenes.forEach((s,i)=>{const c=source.clips[i];Object.assign(s,{script_line:c.narration,shots:c.shots,effect:c.effect||'None',sound:c.sound||'None'});s.veo3_prompt=scene(story,i,{aspect,seconds:source.seconds});});
  return {W,p,cast,story,warnings:[...source.warnings]};
 }
 module.exports={applies,scene,agent,prepare,callout};
