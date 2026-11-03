@@ -12,9 +12,9 @@ Restart Studio after installing this change. Open **Video Reverse Engineering** 
 ## Analysis stages
 
 - Local `ffprobe` metadata: actual duration, size, frame rate, codecs and audio streams.
-- Per-video Gemini pass: timestamped shots, subject/action/expression/blocking, identity/wardrobe/props, framing/camera/focus, lighting/palette/materials, graphics, edits, sound/voice/music, story beats, hook/payoff/CTA, retention and continuity.
+- Per-video Gemini pass: full-duration timestamped beats, concrete camera start/path/landing, framing, blocking, graphics timing/tracking, audio sync, identity/location/prop continuity, emotional and retention mechanics, and explicit observed/inferred/unknown evidence.
 - Independent media audit: re-watch for missed cuts, fast events, audio changes, incorrect assumptions and continuity problems.
-- Synthesis: compare shared, variable, contradictory and source-specific traits; build a production bible, image-reference prompts and tool-compatible preset.
+- Synthesis: compare repeated, variable, contradictory and source-specific traits; convert findings into an executable creative formula, topic-adaptation rules, production bible, image-reference prompts, importer-compatible future master prompt and preset.
 - Quality review: inspect the package against all reports and audits, retain uncertainties, and remove unsupported precision.
 
 Normally this means **2 × number of videos + 2 API calls**, excluding retries. Sampling defaults to 4 fps; 8 fps provides more temporal detail but consumes more input tokens. Sampled analysis does not guarantee detection of every frame or sound. Lens, lighting temperature, BPM and hidden production software must not be presented as measured facts.

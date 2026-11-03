@@ -1,39 +1,82 @@
 MASTER PROMPT: Geography Map (2.5D relief)
 PRESET ID: geography-map
-USE IN TOOL: Story Writer > Title & details > Write stories, with this preset selected. Match the GUI clip count and seconds to the script; text duration alone does not set GUI controls. This preset is NOT currently supported by Import ready script. This route still uses Gemini/AI Studio to finalize the story.
+USE IN TOOL: Story Writer > Import ready script. Select geography-map, attach or paste this TXT, and import. The tool validates exact field labels; this prompt must follow the same ready-import structure used by Fern Documentary and 3D Zack Style. Do not use Story Writer-only custom fields or add labels outside the parser format.
 
 COPY FROM THE NEXT LINE INTO CHATGPT:
 
 Create complete scripts for my Geography Map (2.5D relief) preset. Ask for the topic or supplied source, requested duration, and number of stories unless already specified. For normal narrated eight-second clips, explain that total generated duration is clip count times eight seconds. Do not silently turn a short source into a long film. Offer source-length matching when a transcript is supplied. Preserve facts and original speaker ownership. Produce a coherent hook, ordered development and full ending, rather than a list of disconnected facts. For real factual topics, verify uncertain information or ask for clarification; never present invented research as evidence.
-For original eight-second narration aim for 16-20 spoken words, maximum 22, allowing pauses. Preserve the full source and choose more clips rather than rushing or dropping material.
+For original eight-second narration aim for 16-20 spoken words, maximum 22, allowing pauses. Preserve the full source and choose enough clips rather than rushing or dropping material. Use the same ready-import syntax as Fern Documentary and Zack D: each metadata field on its own line, then each Clip N: heading and its accepted fields on separate lines. No custom labels or separate prompt sections.
+
+READY-IMPORT SCRIPT SYNTAX
+Story 1
+Title: [finished title]
+Preset: geography-map
+Details: [brief premise and story context]
+Duration: [clip count multiplied by eight] seconds. Exactly [clip count] clips of 8 seconds.
+Story brief: [one concise description of the topic, route/event, scope and factual basis]
+Locations:
+[Actual location or map region]: [brief accurate description]
+[Another actual location/region]: [brief accurate description, only if needed]
+
+Clip 1:
+Narration: "[complete narration segment]"
+Shot 1: 0–3 seconds — [specific visible map action matching the opening narration]
+Shot 2: 3–5 seconds — [next visible map action]
+Shot 3: 5–8 seconds — [visible result or progression]
+Sound: [relevant effects and restrained situation-matched BGM, or None]
+
+Clip 2:
+Narration: "[next complete narration segment]"
+Shot 1: 0–3 seconds — [specific visible map action]
+Shot 2: 3–5 seconds — [next visible map action]
+Shot 3: 5–8 seconds — [visible result or progression]
+Sound: [relevant effects and restrained situation-matched BGM, or None]
+
+Repeat for every clip, numbering consecutively. Use only the accepted fields shown above: Title, Preset, Details, Duration, Story brief, optional Locations, Clip N, Narration, Shot N, optional Effect, and Sound. This is the same parser structure used by Fern/Zack; only Preset and visual content differ. Do not output Setting:, Characters:, Prompt:, Prompt 1:, Veo Prompt:, Visual:, Action:, Camera:, thumbnail/SEO fields, or any other custom field. If writing any separate thumbnail or production package, keep it outside the import script. Do not combine Story N and metadata on a single line.
 
 Work without any previous chat history. Follow this prompt and the script or references I provide in this conversation. Never claim to have watched a link you cannot access; ask for the transcript or uploaded video instead. Do not invent source facts, figures, qualifications or outcomes. Keep scripts non-explicit and non-graphic; do not disguise restricted content with coded words. No prompt can guarantee a provider will accept every generation.
 Provide finished content, not placeholders. Check numbering, durations, complete sentences and word counts before delivery. If file tools are available, create the separate package files. Otherwise provide complete individually labeled contents and report unavailable image/file capabilities. No explanatory introduction, tables, decorative separators or Markdown headings inside the output file.
 
-Deliver separate numbered SCRIPT.txt files using the complete-package contract below. These are story-writing inputs, not direct-import scripts for this preset. Output:
+Deliver each story in ready-import format. Use exactly this structure and one field per line. Never put metadata on the Story heading or combine multiple fields on one line. Do not add Markdown, bullets, code fences, commentary, thumbnail/SEO sections, or unrecognized labels to the import TXT:
 Story 1
 Title: [finished title]
 Preset: geography-map
-Details:
-Duration: [chosen generated duration] seconds. [number] clips of 8 seconds.
-Story brief: [specific premise, viewpoint, cast and setting; do not repeat the whole script here]
+Details: [brief factual premise and narration context]
+Duration: [number] clips of 8 seconds.
+Setting: [named locations or map regions used in this story]
+Characters: None
+Locations:
+[Location name]: [brief map/location description]
 
 Clip 1:
 Narration: "[complete narration segment]"
-Visual: [specific event and action]
-Sound: [quiet appropriate sound or None]
+Shot 1: 0–3 seconds — [specific visible action synchronized to the opening narration]
+Shot 2: 3–5 seconds — [next concrete visible action, continuing the same map/event logic]
+Shot 3: 5–8 seconds — [final concrete visible action or result]
+Sound: [music and relevant effects, or None]
 
-Continue through the complete story. Replace all placeholders; never include the continuation instruction. Use a separate numbered SCRIPT.txt for each Story N in a batch. For Sarah/SAM dialogue include setting and descriptive prose BEFORE Clip 1, then only labelled spoken lines within clips; no Action: fields that the legacy transcript parser could mistake for speech.
+Repeat Clip N with consecutive numbering. Use one blank line between fields/clip blocks for readability. Every clip must use exactly one Narration line, two to four timed Shot N lines, and one Sound line; use three shots covering 0–3, 3–5, and 5–8 seconds for this preset. Each shot line MUST follow `Shot N: start–end seconds — concrete visible action`. Put the em dash or hyphen between timing and action. Never use `Visual:`, `Action:`, `Camera:`, `Effect:` or custom clip fields. Keep shot timing continuous from 0 to 8 seconds, with no gaps or overlaps. Output separate stories as repeated `Story N` blocks, with one blank line between them. Do not append non-import package text to this TXT.
 The tool applies the preset below. Follow its genre, visual medium, camera, cast, tone and sound rules when describing the scenes:
-STYLE: Dark-mode 2.5D topographic shaded-relief cartography, satellite-photoreal hybrid, exaggerated 3D elevation casting long shadows, glowing luminous neon vector boundaries, volumetric atmospheric lighting, deep-space vignette at the frame edge, premium technical infographic finish, zero on-screen text, ultra-sharp 4K satellite aesthetic, NOT flat 2D vector art, NOT toy-like, NOT cel-shaded
-PALETTE: Deep Midnight Ocean #080C16, Charcoal Slate Terrain #1C222D with shaded ridges #2A323D, Luminous Amber Gold highlight #FFB703, Electric Neon Cyan waterways #00E5FF, Laser Crimson divider #FF2A42, Lowland Moss Green #2A4736
-CAMERA: Relentless kinetic motion, 9:16 vertical: high-angle orbital satellite dives, 45-degree isometric flyovers, low-altitude tracking drifts along coastlines and lines. Never a locked-off static shot. Smooth ease-in/out landing on a landmark, rapid zoom-dives through cloud layers, match-cuts on colour fills, whip-pans along neon vectors.
-DIRECTION: Every clip is an evolving geographic VISUALISATION, not a flat slide: glowing boundaries, dashed tracer lines with animated chevron arrows, and translucent illuminated polygon fills demonstrate the single factual claim the narrator is voicing at that instant. Frame ONE already contains the anomaly: the surprising visualisation is happening in the first second - never a slow map tour, a zoom-out to establish, or any build-up. Clip 1 is a HOOK and never the first fact: lead with the single most counter-intuitive claim as a flat STATEMENT, not a question (a question is only the fallback). Every clip after carries exactly ONE new fact or deduction with its specifics (a length, a year, a country, a number) and never repeats the previous line. The last clip is the biggest revelation and its final frame visually echoes the first frame so the film loops. Show the fact, never narrate a walkthrough. Exaggerate every instruction - the model treats 'moves' as 'barely moves': say fast, aggressive, big dramatic framing change, never static. Numbers are spoken as words ('seven thousand', not '7,000'). ENGAGEMENT ICONS (one general rule, never per-topic): as the narrator voices each line, small flat emoji-style icons / sticker graphics pop in on the map, timed to the exact moment each concrete thing is named or implied. Match the icon to whatever the sentence is about - a country or city gets its flag or a simple map-pin marker, war or battle gets crossed swords / a rifle / a tank / a fighter-jet / an explosion burst, money gets a coin or a stack of cash, a ship or voyage gets a ship, a treaty or document gets a scroll, a person or role gets a small flat avatar silhouette, terrain or nature gets a mountain, river, tree or wave, and so on for any noun the line carries. Keep ONE consistent cartoony sticker language for the whole film (thick dark outline, flat fill, soft drop shadow), each icon pops in with a punchy scale-up, each sits beside the relevant point on the map, none covers the map's key line or highlighted border, and none contains any text. No people, no talking heads, no on-screen text.
+STYLE: Vertical 9:16 cinematic 2.5D/3D cartographic documentary. Use accurate, recognizable satellite terrain as the geographic base: coastlines, relief, rivers, roads and boundaries must match the named real place. Add restrained layered depth, atmospheric light and high-contrast color accents. This is a flexible geography-documentary identity, not a single fixed palette or a route-only template. Select a coherent topic-appropriate palette and keep it consistent throughout the film.
+PALETTE: Choose and name 3–5 colors for this specific story. Examples: marigold route on deep ocean/green terrain for a journey; amber/cyan front lines over natural satellite colors for a war; white/blue elevation contrast for a mountain or polar expedition; restrained red warning area only when the source supports a genuine hazard. Use colors consistently and explain each color's meaning once in the story brief or visual plan. Do not add danger colors merely for excitement.
+CAMERA: Every shot specifies a concrete camera operation tied to an actual map target: starting scale/location, movement path, landing scale/location and what new information becomes visible. Use a clear aerial push-in, pull-back, pan or route-following track; choose one move, not a menu. Begin at the scale needed to understand the hook, then move deliberately between regional and local views. Avoid empty globe spins, repeated generic zooms, random whip-pans and motion that hides geography. Cut directly when a real time/place jump is clearer than a fake continuous move. Keep labels and key locations in frame long enough to read.
+DIRECTION: Before writing, map the complete source chronology into clip beats and identify the exact places, people/roles, objects, routes, obstacles and outcomes actually supported by the source. The story topic determines what appears; the preset determines how it is visualized. Each clip must advance one distinct fact or event. Within each clip, the three timed shots must show the specific narrated idea at that time—not three interchangeable map views. For every shot name: (1) actual place and scale, (2) visible subject/marker, (3) physical or graphic action, (4) camera start→path→destination, and (5) the resulting change in the map. Open Clip 1 with the central anomaly/action already visible and a concise curiosity hook; avoid generic introductions and empty establishing maps. Keep narration factual, source-faithful and complete; do not invent distances, dates, records, motives, routes, military actions or peril. If a path or detail is uncertain, mark only the known region and say approximate in narration when needed.
+TOPIC VISUAL SYSTEM — select only what fits the story:
+• Journeys/endurance: draw one continuous, thick, high-contrast route from the verified start. Animate it progressively in the correct direction; preserve the completed route in later clips. Move one small traveler/vehicle marker along it. Show named milestones and real obstacles in chronological order. Do not teleport, redraw or reset the route between clips.
+• War/military history: map only source-supported fronts, advances, retreats, supply routes and locations. Use small, clearly illustrative era-appropriate vehicle/aircraft/ship markers only when the narration names them. Animate only documented movement. Show firing or impact only when specifically supported, from a clear direction, and non-graphically; no invented attacks, targets, casualties or destruction.
+• Geography/natural features: trace the actual coastline, river, fence, border, mountain corridor or other named feature accurately. Use a restrained highlight, elevation reveal or measurement only when the source provides it.
+• Migration/trade/exploration: use directional arrows or a cumulative route only for source-supported paths; use distinct markers for stages and destinations.
+• Other map explainers: use a geographic marker, shaded region or scale change that directly explains the narrated fact. Never force a travel route onto a story that is not a journey.
+EVIDENCE CUTAWAYS: Brief picture-in-picture cutaways are optional, not mandatory. Use them only when they clarify a map beat and are based on user-supplied or actually available reference material. Do not label generated imagery as archival, fabricate quotations, or request a real person's likeness. If no usable evidence image exists, use an original non-identifiable illustrative cutaway and keep it clearly documentary-style reconstruction. Use the same inset shape and placement throughout the video if cutaways recur; reserve the map as the main visual.
+GRAPHICS & TEXT: Use only a small set of consistent, purposeful map graphics: route/front line, moving marker, a few pins, and short accurate place/year/distance labels where necessary. Specify the graphic's appearance, map target, entrance/movement/exit timing, and how it relates to narration in the corresponding Shot field. Keep graphics legible on mobile; do not give pixel coordinates, exact blur radii, or impossible sub-frame timing. No generic skulls, hazard badges, prohibition symbols, flags, speech bubbles, UI panels or emoji unless the verified story specifically calls for them. Text should be sparse, correctly spelled, source-supported and not substituted for visual explanation.
+CONTINUITY: Record the route direction, marker identity, line color, palette, map projection/terrain treatment, recurring inset style and progress reached at the end of each clip. Each following clip starts from that accumulated state or makes an explicit motivated time/place cut. Maintain correct geographic orientation and consistent labels. Generated clips may not preserve exact last-frame continuity, so describe a clear visual anchor and state what must remain unchanged; never promise frame-perfect continuity.
+PACE: Use visual changes every few seconds inside the supplied shot timings, but do not force meaningless cuts. A camera move, route drawing, marker movement or purposeful overlay can create the beat. Keep one readable map action per shot and let important geography register before the next change. Avoid stacking multiple unrelated effects in one shot.
+AUDIO SYNC: Keep one consistent narration voice. In each Sound field specify the scene-appropriate ambience/SFX and how the recurring instrumental bed changes in intensity; effects land on named map moves or verified events. Do not prescribe a fixed BPM, military drums, whoosh on every transition or dramatic strike sound for every topic. No added dialogue unless the source/preset genuinely requires it.
 NARRATION_VOICE: one casual, energetic male narrator - conversational and a little wry, like a sharp friend explaining something wild, brisk pace, natural contractions and rhetorical asides, never formal or academic
 SOUND_STYLE: driving cinematic ambient dark synth pulse at 110-120 BPM, muted marimba and pizzicato accents, a deep sub-bass braam on every map zoom, high-tech digital chirps as a neon boundary traces, a deep sub-impact rumble when a divider line slices the territory; the music bed stays well under the narration and swells at the final payoff
-AVOID: no on-screen text, subtitles, captions, watermarks or UI, no country names or map labels, no garbled or distorted letterforms, no human talking heads, faces or avatars, no flat 2D whiteboard or clipart, no cartoon vector icons, no stationary or PowerPoint-style maps, no handheld shake, no film grain or scratches, no live-action footage
-CAST_IDIOM: No humans, no faces, no avatars - geography, borders, vector markers, terrain and satellite elevation only.
-STORY_SHAPES: ["a counter-intuitive geographic paradox, explained through its physical cause", "the map looks ordinary, then one glowing line divides everything", "place A and place B, and the single barrier or line between them", "a calm explanation that keeps getting stranger, then a mind-blowing payoff"]
+AVOID: no empty-globe opening, abstract country-color blocks, invented coastlines, route teleporting/resetting, unsupported military movements or impacts, graphic injury, random orbiting/whip-pans/zoom pulses, unexplained fills, emoji stickers, cluttered labels, subtitles, captions, watermarks or UI, misleading distances, unsupported equipment/tactics/outcomes, static PowerPoint maps or fantasy geography.
+CAST_IDIOM: The map remains the main subject. Add only small, clean, topic-appropriate 3D markers or vehicle silhouettes that clarify the narrated event. Real people appear only as brief source-supported photo/video cutouts in a simple circular inset, never as talking heads.
+STORY_SHAPES: ["a remarkable person or journey traced across a continent, with route progress accumulating clip by clip", "a documented battle explained through verified front lines and movements", "a fence, border or geographic feature revealed by tracking its true course", "a geographic event shown through a clear map, accurate locations and topic-matched animated markers"]
 
 
 SHARED PRODUCTION STANDARD — 2026-10 UPDATE

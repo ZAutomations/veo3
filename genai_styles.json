@@ -535,6 +535,68 @@
         "Companion worries that loyalty is one-sided; Wolf discusses reciprocity without condemning or confronting anyone.",
         "Companion regrets trusting someone; Wolf offers compassion and a grounded lesson about learning without becoming bitter."
       ]
+    },
+    {
+      "id": "reference-babyandghost-relationship",
+      "name": "BabyAndGhost-Relationship",
+      "style": "3D animated philosophical drama with painterly textures, warm golden hour lighting, and melancholic cinematic framing.",
+      "direction": "Focus on emotional pacing, reflective philosophical themes, quiet contemplation, and consistent character interactions on a bench. SHARED PRODUCTION AND RECOVERY: Keep each topic concretely visible, with a specific first-three-second hook and a complete payoff. Retain analyzed character identities, clothing, materials and topic-driven locations. Use motivated camera departure/travel/arrival only where spatially coherent; retain locked cameras and deliberate cuts when the style requires them. When graphics belong to the analyzed style or user request, specify the exact target, local timing, animated icon/badge/arrow/ring, tracking and fade within its Shot/Effect; never rely on a global graphics sentence or contradict it with Effect: None. Do not force graphics into a style that excludes them. Music follows the analyzed audio DNA and scene mood, quietly beneath speech; preserve no-music and silent modes. Before retrying audit requested scene IDs, ready assets, active generations, missing scenes and exact errors. Preserve completed and generating clips. For an identified policy failure only, apply a bounded substantive compliant visual revision, never conceal prohibited likenesses or bypass filters; repeated refusal stops for review. Reuse and verify required matching character/location reference images and established voice using project asset tools; never duplicate references or substitute an irrelevant location. Preserve scene IDs, approved facts, appropriate spoken lines and video settings. Do not claim attachment or generation success without verifying actual tool results.",
+      "camera": "Medium shots, static tripod framing, shallow depth of field, subtle atmospheric particle effects.",
+      "sound_style": "Soft melancholic piano/strings background music paired with clear, calm spoken dialogue or narration.",
+      "ready_script_mode": "dialogue",
+      "reference_cast": [
+        {
+          "name": "Child",
+          "type": "human",
+          "gender": "unspecified",
+          "description": "Small humanoid child figure with pale skin, large dark expressive eyes, and a gray hooded cloak."
+        },
+        {
+          "name": "Guardian",
+          "type": "human",
+          "gender": "unspecified",
+          "description": "Tall, towering shadowy figure with an obscured face wearing a dark ragged hooded robe."
+        }
+      ],
+      "aspect_ratio": "9:16",
+      "default_clips": 10,
+      "scene_seconds": 8,
+      "analysis_dna": {
+        "locked": [
+          "Character designs (Child and hooded Guardian)",
+          "Core color palette (Orange, amber, dark gray)",
+          "Philosophical tone and melancholic atmosphere"
+        ],
+        "controlled": [
+          "Dialogue topics and questions",
+          "Subtle character gestures and physical touch",
+          "Pacing of text overlays"
+        ],
+        "free": [
+          "Specific philosophical questions explored in each new topic",
+          "Atmospheric particles (leaves, embers, dust)"
+        ],
+        "avoid": [
+          "Bright daylight",
+          "Fast-paced action",
+          "Real-world branding or modern elements"
+        ]
+      },
+      "label": "BabyAndGhost-Relationship",
+      "derived_video_preset": true,
+      "cast_types": [
+        "human"
+      ],
+      "cast_count": 2,
+      "narration_scope": "dialogue",
+      "narrated": false,
+      "silent_cast": false,
+      "whisk": "3D animated philosophical drama with painterly textures, warm golden hour lighting, and melancholic cinematic framing.",
+      "location_medium": "3D animated philosophical drama with painterly textures, warm golden hour lighting, and melancholic cinematic framing.",
+      "seconds": 8,
+      "duration": 80,
+      "default_clip_count": 10,
+      "default_duration": 80
     }
   ]
 }

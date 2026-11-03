@@ -38,7 +38,7 @@ function parse(text,defaults={}) {
   const heading=line.match(/^Clip\s+(\d+)\s*(?:[-–—]\s*(.*?))?\s*:\s*$/i);
   if(heading){
    const n=Number(heading[1]);if(n!==story.clips.length+1)fail('Clip numbers must start at 1 and be consecutive and unique.',lineNo,'Clip');
-   clip={number:n,title:heading[2]||(['fern-documentary','3d-zack-style','3d-motivational-red-green','heartwarming-cat-3d'].includes(story.preset)?`Clip ${n}`:`Conversation ${n}`),action:'',dialogue:[],shots:[]};
+   clip={number:n,title:heading[2]||(['fern-documentary','3d-zack-style','geography-map','3d-motivational-red-green','heartwarming-cat-3d'].includes(story.preset)?`Clip ${n}`:`Conversation ${n}`),action:'',dialogue:[],shots:[]};
    Object.defineProperty(clip,'_source',{value:{line:lineNo,fields:{},shots:[]},enumerable:false});
    story.clips.push(clip);section='';last=null;continue;
   }
@@ -119,11 +119,11 @@ function parse(text,defaults={}) {
  for(const s of stories){
   story=s;clip=null;section='Metadata';
   const p=custom(s.preset),zack=s.preset==='3d-zack-style',motivational=s.preset==='3d-motivational-red-green',cat=s.preset==='heartwarming-cat-3d';
-  const fern=s.preset==='fern-documentary';
+  const fern=s.preset==='fern-documentary',geography=s.preset==='geography-map';
   const strict=zack&&(defaults.strict8x8===true||s.production_profile==='zetomate-8x8');
   if(strict)s.production_profile='zetomate-8x8';
   if(zack&&s.clips[0]?.narration&&!/^\s*["“]?(?:what\s+(?:if|happens)|how\s+(?:does|do|can|would|could)|why\s+(?:does|do|is|are|can))/i.test(s.clips[0].narration))s.warnings.push('Clip 1: opening lacks the preset’s direct What if / What happens / How / Why question hook. Narration was preserved; request an explicit hook rewrite before generation.');
-  if(!s.title.trim()||(!motivational&&!s.setting.trim()&&!((zack&&s.locations.length)||(fern&&(s.locations.length||s.story_brief||s.details)))))fail('Every story needs Title: and Setting: (or named Locations: for Zack D).',s._source.line,'Title / Locations');
+  if(!s.title.trim()||(!motivational&&!s.setting.trim()&&!((zack&&s.locations.length)||((fern||geography)&&(s.locations.length||s.story_brief||s.details)))))fail('Every story needs Title: and Setting: (or named Locations: for Zack D, Fern Documentary or Geography Map).',s._source.line,'Title / Locations');
   for(const kind of ['characters','locations'])for(const entry of s[kind]){entry.description=entry.description.trim();if(!entry.description)fail(`Provide a description for ${entry.name}.`,entry._sourceLine,entry.name,{section:kind});}
   if(!s.preset)fail('Choose or supply a valid Preset:.',s._source.line,'Preset');
   if(![4,6,8,10].includes(s.seconds))fail('Choose 4, 6, 8 or 10 seconds per clip.',s._source.fields.seconds||s._source.line,'Clip seconds');
@@ -139,7 +139,7 @@ function parse(text,defaults={}) {
    clip=c;
    if(c.narration!==undefined)c.narration=unquote(c.narration);
    for(const turn of c.dialogue)turn.line=unquote(turn.line);
-   if(zack||fern){
+  if(zack||fern||geography){
     if(!c.narration||c.dialogue.length)fail('Narrated ready scripts require Narration: and no character dialogue.',c._source.fields.narration||c._source.line,'Narration');
     if(strict?c.shots.length!==3:c.shots.length<2||c.shots.length>4)fail(strict?'Strict 8×8 clips require exactly three timed shots.':'Requires two to four timed shots.',c._source.line,'Shots');
     let end=0;
