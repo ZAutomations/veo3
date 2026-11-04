@@ -30,7 +30,7 @@
  *   node join_clips.js <clips_dir> --reencode      (if -c copy refuses)
  *
  * Flags:
- *   --out FILE     output path (default <clips_dir>/../<folder>_final.mp4)
+ *   --out FILE     output path (default <clips_dir>/../<story title>.mp4)
  *   --order LIST   comma-separated basenames (with or without .mp4), in order
  *   --reverse      join back-to-front (Flow's grid is often newest-first)
  *   --reencode     re-encode instead of stream-copy. Slower, always works.
@@ -383,8 +383,10 @@ const listBody = ordered
     .join('\n') + '\n';
 fs.writeFileSync(listPath, listBody, 'utf8');
 
+const storyTitleBase = require('./story_output_name').storyTitleBase;
+const outputBase = storyTitleBase(path.dirname(path.resolve(DIR)));
 const outPath = OUT_FLAG || path.join(path.dirname(path.resolve(DIR)),
-    path.basename(path.resolve(DIR)) + (partialExport ? '_partial.mp4' : '_final.mp4'));
+    outputBase + (partialExport ? '_partial.mp4' : '.mp4'));
 // Keep the last complete export playable while the replacement is encoding.
 const workingPath = outPath.replace(/\.mp4$/i, '') + `.building_${process.pid}.mp4`;
 

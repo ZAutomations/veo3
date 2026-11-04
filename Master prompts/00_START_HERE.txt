@@ -8,9 +8,9 @@ Created 13 October 2026. No chat history or account-specific context is required
 5. Download the completed script or copy the full code block, then use the indicated tool route.
 
 DIRECT IMPORT (no Gemini writing): realistic, Ghibli, stylized 3D, colorful cartoon relationship dialogue, dog-couple dialogue, and Zack D narrated timed-shot scripts.
-OTHER PRESETS, INCLUDING FERN: use Title & details > Write stories. Their masters prepare full writing inputs, but direct-import support has not been implemented for them. Do not paste them into Import ready script. Set GUI duration/clip count to match the script before writing.
+Use the selected preset’s actual Writer or Import-ready route shown in its USE IN TOOL section; do not assume that all presets use one route. When importing, obey its exact accepted labels and the shared 4/6/8/10-second duration options.
 
-DOG/HUMAN DIALOGUE LENGTHS: 30 seconds = five 6-second clips. Approximately 60 seconds = eight 8-second clips (64 seconds). Actual generated lengths depend on the selected video model; use supported settings.
+DIALOGUE PRESETS: use each selected supported clip duration and custom clip count; keep dialogue natural with clear speaker turns and a brief reaction gap.
 ZACK D / INTIMACY HEALTH 3D: choose 4, 6, 8 or 10 seconds per clip; use the requested clip count and one to four timed shots per clip. Improve the supplied hook in ChatGPT BEFORE import; import preserves spoken text.
 SOURCE LINKS: when ChatGPT cannot access a link, supply the transcript/video. Do not let it invent source analysis.
 These files preserve prompt instructions, not API keys, accounts or private stories. They can be copied to another laptop.
@@ -142,3 +142,5 @@ Policy references: https://policies.google.com/terms/generative-ai/use-policy an
 
 AUDIT-FIRST FAILED-SCENE RECOVERY AND REFERENCES
 Before recovery, inspect the current batch: requested scene IDs, completed assets, active jobs, missing scenes and exact failure messages. Never resend completed or generating scenes. For an identified policy failure only, request one substantive compliant visual revision of that exact scene, preserving facts and preset identity. Use generic featureless mannequins without personal likenesses where appropriate; never disguise a restricted identity or bypass a filter. Preserve scene ID, approved narration and video settings. Inspect the existing Flow reference library and use available tools to attach only required matching character/location ingredients and established voice; verify attachments and do not duplicate references. Report unavailable or restricted references for review. Track the revised result; repeated refusal stops under the bounded safety-review rule. Put these directions in production guidance, not new importer fields.
+
+ALL PRESETS NOW USE THE SAME CHATGPT INPUT FLOW: request story count (1 / 5 / 10 / Custom), clip duration (4 / 6 / 8 / 10 seconds), clips per story (1 / 5 / 10 / Custom), and topic/source URL plus optional channel URL only when missing. If no topic is supplied, show 3–4 preset-specific content pillars with 7–10 title ideas and one-sentence summaries per pillar. With a channel URL, analyze 5–10 accessible top-performing videos and recommend original topics with transparent view/age evidence. 10-second generation uses Agent Mode + Omni 1.1 Flash. Every narrated preset shares the calibrated narration pace.

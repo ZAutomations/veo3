@@ -86,6 +86,9 @@ def install(app, token, save_json):
             if match:
                 source=Path(match.group(1).strip()).resolve()
                 if source.parent==story.parent and source.is_file():return dict(video=str(source))
+        from story_output import story_video_path
+        preferred=story_video_path(story)
+        if preferred.is_file():return dict(video=str(preferred))
         candidates=list(story.parent.glob('*_final.mp4'))
         if len(candidates)!=1:raise HTTPException(400,'Join this story first, or select its combined video with Browse video.')
         return dict(video=str(candidates[0]))

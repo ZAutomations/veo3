@@ -525,7 +525,11 @@ def edit(source,values=None,report=None,output=None):
     source=media_path(source);cfg=settings(values);info=probe(source)
     if not enabled(cfg):log('All editing features are disabled; original video retained.');return source
     if cfg['clipper_captions_enabled'] and not info['audio']:raise ValueError('Captions require an audio stream; disable captions for this silent video.')
-    final=Path(output).resolve() if output else source.with_name(source.stem+'_edited.mp4')
+    if output:
+        final=Path(output).resolve()
+    else:
+        base=re.sub(r'(?i)(?:_final|_joined|_concat|_partial)$','',source.stem)
+        final=source.with_name(base+'_edited.mp4')
     if final==source:raise ValueError('Edited output must be a different file from the original.')
     folder=source.parent/'video_editing';folder.mkdir(exist_ok=True)
     signature=hashlib.sha256(('thumbnail_end_card_preservation_v1'+str(source)+str(source.stat().st_size)+str(source.stat().st_mtime_ns)+json.dumps(cfg,sort_keys=True)).encode()).hexdigest()

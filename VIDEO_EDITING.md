@@ -37,7 +37,8 @@ The existing verified join runs first. Its original MP4 and
 3. Transcribes the resulting audio locally using the ported Whisper word-timing
    helper and burns Pro Captions using the original ASS engine and libass.
 
-`clips_final.mp4` therefore produces `clips_final_edited.mp4`. Editing never
+The joined video is saved using the story title as its filename, for example
+`The Story Title.mp4`; editing produces `The Story Title_edited.mp4`. Editing never
 overwrites the original. The `video_editing/` subfolder stores the settings,
 keep intervals, mapped boundaries, cached words, ASS and completed-output receipt.
 Matching completed edits are skipped when Skip already-processed is enabled.

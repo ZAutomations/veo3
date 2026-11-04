@@ -1,7 +1,7 @@
 const M=require('./motivational_metaphor');
 const applies=story=>story?.motivational_ready_import===true;
 function validate(source){
- if(![4,6,8,10].includes(source.seconds)||![2,4].includes(source.clips.length))throw Error('3D Motivational ready scripts need 2 or 4 clips, with 4, 6, 8 or 10 seconds per clip.');
+ if(![4,6,8,10].includes(source.seconds)||!Number.isInteger(source.clips.length)||source.clips.length<1)throw Error('3D Motivational ready scripts need at least one clip, with 4, 6, 8 or 10 seconds per clip.');
  for(const key of ['left_label','right_label','footer_start','footer_end']){
   const value=source[key]||'';
   if(!value.trim()||value.trim().split(/\s+/).length>(key.includes('label')?3:5))throw Error('3D Motivational requires short Left label:, Right label:, Footer start: and Footer end: fields (labels up to 3 words; footers up to 5).');
@@ -17,7 +17,6 @@ function validate(source){
 function scene(story,index,{aspect=story.aspect_ratio||'16:9',seconds=story.scene_seconds||8}={}){
  const c=story.scenes[index];if(!c)throw Error('Missing motivational scene '+(index+1));
  const final=index===story.scenes.length-1;
- const holdStart=Math.max(0,seconds-2);
  const lock=M.LOCK.replace('16:9',aspect&&aspect!=='Flow'?aspect:'the Flow-selected aspect ratio');
  return [
   'Generate ONE standalone '+seconds+'-second clip for scene '+(index+1)+' only. One continuous static shot, no internal cuts.',
@@ -31,7 +30,7 @@ function scene(story,index,{aspect=story.aspect_ratio||'16:9',seconds=story.scen
   'START STATE: '+c.start_state,
   'ACTION: '+c.imported_action,
   'END STATE: '+c.end_state,
-  final?`Finish narration by ${holdStart} seconds. Hold the completed result with no speech or new action from ${holdStart}–${seconds} seconds.`:'Carry this exact ending state into the next clip; do not reset either task.',
+  final?'Finish the payoff inside this clip and keep the completed result clearly visible through the final 0.3 seconds.':'Carry this exact ending state into the next clip; do not reset either task.',
   'AUDIO: One consistent off-screen narrator ('+story.narrator_voice+'). Read exactly: '+JSON.stringify(c.script_line)+'. On-screen adults stay silent, no lip-sync. Quiet task sounds only: '+(c.sound_context||'None')+'. No music.',
   'TEXT EXCEPTION: only the two archetype labels and footer. No MINDSET 101, subtitles, branding or extra captions. Keep task setbacks harmless, props away from bodies. No judgement that struggling people are inherently lazy.'
  ].join('\n\n')+'\n';
@@ -51,7 +50,8 @@ function prepare(W,p,source,aspect){
  story.requested_duration_seconds=source.clips.length*source.seconds;
  story.motivational_labels={left:source.left_label,right:source.right_label,footer_start:source.footer_start,footer_end:source.footer_end};
  story.scenes.forEach((s,i)=>{const c=source.clips[i];Object.assign(s,{script_line:c.narration,start_state:c.start_state,imported_action:c.action,end_state:c.end_state,sound_context:c.sound||'None'});s.veo3_prompt=scene(story,i,{aspect,seconds:source.seconds});});
- const warnings=source.clips.flatMap((c,i)=>{const words=c.narration.trim().split(/\s+/).length,limit=Math.floor(source.seconds*(i===source.clips.length-1?2:2.75));return words>limit?['Clip '+c.number+': '+words+' narration words; shorten to '+limit+' or fewer'+(i===source.clips.length-1?' to leave the final silent hold.':'.')]:[];});
+ const pace=require('./narration_pace').targets(source.seconds);
+ const warnings=source.clips.flatMap(c=>{const words=require('./narration_pace').countWords(c.narration);return words<pace.min||words>pace.max?[`Clip ${c.number}: ${words} narration words for ${source.seconds}s; reference-matched target ${pace.min}-${pace.max}, hard ceiling ${pace.hard}.`]:[];});
  return {W,p,cast,story,warnings};
 }
 module.exports={applies,validate,scene,agent,prepare};

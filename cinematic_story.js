@@ -58,8 +58,8 @@ function prepare(W,p,source,aspect){
   place:{...source.locations[0],prompt:`${p.style}. Empty location design reference: ${source.locations[0].description}. No people, text or collage.`},
   scenes:source.clips.map((c,i)=>({_scene_number:i+1,_scene_title:c.title||`Clip ${i+1}`,scene_builder_action:'text_to_video',extend_from_last_frame:false,script_line:c.narration||'',dialogue:c.dialogue,characters:c.characters,location:c.location,reference_names:[...c.characters,c.location],transition:c.transition,start_state:c.start_state,end_state:c.end_state,shots:c.shots,sound_context:c.sound,narrative_context:c.action}))};
  story.scenes.forEach((s,i)=>s.veo3_prompt=scene(story,i,{seconds:source.seconds}));
- const wordLimit=Math.floor(source.seconds*2.75);
- const warnings=source.clips.flatMap(c=>{const count=(c.narration||c.dialogue.map(t=>t.line).join(' ')).split(/\s+/).filter(Boolean).length;return count>wordLimit?[`Clip ${c.number}: ${count} spoken words may be too long for ${source.seconds} seconds; review before generation.`]:[];});
+ const pace=require('./narration_pace').targets(source.seconds);
+ const warnings=source.clips.flatMap(c=>{if(!c.narration)return[];const count=require('./narration_pace').countWords(c.narration);return count<pace.min||count>pace.max?[`Clip ${c.number}: ${count} narration words for ${source.seconds}s; reference-matched target ${pace.min}-${pace.max}, hard ceiling ${pace.hard}.`]:[];});
  return {W,p:effective,cast,story,warnings};
 }
 function writeRefs(dir,p,story,cast){

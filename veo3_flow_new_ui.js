@@ -40,6 +40,7 @@ const health = require('./page_health.js');
 // whether they actually attached. See refs_for_scene.js for the measured
 // failures this replaced.
 const { loadStoryRefs, refsForScene, refAliases, missingRefs, MAX_INGREDIENTS } = require('./refs_for_scene.js');
+const { storyTitleBase } = require('./story_output_name.js');
 // The narrator's voice, from the preset the story was written with, and the
 // picker walk that puts it on each clip. Veo invents a new narrator per clip
 // otherwise, so a film comes back in three different voices. See flow_voice.js.
@@ -2453,7 +2454,7 @@ ${'='.repeat(70)}
             await require('./flow_thumbnail_project').downloadStoryThumbnail(this.page, this.jsonFilePath, this.projectUrl, log);
             execFileSync(process.execPath, [path.join(__dirname, 'join_clips.js'), this.outputDir,
                 '--order', parts.map(p => path.basename(p)).sort().join(','),
-                '--out', path.join(path.dirname(this.jsonFilePath), 'ingredients_final.mp4')],
+                '--out', path.join(path.dirname(this.jsonFilePath), `${storyTitleBase(this.jsonFilePath)}.mp4`)],
                 { stdio: 'inherit', timeout: 1800000 });
         }
         return parts;

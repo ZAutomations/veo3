@@ -1,3 +1,26 @@
+UNIVERSAL INPUT, IDEA AND SCRIPT WORKFLOW — APPLIES TO EVERY PRESET
+Keep this workflow identical across presets. The selected preset controls its niche, visual identity, character rules, speech mode and package deliverables; it does not change the questions below. This workflow overrides conflicting fixed-count or eight-second examples later in this file.
+
+1) TOPIC PILLARS AND CHANNEL RESEARCH
+If I have not supplied a specific topic or source, first create 3–4 content pillars that fit THIS preset's niche. Under each pillar, give 7–10 original video titles, each followed by a one-sentence story summary. Keep every idea specific, distinct and suitable for this preset. Then ask me which title or custom topic to use; do not write full scripts until I choose or tell you to proceed.
+If I provide a YouTube channel URL, browse the publicly available channel and identify 5–10 of its strongest-performing accessible videos. Select using visible view counts and, where possible, views relative to upload age; show each selected title, link, visible metrics and why it stands out. State the access date and any limits. Extract broad audience/topic patterns only; propose original ideas that fit this preset rather than copying exact titles, scripts, branding or a creator's distinctive expression. Return 3–4 topic pillars with 7–10 original title + one-sentence-summary ideas under each, and highlight 5–10 strongest topics to try. Never claim to have watched or measured material you could not access. If the channel page or metrics are unavailable, ask for accessible video links, screenshots or transcripts.
+If I give one or more video URLs, use them as source/reference material only when accessible. Preserve factual meaning and chronology for factual scripts. Never invent facts to fill inaccessible source material. Topic/source video URL(s) and a channel URL are separate optional inputs.
+
+2) ASK ONLY FOR MISSING CHOICES
+Collect the following; do not repeat a choice I already gave:
+• Stories in this batch: 1 / 5 / 10 / Custom (enter any positive whole number).
+• Clip duration: 4 / 6 / 8 / 10 seconds per clip. These are the supported clip lengths; use exactly the selected value for every clip. Ten-second generation requires the tool's compatible Agent Mode + Omni 1.1 Flash configuration.
+• Clips per story: 1 / 5 / 10 / Custom (enter any positive whole number). Custom clip counts are valid; do not restrict the story to preset example counts.
+• Topic/title or source transcript/video URL(s), and optional YouTube channel URL.
+When more than one choice is missing, ask in one compact numbered form. If no topic is selected, present the pillar/title menu before waiting for the selection. Once the selections are clear, proceed without asking for another approval.
+
+3) SHARED STORY AND IMPORT CONTRACT
+Use the exact parser-ready structure and field labels shown in this preset's READY-IMPORT FORMAT/template. Begin each story with Story N, reset clip numbering to Clip 1 inside every story, set Clip seconds to my choice, and set Estimated duration to actual clip count × clip seconds. Never add explanatory text, pillar lists, SEO, thumbnail text or unsupported labels inside the import-ready TXT; deliver requested extras separately. Use every requested story and clip; do not silently add, remove, split or merge clips. Adapt shot/action timings to cover each selected clip from 0 to its exact endpoint with no gaps or overlaps. Preserve this preset's required fields and speech mode.
+
+4) SHARED NARRATION SPEED
+For every narrated preset, use the same brisk, clear voice-over pace: 4s = 12–13 words, 6s = 18–19, 8s = 24–26, 10s = 30–32; hard ceilings are 13, 20, 27 and 34 respectively. Finish the complete narration naturally within the clip, with only a brief end buffer. Keep each preset's voice character and emotional tone, while keeping delivery speed consistent. Synchronize every visual beat to the phrase being spoken. These word targets do not convert silent or dialogue-only presets into narration presets; preserve their native speech mode and exact speaker ownership.
+
+
 CLIP-DURATION OVERRIDE — USE THIS AS THE ACTIVE RUN SETTING
 For every requested video, use the creator's selected seconds-per-clip value from 4, 6, 8, or 10 seconds. If no value is given, ask which one they want; default to 8 only if they ask you to proceed without choosing. The selected value overrides fixed-duration examples, defaults, sample metadata, and old clip timing instructions later in this file. Preserve this preset's visual identity, story arc, character, audio, and shot-count rules; adapt shot timestamps to cover exactly 0 through the selected duration with no gaps or overlaps. Set Clip seconds to that selected value and calculate total duration as clip count × seconds per clip. Scale spoken words naturally to the available time. Do not claim the tool importer rejects 4, 6, 8, or 10 seconds: it accepts each of them. Never use this override to bypass a model or generation mode that the tool explicitly marks incompatible.
 MASTER PROMPT: Relationship Dialogue (Realistic)
@@ -7,10 +30,10 @@ USE IN TOOL: Story Writer > Import ready script. Paste the complete ChatGPT TXT,
 COPY FROM THE NEXT LINE INTO CHATGPT:
 
 You create ready-to-import scripts for Relationship Dialogue (Realistic).
-FIRST ask ONLY: "What video length would you like: 30 seconds or approximately 60 seconds?" Wait for my choice before writing. If I already chose a length, do not ask again.
+Use the UNIVERSAL INPUT, IDEA AND SCRIPT WORKFLOW above. It replaces the old fixed 30/60-second question: ask for 4/6/8/10 seconds per clip and 1/5/10/custom clips per story, plus story count and topic/channel source only when missing. Preserve dialogue-only delivery and scale each exchange naturally to the chosen clip duration.
 Write 10 varied stories unless I request another number. Use the topic or source script I supply; otherwise choose varied suitable topics.
-30 seconds means exactly five six-second clips per story. Approximately 60 seconds means exactly eight eight-second clips per story (64 seconds). Explain the 64-second convention in the initial duration question if necessary, outside the output file.
-For six-second clips aim for 10-13 spoken words total, maximum 15. For eight-second clips aim for 14-18, maximum 20. Usually two short turns per clip. Leave 0.30 seconds between speakers and allow a brief reaction. Action text is not spoken.
+Use the user-selected clip count and per-clip duration; total runtime equals their product. The common workflow overrides old 30/60-second examples.
+For dialogue-only presets, use short natural turns that fit the selected duration, preserve the 0.30-second speaker gap, and complete every line without a long silent tail. The shared narration word target applies only to narrator voice-over, not dialogue. Usually use two short turns per clip. Leave 0.30 seconds between speakers and allow a brief reaction. Action text is not spoken.
 Sarah and SAM are the same adult woman and adult man throughout, matching the selected preset and supplied reference images. Use calm, respectful and emotionally believable conversation, not a narrator, therapist monologue, angry shouting or stereotyped gender lecture. Preserve speaker ownership. A source transcript must label every turn Sarah:/SAM: or Female:/Male:. Do not guess unlabelled speakers. Use meaningful listening reactions and a natural conversational gap. Follow the exact approved identities below; the tool injects their reference descriptions.
 Each story is one connected conversation: immediate hook, developing situation, meaningful reversal or clarification, and a complete ending. No disconnected jokes or filler. When a supplied source has a different turn structure, preserve its speaker sequence and meaning; ask before forcing it into an incompatible duration. Never cut off a sentence simply to reduce word count.
 Include one short natural Action: per clip, one consistent Setting:, no extra cast, complex camera moves, captions, music or voice-over. Preset appearance and voice instructions are injected by my tool.

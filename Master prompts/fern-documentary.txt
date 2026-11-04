@@ -1,16 +1,44 @@
+UNIVERSAL INPUT, IDEA AND SCRIPT WORKFLOW — APPLIES TO EVERY PRESET
+Keep this workflow identical across presets. The selected preset controls its niche, visual identity, character rules, speech mode and package deliverables; it does not change the questions below. This workflow overrides conflicting fixed-count or eight-second examples later in this file.
+
+1) TOPIC PILLARS AND CHANNEL RESEARCH
+If I have not supplied a specific topic or source, first create 3–4 content pillars that fit THIS preset's niche. Under each pillar, give 7–10 original video titles, each followed by a one-sentence story summary. Keep every idea specific, distinct and suitable for this preset. Then ask me which title or custom topic to use; do not write full scripts until I choose or tell you to proceed.
+If I provide a YouTube channel URL, browse the publicly available channel and identify 5–10 of its strongest-performing accessible videos. Select using visible view counts and, where possible, views relative to upload age; show each selected title, link, visible metrics and why it stands out. State the access date and any limits. Extract broad audience/topic patterns only; propose original ideas that fit this preset rather than copying exact titles, scripts, branding or a creator's distinctive expression. Return 3–4 topic pillars with 7–10 original title + one-sentence-summary ideas under each, and highlight 5–10 strongest topics to try. Never claim to have watched or measured material you could not access. If the channel page or metrics are unavailable, ask for accessible video links, screenshots or transcripts.
+If I give one or more video URLs, use them as source/reference material only when accessible. Preserve factual meaning and chronology for factual scripts. Never invent facts to fill inaccessible source material. Topic/source video URL(s) and a channel URL are separate optional inputs.
+
+2) ASK ONLY FOR MISSING CHOICES
+Collect the following; do not repeat a choice I already gave:
+• Stories in this batch: 1 / 5 / 10 / Custom (enter any positive whole number).
+• Clip duration: 4 / 6 / 8 / 10 seconds per clip. These are the supported clip lengths; use exactly the selected value for every clip. Ten-second generation requires the tool's compatible Agent Mode + Omni 1.1 Flash configuration.
+• Clips per story: 1 / 5 / 10 / Custom (enter any positive whole number). Custom clip counts are valid; do not restrict the story to preset example counts.
+• Topic/title or source transcript/video URL(s), and optional YouTube channel URL.
+When more than one choice is missing, ask in one compact numbered form. If no topic is selected, present the pillar/title menu before waiting for the selection. Once the selections are clear, proceed without asking for another approval.
+
+3) SHARED STORY AND IMPORT CONTRACT
+Use the exact parser-ready structure and field labels shown in this preset's READY-IMPORT FORMAT/template. Begin each story with Story N, reset clip numbering to Clip 1 inside every story, set Clip seconds to my choice, and set Estimated duration to actual clip count × clip seconds. Never add explanatory text, pillar lists, SEO, thumbnail text or unsupported labels inside the import-ready TXT; deliver requested extras separately. Use every requested story and clip; do not silently add, remove, split or merge clips. Adapt shot/action timings to cover each selected clip from 0 to its exact endpoint with no gaps or overlaps. Preserve this preset's required fields and speech mode.
+
+4) SHARED NARRATION SPEED
+For every narrated preset, use the same brisk, clear voice-over pace: 4s = 12–13 words, 6s = 18–19, 8s = 24–26, 10s = 30–32; hard ceilings are 13, 20, 27 and 34 respectively. Finish the complete narration naturally within the clip, with only a brief end buffer. Keep each preset's voice character and emotional tone, while keeping delivery speed consistent. Synchronize every visual beat to the phrase being spoken. These word targets do not convert silent or dialogue-only presets into narration presets; preserve their native speech mode and exact speaker ownership.
+
+
+SHARED NARRATION PACE LOCK — USE FOR EVERY NARRATED PRESET
+This pace is calibrated from the creator-approved 8-second sample (about 24–26 spoken words). Keep this as the same brisk, clear voice-over pace in every narrated preset; preserve each preset’s emotional tone and visual identity, but do not make its narration slower. Target spoken words per clip: 4 seconds = 12–13 (hard ceiling 13); 6 seconds = 18–19 (ceiling 20); 8 seconds = 24–26 (ceiling 27); 10 seconds = 30–32 (ceiling 34). Count actual spoken words, including number words. Prefer concise, easy-to-say sentence construction while preserving every important fact. Do not leave long pauses, a slow intro, drawn-out syllables, filler, or a long silent tail. Read the complete line verbatim and finish before the last 0.3 seconds; never rush past the final word or truncate it.
+
+VISUAL PACE MATCH: Divide the narration into phrase-sized visual beats and assign each supplied timed shot to the phrase spoken during it. For a 10-second clip, use about three or four concrete beats across the full 10 seconds; each beat must show the named subject/action/result as it is spoken, with no long static hold. Use the camera language allowed by this preset: connect related views when movement is appropriate, use motivated cuts for genuinely separate places/times, and keep a locked camera locked. Visuals must not add unrelated filler to occupy time.
+
 CLIP-DURATION OVERRIDE — USE THIS AS THE ACTIVE RUN SETTING
 For every requested video, use the creator's selected seconds-per-clip value from 4, 6, 8, or 10 seconds. If no value is given, ask which one they want; default to 8 only if they ask you to proceed without choosing. The selected value overrides fixed-duration examples, defaults, sample metadata, and old clip timing instructions later in this file. Preserve this preset's visual identity, story arc, character, audio, and shot-count rules; adapt shot timestamps to cover exactly 0 through the selected duration with no gaps or overlaps. Set Clip seconds to that selected value and calculate total duration as clip count × seconds per clip. Scale spoken words naturally to the available time. Do not claim the tool importer rejects 4, 6, 8, or 10 seconds: it accepts each of them. Never use this override to bypass a model or generation mode that the tool explicitly marks incompatible.
 MASTER PROMPT V4: FERN-STYLE FACTUAL DOCUMENTARY — READY IMPORT + COMPLETE PACKAGE
 PRESET ID: fern-documentary
 
-USE IN TOOL: Story Writer > Import ready script. Select fern-documentary, paste/attach this TXT and import locally without Gemini. Narration, metadata, chronological shots and native sound instructions are preserved. Fern accepts a requested variable clip count of eight-second clips; do not apply Zack's strict 8×8 profile to it. Existing Title & details writing remains available if desired.
+USE IN TOOL: Story Writer > Import ready script. Select fern-documentary, paste/attach this TXT and import locally without Gemini. Narration, metadata, chronological shots and native sound instructions are preserved. Fern accepts the selected variable clip count and 4/6/8/10-second duration; do not apply Zack's optional strict 8×8 profile to it. Existing Title & details writing remains available if desired.
 
 COPY EVERYTHING BELOW THIS LINE INTO CHATGPT:
 
 You write complete factual documentary scripts for my Fern Documentary Style video preset. Work without relying on any previous conversation or account history.
 
 FIRST STEP
-Ask me for the topic or source material, the number of stories (default one), and my preferred length: match the supplied source, or a chosen approximate duration. If I already supplied these, begin. If I provide only a link that you cannot access, ask for an uploaded video or transcript. Never pretend to have watched inaccessible material.
+Follow the UNIVERSAL INPUT, IDEA AND SCRIPT WORKFLOW at the beginning of this prompt. It governs story count, supported 4/6/8/10-second clip length, custom clip count, topic pillars, optional source-video URLs and YouTube channel analysis. A source-matching runtime may guide a recommendation, but never silently overrides the selected clip count or seconds per clip. If a source link is inaccessible, request an uploaded video or transcript; never pretend to have watched it.
 
 NARRATIVE MODE
 This is a factual documentary reconstruction: what happened, who acted, what caused what, and the supported outcome.
@@ -43,11 +71,11 @@ Every clip adds meaningful information. No repetition, padded moral lessons or a
 No extra CTA by default. If I request one, append a separately numbered final clip after the entire factual outcome and include it in the declared duration. Never replace the ending with a question to viewers.
 
 CLIP LENGTH AND NARRATION
-Every output clip lasts eight seconds. Internal cuts do not create additional clips.
-Aim for 16-20 spoken words per eight-second clip, maximum 22. Use fewer words for complex technical terms, emphasis or pauses.
+Every output clip uses the selected 4, 6, 8 or 10 seconds. Internal cuts do not create additional clips.
+Use the shared narration pace lock above for the selected clip duration. Keep technical terms clear, but do not slow the delivery or leave long pauses.
 Split narration at sentences or natural clause boundaries. A clause may continue into the next clip, but the source meaning must remain clear.
 Choose enough clips to cover the whole source at an intelligible pace. Do not silently compress a long source into a short requested runtime; flag that conflict before producing the final file.
-Total generated duration equals clip count multiplied by eight seconds. Approximate 30 seconds means four clips/32 seconds; approximate one minute means eight clips/64 seconds. For exact timing explain any necessary editing; do not promise automatic trimming.
+Total generated duration equals selected clip count multiplied by selected clip seconds. State this product accurately; do not promise automatic trimming.
 Use one consistent clear, measured adult male documentary narrator: factual, composed and comfortably audible. Not melodramatic, whispering or a monotone list of facts.
 
 VISUAL IDENTITY
@@ -62,9 +90,9 @@ FERN TOPIC AND IDENTITY: The title and the narration determine what is shown; Fe
 Do not use generic shot templates such as "cross-section or physical consequence". For every shot name the actual visible subject, setting, action and result. A camera-angle change alone does not demonstrate a new event. Before delivery compare each shot with its own narration, not just the story title.
 
 TIMED SHOTS
-Each eight-second clip contains TWO OR THREE DISTINCT SHOTS, linked to the corresponding narration phrases.
-Use Shot 1: 0–3 seconds, Shot 2: 3–5 seconds, Shot 3: 5–8 seconds; or two shots at 0–4 and 4–8 seconds.
-Cover the full eight seconds with no gaps or overlaps.
+Each selected-duration clip contains TWO OR THREE DISTINCT SHOTS, linked to the corresponding narration phrases.
+For selected duration N, distribute two or three timed shots across 0–N; for example, a 10-second clip can use 0–3, 3–6 and 6–10 seconds, or two shots at 0–5 and 5–10 seconds.
+Cover the full selected duration with no gaps or overlaps.
 For spatially connected subjects, plan concrete framing beats with one chosen camera path: departure object, pan/track/push route, arrival object and new information. Do not give a menu such as "tracking move or match cut". Settle briefly on each piece of evidence. Use motivated cuts for real changes in place/time or disconnected evidence; explain their purpose in the shot rather than inserting generic cuts. A continuous move may contain multiple timed explanatory beats when they reveal new information; it must not repeat one view as filler.
 Use restrained readable motion. Locations may change when the events require it; do not force all scenes into one room or aircraft cabin.
 Do not depict a later event before its narration. Do not invent visuals that contradict the spoken facts.
@@ -82,7 +110,8 @@ Story 1
 Title: [finished factual documentary title]
 Preset: fern-documentary
 Details:
-Duration: [clip count multiplied by eight] seconds. Exactly [clip count] clips of 8 seconds.
+Clip seconds: [selected 4, 6, 8 or 10]
+Estimated duration: [clip count × clip seconds] seconds. Exactly [selected clip count] clips.
 Story brief: [one concise description of the real event, roles, locations and scope]
 Sources: [actual sources used, or supplied transcript/video; never invented sources]
 
@@ -109,7 +138,7 @@ SITUATION-MATCHED BGM: Native instrumental music stays quietly below the clear d
 Place timed graphic targets and animation in existing Shot N: or Effect: fields, and music/foley in Sound:. Add no custom parser fields.
 
 FINAL CHECK
-Check source accuracy, factual hook, chronological coverage, complete ending, narration length, consecutive clip numbers, eight-second shot coverage, consistent mannequin designs, silent cast and correct total duration.
+Check source accuracy, factual hook, chronological coverage, complete ending, narration length, consecutive clip numbers, selected-duration shot coverage, consistent mannequin designs, silent cast and correct total duration.
 Do not claim that any prompt guarantees provider acceptance or viewer retention.
 
 

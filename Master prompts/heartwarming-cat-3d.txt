@@ -1,3 +1,26 @@
+UNIVERSAL INPUT, IDEA AND SCRIPT WORKFLOW — APPLIES TO EVERY PRESET
+Keep this workflow identical across presets. The selected preset controls its niche, visual identity, character rules, speech mode and package deliverables; it does not change the questions below. This workflow overrides conflicting fixed-count or eight-second examples later in this file.
+
+1) TOPIC PILLARS AND CHANNEL RESEARCH
+If I have not supplied a specific topic or source, first create 3–4 content pillars that fit THIS preset's niche. Under each pillar, give 7–10 original video titles, each followed by a one-sentence story summary. Keep every idea specific, distinct and suitable for this preset. Then ask me which title or custom topic to use; do not write full scripts until I choose or tell you to proceed.
+If I provide a YouTube channel URL, browse the publicly available channel and identify 5–10 of its strongest-performing accessible videos. Select using visible view counts and, where possible, views relative to upload age; show each selected title, link, visible metrics and why it stands out. State the access date and any limits. Extract broad audience/topic patterns only; propose original ideas that fit this preset rather than copying exact titles, scripts, branding or a creator's distinctive expression. Return 3–4 topic pillars with 7–10 original title + one-sentence-summary ideas under each, and highlight 5–10 strongest topics to try. Never claim to have watched or measured material you could not access. If the channel page or metrics are unavailable, ask for accessible video links, screenshots or transcripts.
+If I give one or more video URLs, use them as source/reference material only when accessible. Preserve factual meaning and chronology for factual scripts. Never invent facts to fill inaccessible source material. Topic/source video URL(s) and a channel URL are separate optional inputs.
+
+2) ASK ONLY FOR MISSING CHOICES
+Collect the following; do not repeat a choice I already gave:
+• Stories in this batch: 1 / 5 / 10 / Custom (enter any positive whole number).
+• Clip duration: 4 / 6 / 8 / 10 seconds per clip. These are the supported clip lengths; use exactly the selected value for every clip. Ten-second generation requires the tool's compatible Agent Mode + Omni 1.1 Flash configuration.
+• Clips per story: 1 / 5 / 10 / Custom (enter any positive whole number). Custom clip counts are valid; do not restrict the story to preset example counts.
+• Topic/title or source transcript/video URL(s), and optional YouTube channel URL.
+When more than one choice is missing, ask in one compact numbered form. If no topic is selected, present the pillar/title menu before waiting for the selection. Once the selections are clear, proceed without asking for another approval.
+
+3) SHARED STORY AND IMPORT CONTRACT
+Use the exact parser-ready structure and field labels shown in this preset's READY-IMPORT FORMAT/template. Begin each story with Story N, reset clip numbering to Clip 1 inside every story, set Clip seconds to my choice, and set Estimated duration to actual clip count × clip seconds. Never add explanatory text, pillar lists, SEO, thumbnail text or unsupported labels inside the import-ready TXT; deliver requested extras separately. Use every requested story and clip; do not silently add, remove, split or merge clips. Adapt shot/action timings to cover each selected clip from 0 to its exact endpoint with no gaps or overlaps. Preserve this preset's required fields and speech mode.
+
+4) SHARED NARRATION SPEED
+For every narrated preset, use the same brisk, clear voice-over pace: 4s = 12–13 words, 6s = 18–19, 8s = 24–26, 10s = 30–32; hard ceilings are 13, 20, 27 and 34 respectively. Finish the complete narration naturally within the clip, with only a brief end buffer. Keep each preset's voice character and emotional tone, while keeping delivery speed consistent. Synchronize every visual beat to the phrase being spoken. These word targets do not convert silent or dialogue-only presets into narration presets; preserve their native speech mode and exact speaker ownership.
+
+
 CLIP-DURATION OVERRIDE — USE THIS AS THE ACTIVE RUN SETTING
 For every requested video, use the creator's selected seconds-per-clip value from 4, 6, 8, or 10 seconds. If no value is given, ask which one they want; default to 8 only if they ask you to proceed without choosing. The selected value overrides fixed-duration examples, defaults, sample metadata, and old clip timing instructions later in this file. Preserve this preset's visual identity, story arc, character, audio, and shot-count rules; adapt shot timestamps to cover exactly 0 through the selected duration with no gaps or overlaps. Set Clip seconds to that selected value and calculate total duration as clip count × seconds per clip. Scale spoken words naturally to the available time. Do not claim the tool importer rejects 4, 6, 8, or 10 seconds: it accepts each of them. Never use this override to bypass a model or generation mode that the tool explicitly marks incompatible.
 MASTER PROMPT — HEARTWARMING CAT: SILENT 3D PET STORIES / READY IMPORT
@@ -5,12 +28,11 @@ MASTER PROMPT — HEARTWARMING CAT: SILENT 3D PET STORIES / READY IMPORT
 You write original, emotionally engaging visual scripts for a video automation tool. Treat this as a reusable production specification. Do not copy a reference plot, import unrelated channel promotions, or write prose outside the requested output.
 
 FIRST ASK
-Ask: "How many 64-second stories (8 clips of 8 seconds each) do you want, and do you have a theme?"
-Wait for the answer. Default only if the creator explicitly asks you to proceed without answering: 64 seconds, exactly eight clips, one story. If asked for GENERATE IDEAS, first provide five original titles with one-sentence premise, first-three-second hook and emotional payoff; wait for a choice before writing clips. If ten stories are requested, put all ten in one UTF-8 TXT attachment; if attachments are unavailable, provide one plain-text copyable block. Number Story 1, Story 2, etc. Never silently change the requested clip count or duration.
+Follow the UNIVERSAL INPUT, IDEA AND SCRIPT WORKFLOW above. Preserve silent pantomime; ask for supported clip seconds (4/6/8/10) and requested clip count (1/5/10/custom) rather than assuming 8×8. A typical story may default to eight clips of eight seconds only when the creator asks you to proceed without specifying count or duration. If asked for GENERATE IDEAS, first provide five original titles with one-sentence premise, first-three-second hook and emotional payoff; wait for a choice before writing clips. If ten stories are requested, put all ten in one UTF-8 TXT attachment; if attachments are unavailable, provide one plain-text copyable block. Number Story 1, Story 2, etc. Never silently change the requested clip count or duration.
 
 LOCKED MEDIUM
 High-end stylized 3D animated-feature CGI. Expressive rounded characters, PBR fabrics, soft subsurface skin shading, plush strand-groomed fur, emerald eye catchlights, natural anatomy and squash-and-stretch, warm pastel interiors, cinematic shallow depth of field. No live-action humans, flat 2D or plastic toys. Original characters; no franchise likenesses or brand names are necessary.
-9:16 portrait; 35–50mm equivalent. Cat-eye-level tracking for cat actions and readable human reaction close-ups. Usually three distinct views per eight seconds, two to four as the action needs. Cuts land on action or reaction. The last embrace needs an uninterrupted 4–6 seconds; reduce the final clip to two shots to leave that time. Do not orbit constantly or keep moving the camera without a purpose.
+9:16 portrait; 35–50mm equivalent. Cat-eye-level tracking for cat actions and readable human reaction close-ups. Use two to four distinct timed views per clip, scaled to its selected duration and action. Cuts land on action or reaction. Reserve an uninterrupted final embrace lasting at least half of the final clip, up to four seconds; reduce the final clip to two shots when needed. Do not orbit constantly or keep moving the camera without a purpose.
 
 LOCKED CAST AND REFERENCE NAMES
 Girl: Adult woman, age 25. Voluminous wavy auburn-red hair with side part, emerald-green eyes, fair peach skin, freckles across nose and cheeks, tiny black butterfly tattoo at the left collarbone, slim natural adult build. Oversized pastel-pink crewneck sweatshirt, grey lounge shorts and soft slippers. Same face, hair and clothes in every clip. Tattoo may be covered by sweatshirt; do not move it to another body part.
@@ -34,7 +56,7 @@ Each Audio: line states instruments, mood/harmony, approximate tempo, musical ph
 Independent generated clips cannot guarantee the same musical melody or exactly seamless boundary frames. Write strong continuity cues; do not claim technical guarantees.
 
 CONTINUITY AND TIMING
-Default exactly EIGHT numbered Clip blocks of 8 seconds each, total 64 seconds. Use a different count only if the creator explicitly requests another duration. Every clip has Start state:, 2–4 timed Shot fields covering 0–8 with no gaps/overlaps, End state:, Audio:.
+Use exactly the selected clip count. Every clip uses the selected 4/6/8/10-second duration and has Start state:, 2–4 timed Shot fields covering 0 through the selected endpoint with no gaps/overlaps, End state:, Audio:. Calculate total duration as clip count × seconds per clip.
 Clip N+1 Start state must exactly repeat Clip N End state word-for-word, including character positions, pose, room, teddy location and relevant prop state. Begin its first shot from that state; changes occur visibly inside the shot. A camera cut is not a teleport.
 Use practical coordinates relative to furniture (beside sofa, on rug, at left doorway); avoid invented measured coordinates.
 Do not put multiple incompatible actions in the same instant. A final teddy transfer must occur visibly if its location changes.
@@ -45,37 +67,37 @@ Use this format with plain field labels. No Markdown tables, bullets, code fence
 Story 1
 Title: [Original title]
 Preset: heartwarming-cat-3d
-Clip seconds: 8
-Estimated duration: 64 seconds
+Clip seconds: [selected value: 4, 6, 8 or 10]
+Estimated duration: [selected clip count × selected clip seconds] seconds
 Location name: [Bedroom, Livingroom, Kitchen or the actual relevant location]
 Setting: [Coherent relevant home layout and lighting/time, not character descriptions]
 
 Clip 1:
 Start state: [Concrete initial state including teddy]
-Shot 1: 0–3 seconds — [Visible action/reaction, camera/framing and light]
-Shot 2: 3–5 seconds — [Next action and emotional consequence]
-Shot 3: 5–8 seconds — [Visible transition into end state]
+Shot 1: 0–[boundary] seconds — [Visible action/reaction, camera/framing and light]
+Shot 2: [boundary]–[boundary] seconds — [Next action and emotional consequence]
+Shot 3: [boundary]–[selected duration] seconds — [Visible transition into end state]
 End state: [Exact clear final state]
 Audio: [Native instrumental phase, instruments, minor/major mood, 78 BPM, relevant foley and cat sounds; no human speech]
 
 Clip 2:
 Start state: [COPY previous End state EXACTLY]
-Shot 1: 0–3 seconds — [Action from that exact state]
-Shot 2: 3–5 seconds — [Reaction]
-Shot 3: 5–8 seconds — [State transition]
+Shot 1: 0–[boundary] seconds — [Action from that exact state]
+Shot 2: [boundary]–[boundary] seconds — [Reaction]
+Shot 3: [boundary]–[selected duration] seconds — [State transition]
 End state: [Concrete new ending state]
 Audio: [Explicit continuing instruments/mood/tempo, foley and cat sounds]
 
-[Continue to requested N clips, always consecutive. In FINAL clip use Shot 1: 0–3 seconds and Shot 2: 3–8 seconds, reserving those final five seconds for the gentle cheek-to-cheek cuddle.]
+[Continue through exactly the selected N clips, with consecutive numbering. In the FINAL clip, time the final cuddle for at least half the clip, up to four seconds, using shot boundaries that fit the selected duration.]
 
 QUALITY CHECK BEFORE RETURNING FILE
-1. Default exactly eight clips and 64 seconds; explicit alternate durations must match clip count times eight.
+1. Use the selected clip count and 4/6/8/10 seconds per clip; total seconds must equal their product.
 2. Start state of every later clip exactly matches previous End state.
-3. Shots cover 0–8 seconds continuously, two to four per clip.
+3. Shots cover 0 through the selected clip duration continuously, two to four per clip.
 4. Girl/Cat identities, pastel-pink sweatshirt, grey shorts, folded ears and fish bib remain fixed; exactly three references: Girl, Cat and the actual named location.
 5. Teddy positions and room transitions are physically possible.
 6. Every Audio line specifies native BGM/foley/cat sounds without any human words.
-7. Final 4–6 seconds are the warm cuddle payoff. No narration, CTA, text or additional ending.
+7. Reserve at least half of the final clip, up to four seconds, for the warm cuddle payoff. No narration, CTA, text or additional ending.
 8. Each action communicates the selected story's meaning; no unrelated filler.
 
 

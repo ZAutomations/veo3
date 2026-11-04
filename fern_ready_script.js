@@ -10,6 +10,7 @@ function callout(c){
 }
 function scene(story,index,options={}){
  const s=story.scenes[index];
+ const seconds=Number(options.seconds||story.scene_seconds)||8;
  return [`Generate ONE ${options.seconds||8}-second clip for scene ${index+1}; the timed framing beats are not extra clips. Aspect ${options.aspect||story.aspect_ratio}.`,
  `FACTUAL TOPIC: ${story.title}. ${story.imported_brief||''}`,
  require('./fern_topic_visuals').CONTRACT,
@@ -20,6 +21,7 @@ function scene(story,index,options={}){
  `CONTINUITY: ${story.visual_continuity||'Keep the same role-specific wardrobe, relevant props and revisited architecture. Location/time changes must match the narration.'}`,
  'CAMERA: Choose an explicit readable path between spatially connected objects; name departure, travel and destination, then settle briefly. No generic camera filler or invented actions. Factual changes in place/time may use motivated cuts. Honor supplied shot contents and explicit cuts; do not invent geography to force an impossible unbroken take.',
  visual(s),`SHOT-LINKED GRAPHIC ANIMATION: ${callout(s)}`,
+ require('./narration_pace').lock(seconds),
  `NATIVE AUDIO: One consistent off-screen narrator: ${story.narrator_voice}. Read the complete line exactly: ${JSON.stringify(s.script_line)}. All mannequins silent, mouths absent, no dialogue or lip-sync. Sound: ${s.sound||'Quiet scene ambience and restrained situation-matched instrumental BGM'}. Narration stays clear above music and ambience. No lyrics or competing voices.`,
  'No invented archival document, quotation, evidence, entry method, medical mechanism or outcome. Depict non-graphic illustrative reconstruction, never claim generated footage is archival.',
  `AVOID: ${story.avoid}`].join('\n\n')+'\n';

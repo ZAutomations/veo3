@@ -879,18 +879,10 @@ function usePresetDuration(p) {
     SCENES = Math.max(1, Math.round(DURATION / SECONDS));
     return true;
 }
-// Narration has to finish inside the clip. Pace is PER-PRESET via
-// `words_per_8s`: an Afrimax parable runs ~18 words per 8s, a relief-map
-// explainer ~21. Without that field the default below applies (2.6 words/sec).
-// Scaled by SECONDS so a shorter clip tightens the line instead of overflowing.
-const DEFAULT_WORDS_PER_8S = 2.6;
+// All narrated presets use the same creator-approved pace, scaled to the
+// selected clip length. Visual identity and vocal tone remain preset-specific.
 function wordBudget(p) {
-    const per8 = Number(p && p.words_per_8s);
-    const rate = per8 > 0 ? per8 / 8 : DEFAULT_WORDS_PER_8S;
-    return {
-        max: Math.max(6, Math.round(SECONDS * rate)),
-        hard: Math.max(8, Math.round(SECONDS * rate * 1.12)),
-    };
+    return require('./narration_pace').targets(SECONDS);
 }
 // Spoken dialogue is a different budget: it is exchanged rather than read, so the
 // clip has to hold two or three short turns plus the pause between them, and
@@ -1355,7 +1347,7 @@ function scenesPrompt(p, cast, outline, from, to, soFar, place, blocking) {
     if (brief.applies(p)) return brief.scenes(p, {title:TITLE,detail:DETAIL,count:SCENES,
         seconds:SECONDS,aspect:ASPECT,source:CONTENT_MAP,cast,outline,from,to,
         previous:soFar,place:place||p.setting||'one bright domestic room',blocking});
-    const { max: WORDS_MAX, hard: WORDS_HARD } = wordBudget(p);
+    const { min: WORDS_MIN, max: WORDS_MAX, hard: WORDS_HARD } = wordBudget(p);
     // The one place for the film, from the preset or from call 1. Absent only
     // for a preset that fixes no place and a caller that passed none, which is
     // the old behaviour.
@@ -1611,8 +1603,8 @@ AUDIO MODEL - this film is SOUND-LED, not narrated:
         : intro
         ? `  "scene_title"       - the beat's title
   "script_line"       - ONLY on clip 1. Leave it as "" for every other clip.
-                        On clip 1 it is the HOOK: ONE sentence, ${WORDS_MAX} words or
-                        fewer, hard limit ${WORDS_HARD}, read verbatim as voice-over and
+                        On clip 1 it is the HOOK: ONE sentence, target ${WORDS_MIN}-${WORDS_MAX}
+                        spoken words, absolute ceiling ${WORDS_HARD}, read verbatim as voice-over and
                         fitting inside ${SECONDS} seconds. Present tense. It has to earn
                         the next 70 seconds, so open on the striking image.
   "sound_context"     - 25 to 45 words of SOUND, for EVERY clip including the first:
@@ -1622,7 +1614,7 @@ AUDIO MODEL - this film is SOUND-LED, not narrated:
                         never a line of narration in disguise.`
         : `  "scene_title"       - the beat's title
   "script_line"       - the NARRATION, spoken by the narrator. ${p.preserve_source_narration ? 'One to three short, natural sentences following the source passage,' : 'ONE sentence,'}
-                        ${WORDS_MAX} words or fewer, hard limit ${WORDS_HARD}. It is read
+                        target ${WORDS_MIN}-${WORDS_MAX} spoken words, absolute ceiling ${WORDS_HARD}. It is read
                         verbatim as voice-over, so it must sound natural spoken
                         aloud and must fit inside ${SECONDS} seconds. ${p.source_faithful ? 'Preserve the source tense and viewpoint.' : 'Present tense.'}
                         Write it TTS-READY: spell every number out as words

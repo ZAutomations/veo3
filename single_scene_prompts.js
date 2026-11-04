@@ -7,14 +7,16 @@ function promptForScene(story, index, options = {}) {
     const ratio = options.aspect || story.aspect_ratio;
     const aspect = /^(flow|auto)$/i.test(ratio || '') ? null : ratio;
     const seconds = Number(options.seconds || story.scene_seconds) || 8;
+    const pace = require('./narration_pace').applies(story, scene)
+        ? require('./narration_pace').lock(seconds) + '\n\n' : '';
     const request = `Generate ONE standalone clip for story scene ${index + 1} only. Do not generate other scenes or repeat the full story. Use the existing named references in this project.\n`;
-    if(require('./reference_video_preset').applies(story))return require('./reference_video_preset').scene(story,index,{aspect:aspect||'Flow',seconds});
-    if(require('./heartwarming_cat').applies(story))return require('./heartwarming_cat').scene(story,index,{aspect:aspect||'Flow',seconds});
-    if(require('./motivational_ready_script').applies(story))return require('./motivational_ready_script').scene(story,index,{aspect:aspect||'Flow',seconds});
-    if(require('./fern_ready_script').applies(story))return require('./fern_ready_script').scene(story,index,{aspect:aspect||'Flow',seconds});
-    if(require('./geography_ready_script').applies(story))return require('./geography_ready_script').scene(story,index,{aspect:aspect||'Flow',seconds});
-    if(require('./zack_ready_script').applies(story))return require('./zack_ready_script').scene(story,index,{aspect:aspect||'Flow',seconds});
-    if(require('./cartoon_narration_prompt').applies(story))return request+'\n'+require('./cartoon_narration_prompt').scene(story,index,{aspect,seconds})+'\n';
+    if(require('./reference_video_preset').applies(story))return pace+require('./reference_video_preset').scene(story,index,{aspect:aspect||'Flow',seconds});
+    if(require('./heartwarming_cat').applies(story))return pace+require('./heartwarming_cat').scene(story,index,{aspect:aspect||'Flow',seconds});
+    if(require('./motivational_ready_script').applies(story))return pace+require('./motivational_ready_script').scene(story,index,{aspect:aspect||'Flow',seconds});
+    if(require('./fern_ready_script').applies(story))return pace+require('./fern_ready_script').scene(story,index,{aspect:aspect||'Flow',seconds});
+    if(require('./geography_ready_script').applies(story))return pace+require('./geography_ready_script').scene(story,index,{aspect:aspect||'Flow',seconds});
+    if(require('./zack_ready_script').applies(story))return pace+require('./zack_ready_script').scene(story,index,{aspect:aspect||'Flow',seconds});
+    if(require('./cartoon_narration_prompt').applies(story))return request+'\n'+pace+require('./cartoon_narration_prompt').scene(story,index,{aspect,seconds})+'\n';
     const simple = require('./simple_dialogue_prompt').agent(story, { from: index + 1, to: index + 1, aspect, seconds, native: !!options.native });
     if (simple) return request + '\n' + simple;
     const keys = scene.characters?.length ? scene.characters : Object.keys(story.character_descriptions || {});
@@ -25,9 +27,9 @@ function promptForScene(story, index, options = {}) {
     const refs = [...names, story.place?.name].filter(Boolean);
     const audio = scene.dialogue?.length
         ? 'No narrator. Only the labelled character speaks; the other listens. Calm, respectful tone at normal volume. Finish each line, pause 0.30 seconds, then begin the next voice. No overlap.\n' + scene.dialogue.map(d => `${d.speaker}: "${d.line}"`).join('\n')
-        : scene.script_line ? `Narrator only (${story.narrator_voice || 'the established narrator voice'}${story.flow_voice ? '; Flow voice ' + story.flow_voice : ''}). Read exactly: "${scene.script_line}". All visible people remain silent.`
+        : scene.script_line ? `${require('./narration_pace').lock(seconds)}\nNarrator only (${story.narrator_voice || 'the established narrator voice'}${story.flow_voice ? '; Flow voice ' + story.flow_voice : ''}). Read exactly: "${scene.script_line}". All visible people remain silent.`
         : `No narration. ${scene.sound_context || 'Natural room tone only; no invented dialogue.'}`;
-    return [request, `Scene ${index + 1} - ${scene._scene_title || 'Untitled'}`,
+    return [request, pace, `Scene ${index + 1} - ${scene._scene_title || 'Untitled'}`,
         `FORMAT: ${aspect || 'Use the aspect ratio selected in Flow settings.'}; ${seconds} seconds; ONE output clip.`,
         `STYLE: ${story.style || ''}`,
         require('./fern_topic_visuals').applies(story) ? require('./fern_topic_visuals').forStory(story) : '',

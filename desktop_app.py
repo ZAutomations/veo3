@@ -375,15 +375,16 @@ def plan_action(action, p):
     seconds = integer(saved_seconds if saved_seconds in (4, 6, 8, 10) else p.get('seconds', 8), 4, 10, 'Clip duration')
     if seconds not in (4, 6, 8, 10):
         raise ValueError('Saved story clip duration must be 4, 6, 8 or 10 seconds. Re-import the script with a supported duration.')
-    preset_id = str(story.get('preset_id') or '').strip().lower()
-    if action in ('generate', 'manual') and (preset_id in ('3d-zack-style', 'intimacy-health-3d') or story.get('zack_ready_import')):
-        max_words = int(seconds * 2.75)
+    narrated_story = story.get('narrated') is not False and story.get('narration_scope') not in ('dialogue', 'none')
+    has_narration = any(str(scene.get('script_line') or '').strip() for scene in story.get('scenes', []))
+    if action in ('generate', 'manual') and narrated_story and has_narration:
+        max_words = int(seconds * 3.4)
         long_lines = [(i, len(re.findall(r"\b[\w’'-]+\b", str(scene.get('script_line', '')))))
                       for i, scene in enumerate(story.get('scenes', []), 1)]
         long_lines = [(i, count) for i, count in long_lines if count > max_words]
         if long_lines:
             details = ', '.join(f'clip {i}: {count} words' for i, count in long_lines)
-            raise ValueError(f'Narration may be cut off at {seconds}s per clip ({details}; pacing limit {max_words} words). Shorten the narration or choose a longer clip duration before generating.')
+            raise ValueError(f'Narration exceeds the shared pace ceiling at {seconds}s per clip ({details}; hard limit {max_words} words). Shorten the narration or choose a longer clip duration before generating.')
     if action in ('generate', 'manual') and seconds == 10 and view != 'agent':
         raise ValueError('10-second clips require Agent Mode with Omni 1.1 Flash. Ingredients/Extend and Single Clip Omni do not support 10-second clips.')
     if action in ('generate', 'manual') and seconds == 10 and not re.search(r'Omni.*Flash', model, re.I):
@@ -1086,7 +1087,10 @@ def story_completion(path, story, manifest):
             downloaded.add(str(file.resolve()))
     total = len(story.get('scenes', []))
     complete_clips = total > 0 and len(downloaded) == total
-    final = path.parent / 'clips_final.mp4'
+    from story_output import story_video_path
+    final = story_video_path(path)
+    if not final.is_file():  # recognize projects joined by older tool versions
+        final = path.parent / 'clips_final.mp4'
     completed_final = final.is_file() and final.stat().st_size > 0 and final.stat().st_mtime >= path.stat().st_mtime
     return dict(downloaded=len(downloaded), done=bool(complete_clips or completed_final),
                 completion='Final video saved' if completed_final else 'All clips downloaded' if complete_clips else 'Available')

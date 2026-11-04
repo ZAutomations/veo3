@@ -910,8 +910,8 @@ class Veo3LauncherGUI:
                     width=6).pack(side="left")
         ttk.Label(fmt, text="seconds total", style="Hint.TLabel").pack(side="left", padx=(6, 18))
         self.gen_seconds_var = tk.IntVar(value=self.settings.get("gen_scene_seconds", 8))
-        ttk.Spinbox(fmt, from_=1, to=8, textvariable=self.gen_seconds_var,
-                    width=4).pack(side="left")
+        ttk.Combobox(fmt, textvariable=self.gen_seconds_var, values=[4, 6, 8, 10],
+                     state="readonly", width=5).pack(side="left")
         ttk.Label(fmt, text="sec per clip", style="Hint.TLabel").pack(side="left", padx=(6, 18))
         self.gen_aspect_var = tk.StringVar(value=self.settings.get("gen_aspect_ratio", "Flow"))
         ttk.Combobox(fmt, textvariable=self.gen_aspect_var, width=6,
@@ -1832,7 +1832,7 @@ class Veo3LauncherGUI:
             ("Video model", self.video_model_var, VIDEO_MODELS),
             ("Aspect ratio", self.aspect_var, ["Flow", "16:9", "9:16", "1:1"]),
             ("Start phase", self.agent_start_phase_var, ["start", "clips"]),
-            ("Seconds per clip", self.seconds_var, None),
+            ("Seconds per clip", self.seconds_var, [4, 6, 8, 10]),
             ("Watch seconds", self.watch_var, None),
             ("CDP port", self.agent_cdp_var, None),
         ]
@@ -2685,6 +2685,7 @@ class Veo3LauncherGUI:
     def join_ingredients_clips(self):
         self.collect_inputs()
         story = self.story_var.get().strip()
+        from story_output import story_video_path
         folder = os.path.join(os.path.dirname(story), "output")
         first, last = self.read_int(self.from_var, 1), self.read_int(self.to_var, 1)
         clips = [f"scene-{i:02d}.mp4" for i in range(first, last + 1)]
@@ -2692,7 +2693,7 @@ class Veo3LauncherGUI:
             messagebox.showerror("Missing clips", "Download the selected scene range first. Ingredients clips belong in the story's output folder.")
             return
         self._launch(["node", JOINER, folder, "--order", ",".join(clips),
-                      "--out", os.path.join(os.path.dirname(story), "ingredients_final.mp4")],
+                      "--out", str(story_video_path(story))],
                      "Joining Ingredients clips in scene order...")
 
     def run_engine(self, refs_only=False, export_only=False):
@@ -3573,7 +3574,8 @@ class Veo3LauncherGUI:
                 break
         ttk.Label(line1, text="sec/clip:").pack(side="left")
         self.mcp_seconds_var = tk.IntVar(value=int(self.settings.get("mcp_seconds", 8)))
-        ttk.Spinbox(line1, from_=4, to=10, textvariable=self.mcp_seconds_var, width=4).pack(side="left", padx=(6, 16))
+        ttk.Combobox(line1, textvariable=self.mcp_seconds_var, values=[4, 6, 8, 10],
+                     state="readonly", width=5).pack(side="left", padx=(6, 16))
         ttk.Label(line1, text="clips (min):").pack(side="left")
         self.mcp_clips_var = tk.IntVar(value=int(self.settings.get("mcp_clips", 8)))
         ttk.Spinbox(line1, from_=0, to=60, textvariable=self.mcp_clips_var, width=4).pack(side="left", padx=(6, 16))

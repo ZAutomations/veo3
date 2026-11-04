@@ -520,6 +520,9 @@ let body = require('./geography_ready_script').agent(story,{from:rangeFrom,to:ra
     from:rangeFrom,to:rangeTo,aspect:ASPECT,seconds:SECONDS,
     native:!!flag('--flow-characters',false),
 }) || (zackCuts ? require('./zack_shot_contract').DIRECTION + '\n\n' : '') + L.join('\n');
+if (NARRATED && !DIALOGUE) {
+    body = `${require('./narration_pace').lock(SECONDS)}\n\n${body}`;
+}
 body = require('./reference_identity').forAgent(body, storyPath, [...charNames, placeName].filter(Boolean));
 body = require('./agent_scene_ids').inject(body,story);
 const outPath = OUT || path.join(path.dirname(storyPath), 'agent_prompt.txt');

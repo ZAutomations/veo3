@@ -1,3 +1,31 @@
+UNIVERSAL INPUT, IDEA AND SCRIPT WORKFLOW — APPLIES TO EVERY PRESET
+Keep this workflow identical across presets. The selected preset controls its niche, visual identity, character rules, speech mode and package deliverables; it does not change the questions below. This workflow overrides conflicting fixed-count or eight-second examples later in this file.
+
+1) TOPIC PILLARS AND CHANNEL RESEARCH
+If I have not supplied a specific topic or source, first create 3–4 content pillars that fit THIS preset's niche. Under each pillar, give 7–10 original video titles, each followed by a one-sentence story summary. Keep every idea specific, distinct and suitable for this preset. Then ask me which title or custom topic to use; do not write full scripts until I choose or tell you to proceed.
+If I provide a YouTube channel URL, browse the publicly available channel and identify 5–10 of its strongest-performing accessible videos. Select using visible view counts and, where possible, views relative to upload age; show each selected title, link, visible metrics and why it stands out. State the access date and any limits. Extract broad audience/topic patterns only; propose original ideas that fit this preset rather than copying exact titles, scripts, branding or a creator's distinctive expression. Return 3–4 topic pillars with 7–10 original title + one-sentence-summary ideas under each, and highlight 5–10 strongest topics to try. Never claim to have watched or measured material you could not access. If the channel page or metrics are unavailable, ask for accessible video links, screenshots or transcripts.
+If I give one or more video URLs, use them as source/reference material only when accessible. Preserve factual meaning and chronology for factual scripts. Never invent facts to fill inaccessible source material. Topic/source video URL(s) and a channel URL are separate optional inputs.
+
+2) ASK ONLY FOR MISSING CHOICES
+Collect the following; do not repeat a choice I already gave:
+• Stories in this batch: 1 / 5 / 10 / Custom (enter any positive whole number).
+• Clip duration: 4 / 6 / 8 / 10 seconds per clip. These are the supported clip lengths; use exactly the selected value for every clip. Ten-second generation requires the tool's compatible Agent Mode + Omni 1.1 Flash configuration.
+• Clips per story: 1 / 5 / 10 / Custom (enter any positive whole number). Custom clip counts are valid; do not restrict the story to preset example counts.
+• Topic/title or source transcript/video URL(s), and optional YouTube channel URL.
+When more than one choice is missing, ask in one compact numbered form. If no topic is selected, present the pillar/title menu before waiting for the selection. Once the selections are clear, proceed without asking for another approval.
+
+3) SHARED STORY AND IMPORT CONTRACT
+Use the exact parser-ready structure and field labels shown in this preset's READY-IMPORT FORMAT/template. Begin each story with Story N, reset clip numbering to Clip 1 inside every story, set Clip seconds to my choice, and set Estimated duration to actual clip count × clip seconds. Never add explanatory text, pillar lists, SEO, thumbnail text or unsupported labels inside the import-ready TXT; deliver requested extras separately. Use every requested story and clip; do not silently add, remove, split or merge clips. Adapt shot/action timings to cover each selected clip from 0 to its exact endpoint with no gaps or overlaps. Preserve this preset's required fields and speech mode.
+
+4) SHARED NARRATION SPEED
+For every narrated preset, use the same brisk, clear voice-over pace: 4s = 12–13 words, 6s = 18–19, 8s = 24–26, 10s = 30–32; hard ceilings are 13, 20, 27 and 34 respectively. Finish the complete narration naturally within the clip, with only a brief end buffer. Keep each preset's voice character and emotional tone, while keeping delivery speed consistent. Synchronize every visual beat to the phrase being spoken. These word targets do not convert silent or dialogue-only presets into narration presets; preserve their native speech mode and exact speaker ownership.
+
+
+SHARED NARRATION PACE LOCK — USE FOR EVERY NARRATED PRESET
+This pace is calibrated from the creator-approved 8-second sample (about 24–26 spoken words). Keep this as the same brisk, clear voice-over pace in every narrated preset; preserve each preset’s emotional tone and visual identity, but do not make its narration slower. Target spoken words per clip: 4 seconds = 12–13 (hard ceiling 13); 6 seconds = 18–19 (ceiling 20); 8 seconds = 24–26 (ceiling 27); 10 seconds = 30–32 (ceiling 34). Count actual spoken words, including number words. Prefer concise, easy-to-say sentence construction while preserving every important fact. Do not leave long pauses, a slow intro, drawn-out syllables, filler, or a long silent tail. Read the complete line verbatim and finish before the last 0.3 seconds; never rush past the final word or truncate it.
+
+VISUAL PACE MATCH: Divide the narration into phrase-sized visual beats and assign each supplied timed shot to the phrase spoken during it. For a 10-second clip, use about three or four concrete beats across the full 10 seconds; each beat must show the named subject/action/result as it is spoken, with no long static hold. Use the camera language allowed by this preset: connect related views when movement is appropriate, use motivated cuts for genuinely separate places/times, and keep a locked camera locked. Visuals must not add unrelated filler to occupy time.
+
 CLIP-DURATION OVERRIDE — USE THIS AS THE ACTIVE RUN SETTING
 For every requested video, use the creator's selected seconds-per-clip value from 4, 6, 8, or 10 seconds. If no value is given, ask which one they want; default to 8 only if they ask you to proceed without choosing. The selected value overrides fixed-duration examples, defaults, sample metadata, and old clip timing instructions later in this file. Preserve this preset's visual identity, story arc, character, audio, and shot-count rules; adapt shot timestamps to cover exactly 0 through the selected duration with no gaps or overlaps. Set Clip seconds to that selected value and calculate total duration as clip count × seconds per clip. Scale spoken words naturally to the available time. Do not claim the tool importer rejects 4, 6, 8, or 10 seconds: it accepts each of them. Never use this override to bypass a model or generation mode that the tool explicitly marks incompatible.
 MASTER PROMPT: 3D MOTIVATIONAL — RED VS GREEN — 10 READY SCRIPTS
@@ -6,16 +34,12 @@ USE IN TOOL: Story Writer > Import ready script. Select 3D Motivational — Red 
 
 COPY EVERYTHING BELOW THIS LINE INTO CHATGPT:
 
-Create exactly TEN complete ready-to-import scripts for my 3D Motivational — Red vs Green preset. Deliver one numbered SCRIPT.txt and its complete package for each story. If file tools are unavailable, provide separate labeled contents and report missing capabilities.
+Create ready-to-import scripts for my 3D Motivational — Red vs Green preset. Default to ten complete story packages only when I have not selected a batch size. My chosen count (1, 5, 10 or any custom positive integer) always overrides the default. Deliver each story separately with its complete requested package. If file tools are unavailable, provide separate labeled contents and report missing capabilities.
 
-FIRST ASK ONLY THIS, unless I already supplied the choice:
-"Choose the length for these 10 videos: 15 seconds or 30 seconds?"
-Then wait for my answer. After I answer, write all ten scripts in one response. Do not ask me to choose concepts or approve stories individually. If I supply ten topics, use them in their given order; otherwise choose ten distinct, concrete motivational metaphors. Suitable themes include starting small, patient foundations, consistency, focus, preparation, practice, persistence, manageable goals, applying feedback and finishing useful work. Do not repeat one physical task under ten titles.
+Use the UNIVERSAL INPUT, IDEA AND SCRIPT WORKFLOW at the beginning of this prompt. Its missing-choice questions, custom batch and clip counts, topic-pillar menu, optional source/channel URL analysis, and 4/6/8/10-second duration selection apply here. For this preset, offer niche-fit pillars such as consistency, preparation, focus, practice, patience, feedback and finishing; populate each with 7–10 distinct title ideas and one-sentence summaries when I have not supplied a topic. The user-selected story count and clip count override all examples below.
 
 DURATION CONTRACT
-15-second choice: exactly TWO clips of eight seconds = 16 generated seconds. Use Estimated duration: 16 seconds.
-30-second choice: exactly FOUR clips of eight seconds = 32 generated seconds. Use Estimated duration: 32 seconds.
-The final clip must finish its narration and action by 6 seconds, then hold the payoff silently through 8 seconds. This leaves room for optional trimming to approximately 15/30 seconds. Do not promise automatic trimming. Never output three, five or more clips, or durations of 15/30 as the generated duration. Every clip is eight seconds.
+Use the selected clip length of exactly 4, 6, 8 or 10 seconds for every clip. Use the selected number of clips per story, including any custom positive integer. Estimated duration = clip count × clip seconds; do not force 15/30 seconds or any fixed clip count. Adapt the story arc to the selected count: establish the contrast in Clip 1, build meaningful progress across middle clips when present, and pay off in the final clip. A one-clip story must contain a readable setup, contrast and payoff within that clip. Keep the completed payoff visible through the final 0.3 seconds; do not create a separate outro or CTA clip. Never add, remove, split, merge or silently trim clips.
 
 PRESET IDENTITY — KEEP IN EVERY STORY
 Clean corporate-minimalist matte 3D animation, rounded adult figures and simple tangible props. White or pale-grey infinite plane, soft even overhead light and diffused contact shadows. Exactly two recurring adults: Red on the far left in a RED shirt, Green on the far right in a GREEN shirt; both wear charcoal trousers and dark shoes. The tool supplies their exact reference descriptions; do not add Characters: or Locations: fields or redesign them.
@@ -23,30 +47,29 @@ One LOCKED ultra-wide eye-level camera throughout the film. Keep both adults and
 
 ONE CONCEPT, TWO INDEPENDENT PHYSICAL TASKS
 The title, narration and visible actions must all illustrate the same chosen habit. Red represents an unhelpful approach and ends with an unfinished task or harmless setback. Green represents constructive action and ends with tangible progress. Show clear cause and effect, not general gestures or arbitrary rewards. Give the two sides distinct props and motions: for example Red arranges loose pieces horizontally while Green builds a stable vertical structure. Do not have both figures perform identical movements that could merge. Keep gravity, weight and ground contact readable. No injury, dangerous falls, humiliation or claim that all struggling people are lazy. No magical new props or unexplained completion.
-For two clips: establish the contrast in clip 1, develop and pay off in clip 2.
-For four clips: establish in clip 1, progress and escalate the contrast in clips 2–3, pay off in clip 4.
+Adapt the contrast and payoff to any selected clip count. Use every clip to make visible progress; reserve the decisive result for the last requested clip.
 Start with a short curiosity hook tied to the visible contrast. No greeting or generic motivational introduction. Finish with the lesson shown by the result, without a new CTA clip.
 
 CONTINUITY FIELDS — REQUIRED FOR EACH CLIP
 Start state: Describe BOTH Red's starting props/progress and Green's starting props/progress.
 Action: Describe each adult's independent visible action during this clip, including relevant timing in prose. This is ONE continuous static shot, never a Shot 1/Shot 2 montage.
 End state: Describe BOTH adults' exact resulting props/progress and posture. Account for every moved or added object.
-For clip 2 onward, copy the preceding End state WORD FOR WORD into Start state. This exact text match is required by the importer. Continue the task from that state; never rebuild or reset between clips. Do not hide changes in a camera cut. In the final clip describe the payoff by 6 seconds and a stable silent 6–8 second hold.
+For Clip 2 onward, copy the preceding End state WORD FOR WORD into Start state. This exact text match is required by the importer. Continue the task from that state; never rebuild or reset between clips. Do not hide changes in a camera cut. In the final clip complete the payoff during the selected clip and keep the result visible through its final 0.3 seconds.
 
 LABELS AND FOOTER
 Before Clip 1, supply Left label:, Right label:, Footer start: and Footer end: once per story. Label values are one to three short words, identifying the habit (WAITING / DOING, SCATTERED / FOCUSED, etc.). Red's label stays over Red; Green's stays over Green. Each footer is one to five words; Footer end must differ from Footer start. Keep Footer start throughout earlier clips and change it once at the final visible payoff. The tool injects these label/footer instructions into every clip. No MINDSET 101, channel names, URLs, logos, subtitles or other captions. Do not create separate per-clip Footer fields.
 
 AUDIO
-Narration: One off-screen adult motivational narrator, warm, clear, grounded and conversational. Aim for 14–18 words in each non-final clip (maximum 22). Final narration: 12–14 words, spoken naturally before 6 seconds, then silence. Characters never speak or lip-sync. Every line must refer to the actual habit and visible progress, not disconnected slogans. No invented scientific studies, guarantees or universal claims about success. No music. Sound: None, or brief quiet task sounds below narration; no competing speech. Use neutral respectful wording.
+Narration: One off-screen adult motivational narrator, warm, clear, grounded and conversational. Follow the shared pace lock: 12–13 words at 4 seconds, 18–19 at 6 seconds, 24–26 at 8 seconds, and 30–32 at 10 seconds; use the listed hard ceilings. Characters never speak or lip-sync. Every line must refer to the actual habit and visible progress, not disconnected slogans. No invented scientific studies, guarantees or universal claims about success. No music. Sound: None, or brief quiet task sounds below narration; no competing speech. Use neutral respectful wording.
 
 EXACT PARSER FORMAT
-Use only the fields in this template. No Markdown headings, numbered bullets, prose introduction, Details:, Story brief:, Target duration:, Visual:, Effect:, Shot N:, Characters: or Locations: fields. Do not print explanatory text inside the file. Quotes around narration are allowed. Start every story with Story N, numbered 1–10; reset clips to Clip 1 within each story. Preset: must appear before the labels and clips.
+Use only the fields in this template. No Markdown headings, numbered bullets, prose introduction, Details:, Story brief:, Target duration:, Visual:, Effect:, Shot N:, Characters: or Locations: fields. Do not print explanatory text inside the file. Quotes around narration are allowed. Start every story with Story N, using consecutive numbering for the selected batch; reset clip numbering to Clip 1 within each story. Preset: must appear before the labels and clips.
 
 Story 1
 Title: [specific finished title]
 Preset: 3d-motivational-red-green
-Clip seconds: 8
-Estimated duration: [16 or 32] seconds
+Clip seconds: [selected 4, 6, 8 or 10]
+Estimated duration: [selected clip count × clip seconds] seconds
 Left label: [short habit label]
 Right label: [short constructive label]
 Footer start: [short initial footer]
@@ -59,17 +82,17 @@ Action: [complete independent visible actions for Red AND Green]
 End state: [complete ending state for Red AND Green]
 Sound: [quiet relevant task sounds or None]
 
-Clip 2:
+For each additional clip from Clip 2 through the selected final clip, repeat the same fields:
 Narration: "[finished narration]"
-Start state: [exact copy of clip 1 End state]
-Action: [continue both tasks; for the two-clip format finish the payoff by 6 seconds and hold 6–8 seconds]
+Start state: [exact copy of the preceding clip End state]
+Action: [continue both tasks; complete the payoff in the final requested clip]
 End state: [complete ending state for both]
 Sound: [quiet relevant task sounds or None]
 
-For the four-clip format include Clip 3 and Clip 4 using the same fields. Only Clip 4 has the final payoff and silent hold. Replace all placeholders; never print these continuation instructions. Repeat the full structure through Story 10 without omitting any story or clip.
+Repeat the same accepted clip fields for exactly the selected number of clips. Clip 1 opens the story; the final requested clip contains the payoff. Replace every placeholder; never print continuation instructions. Repeat the full structure for exactly the selected number of stories and clips.
 
 FINAL CHECK BEFORE DELIVERY
-Exactly ten stories. Correct preset ID. Exactly two or four eight-second clips per story. Estimated duration equals clip count × eight. All required labels, footers and clip fields present. Every later Start state exactly equals the preceding End state. No dialogue or timed Shot fields. Both adults' independent actions remain visible and topic-specific. Fixed identities, wide static camera, separate props, no reset or crossing. Payoff and narration finish by 6 seconds of the final clip. All stories complete, varied and ready to import. Do not claim any prompt guarantees provider acceptance or perfect continuity from independently generated clips.
+Exactly the selected number of stories. Correct preset ID. Exactly the selected number of clips per story. Every clip uses the selected 4, 6, 8 or 10 seconds. Estimated duration equals clip count × clip seconds. All required labels, footers and clip fields present. Every later Start state exactly equals the preceding End state. No dialogue or timed Shot fields. Both adults' independent actions remain visible and topic-specific. Fixed identities, wide static camera, separate props, no reset or crossing. Payoff and narration finish within the selected final clip, with the result visible at the end. All stories complete, varied and ready to import. Do not claim any prompt guarantees provider acceptance or perfect continuity from independently generated clips.
 
 
 SHARED PRODUCTION STANDARD — 2026-10 UPDATE

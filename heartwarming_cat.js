@@ -27,13 +27,14 @@ function audio(story,index){
 }
 function scene(story,index,{aspect=story.aspect_ratio||'9:16',seconds=8}={}){
  const s=story.scenes[index];if(!s)throw Error('Missing Cat story scene '+(index+1));
+ const cuddleSeconds=Math.min(4,seconds*.5);
  return [`Generate ONE standalone ${seconds}-second clip for scene ${index+1} only. Internal shots are views within one clip, not extra output clips.`,
  `STORY: ${story.title}. FORMAT: ${aspect==='Flow'?'Flow-selected aspect ratio':aspect}. STYLE: ${story.style||STYLE}`,
  CONTRACT,`REFERENCES: @Girl, @Cat, @${story.place?.name||'Home'}. Exactly three reference images: Girl, Cat and this story location. The teddy is a prop, not a fourth reference. References establish identity and location design, not a collage or a turnaround in the video.`,
  ...CAST.map(c=>`IDENTITY ${c.name}: ${c.description}`),
  `HOME DESIGN: ${story.place?.description||''}. Use only the room relevant to this action, with matching architecture and furnishings.`,
  'START STATE: '+s.start_state,...(s.shots||[]).map((v,i)=>`SHOT ${i+1} (${v.start_seconds}–${v.end_seconds}s): ${v.visual}`),
- 'END STATE: '+s.end_state,audio(story,index),index===story.scenes.length-1?'FINAL PAYOFF: keep the gentle cheek-to-cheek cuddle for the final 4–6 seconds, soft purring and joyful musical resolution. No CTA or extra ending scene.':'Carry the end state into the next clip; retain where the teddy bear, furniture and characters actually ended.'
+ 'END STATE: '+s.end_state,audio(story,index),index===story.scenes.length-1?`FINAL PAYOFF: keep the gentle cheek-to-cheek cuddle uninterrupted for at least ${cuddleSeconds} seconds at the end of this ${seconds}-second clip, with soft purring and joyful musical resolution. No CTA or extra ending scene.`:'Carry the end state into the next clip; retain where the teddy bear, furniture and characters actually ended.'
  ].join('\n\n')+'\n';
 }
 function locationName(meta){

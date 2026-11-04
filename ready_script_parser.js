@@ -162,8 +162,8 @@ function parse(text,defaults={}) {
      }
     }
     const count=words(c.narration);
-    const targetMin=Math.round(s.seconds*2), targetMax=Math.round(s.seconds*2.5), hardMax=Math.floor(s.seconds*2.75);
-    if(count<targetMin||count>targetMax)s.warnings.push(`Clip ${c.number}: ${count} narration words for ${s.seconds}s; target ${targetMin}–${targetMax}, hard pacing limit ${hardMax}. Estimated ${Math.round(count/2.5*10)/10}s at 150 words/minute; actual delivery may differ. Narration was preserved.`);
+    const {min:targetMin,max:targetMax,hard:hardMax}=require('./narration_pace').targets(s.seconds);
+    if(count<targetMin||count>targetMax)s.warnings.push(`Clip ${c.number}: ${count} narration words for ${s.seconds}s; reference-matched target ${targetMin}–${targetMax}, hard pacing limit ${hardMax}. Approximate read time at the calibrated pace: ${Math.round(count/3.125*10)/10}s. Narration was preserved.`);
    }else if(motivational){
     if(!c.narration||c.dialogue.length||c.shots.length)fail('3D Motivational requires Narration, Start state, Action and End state, with no dialogue or Shot fields.',c._source.line,'Clip');
    }else if(!p&&!cat&&(!c.dialogue.length||c.narration||c.shots.length))fail('Every dialogue clip needs labelled dialogue; narration/shots require Zack D.',c._source.line,'Dialogue');
