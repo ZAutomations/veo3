@@ -814,10 +814,19 @@ async function generateRefs(page, refs, opts = {}) {
         await RI.configureReferenceImages(page, log, aspect);
     };
 
-    let made = 0, failed = 0;
+    let made = 0, failed = 0, blocked = false, stopReason = '';
     for (const r of refs) {
         const name = String(r.name || '').trim();
         log(`\n[${made + failed + 1}/${refs.length}] ${name}`);
+        if (!r.localFile) {
+            const state = await page.evaluate(RI.referenceState);
+            let existing = false;
+            for (const image of state.images) {
+                const label = await tileName(page, image.tileIndex);
+                if (String(label || '').trim().toLowerCase() === name.toLowerCase()) { existing = true; break; }
+            }
+            if (existing) { made++; log(`  verified existing completed image named "${name}"; skipping generation.`); continue; }
+        }
         if (r.localFile) {
             const uploaded = await require('./upload_saved_reference').uploadSavedReference(page, r, log);
             if (!uploaded.ok) throw Error(`Saved ${name} upload failed: ${uploaded.why}. No replacement character will be generated.`);
@@ -840,20 +849,60 @@ async function generateRefs(page, refs, opts = {}) {
             // observes the pending image rather than spending credits again.
             receipt.write({status:'pending',before});
             let click = await clickSubmit(page);
-            for (let a = 2; a <= 6 && !click.ok; a++) {
+            let generationBaseline = before;
+            for (let a = 2; a <= 3 && !click.ok; a++) {
                 await wait(5000);
                 click = await clickSubmit(page);
             }
             if (!click.ok) {receipt.clear();return { ok: false, why: `Could not submit: ${click.why}` };}
+            let submitted = await RI.waitForReferenceSubmission(page, before, String(r.prompt).trim(), 15);
+            if (!submitted.ok && submitted.safeToRetry) {
+                log(`  submit was not acknowledged: ${submitted.why}`);
+                log('  prompt is still present and no new tile appeared; retrying this same reference once.');
+                const retryBefore = submitted.state;
+                generationBaseline = retryBefore;
+                receipt.write({status:'pending',before:retryBefore});
+                click = await clickSubmit(page);
+                if (click.ok) submitted = await RI.waitForReferenceSubmission(page, retryBefore, String(r.prompt).trim(), 15);
+                else submitted = {ok:false,safeToRetry:false,state:retryBefore,why:`Retry click failed: ${click.why}`};
+            }
+            if (!submitted.ok && submitted.safeToRetry) {
+                receipt.clear();
+                return {ok:false,why:`Reference submit was not accepted after one verified retry. ${submitted.why}`};
+            }
+            if (!submitted.ok) log(`  submit acknowledgement is ambiguous (${submitted.why}); keeping this request pending to avoid duplicate generation.`);
+            else log(`  Flow accepted the image request (${submitted.evidence}).`);
+            const submitState = submitted.state || generationBaseline;
+            const completedAtSubmit = submitState.images.find(x => !generationBaseline.images.some(y => y.key === x.key));
+            if (completedAtSubmit) return {ok:true,tileIndex:completedAtSubmit.tileIndex};
             log(`  generating image... (up to ${waitS}s)`);
-            return RI.waitForReferenceImage(page, before, waitS);
+            const result = await RI.waitForReferenceImage(page, generationBaseline, waitS);
+            if (result.ok) return result;
+            log('  timeout audit: rescanning completed image tiles and names before stopping this reference batch.');
+            const audit = await page.evaluate(RI.referenceState);
+            const completed = audit.images.find(x => !generationBaseline.images.some(y => y.key === x.key));
+            if (completed) return {ok:true,tileIndex:completed.tileIndex,recoveredAtTimeout:true};
+            for (const image of audit.images) {
+                const label = await tileName(page, image.tileIndex);
+                if (String(label || '').trim().toLowerCase() === name.toLowerCase())
+                    return {ok:true,tileIndex:image.tileIndex,alreadyNamed:true,recoveredAtTimeout:true};
+            }
+            return {...result,why:`${result.why} Final audit found no completed image named "${name}".`};
         }, { log });
         if (!result.ok) {
             failed++;
             log(`  FAILED: ${result.why}`);
             // A persistent activity block applies to the session. Do not send
             // the next sheet (or next film) straight into the same restriction.
-            if (result.blocked) return { made, failed, total: refs.length, blocked: true };
+            blocked = !!result.blocked;
+            stopReason = result.why;
+            // Ref images must be complete and named before the thumbnail or
+            // film can proceed. Stop at the first unverified asset.
+            break;
+        }
+        if (result.alreadyNamed) {
+            made++;
+            log(`  final audit confirmed the image is already named "${name}"; skipping rename.`);
             continue;
         }
         log(`  completed image appeared; renaming to "${name}"`);
@@ -869,7 +918,12 @@ async function generateRefs(page, refs, opts = {}) {
                 log(`  note: the tile label still reads "${ren.labelSays}" - if the agent`);
                 log(`  cannot find @${name} later, that label is why.`);
             }
-        } else { failed++; log(`  generated, but rename failed: ${ren.why}`); }
+        } else {
+            failed++;
+            stopReason = `generated image, but rename failed: ${ren.why}`;
+            log(`  FAILED: ${stopReason}`);
+            break;
+        }
     }
 
     // Hand the chip back in the state the film run needs. agent_mode.js turns
@@ -883,8 +937,10 @@ async function generateRefs(page, refs, opts = {}) {
             ? 'Agent Mode is ON again, ready for the film run.'
             : `WARNING: could not turn Agent Mode back ON (${on.why}) - agent_mode.js will retry.`);
     }
+    if (stopReason && made + failed < refs.length)
+        log(`  stopping before the next reference/thumbnail; ${refs.length - made - failed} asset(s) remain unstarted.`);
     log(`\nDone: ${made} made, ${failed} failed, of ${refs.length}.`);
-    return { made, failed, total: refs.length };
+    return { made, failed, total: refs.length, blocked, stopReason };
 }
 
 // ── CLI ─────────────────────────────────────────────────────────────────────

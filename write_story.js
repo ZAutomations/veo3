@@ -916,12 +916,14 @@ function lookBlock(p, place) {
     const fixed = String(place === undefined ? (p.setting || '') : place).trim();
     return [
         `LOOK: ${p.style}`,
-        'SHARED WRITING STANDARD: Preserve this preset’s visual identity, speech mode, fixed-camera or simple-dialogue rules and requested length. New stories begin on a concrete visual hook or relevant immediate question/verified contradiction; no generic greeting or background paragraph. Preserve locked source narration and facts instead of silently rewriting them. Every beat must name its actual topic-specific subject, setting, action and result; no generic filler, unrelated mechanisms or a camera-angle change pretending to be a new event. Where movement is allowed, select one camera route from the current object to the next: departure, path, destination, then settle. Do not give a menu of cut/zoom/pan alternatives. Retain motivated cuts for disconnected documentary places/times; never force camera motion into a locked-camera, calm-avatar or simple conversation preset. Do not transfer Zack 3D, Fern mannequins, narrator speech or an eight-clip limit to another preset.',
+        'SHARED WRITING STANDARD: Preserve this preset’s visual identity, speech mode, fixed-camera or simple-dialogue rules and requested length. New stories begin on a concrete visual hook or relevant immediate question/verified contradiction; no generic greeting or background paragraph. Preserve locked source narration and facts instead of silently rewriting them. Every beat must name its actual topic-specific subject, setting, action and result; no generic filler, unrelated mechanisms or a camera-angle change pretending to be a new event. Where movement is allowed, select one camera route from the current object to the next: departure, path, destination, then settle. Do not give a menu of cut/zoom/pan alternatives. Follow the selected preset’s camera contract at every timed shot boundary. Zack D., Intimacy Health 3D, Fern Documentary and Geography Map use a visible in-camera pan/whip-pan or foreground occlusion between internal shots, even when place or scale changes; do not write internal hard cuts for these presets. Never force camera motion into a preset whose identity requires a locked camera, calm avatar or simple conversation. Do not transfer Zack 3D, Fern mannequins, narrator speech or an eight-clip limit to another preset.',
         `CAST TEMPLATE (every character description must follow this shape): ${p.cast_idiom}`,
         ...(p.fixed_couple_appearance ? [require('./realistic_couple').prompt(p)] : []),
         `PALETTE: ${p.palette}`,
         `CAMERA: ${p.camera}`,
         ...(p.dialogue_delivery ? [`DIALOGUE DELIVERY: ${p.dialogue_delivery}`] : []),
+        ...(['3d-zack-style','intimacy-health-3d','fern-documentary','geography-map'].includes(p.id)
+            ? [require('./narration_callout_contract').DIRECTION] : []),
         // One place, named once, for the whole film. Scenes are written in
         // separate batches that share no state beyond the previous clip's
         // spoken line, so a genre set in a single place had nothing holding it
@@ -1312,7 +1314,7 @@ ${lookBlock(p, choosePlace ? '' : undefined)}
 ${require('./source_narration').instructions(p, CONTENT_MAP)}
 
 TASK
-Also design "thumbnail": {"headline":"maximum five simple words","visual_concept":"one specific striking composition highlighting this story's main topic"}. Use the same character designs and visual style. Make the topic and emotional hook clear at phone size with simple composition and strong contrast. Do not invent events or misleading claims. This is thumbnail metadata, not an extra scene.
+Also design "thumbnail": {"headline":"maximum five simple words","supporting_question":"a short, factual curiosity question of 2–5 words","visual_concept":"one specific striking composition highlighting this story's main topic"}. Use the same character designs and visual style. Make the topic and emotional hook clear at phone size with simple composition and strong contrast. Do not invent events or misleading claims. For intimacy-health-3d, the supporting_question is required and must accurately describe the story's central health question. This is thumbnail metadata, not an extra scene.
 1. Write a one-sentence "description" of the whole video (max 30 words). It must
    describe WHAT HAPPENS, never what it looks like - the look is already fixed above.
 2. Write a one-sentence "moral" (max 25 words).
@@ -1888,7 +1890,7 @@ function buildStory(p, cast, meta, scenes) {
     return {
         title: TITLE,
         description: meta.description,
-        thumbnail: { headline: String(meta.thumbnail?.headline || TITLE).split(/\s+/).slice(0, 5).join(' '), visual_concept: String(meta.thumbnail?.visual_concept || meta.description || TITLE) },
+        thumbnail: { headline: String(meta.thumbnail?.headline || TITLE).split(/\s+/).slice(0, 5).join(' '), supporting_question: String(meta.thumbnail?.supporting_question || ''), visual_concept: String(meta.thumbnail?.visual_concept || meta.description || TITLE) },
         total_scenes: scenes.length,
         video_duration: `${total} seconds`,
         target_audience: meta.target_audience || '',

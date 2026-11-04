@@ -29,8 +29,9 @@ function editingPython(){
 function runAfterJoin(video,report){
  const file=path.join(__dirname,'video_editing_settings.json');
  let cfg;
- try {cfg=process.env.VEO_EDITING_SETTINGS?JSON.parse(process.env.VEO_EDITING_SETTINGS):fs.existsSync(file)?JSON.parse(fs.readFileSync(file,'utf8')):null;}
+ try {cfg=process.env.VEO_EDITING_SETTINGS?JSON.parse(process.env.VEO_EDITING_SETTINGS):fs.existsSync(file)?JSON.parse(fs.readFileSync(file,'utf8')):{editing_auto_apply:true,editing_camera_enabled:true};}
  catch(e){throw Error('Cannot read Video Editing settings: '+e.message);}
+ if(cfg) console.log(`Post-join camera transition request: ${cfg.editing_camera_enabled?'ON':'OFF'}; auto-apply: ${cfg.editing_auto_apply===false?'OFF':'ON'}.`);
  if(!cfg||cfg.editing_auto_apply===false||!['silence_removal_enabled','editing_transitions_enabled','clipper_captions_enabled','editing_camera_enabled'].some(k=>cfg[k]))return;
  console.log('Applying saved Video Editing settings to the completed combined video...');
  const python=editingPython();

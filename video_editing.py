@@ -35,7 +35,9 @@ def schema():
         if row['key']=='clipper_caption_preset':
             row['choices'] += list(FRAMELOOM_PRESETS)
             if isinstance(row.get('choice_labels'),dict):row['choice_labels'].update({k:v['label'] for k,v in FRAMELOOM_PRESETS.items()})
-    rows.append(dict(key='editing_camera_enabled',label='Camera transitions',default=False,page='finishing',group='Camera transitions'))
+    # Camera pan/swipe is the requested default inter-clip transition. Dissolve
+    # remains an independent, opt-in effect.
+    rows.append(dict(key='editing_camera_enabled',label='Camera transitions',default=True,page='finishing',group='Camera transitions'))
     rows.append(dict(key='editing_speed',label='Final video speed (×)',default=1.0,min=.15,max=2.0,step=.05,page='finishing',group='Final speed'))
     return rows
 
@@ -288,7 +290,7 @@ def render_transitions(source,output,boundaries,cfg,silence_boundaries=()):
             except Exception:pass
 
 
-def render_camera_transitions(source,output,boundaries,duration=.35):
+def render_camera_transitions(source,output,boundaries,duration=.65):
     """Sideways camera-style swipe at verified joins; no zoom, blur or dissolve.
 
     Outgoing visual tails and incoming frames share the existing timeline.
@@ -541,6 +543,17 @@ def edit(source,values=None,report=None,output=None):
     work=folder/signature[:16];work.mkdir(exist_ok=True)
     current=source;segments=[(0,info['duration'])]
     boundaries=original_boundaries(source,report)
+    report_path=Path(report) if report else source.parent/'JOINED_CLIP_ORDER.txt'
+    if cfg['editing_camera_enabled']:
+        if report_path.is_file():
+            report_text=report_path.read_text(encoding='utf-8-sig')
+            reported_rows=len(re.findall(r'^\d+\s*\|\s*[\d.]+s\s*\|',report_text,re.M))
+            expected_boundaries=max(0,reported_rows-1)
+            if reported_rows>1 and len(boundaries)!=expected_boundaries:
+                raise ValueError(f'Camera transitions are enabled, but only {len(boundaries)} of {expected_boundaries} joined boundaries were verified. The edited output was not produced; check that the report belongs to this combined video.')
+            log(f'Camera transition audit: {len(boundaries)} verified boundary/boundaries from {reported_rows} joined item(s).')
+        else:
+            log('Camera transition audit: no JOINED_CLIP_ORDER.txt found; standalone video has no verified clip joins.')
     end_card_start=original_end_card_start(source,report)
     if end_card_start is not None:
         log(f'Thumbnail end card detected at {end_card_start:.2f}s; its full duration is protected during editing.')

@@ -97,6 +97,23 @@ async function configureReferenceImages(page, say = () => {}, aspect = IMAGE_RAT
     // and leaves the next prompt insertion behind its popover.
     await page.keyboard.press('Escape');
     await sleep(500);
+    // On some Flow builds Escape updates the settings summary but leaves the
+    // compact Image/ratio/model popover on screen. Require its controls to
+    // disappear before pasting a prompt or clicking Start generation.
+    for (let attempt = 0; attempt < 3 && (await state()).open; attempt++) {
+        await page.keyboard.press('Escape');
+        await sleep(350);
+    }
+    if ((await state()).open) {
+        const point = await page.evaluate(() => {
+            const box = document.querySelector('flow-base-prompt-box .ProseMirror, .ProseMirror, [contenteditable="true"]');
+            if (!box) return null;
+            const r = box.getBoundingClientRect();
+            return r.width && r.height ? {x:Math.round(r.left+8),y:Math.round(r.bottom-12)} : null;
+        });
+        if (point) { await page.mouse.click(point.x, point.y); await sleep(350); }
+    }
+    await until(async () => !(await state()).open, 'compact settings popover stayed open over the prompt composer');
     await until(async () => {
         const s = await state();
         return /nano\s+banana\s+pro/i.test(s.summary) && (aspect === '16:9' ? s.summaryLandscape : true);
@@ -147,7 +164,38 @@ function referenceState() {
     // Some builds render the message directly on the page rather than a card.
     // Count occurrences so an old warning is not mistaken for a new failure.
     const activityCount = ((document.body.innerText || '').match(/unusual\s+activity/gi) || []).length;
-    return { images, videos, errors, activityCount };
+    const promptBox = document.querySelector('flow-base-prompt-box .ProseMirror, .ProseMirror, [contenteditable="true"]');
+    const promptText = promptBox ? String(promptBox.innerText || promptBox.textContent || '').trim() : '';
+    const submit = [...document.querySelectorAll('button[aria-label*="start generation" i]')].find(visible);
+    return { images, videos, errors, activityCount, promptText,
+        submitEnabled: !!submit && !submit.disabled && submit.getAttribute('aria-disabled') !== 'true',
+        tileCount: more.length };
+}
+
+async function waitForReferenceSubmission(page, before, expectedPrompt, seconds = 15, opts = {}) {
+    const pause = opts.sleep || sleep, now = opts.now || Date.now;
+    const end = now() + seconds * 1000;
+    const expected = String(expectedPrompt || '').trim();
+    let last = before;
+    while (now() < end) {
+        last = await page.evaluate(referenceState);
+        const newImage = last.images.find(x => !before.images.some(y => y.key === x.key));
+        if (newImage || last.videos.length > before.videos.length || last.tileCount > before.tileCount)
+            return {ok:true,evidence:'new Flow media tile',state:last};
+        if (before.promptText && last.promptText !== before.promptText)
+            return {ok:true,evidence:last.promptText ? 'composer prompt changed' : 'composer cleared',state:last};
+        if (!last.submitEnabled && last.promptText !== expected)
+            return {ok:true,evidence:'submit entered a disabled/generating state',state:last};
+        await pause(Math.min(500, Math.max(0, end-now())));
+    }
+    last = await page.evaluate(referenceState);
+    const noMediaChange = last.tileCount <= before.tileCount
+        && last.images.length <= before.images.length && last.videos.length <= before.videos.length;
+    const safeToRetry = !!expected && last.promptText === expected && noMediaChange && last.submitEnabled;
+    return {ok:false,safeToRetry,state:last,
+        why:safeToRetry
+            ? `Flow did not accept the click: the same prompt is still in the composer and no new tile appeared after ${seconds}s.`
+            : `Submission state was ambiguous after ${seconds}s; keeping the request pending to avoid duplicating it.`};
 }
 
 async function waitForReferenceImage(page, before, seconds, opts = {}) {
@@ -207,6 +255,6 @@ function referenceTimeoutMs(count, waitSeconds) {
 
 module.exports = {
     IMAGE_MODEL, IMAGE_RATIO, ACTIVITY_WAIT_MS, ACTIVITY_RETRIES, ACTIVITY_BLOCKED,
-    compactControls, configureReferenceImages, referenceState, waitForReferenceImage,
+    compactControls, configureReferenceImages, referenceState, waitForReferenceSubmission, waitForReferenceImage,
     withActivityWait, referenceTimeoutMs,
 };
