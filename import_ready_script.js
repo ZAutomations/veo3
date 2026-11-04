@@ -73,7 +73,11 @@ function run(request){
   const s=parsed[i],key=semanticKey(s);
  if(!p.derived_video_preset&&!['fern-documentary','3d-zack-style','intimacy-health-3d','geography-map','3d-motivational-red-green','heartwarming-cat-3d'].includes(s.preset)){delete key.characters;delete key.locations;key.clips.forEach(c=>{if(!c.shots.length)delete c.shots;});}
   const hash=crypto.createHash('sha256').update(JSON.stringify({s:key,aspect})).digest('hex').slice(0,10);
-  const dir=path.join(root,`${W.slugify(s.title)}_ready_${hash}`),file=path.join(dir,`${path.basename(dir)}_story.json`);
+  // Default ready-script imports into a per-preset folder, matching stories
+  // produced by write_story.js. --out still chooses the stories root.
+  const presetFolder=W.slugify(p.id);
+  const packageName=`${W.slugify(s.title)}_ready_${hash}`;
+  const dir=path.join(root,presetFolder,packageName),file=path.join(dir,`${path.basename(dir)}_story.json`);
   warnings=[...new Set([...(s.warnings||[]),...(warnings||[])])];
   warnings.forEach(w=>console.log(`WARNING: ${s.title}: ${w}`));
   const marker=path.join(dir,'READY_IMPORT_COMPLETE.json');

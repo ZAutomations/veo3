@@ -778,7 +778,7 @@ function contentMapBlock(cm) {
 
 function presetLists() {
     const out = [];
-    for (const f of [STYLES_FILE, GENAI_STYLES_FILE]) {
+    for (const f of [GENAI_STYLES_FILE, STYLES_FILE]) {
         try {
             const db = JSON.parse(fs.readFileSync(f, 'utf8'));
             if (Array.isArray(db.styles)) out.push(...db.styles);
@@ -2669,7 +2669,11 @@ if (require.main === module) (async () => {
         DETAIL += `\nSTRUCTURE: ${SCENES - 1} story clips (first is the hook), followed by ONE EXTRA CTA clip. Finish the full source ending in story clip ${SCENES - 1}. Total ${SCENES} clips.`;
     }
     const slug = slugify(TITLE);
-    const dir = OUT_DIR || path.join(STORIES_DIR, slug);
+    // Keep newly written packages grouped by their preset. An explicit --out
+    // remains an intentional destination override; otherwise reuse the same
+    // preset folder for every story written with this preset.
+    const presetFolder = slugify(p.id);
+    const dir = OUT_DIR || path.join(STORIES_DIR, presetFolder, slug);
 
     // The standing cast, decided before anything is asked of the API. Whether
     // these characters exist is a choice the channel made once, so it is not

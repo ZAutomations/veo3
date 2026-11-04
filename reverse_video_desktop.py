@@ -88,7 +88,8 @@ def register(root, body):
         original = target.read_bytes()
         data = json.loads(original.decode('utf-8-sig'))
         key = 'styles' if 'styles' in data else 'presets'
-        data.setdefault(key, []).append(preset)
+        # Put newly created presets at the top of the selector list.
+        data.setdefault(key, []).insert(0, preset)
         backup = root / 'backups' / 'reverse_presets' / uuid.uuid4().hex
         backup.mkdir(parents=True)
         (backup / 'genai_styles.json').write_bytes(original)

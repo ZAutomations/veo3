@@ -548,9 +548,9 @@ if (ASPECT_UNKNOWN) {
 }
 console.log(`  clip length: ${SECONDS}s${SECONDS_OVER ? '' : ' (Veo 3.1 Lite maximum)'}`);
 if (SECONDS_OVER) {
-    console.log(`               WARNING: over the 8s ceiling for Veo 3.1 - Lite [Lower Priority]. The agent`);
-    console.log('               refuses or re-plans the storyboard rather than failing loudly. Raise this');
-    console.log('               only for a model that takes longer clips.');
+    console.log('               10s requires Gemini Omni Flash in Agent Mode; Veo 3.1 Lite/Fast/Quality');
+    console.log('               and Ingredients/Extend support up to 8s. The selected generation model');
+    console.log('               must match this duration or generation should stop before submission.');
 }
 console.log(`  characters : ${charNames.join(', ') || '(none)'}  ->  ${mentionList || '(no mentions)'}`);
 // The plate is a reference image like any other, and Veo 3.1 takes three. A

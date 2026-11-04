@@ -36,7 +36,7 @@
  *     ceiling. Each character contributes ONE image: the reference sheet, which
  *     shows that character from several angles in a single file.
  *   - One scene per clip; several distinct scenes cannot share one clip.
- *   So ask for "N separate clips, one per scene, up to 8 seconds each". Total length
+ *   Ask for N separate clips, one per scene, up to the story's selected duration.
  *   is the SUM of the clips - it is not something you request.
  *
  * Usage:

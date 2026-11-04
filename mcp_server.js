@@ -140,11 +140,37 @@ function slugifyTitle(s) {
         .replace(/^_+|_+$/g, '').slice(0, 60) || 'untitled';
 }
 // The story package already on disk for a title, if any.
-function storyExists(title, storiesDir) {
+function storyExists(title, storiesDir, presetId) {
     if (!title) return null;
     const slug = slugifyTitle(title);
-    const p = path.join(storiesDir || STORIES_DIR, slug, `${slug}_story.json`);
-    return fs.existsSync(p) ? p : null;
+    const root = storiesDir || STORIES_DIR;
+    const candidates = [];
+    const presetFolder = presetId ? slugifyTitle(presetId) : '';
+    if (presetFolder) candidates.push(path.join(root, presetFolder, slug, `${slug}_story.json`));
+    // Keep resolving legacy packages at stories/<slug>/ while new packages
+    // live one level deeper under stories/<preset>/<slug>/.
+    candidates.push(path.join(root, slug, `${slug}_story.json`));
+    for (const candidate of candidates) if (fs.existsSync(candidate)) return candidate;
+    const found = [];
+    const walk = (dir, depth = 0) => {
+        if (depth > 3) return;
+        let entries = [];
+        try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch (_) { return; }
+        for (const entry of entries) {
+            if (entry.isFile() && entry.name.toLowerCase().endsWith('_story.json')) {
+                const file = path.join(dir, entry.name);
+                if (slugifyTitle(readJson(file, {}).title || '') === slug) found.push(file);
+                continue;
+            }
+            if (!entry.isDirectory()) continue;
+            if (['old', '_reference', 'backups', 'clips', 'writing_progress', 'logs'].includes(entry.name.toLowerCase())) continue;
+            walk(path.join(dir, entry.name), depth + 1);
+        }
+    };
+    walk(root);
+    if (!found.length) return null;
+    found.sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
+    return found[0];
 }
 
 // The same YouTube video is commonly pasted as /shorts/ID, watch?v=ID,
@@ -219,7 +245,7 @@ function contentMapForReference(url) {
 
 function storyForReference(url, referenceDir, storiesDir) {
     for (const hit of cachedMapsForReference(url, 0, referenceDir)) {
-        const story = storyExists(hit.cm.title_suggestion, storiesDir);
+        const story = storyExists(hit.cm.title_suggestion, storiesDir, hit.cm.preset_suggestion);
         if (story) return story;
     }
     return null;
@@ -721,6 +747,46 @@ function downloadedClipCount(clipsDir) {
     return fs.readdirSync(clipsDir).filter(f => /^scene-\d+\.mp4$/i.test(f)).length;
 }
 
+function probeClipDuration(file) {
+    return new Promise(resolve => {
+        let stdout = '', stderr = '';
+        const child = spawn(process.env.FFPROBE_PATH || 'ffprobe', [
+            '-v', 'error', '-show_entries', 'format=duration',
+            '-of', 'default=noprint_wrappers=1:nokey=1', file,
+        ], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+        child.stdout.setEncoding('utf8'); child.stderr.setEncoding('utf8');
+        child.stdout.on('data', chunk => { stdout += chunk; });
+        child.stderr.on('data', chunk => { stderr += chunk; });
+        child.once('error', error => resolve({ error: error.message }));
+        child.once('close', code => {
+            const seconds = Number.parseFloat(stdout.trim());
+            resolve(code === 0 && Number.isFinite(seconds) ? { seconds } : {
+                error: stderr.trim() || `ffprobe exited with code ${code}`,
+            });
+        });
+    });
+}
+
+async function verifyClipDurations(clipsDir, expectedSeconds, tolerance = 0.8) {
+    const manifest = readJson(path.join(clipsDir, 'manifest.json'), null);
+    const files = Array.isArray(manifest?.clips)
+        ? [...new Set(manifest.clips.filter(c => c.got !== false && c.file && /\.mp4$/i.test(c.file)).map(c => c.file))]
+        : fs.readdirSync(clipsDir).filter(f => /^scene-\d+\.mp4$/i.test(f));
+    const mismatches = [];
+    for (const name of files) {
+        const file = path.join(clipsDir, name);
+        if (!fs.existsSync(file) || !fs.statSync(file).isFile()) continue;
+        const result = await probeClipDuration(file);
+        if (result.error) return { ok: false, text: `RECOVERY_REVIEW_REQUIRED: Could not verify ${name} duration: ${result.error}` };
+        if (Math.abs(result.seconds - expectedSeconds) > tolerance) {
+            mismatches.push(`${name}: expected about ${expectedSeconds}s, got ${result.seconds.toFixed(2)}s`);
+        }
+    }
+    return mismatches.length
+        ? { ok: false, text: `RECOVERY_REVIEW_REQUIRED: CLIP_DURATION_MISMATCH: ${mismatches.join('; ')}. Clips are preserved; joining stopped so shortened narration cannot pass as a complete video.` }
+        : { ok: true, count: files.length };
+}
+
 function statusOf(storyJson) {
     const dir = storyDirOf(storyJson);
     const clipsDir = path.join(dir, 'clips');
@@ -749,7 +815,7 @@ const TOOLS = [
         description: 'List the style presets in styles.json (id, label, narration scope, cast type, default length). Use the id as the `preset` argument of write_story.',
         inputSchema: { type: 'object', properties: {}, additionalProperties: false },
         handler: async () => {
-            const groups = [['Classic', STYLES_FILE], ['GENAI Presets', GENAI_STYLES_FILE]];
+            const groups = [['GENAI Presets', GENAI_STYLES_FILE], ['Classic', STYLES_FILE]];
             const list = [];
             for (const [group, file] of groups) {
                 const db = readJson(file, { styles: [] });
@@ -770,17 +836,19 @@ const TOOLS = [
         description: 'List every story folder under stories/ with how far it has got (story JSON, agent prompt, downloaded clips, final video).',
         inputSchema: { type: 'object', properties: {}, additionalProperties: false },
         handler: async () => {
-            let dirs = [];
-            try {
-                dirs = fs.readdirSync(STORIES_DIR, { withFileTypes: true })
-                    .filter((d) => d.isDirectory() && d.name !== 'old').map((d) => d.name);
-            } catch (e) { return fail('Could not read the stories folder: ' + e.message); }
             const rows = [];
-            for (const name of dirs) {
-                const dir = path.join(STORIES_DIR, name);
-                const storyFile = fs.readdirSync(dir).find((f) => f.toLowerCase().endsWith('_story.json'));
-                if (storyFile) rows.push(statusOf(path.join(dir, storyFile)));
-            }
+            try {
+                const walk = dir => {
+                    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+                        if (entry.isDirectory()) {
+                            if (!['old', '_reference', 'backups', 'clips', 'writing_progress', 'logs'].includes(entry.name.toLowerCase())) walk(path.join(dir, entry.name));
+                        } else if (entry.isFile() && entry.name.toLowerCase().endsWith('_story.json')) {
+                            rows.push(statusOf(path.join(dir, entry.name)));
+                        }
+                    }
+                };
+                walk(STORIES_DIR);
+            } catch (e) { return fail('Could not read the stories folder: ' + e.message); }
             return text(JSON.stringify(rows, null, 2));
         },
     },
@@ -854,7 +922,7 @@ const TOOLS = [
     },
     {
         name: 'write_story',
-        description: 'Write a whole story package from a title and a preset (cast, outline, scenes, dialogue, place, sheet prompts) into stories/<slug>/. Costs Gemini calls, not Flow credits. Follow with build_prompt.',
+        description: 'Write a whole story package from a title and a preset (cast, outline, scenes, dialogue, place, sheet prompts) into stories/<preset>/<slug>/. Reuses the preset folder for later stories. Costs Gemini calls, not Flow credits. Follow with build_prompt.',
         inputSchema: {
             type: 'object',
             required: ['title', 'preset'],
@@ -864,7 +932,7 @@ const TOOLS = [
                 detail: { type: 'string', description: 'The creator brief: genre, look, characters, beats. Free text.' },
                 content_map: { type: 'string', description: 'Path to a content map from analyze_video (.content-map.json). Grounds the beats in its real places and order, and supplies title/preset if they are omitted.' },
                 duration: { type: 'integer', description: 'Total seconds (multiple of scene_seconds). Default 56.' },
-                scene_seconds: { type: 'integer', description: 'Seconds per clip. Default 8 (Veo 3.1 Lite max).' },
+                scene_seconds: { type: 'integer', description: 'Seconds per clip: 4, 6, 8 or 10. Saved-script duration is preferred. 10 seconds requires Agent Mode with Omni Flash; Veo 3.1 models and Ingredients/Extend support up to 8 seconds.' },
                 aspect: { type: 'string', description: '"Flow" (default, set the ratio in Flow), or 16:9 / 9:16 / 1:1.' },
                 video_model: { type: 'string', description: 'Video model for this project, e.g. "Veo 3.1 - Fast". "Flow" (default) leaves it alone.' },
                 video_resolution: { type: "string", enum: ["Flow", "360p", "720p"], description: "Agent video resolution; verified and repeated in every clip prompt." },
@@ -873,7 +941,7 @@ const TOOLS = [
                 model: { type: 'string', description: 'Gemini model, e.g. gemini-3.6-flash.' },
                 models: { type: 'array', items: { type: 'string' }, description: 'Fallback chain, newest first. Overrides model.' },
                 transport: { type: 'string', enum: ['api', 'web', 'auto'], description: '"api" (default): Gemini through the API key. "web": Google AI Studio writes the story in a real Chrome window instead - no key, no per-project quota. "auto": try the API, fall back to the browser. The browser needs its profile signed in once; the tool says so if it is not. The story folder is identical either way.' },
-                out: { type: 'string', description: 'Output folder override (default stories/<slug>).' },
+                out: { type: 'string', description: 'Optional exact output-folder override (default stories/<preset>/<slug>).' },
                 cast: { type: 'string', description: 'Path to an alternative cast file.' },
                 no_house_cast: { type: 'boolean', description: 'Design a fresh cast for this one story.' },
                 force: { type: 'boolean', description: 'Overwrite an existing story folder.' },
@@ -1324,7 +1392,7 @@ const TOOLS = [
                     // building the prompt and generating. That is what makes
                     // "write all, review, then generate" cheap instead of
                     // re-paying for every video.
-                    const cand = (it.kind === 'ref') ? storyForReference(it.url) : storyExists(it.title);
+                    const cand = (it.kind === 'ref') ? storyForReference(it.url) : storyExists(it.title, undefined, preset);
                     if (cand) {
                         // Reuse means reuse the finished text exactly as it is.
                         // A GUI duration, clip-count or newer preset metadata must
@@ -1371,7 +1439,17 @@ const TOOLS = [
                     out.push(`  story -> ${storyArg}`);
                 }
 
-                const b = await doBuildPrompt({ story: storyArg, aspect: a.aspect, scene_seconds: a.seconds });
+                const savedSceneSeconds = Number(readJson(storyArg, {}).scene_seconds);
+                const sceneSeconds = [4, 6, 8, 10].includes(savedSceneSeconds)
+                    ? savedSceneSeconds : ([4, 6, 8, 10].includes(Number(a.seconds)) ? Number(a.seconds) : 8);
+                if (savedSceneSeconds && savedSceneSeconds !== Number(a.seconds)) {
+                    log(`[batch ${i}] saved story duration is ${savedSceneSeconds}s; using it instead of the shared default ${Number(a.seconds) || 8}s.`);
+                }
+                if (sceneSeconds === 10 && !/Omni.*Flash/i.test(String(a.video_model || ''))) {
+                    bad('run_agent', { text: 'This saved story requires 10-second clips, which need Agent Mode with Omni Flash. Select Omni 1.1 Flash before generation; no clips were submitted.' });
+                    continue;
+                }
+                const b = await doBuildPrompt({ story: storyArg, aspect: a.aspect, scene_seconds: sceneSeconds });
                 if (!b.ok) { bad('build_prompt', b); continue; }
                 log(`[batch ${i}] prompt built -> ${storyArg}`);
 
@@ -1408,7 +1486,7 @@ const TOOLS = [
                         noUpload = true;
                     }
                     log(`[batch ${i}] driving Flow (this can take a while)...`);
-                    const r = await doRunAgent({ story: storyArg, cdp: a.cdp, watch: a.watch, model: a.veo_model, submit: true, auto_approve: a.auto_approve, project_url: projectUrl, no_upload_refs: noUpload, video_model: a.video_model, video_resolution: a.video_resolution, clip_batch_size: a.clip_batch_size, scene_seconds: a.seconds || a.scene_seconds, aspect: a.aspect, flow_characters: a.flow_characters, voices: presetVoices(preset) });
+                    const r = await doRunAgent({ story: storyArg, cdp: a.cdp, watch: a.watch, model: a.veo_model, submit: true, auto_approve: a.auto_approve, project_url: projectUrl, no_upload_refs: noUpload, video_model: a.video_model, video_resolution: a.video_resolution, clip_batch_size: a.clip_batch_size, scene_seconds: sceneSeconds, aspect: a.aspect, flow_characters: a.flow_characters, voices: presetVoices(preset) });
                     if (!r.ok) { bad('run_agent', r); continue; }
                     out.push('  generated.');
                     log(`[batch ${i}] generated`);
@@ -1425,6 +1503,12 @@ const TOOLS = [
                             bad('download_clips', { text: 'no verified story clip files downloaded - not joining an empty or stale set.' });
                             continue;
                         }
+                        const durationAudit = await verifyClipDurations(cDir, sceneSeconds);
+                        if (!durationAudit.ok) {
+                            bad('download_clips', { text: durationAudit.text });
+                            continue;
+                        }
+                        log(`[batch ${i}] clip durations verified at ${sceneSeconds}s each.`);
                         out.push(`  downloaded ${got} clip(s).`);
                         log(`[batch ${i}] downloaded ${got} clip(s)`);
                         // What the downloader saw, in the grid order Flow gave it.

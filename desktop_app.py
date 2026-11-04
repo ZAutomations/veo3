@@ -161,7 +161,9 @@ def reference_library_settings(legacy=None):
 
 def presets():
     result = []
-    for filename, group in [('styles.json', 'Classic'), ('genai_styles.json', 'GENAI')]:
+    # Reverse-engineered/custom presets are stored in genai_styles.json and
+    # should be easiest to reach; their newest entry is inserted at index 0.
+    for filename, group in [('genai_styles.json', 'GENAI'), ('styles.json', 'Classic')]:
         data = read_json(ROOT / filename)
         for p in data.get('styles', data.get('presets', [])):
             if p.get('id'):
@@ -253,7 +255,8 @@ def plan_action(action, p):
         selected = p.get('queue', [])
         if not isinstance(selected, list) or not selected or len(selected) > 50:
             raise ValueError('Select one to fifty saved stories for the batch.')
-        paths = [str(story_path(item)[0]) for item in selected]
+        resolved = [story_path(item) for item in selected]
+        paths = [str(item[0]) for item in resolved]
         if len(set(paths)) != len(paths):
             raise ValueError('The queue contains duplicate stories.')
         allocations = []
@@ -273,7 +276,12 @@ def plan_action(action, p):
         for index, path in enumerate(paths):
             if allocations:
                 operations.append(('cli', command('queue_account.js', '--label', allocations[index], '--cdp', p.get('cdp', 9222))))
-            inputs = dict(p, story=path, _queueAccount=allocations[index] if allocations else '', project='', newProject=True, reuseRefs=False,
+            # Saved stories own their clip duration. The shared setting is the
+            # default for new writing, not a silent override of an imported script.
+            try:saved_seconds = int(resolved[index][1].get('scene_seconds', 0))
+            except (TypeError, ValueError):saved_seconds = 0
+            clip_seconds = saved_seconds if saved_seconds in (4, 6, 8, 10) else p.get('seconds', 8)
+            inputs = dict(p, story=path, seconds=clip_seconds, _queueAccount=allocations[index] if allocations else '', project='', newProject=True, reuseRefs=False,
                           genRefs=bool(p.get('batchGenRefs', True) or p.get('genRefs')), **{'from':1, 'to':''})
             _, steps = plan_action('generate', inputs)
             operations.extend(steps)
@@ -362,7 +370,24 @@ def plan_action(action, p):
         raise ValueError('Choose Upscaled or Original downloads.')
     if resolution not in ('Flow', '360p', '720p'):
         raise ValueError('Invalid resolution.')
-    seconds = integer(p.get('seconds', story.get('scene_seconds', 8)), 1, 15, 'Clip duration')
+    try:saved_seconds = int(story.get('scene_seconds', 0))
+    except (TypeError, ValueError):saved_seconds = 0
+    seconds = integer(saved_seconds if saved_seconds in (4, 6, 8, 10) else p.get('seconds', 8), 4, 10, 'Clip duration')
+    if seconds not in (4, 6, 8, 10):
+        raise ValueError('Saved story clip duration must be 4, 6, 8 or 10 seconds. Re-import the script with a supported duration.')
+    preset_id = str(story.get('preset_id') or '').strip().lower()
+    if action in ('generate', 'manual') and (preset_id in ('3d-zack-style', 'intimacy-health-3d') or story.get('zack_ready_import')):
+        max_words = int(seconds * 2.75)
+        long_lines = [(i, len(re.findall(r"\b[\w’'-]+\b", str(scene.get('script_line', '')))))
+                      for i, scene in enumerate(story.get('scenes', []), 1)]
+        long_lines = [(i, count) for i, count in long_lines if count > max_words]
+        if long_lines:
+            details = ', '.join(f'clip {i}: {count} words' for i, count in long_lines)
+            raise ValueError(f'Narration may be cut off at {seconds}s per clip ({details}; pacing limit {max_words} words). Shorten the narration or choose a longer clip duration before generating.')
+    if action in ('generate', 'manual') and seconds == 10 and view != 'agent':
+        raise ValueError('10-second clips require Agent Mode with Omni 1.1 Flash. Ingredients/Extend and Single Clip Omni do not support 10-second clips.')
+    if action in ('generate', 'manual') and seconds == 10 and not re.search(r'Omni.*Flash', model, re.I):
+        raise ValueError('10-second clips require Omni 1.1 Flash. Select it in Shared video settings; Veo 3.1 Lite/Fast/Quality are limited to 8 seconds.')
     total = len(story['scenes'])
     first = integer(p.get('from', 1), 1, total, 'First scene')
     last = integer(p.get('to', total) or total, first, total, 'Last scene')
@@ -1141,6 +1166,7 @@ def library():
         manifest = read_json(path.parent / 'clips' / 'manifest.json')
         result.append(dict(path=str(path), title=story.get('title', path.stem), scenes=len(story['scenes']),
                           duration=len(story['scenes']) * story.get('scene_seconds', 8),
+                          clipSeconds=story.get('scene_seconds', 8),
                           preset=story.get('niche', ''), presetId=story.get('preset_id') if story.get('preset_id') in ids else aliases.get(str(story.get('niche','')).strip().casefold(),story.get('preset_id','')), modified=path.stat().st_mtime,
                           **story_completion(path, story, manifest)))
     return sorted(result, key=lambda x: x['modified'], reverse=True)
@@ -1156,7 +1182,9 @@ def inspect_story(path: str):
             prompts.append(dict(number=i, title=scene.get('_scene_title', scene.get('title', f'Scene {i}')),
                                 dialogue=scene.get('dialogue', []),
                                 prompt=export.read_text(encoding='utf-8-sig') if export.is_file() else scene.get('veo3_prompt', '')))
-        return dict(path=str(source), title=story.get('title', source.stem), scenes=len(prompts), prompts=prompts)
+        seconds = int(story.get('scene_seconds', 8) or 8)
+        return dict(path=str(source), title=story.get('title', source.stem), scenes=len(prompts),
+                    clipSeconds=seconds, duration=len(prompts) * seconds, prompts=prompts)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
 
