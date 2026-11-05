@@ -16,5 +16,5 @@ set "CHROME=C:\Program Files\Google\Chrome\Application\chrome.exe"
 if not exist "%CHROME%" set "CHROME=C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
 if not exist "%CHROME%" set "CHROME=%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"
 
-start "" "%CHROME%" --remote-debugging-port=9222 --user-data-dir="%LOCALAPPDATA%\flow-mcp-profile" --profile-directory="Profile 3" --no-first-run --no-default-browser-check --disable-blink-features=AutomationControlled --window-size=1920,1080
+start "" "%CHROME%" --remote-debugging-port=9222 --user-data-dir="%LOCALAPPDATA%\flow-mcp-profile" --profile-directory="Profile 3" --no-first-run --no-default-browser-check --disable-blink-features=AutomationControlled --window-size=1920,1080 --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-renderer-backgrounding --disable-features=CalculateNativeWinOcclusion
 echo Automation browser started with CDP on port 9222.

@@ -236,6 +236,7 @@ async function launchBrowser(acc, port) {
         '--no-default-browser-check',
         '--disable-blink-features=AutomationControlled',
         '--window-size=1920,1080',
+        ...require('./automation_browser').backgroundArgs,
         'https://flow.google.com/',
     ], { detached: true, stdio: 'ignore' }).unref();
     const deadline = Date.now() + 90000;

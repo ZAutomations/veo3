@@ -1,5 +1,25 @@
 const fs=require('fs'),net=require('net');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const backgroundArgs=['--disable-background-timer-throttling','--disable-backgrounding-occluded-windows','--disable-renderer-backgrounding','--disable-features=CalculateNativeWinOcclusion'];
+async function prepareBackground(browser,log=()=>{}){
+ if(browser.__flowBackgroundReady)return browser;
+ browser.__flowBackgroundReady=true;
+ const sessions=new Map();
+ const prepare=async page=>{
+  if(!page||sessions.has(page)||typeof page.createCDPSession!=='function')return;
+  try{const session=await page.createCDPSession();sessions.set(page,session);
+   await session.send('Emulation.setFocusEmulationEnabled',{enabled:true});
+   // Keep the CDP session attached: emulation ends when the session detaches.
+   page.once?.('close',()=>{sessions.delete(page);});
+  }catch(error){log('Background focus emulation unavailable: '+error.message);}
+ };
+ await Promise.all((await browser.pages()).map(prepare));
+ browser.on?.('targetcreated',async target=>{try{if(target.type()==='page')await prepare(await target.page());}catch{}});
+ // Prepare newly created inspection/download pages before their caller uses them.
+ if(typeof browser.newPage==='function'){const original=browser.newPage.bind(browser);browser.newPage=async(...args)=>{const page=await original(...args);await prepare(page);return page;};}
+ log('Background browser support enabled: page focus emulation active; Chrome launch disables background throttling.');
+ return browser;
+}
 function launchPlan(account){
  const am=require('./account_manager');
  const selected=account?am.findAccount(am.load(),account):am.currentAccount();
@@ -14,26 +34,26 @@ async function occupied(url){
 async function connectAutomationBrowser({browserURL='http://127.0.0.1:9222',account='',log=()=>{},timeout=30000,connect,plan,spawn,portOccupied,wait=sleep}={}){
  connect=connect||require('puppeteer').connect;
  const options={browserURL,defaultViewport:null};
- try{return await connect(options);}catch(initial){
+ try{return await prepareBackground(await connect(options),log);}catch(initial){
   const url=new URL(browserURL);
   if(!['127.0.0.1','localhost','[::1]'].includes(url.hostname))throw Error('Cannot connect to the configured remote Chrome: '+browserURL);
   if(await (portOccupied||occupied)(url)){
    // Chrome may already be starting. Never launch another profile on this port.
-   for(let i=0;i<10;i++){await wait(500);try{return await connect(options)}catch{}}
+   for(let i=0;i<10;i++){await wait(500);try{return await prepareBackground(await connect(options),log)}catch{}}
    throw Error('CDP port '+url.port+' is occupied but Chrome is not ready. No second browser was opened.');
   }
   const target=(plan||launchPlan)(account);
   log('Automation Chrome is closed; opening the configured profile automatically...');
-  const args=['--remote-debugging-port='+(url.port||9222),'--user-data-dir='+target.dir,'--profile-directory='+target.profile,'--no-first-run','--no-default-browser-check','--disable-blink-features=AutomationControlled','--window-size=1920,1080'];
+  const args=['--remote-debugging-port='+(url.port||9222),'--user-data-dir='+target.dir,'--profile-directory='+target.profile,'--no-first-run','--no-default-browser-check','--disable-blink-features=AutomationControlled','--window-size=1920,1080',...backgroundArgs];
   const child=(spawn||require('child_process').spawn)(target.exe,args,{detached:true,stdio:'ignore',windowsHide:true});
   let launchError;child.on('error',e=>{launchError=e});child.unref();
   let last=initial;
   for(let i=0;i<Math.ceil(timeout/500);i++){
    await wait(500);
    if(launchError)throw Error('Chrome could not start: '+launchError.message);
-   try{const browser=await connect(options);log('Automation Chrome is ready; continuing the workflow.');return browser;}catch(e){last=e;}
+   try{const browser=await connect(options);log('Automation Chrome is ready; continuing the workflow.');return await prepareBackground(browser,log);}catch(e){last=e;}
   }
   throw Error('Chrome was launched but its CDP connection was not ready within '+timeout/1000+' seconds: '+last.message);
  }
 }
-module.exports={connectAutomationBrowser,launchPlan};
+module.exports={connectAutomationBrowser,launchPlan,prepareBackground,backgroundArgs};
