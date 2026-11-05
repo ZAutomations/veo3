@@ -168,7 +168,19 @@ def presets():
         for p in data.get('styles', data.get('presets', [])):
             if p.get('id'):
                 result.append(dict(id=p['id'], name=p.get('name', p.get('label', p['id'])), group=group))
-    return result
+    order = read_json(ROOT / 'preset_display_order.json', {})
+    featured = {preset_id: index for index, preset_id in enumerate(order.get('featured', []))}
+    relationship_pattern = re.compile(order.get('relationship_match', r'relationship|couple|romance|dating'), re.I)
+    def rank(item):
+        preset_id = item['id'].lower()
+        if preset_id in featured:
+            return (0, featured[preset_id])
+        if relationship_pattern.search(item['id'] + ' ' + item['name']):
+            return (1, 0)
+        return (2, 0)
+    # Python's sort is stable, so relationship and remaining presets retain
+    # their existing order within each group.
+    return sorted(result, key=rank)
 
 
 def validate_download_project(story_file, project):

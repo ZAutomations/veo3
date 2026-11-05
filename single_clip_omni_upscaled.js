@@ -84,13 +84,13 @@ class UpscaledDownloader{
   fs.mkdirSync(this.out,{recursive:true});
   fs.writeFileSync(this.ledgerFile+'.tmp',JSON.stringify(this.ledger,null,2));fs.renameSync(this.ledgerFile+'.tmp',this.ledgerFile);
   const unresolved=this.orderMode==='unresolved-assets';
-  const clips=this.ledger.clips.slice().sort((a,b)=>a.scene-b.scene).map(e=>({file:e.file,order:e.scene,matched_scene:unresolved?null:e.scene,match_from:unresolved?'asset identity; scene ordering pending':e.sceneId?'scene_id':'exact Omni source prompt',order_verified:!unresolved,
+  const clips=this.ledger.clips.slice().sort((a,b)=>a.scene-b.scene).map(e=>({file:e.file,order:e.scene,matched_scene:unresolved?null:e.scene,match_from:unresolved?'asset identity; scene ordering pending':e.match_from|| (e.sceneId?'scene_id':'verified_source_prompt'),order_verified:!unresolved,
    assetId:e.assetId||null,sceneId:e.sceneId||null,got:true,width:e.width,height:e.height,route:e.route,sha256:e.sha256}));
   const complete=clips.length===this.total&&clips.every((c,i)=>c.order===i+1
    &&Math.min(c.width,c.height)===(this.targets.get(c.order)||this.targetResolution)
    &&fs.existsSync(path.join(this.out,c.file))&&crypto.createHash('sha256').update(fs.readFileSync(path.join(this.out,c.file))).digest('hex')===c.sha256);
   const manifest={projectUrl:this.project,expected:this.total,complete:complete&&!unresolved,downloadComplete:complete,needsSceneOrdering:unresolved,
-   route:this.upscaleFromSource?'Source-matched Upscaled':`Omni ${this.downloadVersion==='original'?'Original':'Upscaled'} ${this.targetResolution}p`,orderResolvedBy:unresolved?null:clips.every(c=>c.sceneId)?'scene_id':'exact Omni source prompt',clips};
+   route:this.upscaleFromSource?'Source-matched Upscaled':`Omni ${this.downloadVersion==='original'?'Original':'Upscaled'} ${this.targetResolution}p`,orderResolvedBy:unresolved?null:clips.every(c=>c.sceneId)?'scene_id':clips.some(c=>c.sceneId)?'scene_id+verified_source_prompt':'verified_source_prompt',clips};
   if(!unresolved&&clips.some(c=>c.sceneId))fs.writeFileSync(path.join(this.out,'SCENE_ASSET_MAP.json'),JSON.stringify({projectUrl:this.project,expected:this.total,complete:manifest.complete&&clips.every(c=>c.sceneId),clips:clips.map(c=>({scene:c.matched_scene,sceneId:c.sceneId,assetId:c.assetId,file:c.file,sha256:c.sha256}))},null,2)+'\n');
   fs.writeFileSync(path.join(this.out,'omni_manifest.partial.json'),JSON.stringify(manifest,null,2));
   if(complete){
@@ -201,7 +201,7 @@ class UpscaledDownloader{
   }
   fs.copyFileSync(source,dest);
   const entry={scene:job.number,file,project:this.project,promptHash:crypto.createHash('sha256').update(job.prompt).digest('hex'),
-   assetId:hit.assetId,sceneId:receipt?.sceneId||null,sourceAttemptedAt:receipt?.attemptedAt||null,route,width:info.width,height:info.height,sha256:info.sha256};
+   assetId:hit.assetId,sceneId:receipt?.sceneId||null,match_from:receipt?.match_from||(receipt?.sceneId?'scene_id':'verified_source_prompt'),sourceAttemptedAt:receipt?.attemptedAt||null,route,width:info.width,height:info.height,sha256:info.sha256};
   this.ledger.clips=this.ledger.clips.filter(c=>c.scene!==job.number);this.ledger.clips.push(entry);this.save();this.activeDownload=null;
   this.log(`Scene ${job.number}: saved and decoded ${info.width}x${info.height} ${this.downloadVersion} clip.`);return entry;
  }

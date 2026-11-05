@@ -95,9 +95,10 @@ function run(request){
   }
   const result=require('child_process').spawnSync(process.execPath,[path.join(__dirname,'story_to_agent_prompt.js'),file,'--aspect',aspect,'--seconds',String(s.seconds)],{cwd:__dirname,encoding:'utf8'});
   if(result.status!==0)throw Error(result.stderr||result.stdout||'Prompt export failed.');
+  const manualBatches=require('./manual_agent_batches').writeManualAgentBatches(file,{aspect,seconds:s.seconds});
   reports.write(dir,s,prepared[i],origins.get(s).text);
   fs.writeFileSync(marker,JSON.stringify({hash,clips:s.clips.length,seconds:s.seconds})+'\n');
-  console.log(result.stdout.trim());console.log(`IMPORTED: ${file} (${s.clips.length} clips × ${s.seconds}s = ${s.clips.length*s.seconds}s; no AI writing)`);
+  console.log(result.stdout.trim());console.log(`Manual Agent batches: ${manualBatches.count} file(s) in ${manualBatches.folder}`);console.log(`IMPORTED: ${file} (${s.clips.length} clips × ${s.seconds}s = ${s.clips.length*s.seconds}s; no AI writing)`);
   console.log(`Preflight: ${path.join(dir,'IMPORT_PREFLIGHT.txt')}\nRound-trip TXT: ${path.join(dir,'READY_SCRIPT_EXPORT.txt')}`);return file;
  });
 }

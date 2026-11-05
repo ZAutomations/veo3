@@ -11,7 +11,7 @@ function plan(tiles,story){
   if(!hits.length)throw Error(`Scene ${i+1}: completed matching source not found. Upscaled download stopped without substituting another scene.`);
   if(new Set(hits.map(t=>t.assetId)).size!==1)throw Error(`Scene ${i+1}: multiple matching video tiles; scene order must be resolved from narration.`);
   const metadata=String(hits[0].text||hits[0].prompt||'').split(/Created\s/i).pop();
-  return {job:{number:i+1,scene,prompt:String(scene.veo3_prompt||lines.join('\n'))},receipt:{scene:i+1,assetId:hits[0].assetId,key:'',nativeResolution:/\b360p\b/i.test(metadata)?360:720,native720:/\b720p\b/i.test(metadata)&&!/\b360p\b/i.test(metadata)}};
+  return {job:{number:i+1,scene,prompt:String(scene.veo3_prompt||lines.join('\n'))},receipt:{scene:i+1,assetId:hits[0].assetId,key:'',nativeResolution:/\b360p\b/i.test(metadata)?360:720,native720:/\b720p\b/i.test(metadata)&&!/\b360p\b/i.test(metadata),match_from:'verified_source_prompt'}};
  });
 }
 function assetPlan(tiles,story,storyFile,project){
@@ -48,21 +48,60 @@ function adoptVerified(d,entries,downloadVersion,priorFile,expectedHash){
   const target=downloadVersion==='original'?e.receipt.nativeResolution:e.receipt.native720?1080:720;
   if(old.route!==`${downloadVersion}-${target}p`)continue;
   try{
-   const info=videoInfo(path.join(d.out,old.file),target);if(info.sha256!==old.sha256)continue;
-   d.ledger.clips.push({...old,scene:e.job.number,promptHash:crypto.createHash('sha256').update(e.job.prompt).digest('hex')});
+   const source=path.join(d.out,old.file),info=videoInfo(source,target);if(info.sha256!==old.sha256)continue;
+   const file=`scene-${String(e.job.number).padStart(2,'0')}.mp4`,dest=path.join(d.out,file);
+   if(fs.existsSync(dest)&&crypto.createHash('sha256').update(fs.readFileSync(dest)).digest('hex')!==info.sha256){
+    const backup=path.join(d.out,'_replaced');fs.mkdirSync(backup,{recursive:true});fs.renameSync(dest,path.join(backup,`${Date.now()}_${file}`));
+   }
+   if(!fs.existsSync(dest))fs.copyFileSync(source,dest);
+   if(crypto.createHash('sha256').update(fs.readFileSync(dest)).digest('hex')!==info.sha256)throw Error('scene copy hash mismatch');
+   if(path.basename(old.file).startsWith('asset-')&&fs.existsSync(source)){
+    const backup=path.join(d.out,'_asset_name_backup');fs.mkdirSync(backup,{recursive:true});
+    const moved=path.join(backup,path.basename(old.file));if(!fs.existsSync(moved))fs.renameSync(source,moved);
+   }
+   d.ledger.clips.push({...old,file,scene:e.job.number,sceneId:e.receipt.sceneId||null,
+    promptHash:crypto.createHash('sha256').update(e.job.prompt).digest('hex'),match_from:e.receipt.match_from||'verified_source_inspection'});
   }catch{}
  }
+}
+async function completePartialSceneIds(browser,page,project,tiles,story,log){
+ const sceneIds=require('./agent_scene_ids'),partial=sceneIds.partialPlan(tiles,story);
+ if(!partial.entries.length||!partial.missing.length)return null;
+ log(`Scene-ID download mapping is partial (${partial.entries.length}/${story.scenes.length}); checking source prompts read-only for the remaining ${partial.missing.length} scene(s).`);
+ const jobs=partial.missing.map(number=>{const scene=story.scenes[number-1];return {number,scene,prompt:scene.veo3_prompt||scene.script_line||'',silentVisual:require('./silent_scene_identity').isSilent(story)};});
+ const inspected=await require('./single_clip_omni_recovery').inspectProject({browser,page,projectUrl:project},jobs,{}, {log,page,sourceCache:new Map()});
+ const used=new Set(partial.entries.map(e=>e.receipt.assetId)),byNumber=new Map();
+ for(const job of jobs){
+  const found=inspected.found?.[job.number];
+  if(!found?.ready||!found.assetId||used.has(found.assetId))throw Error(`RECOVERY_REVIEW_REQUIRED: Scene ${job.number} source prompt did not resolve to one unique completed asset; no scene filenames assigned.`);
+  const tile=tiles.find(t=>t.assetId===found.assetId);
+  if(!tile||tile.failed||tile.busy||tile.ready===false)throw Error(`RECOVERY_REVIEW_REQUIRED: Scene ${job.number} inspection result is absent from the completed project inventory.`);
+  used.add(found.assetId);
+  const metadata=String(tile.text||tile.prompt||'');
+  const nativeResolution=/\b360p\b/i.test(metadata)?360:/\b720p\b/i.test(metadata)?720:null;
+  byNumber.set(job.number,{job:{number:job.number,scene:job.scene,prompt:job.prompt,sceneId:null},receipt:{scene:job.number,sceneId:null,assetId:found.assetId,key:'',...(nativeResolution?{nativeResolution,native720:nativeResolution===720}:{}),match_from:'verified_source_prompt'}});
+ }
+ const all=[...partial.entries,...byNumber.values()].sort((a,b)=>a.job.number-b.job.number);
+ if(all.length!==story.scenes.length||all.some((entry,i)=>entry.job.number!==i+1))throw Error('RECOVERY_REVIEW_REQUIRED: Mixed scene-ID/source mapping is incomplete.');
+ log(`Verified mixed mapping: ${partial.entries.length} scene IDs plus ${byNumber.size} exact source-prompt matches. Scene filenames are safe to use.`);
+ return all;
 }
 async function download(browser,page,{storyFile,outDir,project,tiles,thumbnailTile=null,thumbnailRequired=false,thumbnailOutputDir=null,downloadVersion='upscaled',log=()=>{}}){
  if(!storyFile||!fs.existsSync(storyFile))throw Error('Upscaled Agent download needs the story JSON to map scenes safely.');
  const story=JSON.parse(fs.readFileSync(storyFile,'utf8'));
  const silent=require('./silent_scene_identity').isSilent(story);
  const sceneIds=require('./agent_scene_ids');
- let entries=null,idConflict=null,unresolved=false;
+ let entries=null,idConflict=null,unresolved=false,partialIds=false;
  try{entries=sceneIds.plan(tiles,story);}catch(error){idConflict=error;}
  if(idConflict)log(`Scene-ID mapping is ambiguous (${idConflict.message}). Preserving unique assets without assigning scene numbers.`);
  if(entries)log('Verified scene IDs map each completed video asset to its story scene. No transcription or video analysis needed.');
- else if(silent){
+ if(!entries&&!idConflict){
+  const partial=sceneIds.partialPlan(tiles,story);partialIds=partial.entries.length>0;
+  if(partialIds)try{entries=await completePartialSceneIds(browser,page,project,tiles,story,log);}
+  catch(error){log(`Partial scene-ID recovery could not safely resolve all scenes: ${error.message}`);}
+ }
+ if(partialIds&&!entries)throw Error('RECOVERY_REVIEW_REQUIRED: Some Flow tiles have valid scene IDs but the remaining clip sources could not be verified. Download stopped before assigning ambiguous asset filenames. Retry after Flow exposes the missing source prompts.');
+ if(!entries&&silent){
   try{entries=plan(tiles,story);}catch(error){
    log('Silent story: matching timed visual actions, not narration. Reading original source prompts without generating clips.');
    const jobs=story.scenes.map((scene,i)=>({number:i+1,scene,prompt:scene.veo3_prompt||'',silentVisual:true}));
@@ -102,9 +141,13 @@ async function download(browser,page,{storyFile,outDir,project,tiles,thumbnailTi
  if(unresolved){
   const priorHash=crypto.createHash('sha256').update(JSON.stringify(story.scenes.map(s=>s.veo3_prompt||s.script_line||''))).digest('hex');
   adoptVerified(d,entries,downloadVersion,path.join(folder,`agent_${downloadVersion}_${project.split('/project/')[1]}.json`),priorHash);
+ }else{
+  const priorHash=crypto.createHash('sha256').update(fs.readFileSync(storyFile)).digest('hex');
+  adoptVerified(d,entries,downloadVersion,path.join(folder,`agent_${downloadVersion}_assets_${project.split('/project/')[1]}.json`),priorHash);
  }
  try{
   await d.group(jobs,receipts);
+  d.save();
   if(thumbnailRequired){
    const target=thumbnailOutputDir||folder;
    const downloaded=await require('./flow_thumbnail_download').downloadThumbnail(page,thumbnailTile,target,log);
@@ -116,4 +159,4 @@ async function download(browser,page,{storyFile,outDir,project,tiles,thumbnailTi
   log(unresolved?`Agent ${downloadVersion} assets downloaded and verified. Scene order is pending ${silent?'visual/source review':'narration matching'} before joining.`:`Agent ${downloadVersion} clips saved in verified story order.`);
  }finally{await d.close();}
 }
-module.exports={plan,assetPlan,adoptVerified,download};
+module.exports={plan,assetPlan,adoptVerified,completePartialSceneIds,download};

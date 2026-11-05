@@ -784,7 +784,7 @@ function presetLists() {
             if (Array.isArray(db.styles)) out.push(...db.styles);
         } catch (e) { /* a missing optional list is fine */ }
     }
-    return out;
+    return require('./preset_order').sortPresets(out);
 }
 
 function loadPreset(id) {
@@ -2137,6 +2137,13 @@ function writePackage(dir, p, story, cast) {
     if (story.place) story.place.prompt = require('./location_style').locationPrompt(p, story.place);
     require('./thumbnail_prompt').writeThumbnailPrompts(dir, story);
     fs.writeFileSync(storyPath, JSON.stringify(story, null, 2) + '\n', 'utf8');
+    // Keep a manual Flow fallback beside every saved story. The exported files
+    // are derived from the same prompt builder Agent Mode uses, in six-scene
+    // ranges, so a browser restriction does not require rewriting the prompts.
+    const manualBatches = require('./manual_agent_batches').writeManualAgentBatches(storyPath, {
+        aspect: story.aspect_ratio || 'Flow', seconds: story.scene_seconds || 8,
+    });
+    console.log(`  manual Agent batches: ${manualBatches.count} file(s) in ${manualBatches.folder}`);
 
     // The film's one place. It is written into the same file as the cast sheets
     // because it is made the same way, in the same sitting, and lives in the same

@@ -828,7 +828,8 @@ const TOOLS = [
                     });
                 }
             }
-            return text(JSON.stringify(list, null, 2));
+            const ordered = require('./preset_order').sortPresets(list);
+            return text(JSON.stringify(ordered, null, 2));
         },
     },
     {

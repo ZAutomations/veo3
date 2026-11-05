@@ -35,6 +35,10 @@ def schema():
         if row['key']=='clipper_caption_preset':
             row['choices'] += list(FRAMELOOM_PRESETS)
             if isinstance(row.get('choice_labels'),dict):row['choice_labels'].update({k:v['label'] for k,v in FRAMELOOM_PRESETS.items()})
+        elif row['key']=='transition_sfx_enabled':
+            row['label']='Transition sound effects'
+        elif row['key']=='transition_sfx_volume':
+            row['label']='Transition sound volume'
     # Camera pan/swipe is the requested default inter-clip transition. Dissolve
     # remains an independent, opt-in effect.
     rows.append(dict(key='editing_camera_enabled',label='Camera transitions',default=True,page='finishing',group='Camera transitions'))
@@ -290,15 +294,19 @@ def render_transitions(source,output,boundaries,cfg,silence_boundaries=()):
             except Exception:pass
 
 
-def render_camera_transitions(source,output,boundaries,duration=.65):
-    """Sideways camera-style swipe at verified joins; no zoom, blur or dissolve.
+def render_camera_transitions(source,output,boundaries,cfg,duration=.65):
+    """Apply a directional whip-pan and its matching whoosh/click at each join.
 
-    Outgoing visual tails and incoming frames share the existing timeline.
-    Audio is not overlapped, trimmed or regenerated.
+    The former implementation was only a hard-edged horizontal wipe and never
+    mixed transition SFX, which made the Camera Transitions card look like a
+    basic swipe and sound silent. This keeps the original timeline while
+    feathering the moving seam and adding a short camera-shutter-style click.
     """
     import numpy as np
-    from moviepy import VideoFileClip
+    from moviepy import VideoFileClip, CompositeAudioClip
+    from video_editing_port.source_effects import _make_sfx_clip, _resolve_sfx_for_transition
     clip=VideoFileClip(str(source));result=None
+    resources=[clip];sfx=[]
     try:
         cuts=sorted(set(float(t) for t in boundaries if .05<float(t)<clip.duration-.05))
         if not cuts:
@@ -309,27 +317,68 @@ def render_camera_transitions(source,output,boundaries,duration=.65):
             previous=cuts[i-1] if i else 0
             following=cuts[i+1] if i+1<len(cuts) else clip.duration
             spans.append((cut,min(duration,(cut-previous)/2,(following-cut)/2),i))
-        def swipe(get_frame,t):
+        def whip_pan(get_frame,t):
             incoming=get_frame(t)
             for cut,length,index in spans:
                 if cut<=t<cut+length:
-                    progress=(t-cut)/length
-                    # Smooth accelerate/decelerate, complete within the join.
-                    progress=progress*progress*(3-2*progress)
-                    outgoing=get_frame(max(0,cut-length+t-cut))
-                    width=incoming.shape[1];shift=round(width*progress)
+                    linear=(t-cut)/length
+                    # Ease-in/ease-out with a faster central camera move.
+                    progress=linear*linear*(3-2*linear)
+                    width=incoming.shape[1]
+                    shift=max(0,min(width,round(width*progress)))
+                    outgoing=get_frame(max(0,cut-length+(t-cut)))
                     if not shift:return outgoing
                     if shift>=width:return incoming
                     if index%2:
-                        return np.concatenate((incoming[:,-shift:],outgoing[:,:width-shift]),axis=1)
-                    return np.concatenate((outgoing[:,shift:],incoming[:,:shift]),axis=1)
+                        frame=np.concatenate((incoming[:,-shift:],outgoing[:,:width-shift]),axis=1)
+                    else:
+                        frame=np.concatenate((outgoing[:,shift:],incoming[:,:shift]),axis=1)
+                    # Feather a moving band around the seam to suggest a fast
+                    # camera pan instead of a crisp, static wipe edge.
+                    seam=shift if index%2 else width-shift
+                    band=max(2,int(width*.035))
+                    left=max(0,min(width-1,seam-band))
+                    right=max(left+1,min(width,seam+band))
+                    alpha=np.linspace(0,1,right-left,dtype=np.float32)[None,:,None]
+                    if index%2:alpha=1-alpha
+                    old_strip=outgoing[:,left:right].astype(np.float32)
+                    new_strip=incoming[:,left:right].astype(np.float32)
+                    strip_width=min(frame.shape[1]-left,old_strip.shape[1],new_strip.shape[1])
+                    if strip_width:
+                        x0=left;x1=x0+strip_width
+                        mix=old_strip[:,:strip_width]*(1-alpha[:,:strip_width])+new_strip[:,:strip_width]*alpha[:,:strip_width]
+                        frame[:,x0:x1]=np.clip(mix,0,255).astype(frame.dtype)
+                    # Short directional smear at peak pan speed gives the move
+                    # camera momentum; it fades away at both ends of the join.
+                    smear=round(width*.018*4*linear*(1-linear))
+                    if smear>1:
+                        left_copy=np.concatenate((frame[:,smear:],np.repeat(frame[:,-1:],smear,axis=1)),axis=1)
+                        right_copy=np.concatenate((np.repeat(frame[:,:1],smear,axis=1),frame[:,:-smear]),axis=1)
+                        frame=np.clip(frame.astype(np.float32)*.58+left_copy.astype(np.float32)*.23+right_copy.astype(np.float32)*.19,0,255).astype(frame.dtype)
+                    return frame
             return incoming
-        result=clip.transform(swipe)
-        log(f'Applying camera pan/swipe at {len(spans)} verified clip join(s); no zoom, blur or dissolve; audio timing unchanged.')
+        result=clip.transform(whip_pan)
+        if cfg.get('transition_sfx_enabled',True) and float(cfg.get('transition_sfx_volume',.6))>0:
+            volume=float(cfg.get('transition_sfx_volume',.6))
+            whoosh_name,custom_file,custom_volume=_resolve_sfx_for_transition(cfg,'transition_slide_in','slide')
+            for cut,length,_ in spans:
+                whoosh_duration=min(.55,length)
+                whoosh=_make_sfx_clip(whoosh_name or 'whoosh',whoosh_duration,
+                    max(0,cut-whoosh_duration/2),44100,volume*.8,custom_file,custom_volume)
+                click_duration=min(.16,max(.08,length*.24))
+                click=_make_sfx_clip('click',click_duration,max(0,cut-click_duration/2),44100,volume*.62)
+                if whoosh is not None:sfx.append(whoosh);resources.append(whoosh)
+                if click is not None:sfx.append(click);resources.append(click)
+        if sfx:
+            tracks=([clip.audio] if clip.audio is not None else [])+sfx
+            mixed=CompositeAudioClip(tracks).with_duration(clip.duration)
+            resources.append(mixed);result=result.with_audio(mixed);resources.append(result)
+        log(f'Applying camera whip-pan at {len(spans)} verified clip join(s); transition SFX: {len(sfx)} event(s) (whoosh + click); audio timeline preserved.')
         result.write_videofile(str(output),codec='libx264',audio_codec='aac',fps=clip.fps,preset='veryfast',threads=2,logger=None)
     finally:
-        if result is not None:result.close()
-        clip.close()
+        for item in reversed(resources):
+            try:item.close()
+            except Exception:pass
 
 
 def render_dissolve(source,output,boundaries,duration=.3):
@@ -534,7 +583,7 @@ def edit(source,values=None,report=None,output=None):
         final=source.with_name(base+'_edited.mp4')
     if final==source:raise ValueError('Edited output must be a different file from the original.')
     folder=source.parent/'video_editing';folder.mkdir(exist_ok=True)
-    signature=hashlib.sha256(('thumbnail_end_card_preservation_v1'+str(source)+str(source.stat().st_size)+str(source.stat().st_mtime_ns)+json.dumps(cfg,sort_keys=True)).encode()).hexdigest()
+    signature=hashlib.sha256(('camera_whip_pan_swoosh_click_v2'+str(source)+str(source.stat().st_size)+str(source.stat().st_mtime_ns)+json.dumps(cfg,sort_keys=True)).encode()).hexdigest()
     receipt=folder/'last_edit.json'
     if receipt.is_file():
         saved=json.loads(receipt.read_text(encoding='utf-8'))
@@ -571,7 +620,7 @@ def edit(source,values=None,report=None,output=None):
         mapped=sorted(set(max(0,value-overlap*sum(cut<=value for cut in cut_times)) for value in mapped))
     silence_mapped=[max(0,cut-overlap*(i+1)) for i,cut in enumerate(cut_times)]
     if cfg['editing_camera_enabled']:
-        target=work/'camera_transitions.mp4';render_camera_transitions(current,target,mapped);current=target
+        target=work/'camera_transitions.mp4';render_camera_transitions(current,target,mapped,cfg);current=target
     if cfg['editing_transitions_enabled']:
         target=work/'transitions.mp4';render_dissolve(current,target,mapped,float(cfg['editing_transition_duration']));current=target
     if cfg['clipper_captions_enabled']:

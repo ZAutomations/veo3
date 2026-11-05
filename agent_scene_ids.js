@@ -23,18 +23,20 @@ function tileId(tile){
  const all=ids([tile.text,tile.prompt,tile.sourcePrompt].filter(Boolean).join('\n'));
  return all.length===1?all[0]:null;
 }
-function plan(tiles,story){
+function partialPlan(tiles,story){
  const total=story.scenes.length,expected=new Map(story.scenes.map((s,i)=>[sceneId(story,i+1),i+1]));
  const mapped=new Map(),used=new Set();
  for(const t of tiles){
   if(!t.assetId||t.failed||t.busy||t.ready===false)continue;
-  const id=tileId(t);if(!id||!expected.has(id))continue;
+  const id=tileId(t);if(!id)continue;
+  if(!expected.has(id))throw Error(`RECOVERY_REVIEW_REQUIRED: Completed tile carries an unexpected scene ID ${id}.`);
   const n=expected.get(id);
   if(mapped.has(n)&&mapped.get(n).receipt.assetId!==t.assetId)throw Error(`RECOVERY_REVIEW_REQUIRED: Scene ID ${id} belongs to multiple completed video assets. Choose the intended version; no duplicate was substituted.`);
   if(used.has(t.assetId)&&!mapped.has(n))throw Error('RECOVERY_REVIEW_REQUIRED: One video asset claims multiple scene IDs.');
-  used.add(t.assetId);const source=String(t.text||t.prompt||'').split(/Created\s/i).pop(),nativeResolution=/\b360p\b/i.test(source)?360:720;
-  mapped.set(n,{job:{number:n,scene:story.scenes[n-1],prompt:story.scenes[n-1].veo3_prompt||'',sceneId:id},receipt:{scene:n,sceneId:id,assetId:t.assetId,key:'',nativeResolution,native720:nativeResolution===720,match_from:'scene_id'}});
+  used.add(t.assetId);const source=String(t.text||t.prompt||'').split(/Created\s/i).pop(),nativeResolution=/\b360p\b/i.test(source)?360:/\b720p\b/i.test(source)?720:null;
+  mapped.set(n,{job:{number:n,scene:story.scenes[n-1],prompt:story.scenes[n-1].veo3_prompt||story.scenes[n-1].script_line||'',sceneId:id},receipt:{scene:n,sceneId:id,assetId:t.assetId,key:'',...(nativeResolution?{nativeResolution,native720:nativeResolution===720}:{}),match_from:'scene_id'}});
  }
- return mapped.size===total?Array.from({length:total},(_,i)=>mapped.get(i+1)):null;
+ return {entries:Array.from(mapped.values()).sort((a,b)=>a.job.number-b.job.number),missing:Array.from({length:total},(_,i)=>i+1).filter(n=>!mapped.has(n))};
 }
-module.exports={prefix,sceneId,ids,inject,tileId,plan};
+function plan(tiles,story){const partial=partialPlan(tiles,story);return partial.missing.length?null:Array.from({length:story.scenes.length},(_,i)=>partial.entries.find(e=>e.job.number===i+1));}
+module.exports={prefix,sceneId,ids,inject,tileId,partialPlan,plan};
