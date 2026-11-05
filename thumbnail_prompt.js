@@ -16,8 +16,11 @@ function isFlowEndcardPreset(story) {
 
 function headlineFor(story) {
     const concept = story.thumbnail || {};
-    const raw = String(concept.headline || story.title || '').split(/[.!?]/)[0];
-    return raw.split(/\s+/).filter(Boolean).slice(0, 5).join(' ').toUpperCase();
+    const title = String(story.title || '').trim();
+    let raw = String(concept.headline || title).trim();
+    // Recover old headlines that were merely the first five words of the title.
+    if (title.toLowerCase().startsWith(raw.toLowerCase()) && raw.length < title.length) raw = title;
+    return raw.replace(/\s+/g, ' ').toUpperCase();
 }
 
 function intimacyHeadlineLines(headline) {
@@ -36,7 +39,7 @@ function intimacyHeadlineLines(headline) {
 
 function intimacySupportingQuestion(story) {
     const supplied = String(story.thumbnail?.supporting_question || story.thumbnail?.subtitle || '').trim();
-    if (supplied) return supplied.split(/\s+/).slice(0, 6).join(' ').toUpperCase();
+    if (supplied) return supplied.replace(/\s+/g, ' ').toUpperCase();
     const title = String(story.title || '').toLowerCase();
     if (/^how\b/.test(title)) return 'HOW DOES IT WORK?';
     if (/^why\b/.test(title)) return 'WHY DOES IT HAPPEN?';
@@ -55,7 +58,7 @@ function thumbnailPrompt(story, ratio = '9:16') {
 
     const topic = String(story.description || story.title || '').trim();
     const hook = String(concept.visual_concept || topic).trim();
-    const sharedLayout = `THUMBNAIL DESIGN — match this high-impact short-video reference layout without copying its subject or branding. One cinematic vertical composition in ${ratio}. Put a short, exact headline in the upper 35–45%: very large condensed uppercase lettering, stacked in two or three clean lines, with bold yellow, white and red words, a dark shadow/outline and rough black or red paint-stroke backing. Make every word spelled exactly as provided, easy to read on a phone, with safe margins. The lower area shows one large, unmistakable, topic-specific visual moment with a strong foreground subject and a darker contextual background. Use dramatic light, deep contrast, a focused red accent where appropriate, crisp subject separation and energetic but uncluttered framing. No logo, brand/trademark, watermark, UI, tiny text, extra labels, split panels, collage or contact sheet. The text must not cover the main subject.\n\nEXACT ON-IMAGE HEADLINE: “${headline}” — no additional wording.\nSTORY TOPIC: ${topic}\nVISUAL HOOK: ${hook}\n`;
+    const sharedLayout = `THUMBNAIL DESIGN — match this high-impact short-video reference layout without copying its subject or branding. One cinematic vertical composition in ${ratio}. Put a short, exact headline in the upper 35–45%: very large condensed uppercase lettering, wrapped across as many clean lines as needed; reduce font size to preserve the complete headline, never omit or truncate words, with bold yellow, white and red words, a dark shadow/outline and rough black or red paint-stroke backing. Make every word spelled exactly as provided, easy to read on a phone, with safe margins. The lower area shows one large, unmistakable, topic-specific visual moment with a strong foreground subject and a darker contextual background. Use dramatic light, deep contrast, a focused red accent where appropriate, crisp subject separation and energetic but uncluttered framing. No logo, brand/trademark, watermark, UI, tiny text, extra labels, split panels, collage or contact sheet. The text must not cover the main subject.\n\nEXACT ON-IMAGE HEADLINE: “${headline}” — no additional wording.\nSTORY TOPIC: ${topic}\nVISUAL HOOK: ${hook}\n`;
 
     if (story.preset_id === 'fern-documentary') {
         const cast = Object.entries(story.character_descriptions || {}).map(([name, description]) => `${name}: ${description}`).join('\n');

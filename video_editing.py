@@ -29,6 +29,8 @@ def log(message):
     print(f'[{time.strftime("%H:%M:%S")}] {message}', flush=True)
 
 
+CAPCUT_TRANSITIONS = [('wavy_change','Wavy Change'),('glare_ii','Glare II'),('fuzzy_love_wipe','Fuzzy Love Wipe'),('wave_swirl','Wave Swirl'),('line_spiral','Line Spiral'),('heart_shot','Heart Shot'),('uneven_spread','Uneven Spread'),('ring_wipe','Ring Wipe'),('vibration_amped','Vibration Amped'),('click_to_expand','Click To Expand'),('gel_hole','Gel Hole')]
+
 def schema():
     rows=json.loads((PORT / 'settings_schema.json').read_text(encoding='utf-8'))
     for row in rows:
@@ -42,6 +44,9 @@ def schema():
     # Camera pan/swipe is the requested default inter-clip transition. Dissolve
     # remains an independent, opt-in effect.
     rows.append(dict(key='editing_camera_enabled',label='Camera transitions',default=True,page='finishing',group='Camera transitions'))
+    for effect,label in CAPCUT_TRANSITIONS:
+        rows.append(dict(key='camera_effect_'+effect,label=label+' (local)',default=False,page='finishing',group='Transition selection'))
+    rows.append(dict(key='camera_effect_duration',label='Selected transition duration (seconds)',default=1.0,min=.1,max=1.5,step=.05,page='finishing',group='Transition selection'))
     rows.append(dict(key='editing_speed',label='Final video speed (×)',default=1.0,min=.15,max=2.0,step=.05,page='finishing',group='Final speed'))
     return rows
 
@@ -312,6 +317,8 @@ def render_camera_transitions(source,output,boundaries,cfg,duration=.65):
         if not cuts:
             log('Camera transitions ON but no verified clip joins: skipped.')
             shutil.copy2(source,output);return
+        selected=[key for key,label in CAPCUT_TRANSITIONS if cfg.get('camera_effect_'+key)]
+        if selected: duration=float(cfg.get('camera_effect_duration',1))
         spans=[]
         for i,cut in enumerate(cuts):
             previous=cuts[i-1] if i else 0
@@ -327,6 +334,9 @@ def render_camera_transitions(source,output,boundaries,cfg,duration=.65):
                     width=incoming.shape[1]
                     shift=max(0,min(width,round(width*progress)))
                     outgoing=get_frame(max(0,cut-length+(t-cut)))
+                    if selected:
+                        from local_camera_transitions import transition_frame
+                        return transition_frame(outgoing,incoming,progress,selected[index%len(selected)])
                     if not shift:return outgoing
                     if shift>=width:return incoming
                     if index%2:
@@ -360,6 +370,7 @@ def render_camera_transitions(source,output,boundaries,cfg,duration=.65):
         result=clip.transform(whip_pan)
         if cfg.get('transition_sfx_enabled',True) and float(cfg.get('transition_sfx_volume',.6))>0:
             volume=float(cfg.get('transition_sfx_volume',.6))
+            # Every selected local effect shares the established camera SFX pair.
             whoosh_name,custom_file,custom_volume=_resolve_sfx_for_transition(cfg,'transition_slide_in','slide')
             for cut,length,_ in spans:
                 whoosh_duration=min(.55,length)
@@ -367,13 +378,15 @@ def render_camera_transitions(source,output,boundaries,cfg,duration=.65):
                     max(0,cut-whoosh_duration/2),44100,volume*.8,custom_file,custom_volume)
                 click_duration=min(.16,max(.08,length*.24))
                 click=_make_sfx_clip('click',click_duration,max(0,cut-click_duration/2),44100,volume*.62)
-                if whoosh is not None:sfx.append(whoosh);resources.append(whoosh)
-                if click is not None:sfx.append(click);resources.append(click)
+                if whoosh is None or click is None:
+                    raise RuntimeError('Transition swoosh/click audio could not be created; refusing a silently incomplete effect.')
+                sfx.extend([whoosh,click]);resources.extend([whoosh,click])
         if sfx:
             tracks=([clip.audio] if clip.audio is not None else [])+sfx
             mixed=CompositeAudioClip(tracks).with_duration(clip.duration)
             resources.append(mixed);result=result.with_audio(mixed);resources.append(result)
-        log(f'Applying camera whip-pan at {len(spans)} verified clip join(s); transition SFX: {len(sfx)} event(s) (whoosh + click); audio timeline preserved.')
+        if selected:log('Local transition sequence: '+' -> '.join(selected)+'; repeats across verified joins.')
+        log(f'Applying camera transitions at {len(spans)} verified clip join(s); transition SFX: {len(sfx)} event(s) (swoosh + click, two per join when enabled); audio timeline preserved.')
         result.write_videofile(str(output),codec='libx264',audio_codec='aac',fps=clip.fps,preset='veryfast',threads=2,logger=None)
     finally:
         for item in reversed(resources):
@@ -583,7 +596,7 @@ def edit(source,values=None,report=None,output=None):
         final=source.with_name(base+'_edited.mp4')
     if final==source:raise ValueError('Edited output must be a different file from the original.')
     folder=source.parent/'video_editing';folder.mkdir(exist_ok=True)
-    signature=hashlib.sha256(('camera_whip_pan_swoosh_click_v2'+str(source)+str(source.stat().st_size)+str(source.stat().st_mtime_ns)+json.dumps(cfg,sort_keys=True)).encode()).hexdigest()
+    signature=hashlib.sha256(('camera_local_transitions_v3'+str(source)+str(source.stat().st_size)+str(source.stat().st_mtime_ns)+json.dumps(cfg,sort_keys=True)).encode()).hexdigest()
     receipt=folder/'last_edit.json'
     if receipt.is_file():
         saved=json.loads(receipt.read_text(encoding='utf-8'))

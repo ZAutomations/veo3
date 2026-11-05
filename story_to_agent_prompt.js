@@ -424,6 +424,7 @@ for (const sc of scenes) {
     }
 
     L.push(`Scene ${n}${title}`);
+    L.push(require('./narration_callout_contract').forScene(story,sc,Number(story.scene_seconds)||8));
     // Who is in THIS clip, and what they look like, spelled out again. The story
     // JSON has always carried scenes[].characters, but it was only ever used to
     // build the union mention list - so the agent had no idea which of the cast

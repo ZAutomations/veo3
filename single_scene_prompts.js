@@ -1,7 +1,13 @@
 const fs = require('fs');
 const path = require('path');
 
-function promptForScene(story, index, options = {}) {
+function promptForScene(story,index,options={}) {
+    const prompt=basePromptForScene(story,index,options);
+    if(prompt.includes('CLIP CALLOUT AUDIT SOURCE'))return prompt;
+    return prompt+'\n\n'+require('./narration_callout_contract').forScene(story,story.scenes[index],Number(options.seconds||story.scene_seconds)||8)+'\n';
+}
+
+function basePromptForScene(story, index, options = {}) {
     const scene = story.scenes[index];
     if (!scene) throw Error(`Story has no scene ${index + 1}.`);
     const ratio = options.aspect || story.aspect_ratio;
