@@ -13,7 +13,7 @@ function normalizeGeneratedPreset(p){
 }
 async function digest(file){const hash=crypto.createHash('sha256');for await(const chunk of fs.createReadStream(file))hash.update(chunk);return hash.digest('hex');}
 function validateRequest(r){
- if(!Array.isArray(r.videos)||r.videos.length<1||r.videos.length>3)throw Error('Select one to three local reference videos.');
+ if(!Array.isArray(r.videos)||r.videos.length<1||r.videos.length>(r.channelAnalysis?10:3))throw Error('Select 1–3 direct references or 1–10 selected channel videos.');
  const videos=r.videos.map(v=>fs.realpathSync(v));if(new Set(videos).size!==videos.length)throw Error('Remove duplicate reference videos.');
  for(const file of videos)if(!/\.(mp4|mov|m4v|webm|mkv|avi)$/i.test(file)||!fs.statSync(file).isFile()||fs.statSync(file).size>V.MAX_BYTES)throw Error('Use a supported video under 400 MB: '+path.basename(file));
  const opts={name:String(r.reverseName||'').trim().slice(0,100),clips:Number(r.reverseClips||8),aspect:r.reverseAspect||'9:16',mode:r.reverseMode||'auto',fps:Number(r.reverseFps||4),notes:String(r.reverseNotes||'').slice(0,8000),model:String(r.reverseModel||'').trim(),seconds:Number(r.reverseSeconds||8)};
@@ -23,7 +23,22 @@ function validateRequest(r){
 function probe(file){const data=JSON.parse(execFileSync('ffprobe',['-v','error','-show_format','-show_streams','-of','json',file],{encoding:'utf8',windowsHide:true,timeout:60000,maxBuffer:4e6}));const video=data.streams.find(s=>s.codec_type==='video');const duration=Number(data.format.duration||video?.duration);if(!video||!Number.isFinite(duration)||duration<=0)throw Error('Video has no measurable duration.');return {duration_seconds:duration,width:video.width,height:video.height,frame_rate:video.avg_frame_rate,video_codec:video.codec_name,audio_streams:data.streams.filter(s=>s.codec_type==='audio').map(s=>({codec:s.codec_name,sample_rate:s.sample_rate,channels:s.channels}))};}
 function validateReport(data,meta){if(!Array.isArray(data.shots)||!data.shots.length||!data.audio||!data.style||!data.story)throw Error('Analysis omitted shots, audio, style or story.');let previous=0;for(const s of data.shots){if(typeof s.start_seconds!=='number'||typeof s.end_seconds!=='number'||s.start_seconds<previous-.1||s.end_seconds<=s.start_seconds||s.end_seconds>meta.duration_seconds+.5)throw Error('Analysis has invalid or overlapping shot timestamps.');previous=s.end_seconds;}const covered=data.shots.reduce((sum,s)=>sum+s.end_seconds-s.start_seconds,0);data.local_coverage={covered_seconds:covered,measured_duration:meta.duration_seconds,fraction:Math.min(1,covered/meta.duration_seconds),timing_is_model_estimate:true};if(covered/meta.duration_seconds<.8)throw Error('Shot analysis covers less than 80% of the video; incomplete report was not accepted.');return data;}
 async function run(request,deps={}){
- if(!Array.isArray(request.videos)||request.videos.length<1||request.videos.length>3)throw Error('Select one to three reference files or YouTube links in total.');
+ let channelPlan=null;
+ if(request.reverseChannelUrl||request.reverseChannelId){
+  if(request.videos?.length)throw Error('Use either a channel or direct reference videos, not both.');
+  const channels=require('./youtube_channel_source'),root=deps.root||ROOT;
+  if(request.reverseChannelId)channelPlan=channels.selection(root,request.reverseChannelId,request.reverseChannelSelectedIds);
+  else{
+   if(request.reverseChannelSelection==='manual')throw Error('Discover the channel and choose videos before manual analysis.');
+   log('Discovering public channel candidates; selecting popular/recent references within the chosen format.');
+   const inventory=await channels.discover(request,{root,...(deps.channelDiscovery||{})});
+   channelPlan=channels.selection(root,inventory.id,inventory.selectedIds);
+  }
+  request={...request,videos:channelPlan.videos.map(v=>v.url),channelAnalysis:true};
+  log(`Channel selection: ${channelPlan.videos.length} ${channelPlan.format} references from ${channelPlan.channelName}. Only successful audiovisual stages count as analyzed.`);
+ }
+ const sourceInputs=[...(request.videos||[])];
+ if(!Array.isArray(request.videos)||request.videos.length<1||request.videos.length>(channelPlan?10:3))throw Error('Select 1–3 direct references or 1–10 selected channel videos.');
  const local=[];
  for(const source of request.videos||[]){
   if(V.isYouTube(source)){
@@ -37,8 +52,10 @@ async function run(request,deps={}){
  }
  request={...request,videos:local};
  const {videos,opts}=validateRequest(request),W=deps.writer||require('./write_story'),keys=deps.keys||W.apiKeys();if(!keys.length)throw Error('RECOVERY_REVIEW_REQUIRED: Add Gemini API keys in Settings first.');
- const hashes=await Promise.all(videos.map(digest));const id=crypto.createHash('sha256').update(JSON.stringify({VERSION,hashes,opts})).digest('hex').slice(0,24),dir=path.join(deps.root||ROOT,id);
- fs.mkdirSync(dir,{recursive:true});save(path.join(dir,'request.json'),{version:VERSION,id,videos,hashes,options:opts});
+ const hashes=await Promise.all(videos.map(digest));const id=crypto.createHash('sha256').update(JSON.stringify({VERSION,hashes,opts,...(channelPlan?{channelSources:channelPlan.videos.map(v=>v.url)}:{})})).digest('hex').slice(0,24),dir=path.join(deps.root||ROOT,id);
+ fs.mkdirSync(dir,{recursive:true});save(path.join(dir,'request.json'),{version:VERSION,id,videos,hashes,options:opts,sources:sourceInputs,channel:channelPlan?{url:channelPlan.channelUrl,name:channelPlan.channelName,format:channelPlan.format}:null});
+ if(channelPlan)save(path.join(dir,'CHANNEL_SELECTION.json'),channelPlan);
+ save(path.join(dir,'SOURCE_VIDEOS.json'),sourceInputs.map((source,index)=>({source:index+1,url:V.isYouTube(source)?source:null,file:V.isYouTube(source)?null:source,...(channelPlan?channelPlan.videos[index]:{})})));
  const ring=new W.KeyRing(keys),uploads=new Map(),models=W.modelChain(opts.model||W.MODEL,W.DEFAULT_MODELS),transport=deps.transport||V;let calls=0;
  const redact=value=>keys.reduce((s,k)=>s.split(k).join('[redacted]'),String(value));
  log(`ANALYSIS_ID: ${id}. ${videos.length} reference video(s); output ${opts.clips} × ${opts.seconds}s. Completed stages are reused by content hash.`);
@@ -66,7 +83,7 @@ async function run(request,deps={}){
   for(let i=0;i<videos.length;i++){
    const metadata=(deps.probe||probe)(videos[i]);save(path.join(dir,`video_${i+1}_metadata.json`),metadata);
    const report=await ask(`video_${i+1}_analysis`,C.reportPrompt(metadata),i,v=>validateReport(v,metadata));
-   const audit=await ask(`video_${i+1}_audit`,C.auditPrompt(report),i,v=>{if(!Array.isArray(v.corrections)||!Array.isArray(v.uncertainties))throw Error('Audit must include corrections and uncertainties.');return v;});reports.push({source:i+1,metadata,report,audit});
+   const audit=await ask(`video_${i+1}_audit`,C.auditPrompt(report),i,v=>{if(!Array.isArray(v.corrections)||!Array.isArray(v.uncertainties))throw Error('Audit must include corrections and uncertainties.');return v;});reports.push({source:i+1,source_url:V.isYouTube(sourceInputs[i])?sourceInputs[i]:null,channel:channelPlan?{url:channelPlan.channelUrl,title:channelPlan.videos[i].title,discoveredAt:channelPlan.discoveredAt}:null,metadata,report,audit});
   }
   const packageValidator=v=>{v.preset=C.validatePreset({...normalizeGeneratedPreset(v.preset),...(opts.name?{name:opts.name}:{}),default_clips:opts.clips,scene_seconds:opts.seconds,aspect_ratio:opts.aspect,...(opts.mode==='auto'?{}:{ready_script_mode:opts.mode})});if(!v.comparison||!v.production_bible||!Array.isArray(v.reference_prompts)||!v.quality_review)throw Error('Synthesis is incomplete.');return v;};
   const draft=await ask('synthesis',C.synthesisPrompt(reports,opts),undefined,packageValidator);

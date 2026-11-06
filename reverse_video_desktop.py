@@ -11,6 +11,22 @@ _save_lock = threading.RLock()
 
 
 def request_payload(root, payload):
+    channel = str(payload.get('reverseChannelUrl', '')).strip()
+    channel_id = str(payload.get('reverseChannelId', '')).strip()
+    if channel or channel_id:
+        if payload.get('videos'):
+            raise ValueError('Choose channel analysis or direct video references, not both.')
+        if channel and not re.fullmatch(r'https://(?:www\.|m\.)?youtube\.com/(?:@[\w.%-]+|(?:channel|c|user)/[\w.%-]+)(?:/(?:videos|shorts|featured))?/?(?:[?#]\S*)?', channel):
+            raise ValueError('Enter a public YouTube channel URL.')
+        if channel_id and not re.fullmatch(r'[a-f0-9]{24}', channel_id):
+            raise ValueError('Invalid channel discovery ID.')
+        count = int(payload.get('reverseChannelCount', 5))
+        if not 1 <= count <= 10 or payload.get('reverseChannelFormat', 'shorts') not in ('shorts', 'videos'):
+            raise ValueError('Choose Shorts or long videos and 1–10 references.')
+        selected = payload.get('reverseChannelSelectedIds', [])
+        if channel_id and (not isinstance(selected, list) or not 1 <= len(selected) <= 10 or len(set(selected)) != len(selected) or any(not re.fullmatch(r'[\w-]{11}', str(v)) for v in selected)):
+            raise ValueError('Select 1–10 unique discovered videos.')
+        return {key: payload[key] for key in ('reverseChannelUrl', 'reverseChannelId', 'reverseChannelSelectedIds', 'reverseChannelFormat', 'reverseChannelCount', 'reverseChannelSelection', 'reverseName', 'reverseClips', 'reverseSeconds', 'reverseAspect', 'reverseMode', 'reverseFps', 'reverseNotes', 'reverseModel') if key in payload}
     videos = payload.get('videos', [])
     if not isinstance(videos, list) or not 1 <= len(videos) <= 3:
         raise ValueError('Attach one to three reference videos.')
@@ -56,7 +72,7 @@ def read_run(root, run_id):
         raise ValueError('Analysis not found.')
     files = {}
     for file in folder.iterdir():
-        if file.name in {'MASTER_PROMPT.txt', 'preset.json', 'REPORT.json', 'REFERENCE_PROMPTS.txt', 'quality_review.json', 'synthesis.json'} or re.fullmatch(r'video_[123]_(analysis|audit|metadata)\.json', file.name):
+        if file.name in {'MASTER_PROMPT.txt', 'preset.json', 'REPORT.json', 'REFERENCE_PROMPTS.txt', 'quality_review.json', 'synthesis.json', 'CHANNEL_SELECTION.json', 'SOURCE_VIDEOS.json'} or re.fullmatch(r'video_(?:[1-9]|10)_(analysis|audit|metadata)\.json', file.name):
             files[file.name] = file.read_text(encoding='utf-8-sig')
     return dict(id=run_id, folder=str(folder), complete=(folder / 'complete.json').is_file(), files=files)
 

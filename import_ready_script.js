@@ -15,13 +15,14 @@ function prepare(s,aspect){
  if(p.id==='fern-documentary')return require('./fern_ready_script').prepare(W,p,s,aspect);
  if(['3d-zack-style','intimacy-health-3d'].includes(p.id))return require('./zack_ready_script').prepare(W,p,s,aspect);
  if(p.id==='geography-map')return require('./geography_ready_script').prepare(W,p,s,aspect);
+ if(require('./generic_ready_script').appliesPreset(p))return require('./generic_ready_script').prepare(W,p,s,aspect);
  if(p.narration_scope!=='dialogue'||!p.fixed_couple_names||(!require('./dog_couple').applies(p)&&!require('./realistic_couple').enabled(p)))throw Error('Ready script import currently supports realistic, Ghibli, stylized 3D, colorful cartoon and dog-couple Sarah/SAM dialogue presets, Zack D, Fern Documentary, 3D Motivational Red vs Green and Heartwarming Cat.');
  const cast=W.normaliseCast(p,[{name:'Sarah',gender:'female',type:'human'},{name:'SAM',gender:'male',type:'human'}]);
  const meta={description:s.title,moral:'',place_name:'Room',place_description:s.setting,place_prompt:`${p.location_medium||p.style}. Empty ${s.setting}. No people or animals, no text.`,blocking:p.blocking||''};
- const story=W.buildStory(p,cast,meta,s.clips.map(c=>({scene_title:c.title,dialogue:c.dialogue,narrative_context:c.action||'The two characters exchange these lines naturally in the established setting.',characters:['Sarah','SAM']})));
+ const story=W.buildStory(p,cast,meta,s.clips.map(c=>({scene_title:c.title,dialogue:c.dialogue,narrative_context:[c.action||'The two characters exchange these lines naturally in the established setting.',...c.shots.map((v,i)=>`SHOT ${i+1} (${v.start_seconds}-${v.end_seconds}s): ${v.visual}`)].join('\n'),characters:['Sarah','SAM']})));
  story.script_import=true;story.imported_actions=s.clips.map(c=>c.action);
  // Keep imported actions available to the minimal prompt builder.
- story.scenes.forEach((scene,i)=>scene.imported_action=s.clips[i].action);
+ story.scenes.forEach((scene,i)=>{const c=s.clips[i];scene.imported_action=[c.action,...c.shots.map((v,j)=>`SHOT ${j+1} (${v.start_seconds}-${v.end_seconds}s): ${v.visual}`)].filter(Boolean).join('\n');if(c.shots.length)scene.shots=c.shots;if(c.sound)scene.sound_context=c.sound;});
  const warnings=s.clips.flatMap(c=>{const words=c.dialogue.map(t=>t.line).join(' ').split(/\s+/).length;return words>s.seconds*3?[`Clip ${c.number}: ${words} words in ${s.seconds}s may be too long. Shorten the lines or use a longer clip.`]:[];});
  return {W,p,cast,story,warnings};
 }
@@ -72,7 +73,7 @@ function run(request){
  const root=path.resolve(request.out||path.join(__dirname,'stories'));fs.mkdirSync(root,{recursive:true});
  return prepared.map(({W,p,cast,story,warnings},i)=>{
   const s=parsed[i],key=semanticKey(s);
- if(!p.derived_video_preset&&!['world-politics-map-explain','fern-documentary','3d-zack-style','intimacy-health-3d','geography-map','3d-motivational-red-green','heartwarming-cat-3d'].includes(s.preset)){delete key.characters;delete key.locations;key.clips.forEach(c=>{if(!c.shots.length)delete c.shots;});}
+ if(!story.generic_ready_import&&!p.derived_video_preset&&!['world-politics-map-explain','fern-documentary','3d-zack-style','intimacy-health-3d','geography-map','3d-motivational-red-green','heartwarming-cat-3d'].includes(s.preset)){delete key.characters;delete key.locations;key.clips.forEach(c=>{if(!c.shots.length)delete c.shots;});}
   const hash=crypto.createHash('sha256').update(JSON.stringify({s:key,aspect})).digest('hex').slice(0,10);
   // Default ready-script imports into a per-preset folder, matching stories
   // produced by write_story.js. --out still chooses the stories root.

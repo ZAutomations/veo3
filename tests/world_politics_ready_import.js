@@ -17,6 +17,9 @@ try{
   const story=JSON.parse(fs.readFileSync(file));
   assert(story.politics_ready_import);assert(!story.fern_ready_import);assert.equal(story.scene_seconds,seconds);assert.equal(story.flow_voice,'Alnilam');
   assert.equal(story.scenes.length,4);assert(story.imported_sources.includes('example.org'));
+  assert.equal(story.place.name,'Map Reference');
+  assert(story.place.description.includes('Port region'));
+  assert.equal(JSON.parse(fs.readFileSync(path.join(path.dirname(file),'refs.json'))).refs.find(r=>r.kind==='place').name,'Map Reference');
   const folder=path.dirname(file),agent=fs.readFileSync(path.join(folder,'agent_prompt.txt'),'utf8');
   for(const term of ['HYBRID VISUAL IDENTITY','editorial whiteboard','FACTUAL BASIS','[MAP]','[RECONSTRUCTION]','[EXPLAINER]'])assert(agent.includes(term),term);
   assert(fs.readFileSync(path.join(folder,'clip_prompts/clip_001.txt'),'utf8').includes('HYBRID VISUAL IDENTITY'));

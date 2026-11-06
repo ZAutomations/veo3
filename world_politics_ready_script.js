@@ -31,6 +31,8 @@ function scene(story,index,{seconds=story.scene_seconds||8,aspect=story.aspect_r
 function prepare(W,p,source,aspect){
  validate(source);
  const result=require('./fern_ready_script').prepare(W,p,source,aspect),story=result.story;
+ const originalPlaceName=story.place.name;
+ story.place={...story.place,name:'Map Reference',description:`Geographic/context coverage: ${originalPlaceName}. ${story.place.description||''}`};
  delete story.fern_ready_import;
  Object.assign(story,{politics_ready_import:true,visual_mix:{map:0.5,reconstruction:0.25,explainer:0.25},flow_voice:p.flow_voice});
  story.scenes.forEach((s,i)=>{s.veo3_prompt=scene(story,i,{seconds:source.seconds,aspect});});

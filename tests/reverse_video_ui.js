@@ -3,6 +3,7 @@ const assert=require('assert'),fs=require('fs'),path=require('path'),puppeteer=r
  page.on('request',async req=>{const url=new URL(req.url());if(url.pathname.startsWith('/assets/'))return req.respond({status:200,contentType:url.pathname.endsWith('.js')?'text/javascript':'text/css',body:fs.readFileSync(path.join(__dirname,'../desktop_ui',path.basename(url.pathname)))});
  if(url.pathname==='/')return req.respond({status:200,contentType:'text/html',body:fs.readFileSync(path.join(__dirname,'../desktop_ui/index.html'),'utf8').replace('__SESSION_TOKEN__','test')});
  let data={};if(url.pathname==='/api/bootstrap')data={defaults:{},presets:[],models:[],preferences:{theme:'lime',current:'reverse',forms:{}},workflowDefaults:{}};
+ if(url.pathname==='/api/reverse-channel')data={id:'a'.repeat(24),channelName:'Fixture channel',selectedIds:['Fixture0001','Fixture0002'],videos:[{id:'Fixture0001',title:'First video',url:'https://www.youtube.com/watch?v=Fixture0001',views:100,duration:20},{id:'Fixture0002',title:'Second video',url:'https://www.youtube.com/watch?v=Fixture0002',views:50,duration:25}],selectionNote:'Fixture inventory'};
  if(url.pathname==='/api/accounts')data={accounts:[]};if(['/api/library','/api/reverse-runs'].includes(url.pathname))data=[];
  if(url.pathname==='/api/jobs'){if(req.method()==='POST'){jobs.push(JSON.parse(req.postData()));data={id:'reverse-job'};}else data=[];}
  if(url.pathname==='/api/jobs/reverse-job')data={status:'running',lane:'writer',cursor:0,logs:[]};
@@ -13,5 +14,19 @@ const assert=require('assert'),fs=require('fs'),path=require('path'),puppeteer=r
  await page.click('#reverse-add');assert.equal(await page.evaluate(()=>reverseVideos().length),3);
  await page.type('#reverseName','My animation');await page.$eval('#reverse-analyze',el=>el.scrollIntoView({block:'center'}));await page.click('#reverse-analyze');await page.waitForFunction(()=>document.querySelector('#activity').classList.contains('expanded'),{timeout:3000}).catch(async e=>{console.error('Analyze failure',errors,await page.evaluate(()=>({toast:document.querySelector('#toast').textContent,html:document.querySelector('#reverse-analyze').outerHTML})));throw e;});
  assert.equal(jobs.length,1);assert.equal(jobs[0].action,'reverse_video');assert.equal(jobs[0].payload.view,'reverse');assert.equal(jobs[0].payload.reverseClips,'8');assert.equal(jobs[0].payload.reverseName,'My animation');assert.equal(jobs[0].payload.videos.length,3);
+ await page.evaluate(()=>{$('reverseVideos').value='';$('reverseYoutube').value='';showReverseVideos();});
+ await page.evaluate(()=>{$('activity').classList.remove('expanded');document.body.classList.remove('log-open');});
+ await page.type('#reverseChannelUrl','https://www.youtube.com/@example');
+ await page.click('#reverse-channel-discover');await page.waitForSelector('[data-channel-video]',{timeout:3000}).catch(async e=>{console.error(errors,await page.evaluate(()=>({status:$('reverse-channel-status').textContent,inventory:$('reverseChannelInventory').value,url:$('reverseChannelUrl').value,toast:$('toast').textContent})));throw e;});
+ assert.equal(await page.$$eval('[data-channel-video]:checked',nodes=>nodes.length),2);
+ await page.click('[data-channel-video="Fixture0002"]');
+ assert.equal(await page.$eval('#reverseChannelSelection',el=>el.value),'manual');
+ assert.equal(await page.$$eval('[data-channel-video]:checked',nodes=>nodes.length),1);
+ const submitted=page.waitForResponse(response=>response.url().endsWith('/api/jobs')&&response.request().method()==='POST');
+ await page.click('#reverse-analyze');await submitted;
+ await page.waitForFunction(()=>document.querySelector('#activity').classList.contains('expanded'));
+ await new Promise(resolve=>setTimeout(resolve,100));
+ assert.equal(jobs.length,2);assert.equal(jobs[1].payload.reverseChannelId,'a'.repeat(24));
+ assert.deepEqual(jobs[1].payload.reverseChannelSelectedIds,['Fixture0001']);assert.deepEqual(jobs[1].payload.videos,[]);
  assert.deepEqual(errors,[]);console.log('PASS: new tab, three-video attachment limit, complete job settings and no browser errors.');
  }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

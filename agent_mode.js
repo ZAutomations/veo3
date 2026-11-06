@@ -764,6 +764,7 @@ function pickerFn(category = null) {
                 tag: el.tagName.toLowerCase(),
                 cls: cls(el).slice(0, 140),
                 aria: el.getAttribute('aria-label'),
+                assetName: el.closest('button.asset-item')?.querySelector('.asset-title')?.textContent?.trim() || null,
                 kind: el.closest('button.asset-item') && category === 'Images' ? 'image'
                     : el.closest('button.asset-item') && category === 'Characters' ? 'character' : null,
                 text: (el.innerText || el.textContent || '').trim().slice(0, 100),
@@ -1289,7 +1290,9 @@ async function uploadRefThroughPicker(page, box, file) {
             // not. chooseMentionTile ranks by type first, depth second.
             const choice = MT.chooseMentionTile(pk.clickable || [], name, {requiredKind});
             if (!requiredKind && choice.kind && choice.kind !== 'image') throw Error(`Reference ${name} matched a ${choice.kind}, not an image. No generation submitted.`);
-            if(requiredKind && !choice.inner) throw Error(`Named Flow Character ${name} was not found. Create ${name} in Characters, add its reference image and assign its voice before running. No generation submitted.`);
+            if(requiredKind && !choice.inner) throw Error(requiredKind==='character'
+                ? `Named Flow Character ${name} was not found in Characters. No generation submitted.`
+                : `Reference image ${name} was not found as one exact image asset in Images. Verify its saved title. No generation submitted.`);
             fs.writeFileSync(
                 path.join(RUN_DIR, `${String(snapN).padStart(2, '0')}_mention${mi + 1}-choice.json`),
                 JSON.stringify(choice, null, 2));

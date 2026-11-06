@@ -13,6 +13,8 @@ with tempfile.TemporaryDirectory() as tmp:
     video = root / 'ref.mp4'
     video.write_bytes(b'local fixture')
     assert len(R.request_payload(root, {'videos': [str(video)]})['videos']) == 1
+    channel = R.request_payload(root, {'reverseChannelUrl': 'https://www.youtube.com/@example', 'reverseChannelCount': '5', 'reverseChannelFormat': 'shorts'})
+    assert channel['reverseChannelUrl'].endswith('@example') and 'videos' not in channel
     for request in ({'videos': []}, {'videos': [str(video)] * 4}, {'videos': [str(video), str(video)]}):
         try:
             R.request_payload(root, request)
@@ -30,10 +32,15 @@ with tempfile.TemporaryDirectory() as tmp:
     (folder / 'complete.json').write_text('{}')
     (folder / 'request.json').write_text(json.dumps({'options': {'name': 'Test'}}))
     (folder / 'secret.txt').write_text('not a returned artifact')
+    (folder / 'SOURCE_VIDEOS.json').write_text('[]')
+    (folder / 'video_5_analysis.json').write_text('{}')
+    assert {'SOURCE_VIDEOS.json', 'video_5_analysis.json'} <= R.read_run(root, run_id)['files'].keys()
     assert 'secret.txt' not in R.read_run(root, run_id)['files']
     for filename in ('styles.json', 'genai_styles.json'):
         (root / filename).write_text('{"styles": []}')
     shutil.copy(ROOT / 'reverse_video_contract.js', root)
+    for dependency in ('current_events_policy.js', 'prominent_people_policy.js'):
+        shutil.copy(ROOT / dependency, root)
     p = dict(id='reference-unit-test', name='Unit test', style='3D matte shapes', direction='Hook, action, payoff', camera='Static shot', sound_style='Quiet native foley', ready_script_mode='silent_visual', reference_cast=[], aspect_ratio='9:16', default_clips=8, scene_seconds=8)
     body = dict(id=run_id, preset=p, master='A complete reviewed master prompt. ' * 8)
     saved = R.register(root, body)

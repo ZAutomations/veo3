@@ -597,18 +597,7 @@ async function insertPrompt(page, text) {
 // coordinate for this same reason; the submit was the one left on the synthetic
 // path.
 async function clickSubmit(page) {
-    const where = await page.evaluate(() => {
-        const b = [...document.querySelectorAll('button')]
-            .find((x) => /start generation/i.test(x.getAttribute('aria-label') || ''));
-        if (!b) return { ok: false, why: 'no Start generation button' };
-        if (b.disabled || String(b.className).includes('disabled')) return { ok: false, why: 'Start generation is disabled' };
-        const r = b.getBoundingClientRect();
-        if (!r.width || !r.height) return { ok: false, why: 'Start generation is not on screen' };
-        return { ok: true, cx: Math.round(r.x + r.width / 2), cy: Math.round(r.y + r.height / 2) };
-    });
-    if (!where.ok) return where;
-    await page.mouse.click(where.cx, where.cy);
-    return { ok: true };
+    return require('./reference_submit').clickSubmit(page);
 }
 async function waitForNewTile(page, before, seconds) {
     const t0 = Date.now();

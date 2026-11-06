@@ -97,8 +97,9 @@ function chooseMentionTile(candidates, name, {requiredKind=null} = {}) {
     const kindOf = c => c.kind || tileKind(c.text || c.aria);
 
     const matched = (candidates || []).filter(c => {
-        const t = normText(c.text || c.aria);
-        if (!t || t.length >= 80) return false;
+        const t = normText(c.assetName || c.text || c.aria);
+        if (!t || (!c.assetName && t.length >= Math.max(80,normText(name).length+64))) return false;
+        if(c.assetName)return t.toLowerCase()===normText(name).toLowerCase();
         if (isAction(t) || isNavCategory(t)) return false;
         return re.test(t);
     });
@@ -109,7 +110,7 @@ function chooseMentionTile(candidates, name, {requiredKind=null} = {}) {
         const kind=kindOf(c);
         if(!requiredKind)return !!kind;
         if(kind!==requiredKind)return false;
-        const base=normText(c.text||c.aria).replace(/\s+(image|character|avatar|video|voice)$/i,'').replace(/\.(jpg|jpeg|png|webp)$/i,'').trim();
+        const base=(c.assetName?normText(c.assetName):normText(c.text||c.aria).replace(/\s+(image|character|avatar|video|voice)$/i,'')).replace(/\.(jpg|jpeg|png|webp)$/i,'').trim();
         return base.toLowerCase()===String(name).trim().toLowerCase();
     });
     if(requiredKind && !typed.length)return {tile:null,inner:null,kind:null,reason:'required-type-missing'};

@@ -1190,6 +1190,19 @@ def reverse_runs():
     return list_runs(ROOT)
 
 
+@app.post('/api/reverse-channel')
+def reverse_channel(payload: dict):
+    try:
+        result = subprocess.run(command('youtube_channel_source.js'), input=json.dumps(payload),
+            cwd=ROOT, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=150,
+            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+        if result.returncode:
+            raise ValueError(result.stderr.strip() or 'Channel discovery failed.')
+        return json.loads(result.stdout)
+    except (ValueError, OSError, subprocess.TimeoutExpired) as exc:
+        raise HTTPException(400, str(exc))
+
+
 @app.get('/api/reverse-run')
 def reverse_run(id: str):
     from reverse_video_desktop import read_run

@@ -16,7 +16,8 @@ const words=text=>(String(text).match(/[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/g
 function parse(text,defaults={}) {
  const raw=String(text||'').replace(/^\uFEFF/,''),rows=raw.split(/\r\n|\n|\r/);
  const stories=[],customCache=new Map();let story=null,clip=null,section='',last=null;
- const custom=id=>{if(!customCache.has(id))customCache.set(id,require('./write_story').presetLists().find(p=>p.id===id&&p.derived_video_preset));return customCache.get(id);};
+ const preset=id=>{if(!customCache.has(id))customCache.set(id,require('./write_story').presetLists().find(p=>p.id===id));return customCache.get(id);};
+ const custom=id=>{const p=preset(id);return p?.derived_video_preset?p:null;};
  function start(number,line){
   story={title:'',preset:defaults.preset,seconds:Number(defaults.seconds||8),setting:'',characters:[],locations:[],clips:[]};
   if(number!==null)story.storyNumber=number;
@@ -52,17 +53,17 @@ function parse(text,defaults={}) {
   }
   const label=field[1].trim(),key=label.toLowerCase().replace(/\s+/g,' '),value=field[2];
   if(clip){
-   const p=custom(story.preset),speaker=p?.reference_cast?.find(c=>c.name.toLowerCase()===key);
+   const p=custom(story.preset),speaker=p?.reference_cast?.find(c=>c.name.toLowerCase()===key)||story.characters.find(c=>c.name.toLowerCase()===key)||(preset(story.preset)?.single_speaker_advice&&key==='lilly'?{name:'Lilly'}:null);
    if(speaker||['sarah','sam','george','female','male'].includes(key)){
     const speech=unquote(value);if(!speech)fail('Empty dialogue.',lineNo,label);
     const turn={speaker:speaker?.name||(['sarah','female'].includes(key)?'Sarah':'SAM'),line:speech};clip.dialogue.push(turn);last={target:turn,key:'line'};continue;
    }
-   if((p||['3d-motivational-red-green','heartwarming-cat-3d'].includes(story.preset))&&['start state','end state'].includes(key)){
+   if(['start state','end state'].includes(key)){
     assign(clip,key.replace(' ','_'),value,lineNo,label);continue;
    }
    if(key==='action'){clip.action=[clip.action,value].filter(Boolean).join(' ');last={target:clip,key:'action'};continue;}
    if(key==='narration'){assign(clip,'narration',value,lineNo,label);continue;}
-   if(key==='effect'||key==='sound'||((p||story.preset==='heartwarming-cat-3d')&&key==='audio')){
+   if(key==='effect'||key==='sound'||key==='audio'){
     assign(clip,key==='audio'?'sound':key,value,lineNo,label);continue;
    }
    const shot=key.match(/^shot\s+(\d+)$/);
@@ -118,6 +119,8 @@ function parse(text,defaults={}) {
  const strictNumbers=new Set();
  for(const s of stories){
   story=s;clip=null;section='Metadata';
+  const generalPreset=preset(s.preset),general=require('./generic_ready_script').appliesPreset(generalPreset);
+  if(!generalPreset)fail('Unknown preset: '+s.preset,s._source.line,'Preset');
   const p=custom(s.preset),zack=['3d-zack-style','intimacy-health-3d'].includes(s.preset),motivational=s.preset==='3d-motivational-red-green',cat=s.preset==='heartwarming-cat-3d';
   const fern=['fern-documentary','world-politics-map-explain'].includes(s.preset),geography=s.preset==='geography-map';
   // The 8x8 profile name remains accepted for older Zack scripts, but it no
@@ -125,12 +128,12 @@ function parse(text,defaults={}) {
   const strict=zack&&defaults.strict8x8===true;
   if(strict)s.production_profile='zetomate-8x8';
   if(zack&&s.clips[0]?.narration&&!/^\s*["“]?(?:what\s+(?:if|happens)|how\s+(?:does|do|can|would|could)|why\s+(?:does|do|is|are|can))/i.test(s.clips[0].narration))s.warnings.push('Clip 1: opening lacks the preset’s direct What if / What happens / How / Why question hook. Narration was preserved; request an explicit hook rewrite before generation.');
-  if(!s.title.trim()||(!motivational&&!s.setting.trim()&&!((zack&&s.locations.length)||((fern||geography)&&(s.locations.length||s.story_brief||s.details)))))fail('Every story needs Title: and Setting: (or named Locations: for Zack D, Fern Documentary or Geography Map).',s._source.line,'Title / Locations');
+  if(!s.title.trim()||(!motivational&&!s.setting.trim()&&!((zack&&s.locations.length)||((fern||geography||general)&&(s.locations.length||s.story_brief||s.details)))))fail('Every story needs Title: and Setting: (or named Locations: for Zack D, Fern Documentary or Geography Map).',s._source.line,'Title / Locations');
   for(const kind of ['characters','locations'])for(const entry of s[kind]){entry.description=entry.description.trim();if(!entry.description)fail(`Provide a description for ${entry.name}.`,entry._sourceLine,entry.name,{section:kind});}
   if(!s.preset)fail('Choose or supply a valid Preset:.',s._source.line,'Preset');
   if(![4,6,8,10].includes(s.seconds))fail('Choose 4, 6, 8 or 10 seconds per clip.',s._source.fields.seconds||s._source.line,'Clip seconds');
   if(!s.clips.length)fail('No clips supplied.',s._source.line,'Clips');
-  if(s.production_profile&&!zack)fail('The Zack production profile applies to 3d-zack-style and Intimacy Health 3D.',s._source.line,'Production profile');
+  if(s.production_profile&&!zack&&s.production_profile!=='zetomate-flex')fail('Strict 8x8 applies only to Zack-style presets; use zetomate-flex for other presets.',s._source.line,'Production profile');
   if(strict){
    if(!s.storyNumber)fail('Strict Zack scripts need a positive Story N heading.',s._source.line,'Story');
    if(strictNumbers.has(s.storyNumber))fail('Duplicate story number in this strict production batch.',s._source.line,'Story');
@@ -141,7 +144,7 @@ function parse(text,defaults={}) {
    clip=c;
    if(c.narration!==undefined)c.narration=unquote(c.narration);
    for(const turn of c.dialogue)turn.line=unquote(turn.line);
-  if(zack||fern||geography){
+  if(zack||fern||geography||(general&&require('./generic_ready_script').mode(generalPreset)==='narrated')){
     if(!c.narration||c.dialogue.length)fail('Narrated ready scripts require Narration: and no character dialogue.',c._source.fields.narration||c._source.line,'Narration');
     if(strict?c.shots.length!==3:(zack?c.shots.length<1||c.shots.length>4:c.shots.length<2||c.shots.length>4))fail(strict?'Strict Zack clips require exactly three timed shots.':zack?'Zack clips require one to four timed shots.':'Requires two to four timed shots.',c._source.line,'Shots');
     let end=0;
@@ -166,10 +169,11 @@ function parse(text,defaults={}) {
     if(count<targetMin||count>targetMax)s.warnings.push(`Clip ${c.number}: ${count} narration words for ${s.seconds}s; reference-matched target ${targetMin}–${targetMax}, hard pacing limit ${hardMax}. Approximate read time at the calibrated pace: ${Math.round(count/3.125*10)/10}s. Narration was preserved.`);
    }else if(motivational){
     if(!c.narration||c.dialogue.length||c.shots.length)fail('3D Motivational requires Narration, Start state, Action and End state, with no dialogue or Shot fields.',c._source.line,'Clip');
-   }else if(!p&&!cat&&(!c.dialogue.length||c.narration||c.shots.length))fail('Every dialogue clip needs labelled dialogue; narration/shots require Zack D.',c._source.line,'Dialogue');
+   }else if(!general&&!p&&!cat&&(!c.dialogue.length||c.narration))fail('Every dialogue clip needs labelled dialogue; narration/shots require Zack D.',c._source.line,'Dialogue');
   }
   clip=null;
   try{
+   if(general)require('./generic_ready_script').validate(s,generalPreset);
    if(p)require('./reference_video_preset').validate(s,p);
    if(cat)require('./heartwarming_cat').validate(s);
    if(motivational)require('./motivational_ready_script').validate(s);

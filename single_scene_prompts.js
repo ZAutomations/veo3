@@ -16,6 +16,7 @@ function basePromptForScene(story, index, options = {}) {
     const pace = require('./narration_pace').applies(story, scene)
         ? require('./narration_pace').lock(seconds) + '\n\n' : '';
     const request = `Generate ONE standalone clip for story scene ${index + 1} only. Do not generate other scenes or repeat the full story. Use the existing named references in this project.\n`;
+    if(require('./generic_ready_script').applies(story))return pace+require('./generic_ready_script').scene(story,index,{aspect:aspect||'Flow',seconds});
     if(require('./reference_video_preset').applies(story))return pace+require('./reference_video_preset').scene(story,index,{aspect:aspect||'Flow',seconds});
     if(require('./heartwarming_cat').applies(story))return pace+require('./heartwarming_cat').scene(story,index,{aspect:aspect||'Flow',seconds});
     if(require('./motivational_ready_script').applies(story))return pace+require('./motivational_ready_script').scene(story,index,{aspect:aspect||'Flow',seconds});

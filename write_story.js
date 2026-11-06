@@ -2201,7 +2201,7 @@ function writePackage(dir, p, story, cast) {
             `=== PLACE - ${(placeName || p.label || 'the film').toUpperCase()} ===`,
             `save as: character_refs/${placeName || 'place'}.jpg`,
             '',
-            ...((p.derived_video_preset || p.id === 'heartwarming-cat-3d') ? ['This is one coherent home design reference, not a fixed camera or lighting state.', 'Use the story-relevant room, light and prop state in every scene. Generate ONE image'] : ['fern-documentary','world-politics-map-explain'].includes(p.id) ? ['This is a design reference for matching shots only, not the whole film.', 'Use the location and time required by each narrated event. Generate ONE image'] : ['This is the ONE place this film happens in. Every clip is shot here,', 'with the same furniture and the same light. Generate it as ONE image']),
+            ...((p.derived_video_preset || p.id === 'heartwarming-cat-3d') ? ['This is one coherent home design reference, not a fixed camera or lighting state.', 'Use the story-relevant room, light and prop state in every scene. Generate ONE image'] : (p.generic_ready_import||['fern-documentary','world-politics-map-explain'].includes(p.id)) ? ['This is a design reference for matching shots only, not the whole film.', 'Use the location and time required by each narrated event. Generate ONE image'] : ['This is the ONE place this film happens in. Every clip is shot here,', 'with the same furniture and the same light. Generate it as ONE image']),
             'of the place EMPTY - no people and no animals - seen straight on and',
             'wide, evenly lit, the whole space readable.',
             '',

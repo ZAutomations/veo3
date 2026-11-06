@@ -16,7 +16,7 @@ const page={evaluate:async(fn,...args)=>fn(...args),mouse:{click:async()=>{click
  await selectImages(page);assert.equal(clicks,1,'already selected Images should stay selected');
  chosen='All';acceptClick=false;
  await assert.rejects(selectImages(page),/did not confirm/);
- missing=true;await assert.rejects(selectImages(page),/not found/);
+ missing=true;await assert.rejects(selectImages(page),/did not confirm Images/);
  missing=false;acceptClick=true;chosen='All';
  const omni=new Veo3FlowNewUI('unused.json',{referenceCategory:'Images'});
  omni.page=page;omni.evalJs=async()=>true;
