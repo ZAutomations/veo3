@@ -116,3 +116,6 @@ OUTPUT ORDER
 8. Confidence, limitations and unresolved questions
 
 Begin by confirming access to the attached videos, then analyze them. Do not generate an unrelated sample story unless asked.
+
+## VEO POLICY-AWARE AUTHORING
+Write original prompts that follow the video provider's policies. Do not request a prohibited likeness, sexual content involving minors, graphic harm, or a workaround that disguises restricted content. If Flow refuses a clip, the tool must audit scene IDs and existing assets first, preserve completed clips, inspect the exact refusal and references, and revise only the specifically refused scene with the smallest truthful compliant change. If the scene or reference cannot be made compliant without changing the story materially, stop and report why. Never ask the model to retry the unchanged prompt or regenerate successful clips. Keep this policy guidance outside importer fields and clip narration.

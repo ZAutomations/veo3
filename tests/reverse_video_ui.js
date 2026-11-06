@@ -7,7 +7,7 @@ const assert=require('assert'),fs=require('fs'),path=require('path'),puppeteer=r
  if(url.pathname==='/api/jobs'){if(req.method()==='POST'){jobs.push(JSON.parse(req.postData()));data={id:'reverse-job'};}else data=[];}
  if(url.pathname==='/api/jobs/reverse-job')data={status:'running',lane:'writer',cursor:0,logs:[]};
  return req.respond({status:200,contentType:'application/json',body:JSON.stringify(data)});});
- await page.goto('http://studio.local/');await page.waitForSelector('#reverse-add');assert.equal(await page.$$eval('#navigation [data-view]',n=>n.length),10);
+ await page.goto('http://studio.local/');await page.waitForSelector('#reverse-add');assert.equal(await page.$$eval('#navigation [data-view]',n=>n.length),11);assert.equal(await page.$eval('#navigation [data-view="mcp"]',el=>el.textContent.trim()),'MCP Integration');
  await page.evaluate(()=>{window.pywebview={api:{choose_file:async()=>`D:\\reference-${reverseVideos().length}.mp4`}};});
  for(let i=0;i<3;i++){await page.click('#reverse-add');await page.waitForFunction(n=>reverseVideos().length===n,{timeout:3000},i+1).catch(async e=>{console.error(await page.evaluate(()=>({toast:document.querySelector('#toast').textContent,refs:reverseVideos()})));throw e;});}
  await page.click('#reverse-add');assert.equal(await page.evaluate(()=>reverseVideos().length),3);

@@ -199,6 +199,18 @@ function profileDir(acc) {
     return path.join(PROFILES_ROOT, acc.profile || slug(acc.label));
 }
 
+// Open this account's persistent Chrome profile visibly for a manual Google
+// sign-in. This is not the automation/CDP browser and does not mark it active.
+function signInBrowser(label) {
+    const acc=findAccount(load(),label);
+    if(!acc)throw new Error(`No account labelled "${label}".`);
+    const dir=profileDir(acc);
+    fs.mkdirSync(path.join(dir,'Default'),{recursive:true});
+    const child=spawn(CHROME_EXE,[`--user-data-dir=${dir}`,'--profile-directory=Default','--no-first-run','--no-default-browser-check','--window-size=1280,900','https://flow.google.com/'],{detached:true,stdio:'ignore',windowsHide:false});
+    child.unref();
+    return acc;
+}
+
 // ─── browser switching ───────────────────────────────────────────────────────
 
 async function cdpAlive(port) {
@@ -293,15 +305,18 @@ async function cli() {
         } else if (cmd === 'remove') {
             const gone = remove(flag('--label'));
             console.log(`Removed "${gone.label}".`);
+        } else if (cmd === 'signin') {
+            const acc=signInBrowser(flag('--label'));
+            console.log(`Opened the ${acc.label} sign-in browser. Complete Google sign-in there, then press Make active in Studio.`);
         } else if (cmd === 'set-current') {
             const acc = setCurrent(flag('--label'));
             console.log(`Active account: ${acc.label} (the browser is NOT switched - use 'use' for that)`);
-        } else if (cmd === 'use') {
+        } else if (cmd === 'use' || cmd === 'activate') {
             const label = flag('--label');
             const port = flag('--cdp', '9222');
-            console.log(`Switching the automation browser to "${label}" (this closes the old one)...`);
+            console.log(`Activating "${label}" for automation (this closes the previous automation profile)...`);
             const ok = await switchBrowser(label, port);
-            console.log(ok ? `Browser up on CDP ${port}. Sign this account into Flow once if asked - it is remembered.` : 'Chrome started but the CDP port did not answer within 90s.');
+            console.log(ok ? `Active account browser is ready on CDP ${port}. If Google sign-in is needed, use Sign in browser first.` : 'Chrome started but the CDP port did not answer within 90s.');
             process.exitCode = ok ? 0 : 1;
         } else if (cmd === 'count') {
             const acc = countClip(flag('--label'), flag('--n', 1));
@@ -334,6 +349,6 @@ module.exports = {
     ACCOUNTS_FILE, PROFILES_ROOT,
     load, save, add, remove, findAccount, currentAccount, setCurrent, reorderStore, moveAccount,
     nextAvailable, countClip, resetCounter, setPaused, setMaxClips,
-    profileDir, cdpAlive, switchBrowser, launchBrowser, killAutomationChromes,
+    profileDir, cdpAlive, switchBrowser, launchBrowser, killAutomationChromes, signInBrowser,
     ensureMonthly, monthKey,
 };

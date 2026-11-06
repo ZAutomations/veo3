@@ -8,7 +8,35 @@ async function prepareBackground(browser,log=()=>{}){
  const prepare=async page=>{
   if(!page||sessions.has(page)||typeof page.createCDPSession!=='function')return;
   try{const session=await page.createCDPSession();sessions.set(page,session);
-   await session.send('Emulation.setFocusEmulationEnabled',{enabled:true});
+   try{await session.send('Emulation.setFocusEmulationEnabled',{enabled:true});}
+   catch(error){log('Background focus emulation unavailable; native-window restore remains enabled: '+error.message);}
+   // Background throttling flags do not restore a native Windows window that
+   // the user minimized. Restore it just before real input; CDP/DOM reads can
+   // continue in the background, but Flow's composer/picker needs a live,
+   // focused browser window to receive reliable pointer and keyboard events.
+   let lastWindowCheck=0,checking=null;
+   const ensureUsable=async()=>{
+    if(checking)return checking;
+    if(Date.now()-lastWindowCheck<350)return;
+    lastWindowCheck=Date.now();
+    checking=(async()=>{
+     try{
+      const {windowId,bounds}=await session.send('Browser.getWindowForTarget');
+      if(bounds?.windowState==='minimized'){
+       if(typeof browser.setWindowBounds==='function')await browser.setWindowBounds(windowId,{windowState:'normal'});
+       else await session.send('Browser.setWindowBounds',{windowId,bounds:{windowState:'normal'}});
+       log('Automation Chrome was minimized; restored its window before UI input.');
+      }
+     }catch(error){log('Could not inspect/restore the automation Chrome window before input: '+error.message);throw Error('Automation browser window state could not be verified; refusing to send UI input while it may be minimized.');}
+    })();
+    try{await checking;}finally{checking=null;}
+   };
+   const wrapInput=(target,names)=>{for(const name of names){
+    const original=target?.[name];if(typeof original!=='function')continue;
+    target[name]=async(...args)=>{await ensureUsable();return original.apply(target,args);};
+   }};
+   wrapInput(page.mouse,['click','doubleClick','move','down','up','wheel']);
+   wrapInput(page.keyboard,['press','type','down','up']);
    // Keep the CDP session attached: emulation ends when the session detaches.
    page.once?.('close',()=>{sessions.delete(page);});
   }catch(error){log('Background focus emulation unavailable: '+error.message);}

@@ -50,8 +50,18 @@ async function prepare({engine,storyFile,submissionFile,text,inspect,wait}){
  const prompt=missingPrompt(text,second.missing);
  return {...second,prompt,receiptFile};
 }
-function markSubmitting(plan){
- fs.writeFileSync(plan.receiptFile+'.tmp',JSON.stringify({status:'submitting',numbers:plan.missing,at:new Date().toISOString()}));
+function markSubmitting(plan,context={}){
+ const snapshot=context.snapshot||{};
+ const agents=(snapshot.conversationRows||[]).filter(row=>row.role==='agent');
+ fs.writeFileSync(plan.receiptFile+'.tmp',JSON.stringify({status:'submitting',numbers:plan.missing,at:new Date().toISOString(),
+  priorAgentCount:agents.length,priorAgentText:agents.at(-1)?.text||'',
+  priorFailedVideos:Number(snapshot.mediaTiles?.failed_video_tile)||0,
+  priorPolicyCount:Array.isArray(snapshot.mediaTiles?.failed_policy_texts)?snapshot.mediaTiles.failed_policy_texts.length:0,
+  priorVisibleRefusalCount:Array.isArray(snapshot.policyRefusals)?snapshot.policyRefusals.length:0}));
  fs.renameSync(plan.receiptFile+'.tmp',plan.receiptFile);
 }
-module.exports={planMissing,missingPrompt,prepare,markSubmitting};
+function pendingSubmission(submissionFile){
+ if(!submissionFile)return null;
+ try{const receipt=JSON.parse(fs.readFileSync(submissionFile+'.missing.json','utf8'));return receipt?.status==='submitting'?receipt:null;}catch{return null;}
+}
+module.exports={planMissing,missingPrompt,prepare,markSubmitting,pendingSubmission};

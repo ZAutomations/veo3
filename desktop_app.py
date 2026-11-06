@@ -352,7 +352,7 @@ def plan_action(action, p):
         return 'writer', [('mcp', ('batch_pipeline', args))]
     if action.startswith('account_'):
         operation = action.removeprefix('account_')
-        if operation not in ('add', 'use', 'pause', 'resume', 'reset', 'remove', 'move_up', 'move_down'):
+        if operation not in ('add', 'use', 'signin', 'activate', 'pause', 'resume', 'reset', 'remove', 'move_up', 'move_down'):
             raise ValueError('Unknown account operation.')
         label = str(p.get('label', '')).strip()
         if not label:
@@ -360,7 +360,7 @@ def plan_action(action, p):
         cmd = command('account_manager.js', operation, '--label', label)
         if operation == 'add':
             cmd += ['--email', str(p.get('email', '')), '--max-clips', str(integer(p.get('maxClips', 100), 1, 100000, 'Monthly clip limit'))]
-        if operation == 'use':
+        if operation in ('use', 'activate'):
             cmd += ['--cdp', str(integer(p.get('cdp', 9222), 1024, 65535, 'Browser port'))]
         if operation == 'remove' and not p.get('confirmed'):
             raise ValueError('Confirm account removal first.')
@@ -1086,7 +1086,83 @@ def bootstrap(studio_surface: str = Header(default='studio', alias='X-Studio-Sur
     return dict(root=str(ROOT), models=MODELS, presets=presets(), defaults=initial, workflowDefaults=workflow_defaults,
                 preferences=surface_preferences(studio_surface), hasApiKeys=bool(legacy.get('gemini_api_keys') or legacy.get('gemini_api_key')),
                 referenceLibrary=reference_library_settings(legacy), globalWorkflow=global_workflow_settings(),
+                mcpServer=str((ROOT / 'mcp_server.js').resolve()),
                 savedCouple={k: legacy.get(k, '') for k in ('couple_sarah_file', 'couple_sam_file', 'couple_sarah_description', 'couple_sam_description', 'agent_saved_couple', 'ing_saved_couple', 'omni_saved_couple')})
+
+
+@app.post('/api/mcp/connect')
+def mcp_connect(body: dict):
+    """Start the local stdio server, list its live tools, and optionally inspect one saved story."""
+    server = ROOT / 'mcp_server.js'
+    if not server.is_file():
+        raise HTTPException(500, f'Local MCP server was not found: {server}')
+    story_arg = str(body.get('story', '') or '').strip()
+    story_path_value = ''
+    if story_arg:
+        try:
+            selected, _ = story_path(story_arg)
+            stories_root = (ROOT / 'stories').resolve()
+            if not selected.is_relative_to(stories_root):
+                raise ValueError('Choose a story from this tool’s Story Library.')
+            story_path_value = str(selected)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
+    client = MCPClient(str(server), cwd=str(ROOT))
+    try:
+        client.start()
+        catalog = client.request('tools/list', {}, timeout=30).get('tools', [])
+        inspection = None
+        if story_path_value:
+            inspection = client.call_tool('pipeline_status', {'story': story_path_value}, timeout=60)
+        return {'connected': True, 'count': len(catalog), 'tools': catalog, 'inspection': inspection}
+    except Exception as exc:
+        raise HTTPException(502, f'Could not connect to the local MCP server: {exc}')
+    finally:
+        client.stop()
+
+
+@app.post('/api/mcp/workflow-instruction')
+def mcp_workflow_instruction(body: dict):
+    """Build a copyable external-client request from selected library stories and shared settings."""
+    selected_paths = body.get('stories', [])
+    if not isinstance(selected_paths, list) or not selected_paths:
+        raise HTTPException(400, 'Select one or more saved stories first.')
+    resolved = []
+    stories_root = (ROOT / 'stories').resolve()
+    for item in selected_paths:
+        try:
+            selected, _ = story_path(item)
+            if not selected.is_relative_to(stories_root):
+                raise ValueError('Choose stories from this tool’s Story Library.')
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
+        if selected not in resolved:
+            resolved.append(selected)
+    generate = body.get('generate') is True
+    cfg = global_workflow_settings()
+    args = {
+        'stories': [str(path) for path in resolved],
+        'generate': generate,
+        'submit': generate,
+        'auto_approve': True,
+        'download': True,
+        'join': True,
+        'new_project': True,
+        'generate_refs': True,
+        'video_model': cfg['videoModel'],
+        'video_resolution': cfg['videoResolution'],
+        'download_version': cfg['videoDownloadVersion'],
+        'aspect': cfg['videoAspect'],
+        'seconds': cfg['videoSeconds'],
+        'clip_batch_size': cfg['agentPromptsPerBatch'],
+        'cdp': cfg['automationCdp'],
+        'watch': 1800,
+        'verbose': True,
+    }
+    instruction = ('Using the veo3-flow MCP, call batch_pipeline with these exact arguments:\n'
+                   + json.dumps(args, indent=2, ensure_ascii=False)
+                   + '\nUse the saved story text exactly as written. Do not rewrite or regenerate stories.')
+    return {'arguments': args, 'instruction': instruction}
 
 
 def story_completion(path, story, manifest):
@@ -1267,7 +1343,7 @@ def start_job(body: dict):
     with lock:
         if any(j.status == 'running' and j.lane == lane for j in jobs.values()):
             raise HTTPException(409, f'A {lane} job is running. Stop it or wait for completion.')
-        if action == 'account_use' and any(j.status == 'running' and j.lane == 'writer' for j in jobs.values()):
+        if action in ('account_use','account_activate','account_signin') and any(j.status == 'running' and j.lane == 'writer' for j in jobs.values()):
             # The legacy browser switch matches the flow-profiles prefix, which
             # also matches AI Studio's profile. Do not close a writing session.
             raise HTTPException(409, 'Finish or stop writing before switching the account browser.')

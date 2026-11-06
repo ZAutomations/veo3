@@ -113,3 +113,6 @@ FINAL SELF-CHECK
 3. No props, physical actions, gestures, demonstrations, environmental changes, narration, extra characters, or camera motion appear.
 4. Speaker names and voice identities never swap.
 5. The import script uses only the supported labels shown above; SEO, thumbnail prompts, and notes stay outside the import text.
+
+## VEO POLICY-AWARE AUTHORING
+Write original prompts that follow the video provider's policies. Do not request a prohibited likeness, sexual content involving minors, graphic harm, or a workaround that disguises restricted content. If Flow refuses a clip, the tool must audit scene IDs and existing assets first, preserve completed clips, inspect the exact refusal and references, and revise only the specifically refused scene with the smallest truthful compliant change. If the scene or reference cannot be made compliant without changing the story materially, stop and report why. Never ask the model to retry the unchanged prompt or regenerate successful clips. Keep this policy guidance outside importer fields and clip narration.

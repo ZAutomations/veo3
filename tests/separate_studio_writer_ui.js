@@ -15,7 +15,7 @@ const assert=require('assert'),fs=require('fs'),path=require('path'),puppeteer=r
     if(url.pathname==='/')return req.respond({status:200,contentType:'text/html',body:fs.readFileSync(path.join(__dirname,'../desktop_ui/index.html'),'utf8').replace('__SESSION_TOKEN__','test')});
     if(url.pathname.startsWith('/api/')){
      headers.push(req.headers()['x-studio-surface']);let data={};
-     if(url.pathname==='/api/bootstrap')data={defaults:{preset:'relationship-dialogue-dog-couple',aspect:'9:16',transport:'web',cdp:9222},presets:[{id:'relationship-dialogue-dog-couple',name:'Dog couple'}],models:['Omni 1.1 Flash'],preferences:{theme:'crimson',current:'writer',forms:{}},workflowDefaults:{}};
+     if(url.pathname==='/api/bootstrap')data={defaults:{preset:'relationship-dialogue-dog-couple',aspect:'9:16',transport:'web',cdp:9222},globalWorkflow:{videoModel:'Omni 1.1 Flash',videoAspect:'9:16',videoResolution:'360p',videoDownloadVersion:'upscaled',videoSeconds:8,automationCdp:9222,agentPromptsPerBatch:5},referenceLibrary:{modes:{agent:true,ingredients:true,omni:true}},presets:[{id:'relationship-dialogue-dog-couple',name:'Dog couple'}],models:['Omni 1.1 Flash'],preferences:{theme:'crimson',current:'writer',forms:{}},workflowDefaults:{}};
      if(url.pathname==='/api/master-prompt')data={name:'Dog couple',text:'Complete saved master prompt with parser fields.'};
      if(url.pathname==='/api/library')data=[];
      if(url.pathname==='/api/accounts')data={accounts:[]};
@@ -26,7 +26,7 @@ const assert=require('assert'),fs=require('fs'),path=require('path'),puppeteer=r
     return req.respond({status:404,body:''});
    });
    await page.goto('http://studio.local/'+(writer?'?writer=1':''));await page.waitForSelector('#readyScript');
-   assert.equal(await page.$$eval('#navigation [data-view]',nodes=>nodes.length),writer?2:10);
+   assert.equal(await page.$$eval('#navigation [data-view]',nodes=>nodes.length),writer?2:11);
    await page.select('#theme-picker','lime');
    assert.equal(await page.$eval('html',el=>el.dataset.theme),'lime');
    await page.waitForFunction(()=>getComputedStyle(document.querySelector('.button.primary')).color==='rgb(26, 26, 26)');
@@ -54,8 +54,9 @@ const assert=require('assert'),fs=require('fs'),path=require('path'),puppeteer=r
    await page.click('#copy-master-prompt');
    assert.equal(await page.evaluate(()=>window.copiedMaster),'Complete saved master prompt with parser fields.');
    if(!writer)for(const view of ['agent','ingredients','omni']){
-    await page.click(`[data-view="${view}"]`);
-    await page.waitForSelector('[data-action="fix_join"]');
+    if(view==='ingredients')await page.click('#mode-toggle-ingredients');
+    else await page.click(`[data-view="${view}"]`);
+    await page.waitForSelector('[data-action="fix_join"]',{timeout:3000}).catch(async error=>{console.error('Missing fix/join in view:',view,'main text:',(await page.$eval('#main',el=>el.innerText)).slice(0,900));throw error;});
     assert.equal(await page.$eval('[data-action="fix_join"]',el=>el.textContent),'Fix order & Join');
    }
    assert.deepEqual(errors,[]);await page.close();

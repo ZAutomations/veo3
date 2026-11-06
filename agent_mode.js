@@ -208,6 +208,7 @@ if (SEND_TEXT) SEND_TEXT = require('./reference_identity').forAgent(SEND_TEXT, f
 if (SEND_TEXT !== PROMPT_TEXT) log('Video settings and reference identity instructions applied before sending.');
 if (SEND_TEXT) SEND_TEXT += '\nBATCH TRACKING: Track each requested scene number separately until its video finishes. Preserve completed clips. Retry only an individually verified failed or missing scene using its exact instructions, references, voice and video settings. Never repeat successful scenes or the whole batch. If a scene fails, report its exact result and stop if its identity or cause is uncertain. Do not report completion while scenes are missing.';
 if (SEND_TEXT) SEND_TEXT += '\nMANDATORY RETRY PREFLIGHT: Before responding to ANY retry, reword, or “generate again” request, inspect the current project assets and identify which numbered scenes already have a completed video. Keep every completed scene unchanged. Generate only the exact missing or failed scene numbers; never regenerate a whole batch because one scene failed. If scene-to-asset mapping is ambiguous, stop and report the ambiguity instead of submitting another generation. Ignore conversation-level Try again when it would repeat successful scenes.';
+if (SEND_TEXT) SEND_TEXT += '\n' + require('./agent_policy_recovery');
 
 // A long prompt must NOT be typed key by key - a 3000-character story at 45ms a
 // character is 2+ minutes of keystrokes. Paste it in one shot instead. This is
@@ -352,6 +353,7 @@ function snapshotFn() {
 
     const videoEls = [...document.querySelectorAll('flow-video-tile')];
     const FAIL = /audio generation failed|failed to generate|generation failed|something went wrong|try a different prompt|you have not been charged|might violate|may violate|violates? our|content polic|third.party content providers/i;
+    const POLICY_REFUSAL = /this prompt (?:might|may|could) violate|policies about generating|content polic|policy refusal|violates? (?:our )?(?:policy|policies|guidelines)|third.party content providers/i;
     const BUSY = /generating|generation in progress|queued|processing|creating|(?:^|\n)\s*\d{1,2}%\s*(?:\n|$)/i;
     const failedVideos = videoEls.filter(t => FAIL.test(t.innerText || t.textContent || '')
         || !!t.querySelector('[class*=error-tile], button[aria-label="Retry"]'));
@@ -374,6 +376,10 @@ function snapshotFn() {
         flow_image_tile: document.querySelectorAll('flow-image-tile').length,
         any_tile: [...document.querySelectorAll('*')].filter(el => /tile/i.test(cls(el)) && vis(el)).length,
     };
+    const policyRefusals = [...new Set(document.querySelectorAll(
+        '.chat-error-card, [class*=error-tile], [class*=generation-error], [class*=media-error], [role=alert], .messages-list .message-row, [class*=message-row]'))]
+        .filter(vis).map(el => (el.innerText || el.textContent || '').trim())
+        .filter(text => text && POLICY_REFUSAL.test(text)).map(text => text.slice(0, 650));
 
     const body = (document.body.innerText || '').replace(/\n{3,}/g, '\n\n');
 
@@ -397,9 +403,10 @@ function snapshotFn() {
             .filter(el => el.children.length).map(el => d(el, 2)),
         buttons,
         chatish,
-        conversationRows: [...document.querySelectorAll('.messages-list .message-row')]
-            .map(el => ({ role: el.classList.contains('user-row') ? 'user' : 'agent',
+        conversationRows: [...new Set(document.querySelectorAll('.messages-list .message-row, [class*=message-row]'))]
+            .map(el => ({ role: el.classList.contains('user-row') || /user-row/.test(cls(el)) ? 'user' : 'agent',
                 text: (el.innerText || '').trim(), error: !!el.querySelector('.chat-error-card') })),
+        policyRefusals,
         mediaTiles,
         tail: body.slice(-2000),
     };
@@ -434,8 +441,12 @@ function retryFn() {
     const vis = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
     // The specific Veo failure wording, NOT a bare /error/ - that appears in
     // unrelated UI and would make every page look broken.
-    const FAIL = /audio generation failed|failed to generate|generation failed|something went wrong|try a different prompt/i;
-    const scopes = [...document.querySelectorAll('flow-video-tile, [class*=error-tile], [class*=generation-error], [class*=media-error]')]
+    const FAIL = /audio generation failed|failed to generate|generation failed|something went wrong|try a different prompt|this prompt (?:might|may|could) violate|policies about generating|content polic|third.party content providers/i;
+    const POLICY = /this prompt (?:might|may|could) violate|policies about generating|content polic|policy refusal|violates? (?:our )?(?:policy|policies|guidelines)|third.party content providers/i;
+    const policyScopes = [...new Set(document.querySelectorAll(
+        '.chat-error-card, [class*=error-tile], [class*=generation-error], [class*=media-error], [role=alert], .messages-list .message-row, [class*=message-row]'))]
+        .filter(vis).filter(el => POLICY.test(el.innerText || el.textContent || ''));
+    const scopes = [...new Set(document.querySelectorAll('flow-video-tile, [class*=error-tile], [class*=generation-error], [class*=media-error], .chat-error-card'))]
         .filter(vis).filter(el => FAIL.test(el.innerText || el.textContent || '')
             || !!el.querySelector('button[aria-label="Retry"], button.reuse-prompt-button, button[aria-label="Reuse prompt"]'));
     const failedText = scopes.some(el => FAIL.test(el.innerText || el.textContent || ''));
@@ -450,9 +461,10 @@ function retryFn() {
     // A policy refusal reads very differently from a generation failure: the
     // model says it cannot help with that. Count it so the agent can re-ask
     // with a policy-safe wording instead of blindly clicking Retry.
-    const refusedText = scopes.some(el => /policy|violat|community guidelines|not allowed|cannot (generate|create|help)|can't (generate|create|help)|unable to (generate|create)|against our|blocked by|safety/i.test(el.innerText || el.textContent || ''));
+    const refusedText = policyScopes.length > 0 || scopes.some(el => POLICY.test(el.innerText || el.textContent || ''));
     const unusualActivity = scopes.some(el => /unusual\s+activity/i.test(el.innerText || el.textContent || ''));
-    return { failedText, retryButtons, reuseInError, refusedText, unusualActivity };
+    return { failedText, retryButtons, reuseInError, refusedText,
+        refusalTexts: policyScopes.map(el => (el.innerText || el.textContent || '').trim().slice(0,650)), unusualActivity };
 }
 
 // Click only a control owned by a failed MEDIA tile. Never click Flow's global
@@ -581,7 +593,12 @@ async function reviewFailedBatch(page, snapshot) {
         log('Retry preflight unavailable: story/checkpoint files were not supplied. No batch-level recovery prompt submitted.');
         return false;
     }
+    if(require('./agent_missing_scenes').pendingSubmission(submissionFile)){
+        log('A missing-scene/safety-review submission is already pending. Not sending a duplicate while its result is unconfirmed.');
+        return false;
+    }
     const refusal=require('./agent_recovery_control').latestRefusal(snapshot);
+    if(refusal)log(`Policy refusal reason captured from Flow: ${refusal}`);
     if(/third.party content providers/i.test(refusal)){
         let wolfPreset=false;
         try{wolfPreset=JSON.parse(fs.readFileSync(storyFile,'utf8')).preset_id==='reference-wolf-dark-secrets-fable-dialogue';}catch{}
@@ -605,12 +622,12 @@ async function reviewFailedBatch(page, snapshot) {
         inspect:(engine,jobs)=>require('./single_clip_omni_recovery').inspectProject(engine,jobs,{}, {log,page:engine.page,sourceCache:cache}),
     });
     if(!plan){log('Retry preflight: all scenes in the saved batch already have a verified ready asset. No retry submitted.');return false;}
-    const prompt=plan.prompt+'\n\n'+require('./agent_safety_revision')+'\n\nRECOVERY AUDIT AND REFERENCE TOOLS: First inspect this current batch and report each requested scene ID as completed, generating, failed (with its actual error), or missing. Recheck immediately before generation. Keep all completed and generating clips. For ONLY an identified policy-failed scene, revise its visual treatment to comply: for example, explicitly generic featureless 3D mannequins without personal likenesses when consistent with the preset. Do not simply replay the rejected prompt or disguise a restricted identity. Preserve approved facts, appropriate narration, scene ID, model, resolution, ratio and duration. Use the original numbered scene instructions above. Using available Flow asset tools, inspect the project reference library and attach the character and location image ingredients required by that scene, plus its established voice if applicable; verify actual attachments before the video tool call. Reuse existing matching references; do not create duplicates or attach irrelevant locations. Do not reuse a reference that itself requires restricted likeness or rights review. If a required safe reference cannot be found/attached, report the exact missing reference rather than claim success. Submit each eligible revised failed scene once within the existing safety-review limit, track its result, and report generated asset IDs. Do not repeat the original batch. If refused again, stop for review.';
+    const prompt=plan.prompt+'\n\n'+require('./agent_policy_recovery')+'\n\nRECOVERY AUDIT AND REFERENCE TOOLS: Before submitting anything, inspect this batch and report each requested scene ID as completed, generating, failed with its actual displayed reason, or missing; verify the audit again immediately before generation. Preserve every completed or generating clip. For an explicit policy refusal, identify the exact rejected scene and its actual refusal reason, then make one substantive compliant revision only to that scene. Change the element the refusal actually concerns; do not blindly replace characters, remove the topic, or replay the same prompt. For a prominent-person/likeness refusal, use a clearly non-identifiable, original visual treatment that does not reproduce the person; retain factual narration only when allowed. If the text, attached reference, or subject cannot be made compliant without changing the story materially, stop and report the exact issue instead of attempting a workaround. For non-policy failures, preserve the original prompt and use the individual failed-clip retry when available. Keep the original scene ID, style, facts, narration, model, resolution, ratio and duration except for the minimum change required for compliance. Inspect the project reference library and attach only the matching required character/location images and established voice for the affected scene; verify each attachment before generation. Reuse safe existing matching references; never duplicate, attach irrelevant assets, or reuse a reference implicated in the refusal. Report exact missing references if safe attachment is unavailable. Submit only individually verified missing/refused scenes once within the saved safety-review limit, track each result and asset ID, and never repeat the full batch or successful clips. If a revised scene is refused again, stop for manual review.';
     log(`Retry preflight verified existing assets twice. Keeping completed scenes ${plan.completed.join(', ')||'(none)'}; submitting ONLY missing scenes ${plan.missing.join(', ')} from batch ${plan.from}-${plan.to}.`);
     await require('./agent_composer').pasteAgentPrompt(page,installAgentEditor,prompt,{log,wait});
     const target=await page.evaluate(require('./agent_submission').verifiedSubmissionTarget,{text:prompt,references:0});
     if(!target.ok)throw Error(`Failed-scene review not submitted: ${target.why}`);
-    require('./agent_missing_scenes').markSubmitting(plan); // Persist uncertainty before the credit-spending click.
+    require('./agent_missing_scenes').markSubmitting(plan,{snapshot}); // Persist uncertainty and response baseline before the credit-spending click.
     await page.mouse.click(target.cx,target.cy);
     log('Missing-scene-only retry submitted once. Waiting for the Agent result.');
     return true;
@@ -627,12 +644,50 @@ async function retryFailedMediaOnly(page, snap, label = 'retry') {
         const st = await page.evaluate(retryFn);
         if(st.unusualActivity && !activityRetryPermit)throw Error('FLOW_UNUSUAL_ACTIVITY: Flow reported unusual activity; use the saved global cooldown before safe retry.');
 
+        const pendingReview=require('./agent_missing_scenes').pendingSubmission(flag('--submission-file',null));
+        if(pendingReview){
+            const newRefusal=require('./agent_recovery_control').actionableRefusal(cur,flag('--submission-file',null));
+            if(newRefusal)throw Error('FLOW_REVIEW_REQUIRED: The safety-revised scene was refused again. No further submission will be made; inspect the exact scene and references.');
+            if(mt.ready_video_tile>=EXPECTED_CLIPS&&!mt.agent_busy&&!mt.generating_video_tile){
+                log(`Round ${round}: ${tally}; pending recovery has reached the expected ready count.`);break;
+            }
+            if(mt.generating_video_tile>0||mt.agent_busy){
+                log(`Round ${round}: ${tally}; waiting for the already-submitted scene review/generation; no duplicate prompt will be sent.`);
+                await sweepFor(page,RETRY_WATCH,`${label}-${round}-pending-review`);continue;
+            }
+            log(`Round ${round}: ${tally}; prior scene-review submission has no confirmed result. Leaving its failed tile untouched to prevent a duplicate.`);
+            break;
+        }
+
         // Once the project already has the requested number of completed
         // videos, retrying an additional failed attempt can only increase the
         // excess count. Let download + dialogue ordering choose one per scene.
         if (EXPECTED_CLIPS > 0 && mt.ready_video_tile >= EXPECTED_CLIPS && !mt.agent_busy && mt.generating_video_tile === 0) {
             log(`Round ${round}: ${tally}; enough completed clips already exist, so failed attempts are left untouched.`);
             if (mt.ready_video_tile > EXPECTED_CLIPS) log('  Duplicate count detected; retrying would create more clutter.');
+            break;
+        }
+
+        // Policy refusals often have no media-tile Retry/Reuse button at all.
+        // Handle them first, after the project settles, so we do not silently
+        // fall through to the generic "no retry control" exit.
+        const policyRefusal=require('./agent_recovery_control').actionableRefusal(cur,flag('--submission-file',null));
+        if (policyRefusal) {
+            if (mt.generating_video_tile > 0 || mt.agent_busy) {
+                log(`Round ${round}: policy refusal detected while other clips are active; waiting for the batch to settle before auditing missing scenes.`);
+                await sweepFor(page, RETRY_WATCH, `${label}-${round}-policy-waiting`);
+                continue;
+            }
+            log(`Round ${round}: explicit policy refusal detected; checking exact scene failures and preserving completed clips.`);
+            const full=await readProjectSnapshot(page,true);
+            if(await reviewFailedBatch(page,full)){
+                await sweepFor(page,RETRY_WATCH,`${label}-safety-review`);
+                continue;
+            }
+            if(require('./agent_blocked_followup').reviewWasSubmitted(flag('--submission-file',null))){
+                throw Error('FLOW_REVIEW_REQUIRED: A clip remains policy-blocked after the recorded safety review for this batch. No further automatic rewording or submission. Successful clips are preserved; that scene needs manual content review.');
+            }
+            log('  Policy refusal could not be safely mapped to a missing scene or the review receipt is unresolved; no broad retry was submitted.');
             break;
         }
 
@@ -645,20 +700,6 @@ async function retryFailedMediaOnly(page, snap, label = 'retry') {
             log(`Round ${round}: ${tally}; no failed media-tile retry control remains.`);
             break;
         }
-        if (st.refusedText) {
-            log(`Round ${round}: a failed media tile reports a policy refusal.`);
-            const full=await readProjectSnapshot(page,true);
-            if(await reviewFailedBatch(page,full)){
-                await sweepFor(page,RETRY_WATCH,`${label}-safety-review`);
-                continue;
-            }
-            if(require('./agent_blocked_followup').reviewWasSubmitted(flag('--submission-file',null))){
-                throw Error('FLOW_REVIEW_REQUIRED: A clip remains policy-blocked after the recorded safety review for this batch. No further automatic rewording or submission. Successful clips are preserved; that scene needs manual content review.');
-            }
-            log('  Policy refusal needs review; the full story will not be resubmitted.');
-            break;
-        }
-
         log(`Round ${round}: ${tally}; retrying ONE failed media tile only.`);
         if(st.unusualActivity){log('Saved cooldown elapsed; retrying one failed media tile on the same account.');activityRetryPermit=false;}
         const c = await clickFailures(page);
@@ -944,17 +985,17 @@ async function uploadRefThroughPicker(page, box, file) {
 
     // A permitted safety revision may be requested once before a refusal
     // becomes terminal. Failed Agent tool cards need not exist in the grid.
-    if (RETRY_FAILED_ONLY && require('./agent_recovery_control').latestRefusal(s)) {
+    const submissionCheckpoint = flag('--submission-file', null);
+    if (RETRY_FAILED_ONLY && require('./agent_recovery_control').actionableRefusal(s,submissionCheckpoint)) {
         if (await reviewFailedBatch(page,s)) {
             await sweepFor(page,RETRY_WATCH,'safety-review-result');
             s=await readProjectSnapshot(page,true);
         }
-        require('./agent_recovery_control').assertRecoverable(s);
+        require('./agent_recovery_control').assertRecoverable(s,submissionCheckpoint);
     }
 
     // Reconcile batches supplied manually while the local checkpoint was stale.
     // This returns to the orchestrator WITHOUT typing or clicking Generate.
-    const submissionCheckpoint = flag('--submission-file', null);
     const requiredCheckpoint = flag('--require-ready', null);
     if (submissionCheckpoint && requiredCheckpoint !== null
         && s.mediaTiles.ready_video_tile > Number(requiredCheckpoint)) {
@@ -1003,7 +1044,8 @@ async function uploadRefThroughPicker(page, box, file) {
         log('The full story prompt will not be typed or submitted.');
         log('Flow conversation-level "Try again" is ignored because it repeats every clip.');
         const reviewSnapshot=await readProjectSnapshot(page,true);
-        if(await reviewFailedBatch(page,reviewSnapshot))await sweepFor(page,RETRY_WATCH,'failed-scene-review');
+        if(!require('./agent_missing_scenes').pendingSubmission(submissionCheckpoint)
+                && await reviewFailedBatch(page,reviewSnapshot))await sweepFor(page,RETRY_WATCH,'failed-scene-review');
         const retried = await retryFailedMediaOnly(page, snap, 'safe-retry');
         const final = await snap('safe-retry-final');
         s = final;
@@ -1387,7 +1429,7 @@ async function uploadRefThroughPicker(page, box, file) {
         fs.writeFileSync(submissionFile + '.tmp', JSON.stringify(intent));
         fs.renameSync(submissionFile + '.tmp', submissionFile);
     }
-    if (missingRecovery) require('./agent_missing_scenes').markSubmitting(missingRecovery);
+    if (missingRecovery) require('./agent_missing_scenes').markSubmitting(missingRecovery,{snapshot:s});
     await page.mouse.click(target.cx, target.cy);
     log('Start generation clicked. Waiting for Flow to schedule video tiles; this does not yet confirm clip generation.');
 
@@ -1420,10 +1462,10 @@ async function uploadRefThroughPicker(page, box, file) {
         await wait(4000);
         const cur = await readProjectSnapshot(page);
         const elapsed = Math.round((Date.now() - t0) / 1000);
-        if (require('./agent_recovery_control').latestRefusal(cur)) {
+        if (require('./agent_recovery_control').actionableRefusal(cur,submissionCheckpoint)) {
             const full=await readProjectSnapshot(page,true);
             if(await reviewFailedBatch(page,full)){await wait(4000);continue;}
-            require('./agent_recovery_control').assertRecoverable(full);
+            require('./agent_recovery_control').assertRecoverable(full,submissionCheckpoint);
         }
         if (cur.mediaTiles.failed_video_tile>0 && !cur.mediaTiles.agent_busy
                 && cur.mediaTiles.generating_video_tile===0) {

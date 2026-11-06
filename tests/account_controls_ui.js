@@ -1,0 +1,14 @@
+const assert=require('assert'),fs=require('fs');
+const app=fs.readFileSync(require.resolve('../desktop_ui/app.js'),'utf8');
+const backend=fs.readFileSync(require.resolve('../desktop_app.py'),'utf8');
+const manager=fs.readFileSync(require.resolve('../account_manager.js'),'utf8');
+assert(app.includes('Sign in browser'));
+assert(app.includes('data-account="signin"'));
+assert(app.includes('data-account="activate"'));
+assert(app.includes('Active · Ready'));
+assert(app.includes('account-email'));
+assert(backend.includes("'signin', 'activate'"));
+assert(manager.includes("cmd === 'signin'"));
+assert(manager.includes("cmd === 'use' || cmd === 'activate'"));
+assert(manager.includes('signInBrowser'));
+console.log('PASS: Accounts UI separates manual sign-in from activating the automation profile and shows active-ready beside the Gmail.');

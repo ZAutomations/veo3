@@ -17,7 +17,7 @@ with tempfile.TemporaryDirectory() as directory:
         'scenes':[{'veo3_prompt':f'Prompt {i}', 'dialogue':[]} for i in range(13)]}))
     inputs = dict(story=str(story), project='https://flow.google.com/project/test-project',
                   view='omni', model='Omni 1.1 Flash', resolution='360p', aspect='9:16',
-                  cdp=9222, **{'from':11, 'to':13}, reuseRefs=True, download=True)
+                  cdp=9222, **{'from':11, 'to':13}, usePresetRefs=False, reuseRefs=True, download=True)
     lane, operations = studio.plan_action('generate', inputs)
     assert lane == 'flow'
     _, (driver, request) = operations[0]
@@ -31,6 +31,10 @@ with tempfile.TemporaryDirectory() as directory:
     assert '--reverse' not in operations[0][1] and '--order' not in operations[0][1]
     _, operations = studio.plan_action('order', inputs)
     assert '--write' in operations[0][1] and '--clips' in operations[0][1]
+    _, operations = studio.plan_action('account_signin', {'label':'test'})
+    assert operations[0][1][2] == 'signin'
+    _, operations = studio.plan_action('account_activate', {'label':'test','cdp':9222})
+    assert operations[0][1][2] == 'activate' and '--cdp' in operations[0][1]
     _, operations = studio.plan_action('manual', dict(inputs, view='agent', selectionType='clips', selection='2,8,6'))
     assert '--clips' in operations[0][1] and '2,8,6' in operations[0][1] and '--settings' not in operations[0][1]
     _, operations = studio.plan_action('generate', dict(inputs, view='agent'))
@@ -80,8 +84,9 @@ with tempfile.TemporaryDirectory() as directory:
         assert duplicate.status_code == 409
         writer = client.post('/api/jobs', headers=headers, json={'action':'write','payload':dict(preset=preset, ideas='A new title\nA brief.', clips=8)})
         assert writer.status_code == 200
-        switch = client.post('/api/jobs', headers=headers, json={'action':'account_use','payload':{'label':'test'}})
-        assert switch.status_code == 409
+        for action in ('account_use','account_signin','account_activate'):
+            switch = client.post('/api/jobs', headers=headers, json={'action':action,'payload':{'label':'test'}})
+            assert switch.status_code == 409, action
         held.set()
     # A stopped MCP job may finish connecting, but must not submit an AI request.
     job = studio.Job('write', {}, 'writer', [('mcp', ('batch_pipeline', {}))])

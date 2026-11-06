@@ -16,7 +16,9 @@ function projectFrame() {
         const preview = sources.length > 0 || /play_circle|play_arrow/i.test(text)
             || !!tile.querySelector('[aria-label="Generated video thumbnail"]');
         const busy = !failed && (!preview || /(?:^|\n)\s*(?:generating|generation in progress|queued|processing|creating|\d{1,3}%)(?:\.{0,3})?\s*(?:\n|$)/i.test(text));
+        const policyFailure=failed&&/this prompt (?:might|may|could) violate|policies about generating|content policy|policy refusal|violates? (?:our )?(?:policy|policies|guidelines)|third.party content providers/i.test(text);
         return { video: tile.tagName.toLowerCase() === 'flow-video-tile', failed, busy,
+            policyFailure, failureText: failed ? text.trim().slice(0,650) : '',
             id: (sources.join(' ').match(/\/video\/([^=?/#\s]+)/) || sources.join(' ').match(/\/(?:image|asb)\/([^=?/#\s]+)/) || [])[1] || '',
             x: Math.round(left + rect.x - bounds.x), y: Math.round(top + rect.y - bounds.y), h: rect.height };
     });
@@ -89,7 +91,9 @@ async function scanProjectMedia(page, options = {}) {
         ready_video_tile: videos.filter(tile => !tile.failed && !tile.busy).length,
         failed_video_tile: videos.filter(tile => tile.failed).length,
         generating_video_tile: videos.filter(tile => !tile.failed && tile.busy).length,
-        flow_image_tile: records.length - videos.length, project_scan_complete: exhaustive };
+        flow_image_tile: records.length - videos.length,
+        failed_policy_texts:videos.filter(tile=>tile.policyFailure).map(tile=>tile.failureText).filter(Boolean),
+        project_scan_complete: exhaustive };
 }
 // A virtualized viewport cannot prove completion. Poll it cheaply, and perform
 // a full scan at most every 30 seconds or at an explicit completion gate.
