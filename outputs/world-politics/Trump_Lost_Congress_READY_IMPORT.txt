@@ -1,0 +1,60 @@
+Story 1
+Title: Trump Lost Congress. What Changes Now?
+Preset: world-politics-map-explain
+Clip seconds: 10
+Estimated duration: 60 seconds
+Story brief: As of November 6, 2026, explain the projected congressional power shift after the US midterms, its January 2027 effective date, legislative bargaining, spending oversight and continuing presidential powers. No India comparison, unsupported war chronology or invented quotation.
+Sources: Research cutoff November 6, 2026, America/Phoenix date; congressional control and race calls: https://www.ap.org/the-definitive-source/behind-the-news/calling-control-of-congress-in-the-2026-midterm-elections/ ; congressional terms, bicameral lawmaking and veto override: https://www.senate.gov/civics/constitution_item/constitution.htm ; appropriations: https://www.gao.gov/blog/what-impoundment-control-act-and-what-gaos-role ; oversight: https://www.senate.gov/about/powers-procedures/investigations.htm
+Setting: United States electoral geography, Washington institutional exteriors and illustrative congressional process diagrams.
+Characters: None
+Locations:
+United States Map: Accurate contiguous US satellite-relief geography, separate non-distorted Alaska and Hawaii insets only if needed; slate ocean, natural terrain, amber locator.
+Washington: Accurate Washington regional map, Capitol and White House institutional markers in correct relative positions; no portrait reference.
+Committee Room: Illustrative neutral hearing room, empty witness table, simple slate chairs and unbranded folders; no claim that a particular hearing has happened.
+
+Clip 1:
+Narration: "Trump lost control of Congress, but not the presidency. AP called both chambers for Democrats after the midterms. So what changes when the opposition controls the legislative branch in Washington?"
+Shot 1: 0–3 seconds — [MAP] Start above an accurate United States relief map; push toward a single Washington locator while the exact label "WASHINGTON" pops beside it.
+Shot 2: 3–7 seconds — [MAP] Track down to Washington and reveal two neutral institutional badges labelled "HOUSE" and "SENATE"; add "DEMOCRATIC CONTROL CALLED BY AP" beneath them without invented seat totals.
+Shot 3: 7–10 seconds — [MAP] Pan along the accurate local map from the Capitol marker toward the separate White House marker; show exact label "PRESIDENCY UNCHANGED" without any human portrait.
+Effect: 0.6 seconds — Washington label pop; 4 seconds — two chamber badges appear sequentially with AP attribution; hold all labels flat and readable, then simplify to the two institutions.
+Sound: Restrained curious documentary synth pulse throughout; soft locator pop at 0.6 seconds, badge clicks at 3.5 and 4.5 seconds, quiet camera whoosh during the local pan; narrator clearly foreground.
+
+Clip 2:
+Narration: "First, the timing matters. Newly elected lawmakers begin their terms on January third, twenty twenty-seven. Until then, the outgoing Congress remains in office; election night does not instantly transfer power."
+Shot 1: 0–3 seconds — [MAP] Continue above the Washington map, tracking toward the Capitol marker while a source-dated "NOVEMBER 2026" callout types above the geographic anchor.
+Shot 2: 3–7 seconds — [MAP] Pan beside the same anchored Capitol marker as the exact date "JANUARY 3, 2027" types onto a restrained ivory callout; no new location or invented ceremony.
+Shot 3: 7–10 seconds — [MAP] Pull back slightly to retain both Capitol and White House anchors; a short timeline anchored beside the Capitol advances from November to January and holds on the latter date.
+Effect: 0.5–2 seconds — type "NOVEMBER 2026"; 3.4–5.5 seconds — type "JANUARY 3, 2027"; amber ring points to the Capitol, not to an invented event.
+Sound: Continue identical quiet synth pulse; synchronized typing ticks only during each date reveal, one restrained completion click at 5.5 seconds; no crowd or ceremonial audio.
+
+Clip 3:
+Narration: "The White House still sets its priorities, but major legislation needs congressional approval. A hostile majority can block proposals, demand changes, or force negotiations. A veto cannot create new laws."
+Shot 1: 0–3 seconds — [MAP] Track from the White House map marker toward the Capitol marker; a small neutral document icon moves along an explanatory connection, not a literal delivery route.
+Shot 2: 3–7 seconds — [MAP] Pan across anchored House and Senate building badges near the Capitol; the document icon pauses beside a clearly labelled "NEGOTIATION" callout, avoiding claims about a specific pending bill.
+Shot 3: 7–10 seconds — [MAP] Sweep back to the White House marker and reveal an ivory "VETO ≠ NEW LAW" callout beside the institution; hold geographic positions stable and labels unobstructed.
+Effect: 0.6 seconds — document icon pops; 3.5 seconds — negotiation label pops; 7.3 seconds — veto distinction appears with a small amber pointer.
+Sound: Same instrumental pulse with restrained rising tension, document pop at 0.6 seconds, soft callout clicks at 3.5 and 7.3 seconds; no gavel implying a real vote.
+
+Clip 4:
+Narration: "Second comes spending. Congress approves federal funding, giving lawmakers leverage over priorities. But changing spending usually requires legislation, not simply an opposition leader announcing that the money has been stopped."
+Shot 1: 0–5 seconds — [RECONSTRUCTION] Move through a clearly illustrative empty congressional committee room toward an unbranded folder labelled "FEDERAL FUNDING"; no prominent person, signature, fake bill number or staged real meeting.
+Shot 2: 5–10 seconds — [EXPLAINER] Follow the folder edge into a foreground occlusion and reveal an ivory whiteboard: a funding document passes through neutral House and Senate boxes toward a presidential decision box, illustrating a general process rather than a real vote.
+Effect: 1 second — funding label and amber folder pointer appear; 6–8 seconds — process boxes enter in order with small popup cues; no invented dollar values or zero counters.
+Sound: Restrained analytical version of the same synth theme; soft paper rustle at 1 second, short transition whoosh at 5 seconds, process-node pops at 6, 7 and 8 seconds under narration.
+
+Clip 5:
+Narration: "Third is oversight. Congressional committees can investigate government actions and hold hearings. That increases scrutiny, but an investigation is not proof of wrongdoing, and political promises are not completed findings."
+Shot 1: 0–3 seconds — [RECONSTRUCTION] Begin at the empty illustrative witness table; track toward a neutral folder marked "OVERSIGHT" without personal names, accusations or fabricated evidence.
+Shot 2: 3–7 seconds — [RECONSTRUCTION] Pan along the same empty room toward a simple hearing microphone and blank seats; the exact label "ILLUSTRATIVE RECONSTRUCTION" remains small and readable.
+Shot 3: 7–10 seconds — [RECONSTRUCTION] Continue the pan to a standing institutional placard reading "INQUIRY ≠ FINDING"; settle beside the folder, showing no identifiable politician and implying no particular hearing occurred.
+Effect: 0.8 seconds — oversight label pops; 3.5 seconds — a restrained ring points at the microphone; 7.4 seconds — the inquiry/finding distinction appears on a flat readable placard.
+Sound: Same theme softens into restrained investigative piano and pulse; paper touch at 0.8 seconds, quiet pointer pop at 3.5 seconds, placard click at 7.4 seconds; no ominous guilt cue or dramatic accusation sting.
+
+Clip 6:
+Narration: "Trump retains presidential powers, including veto authority. Overriding a veto requires two-thirds in each chamber. The shift creates stronger checks and bargaining, not an automatic end to presidential authority or war."
+Shot 1: 0–3 seconds — [EXPLAINER] Start on an ivory editorial diagram linking a neutral presidency building symbol and two congressional chamber boxes; show no human face or voice imitation.
+Shot 2: 3–7 seconds — [EXPLAINER] Pan across the diagram as the exact "2/3" fraction types inside each chamber box, with the short label "VETO OVERRIDE" above both; do not invent actual voting totals.
+Shot 3: 7–10 seconds — [EXPLAINER] Pull back to show the complete checks-and-balances diagram, with balanced arrows and exact final label "CHECKS AND BARGAINING"; hold a readable completed explanatory view without a campaign slogan.
+Effect: 0.6 seconds — institutional symbols pop; 3.4–5.5 seconds — both 2/3 fractions type on; 7.4 seconds — final label appears with a single soft popup.
+Sound: Same documentary theme resolves calmly; symbol pop at 0.6 seconds, typing ticks at 3.4–5.5 seconds, final label pop at 7.4 seconds; music remains beneath complete narration through the final sentence.

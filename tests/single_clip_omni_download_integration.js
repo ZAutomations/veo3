@@ -96,5 +96,15 @@ const engine={projectUrl:'https://flow.google.com/project/test-pipeline',page:{b
  assert(borrowedEntry.file.startsWith('asset-'));assert.equal(newPages,pagesBefore);assert.equal(backgroundNavigations,navigationsBefore,'completed Agent collection never opens or navigates another tab');
  let closed=false;const previousClose=page.close;page.close=async()=>closed=true;await borrowed.close();page.close=previousClose;
  assert(!closed,'borrowed project tab must remain open');
- console.log('PASS: scoped Upscaled menu clicks, CDP completion, real saved 720p files, skip on resume, scene-order manifest, no partial overwrite, one background tab.');
+ const auto=new UpscaledDownloader(engine,{folder:path.join(folder,'auto-upscaled'),total:1,storyHash:'auto-resolution',upscaleFromSource:true});
+ const beforeAuto=downloads;
+ await auto.group([{number:1,prompt:'Prompt 1'}],{1:{assetId:'asset-1'}}); // No native720 hint: menu caption is authoritative.
+ const autoManifest=JSON.parse(fs.readFileSync(path.join(folder,'auto-upscaled','clips','manifest.json')));
+ assert(autoManifest.complete);assert.equal(autoManifest.clips[0].route,'upscaled-1080p');assert.equal(autoManifest.clips[0].height,1080);
+ await auto.close();
+ const autoResume=new UpscaledDownloader(engine,{folder:path.join(folder,'auto-upscaled'),total:1,storyHash:'auto-resolution',upscaleFromSource:true});
+ await autoResume.group([{number:1,prompt:'Prompt 1'}],{1:{assetId:'asset-1'}});
+ assert.equal(downloads,beforeAuto+1,'menu-selected actual resolution is reused across resumes without native resolution metadata');
+ await autoResume.close();
+ console.log('PASS: scoped Upscaled menu clicks, CDP completion, real saved 720p/1080p files, menu version selection without native metadata, skip on resume, scene-order manifest and partial preservation.');
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>fs.rmSync(folder,{recursive:true,force:true}));

@@ -53,15 +53,47 @@ async function prepare({engine,storyFile,submissionFile,text,inspect,wait}){
 function markSubmitting(plan,context={}){
  const snapshot=context.snapshot||{};
  const agents=(snapshot.conversationRows||[]).filter(row=>row.role==='agent');
+ let prior={};try{prior=JSON.parse(fs.readFileSync(plan.receiptFile,'utf8'));}catch{}
  fs.writeFileSync(plan.receiptFile+'.tmp',JSON.stringify({status:'submitting',numbers:plan.missing,at:new Date().toISOString(),
+  attempt:(Number(prior.attempt)||0)+1,
   priorAgentCount:agents.length,priorAgentText:agents.at(-1)?.text||'',
+  priorReadyVideos:Number(snapshot.mediaTiles?.ready_video_tile)||0,
+  priorGeneratingVideos:Number(snapshot.mediaTiles?.generating_video_tile)||0,
+  priorFlowVideos:Number(snapshot.mediaTiles?.flow_video_tile)||0,
   priorFailedVideos:Number(snapshot.mediaTiles?.failed_video_tile)||0,
   priorPolicyCount:Array.isArray(snapshot.mediaTiles?.failed_policy_texts)?snapshot.mediaTiles.failed_policy_texts.length:0,
   priorVisibleRefusalCount:Array.isArray(snapshot.policyRefusals)?snapshot.policyRefusals.length:0}));
  fs.renameSync(plan.receiptFile+'.tmp',plan.receiptFile);
 }
-function pendingSubmission(submissionFile){
- if(!submissionFile)return null;
- try{const receipt=JSON.parse(fs.readFileSync(submissionFile+'.missing.json','utf8'));return receipt?.status==='submitting'?receipt:null;}catch{return null;}
+function confirmObservedSubmission(submissionFile,snapshot){
+ if(!submissionFile||!snapshot)return false;
+ let receipt;try{receipt=JSON.parse(fs.readFileSync(submissionFile+'.missing.json','utf8'));}catch{return false;}
+ if(receipt?.status!=='submitting')return receipt?.status==='confirmed';
+ const agents=(snapshot.conversationRows||[]).filter(row=>row.role==='agent');
+ const newAgents=agents.slice(Number(receipt.priorAgentCount)||0);
+ const acknowledged=newAgents.some(row=>/\b(?:submitted|resubmitted|queued|generated|generating|created|started|refused|blocked|rejected|failed)\b/i.test(String(row.text||'')));
+ const mt=snapshot.mediaTiles||{};
+ const increased=(key,prior)=>Object.hasOwn(receipt,prior)&&Number(mt[key]||0)>Number(receipt[prior]||0);
+ const tileChanged=increased('ready_video_tile','priorReadyVideos')
+  ||increased('generating_video_tile','priorGeneratingVideos')
+  ||increased('flow_video_tile','priorFlowVideos')
+  ||increased('failed_video_tile','priorFailedVideos');
+ const policyChanged=(Array.isArray(mt.failed_policy_texts)?mt.failed_policy_texts.length:0)>Number(receipt.priorPolicyCount||0)
+  ||(Array.isArray(snapshot.policyRefusals)?snapshot.policyRefusals.length:0)>Number(receipt.priorVisibleRefusalCount||0);
+ if(!acknowledged&&!tileChanged&&!policyChanged)return false;
+ receipt.status='confirmed';receipt.confirmedAt=new Date().toISOString();
+ receipt.confirmation=acknowledged?'new-agent-response':tileChanged?'project-tile-change':'new-policy-result';
+ fs.writeFileSync(submissionFile+'.missing.json.tmp',JSON.stringify(receipt));
+ fs.renameSync(submissionFile+'.missing.json.tmp',submissionFile+'.missing.json');
+ return true;
 }
-module.exports={planMissing,missingPrompt,prepare,markSubmitting,pendingSubmission};
+function pendingSubmission(submissionFile,snapshot){
+ if(!submissionFile)return null;
+ let receipt;try{receipt=JSON.parse(fs.readFileSync(submissionFile+'.missing.json','utf8'));}catch(error){
+  if(error.code==='ENOENT')return null;
+  throw Error('Missing-scene receipt could not be read; generation paused: '+error.message);
+ }
+ if(receipt?.status==='submitting'&&confirmObservedSubmission(submissionFile,snapshot))return null;
+ return receipt?.status==='submitting'?receipt:null;
+}
+module.exports={planMissing,missingPrompt,prepare,markSubmitting,confirmObservedSubmission,pendingSubmission};

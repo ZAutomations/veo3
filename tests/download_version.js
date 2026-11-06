@@ -4,6 +4,11 @@ const {chooseOriginal,chooseUpscaled,videoInfo,verifiedExisting}=require('../sin
 const options=[{text:'360p Original'},{text:'720p Upscaled'},{text:'1080p Upscaled'}];
 assert.equal(chooseOriginal(options,360).text,'360p Original');
 assert.equal(chooseUpscaled(options,720).text,'720p Upscaled');
+assert.equal(chooseUpscaled([{text:'720p Original'},{text:'1080p Upscaled'}],720,{versionOnly:true}).text,'1080p Upscaled');
+assert.equal(chooseUpscaled([{text:'720p Original'},{text:'Upscaled'}],720,{versionOnly:true}).text,'Upscaled');
+assert.throws(()=>chooseUpscaled([{text:'720p Original'}],720,{versionOnly:true}),/not found/);
+assert.throws(()=>chooseUpscaled([{text:'1080p Upscaled',disabled:true}],720,{versionOnly:true}),/not found/);
+assert.throws(()=>chooseUpscaled([{text:'1080p Upscaled'},{text:'2160p Upscaled'}],720,{versionOnly:true}),/Multiple/);
 assert.throws(()=>chooseOriginal([{text:'720p Upscaled'}],360),/not found/);
 assert.throws(()=>chooseOriginal([{text:'360p Original',disabled:true}],360),/not found/);
 const dir=fs.mkdtempSync(path.join(os.tmpdir(),'original-download-'));

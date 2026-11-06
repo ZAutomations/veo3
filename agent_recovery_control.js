@@ -1,4 +1,4 @@
-const DIRECT_REFUSAL=/\b(?:this prompt (?:might|may|could) violate|prompt (?:might|may) violate|policies? about generating|(?:content|safety) polic(?:y|ies) (?:does not|doesn't|do not|don't) allow|(?:cannot|can't|unable to) (?:generate|create|help with)|(?:was|is) (?:blocked|rejected) (?:by|for) (?:our )?(?:policy|policies|safety)|violates? (?:our )?(?:policy|policies|guidelines)|not allowed under (?:our )?(?:policy|policies)|against our (?:policy|policies|guidelines)|third.party content providers)/i;
+const DIRECT_REFUSAL=/\b(?:this prompt (?:might|may|could) violate|prompt (?:might|may) violate|policies? about generating|(?:content|safety) polic(?:y|ies) (?:does not|doesn't|do not|don't) allow|(?:cannot|can't|unable to) (?:generate|create|help with)|(?:was|is) (?:blocked|rejected) (?:by|for) (?:our )?(?:policy|policies|safety)|violates? (?:our )?(?:policy|policies|guidelines)|not allowed under (?:our )?(?:policy|policies)|against our (?:policy|policies|guidelines)|reputational risk|misrepresent(?:ing|ation of)? current events|third.party content providers)/i;
 function refusalText(value){
  const text=String(value||'').replace(/^\s*(?:warning|error|failed)\s*/i,'').trim();
  return DIRECT_REFUSAL.test(text)?text.slice(0,650):'';
@@ -25,7 +25,7 @@ function actionableRefusal(snapshot,submissionFile){
  const refusal=latestRefusal(snapshot);if(!refusal)return '';
  if(!submissionFile)return refusal;
  let receipt;try{receipt=JSON.parse(require('fs').readFileSync(submissionFile+'.missing.json','utf8'));}catch{}
- if(receipt?.status!=='submitting')return refusal;
+ if(!['submitting','confirmed'].includes(receipt?.status))return refusal;
  // The old refusal card can remain on screen while Flow is processing the
  // single approved revision. Ignore it until a new Agent response or a newly
  // failed video proves the revised request itself was rejected.

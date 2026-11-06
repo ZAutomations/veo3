@@ -42,6 +42,18 @@ const driver=fs.readFileSync(require.resolve('../agent_mode'),'utf8');assert(dri
   let reads=0;const opts={storyFile,submissionFile,text,engine:{},wait:async()=>{},inspect:async()=>{reads++;return result;}};
   const plan=await r.prepare(opts);assert.equal(reads,2);r.markSubmitting(plan);
   await assert.rejects(r.prepare(opts),/unconfirmed/);
+  const baseline={conversationRows:[{role:'agent',text:'Old result'}],mediaTiles:{ready_video_tile:2,failed_video_tile:0,flow_video_tile:2,generating_video_tile:0}};
+  r.markSubmitting(plan,{snapshot:baseline});
+  assert(r.pendingSubmission(submissionFile,baseline),'unchanged state must remain protected');
+  const acknowledged={...baseline,conversationRows:[...baseline.conversationRows,{role:'agent',text:'I have submitted the missing scenes; they are queued.'}]};
+  assert.equal(r.pendingSubmission(submissionFile,acknowledged),null);
+  assert.equal(JSON.parse(fs.readFileSync(plan.receiptFile)).status,'confirmed');
+  assert.deepEqual((await r.prepare(opts)).missing,[2,3,5],'confirmed response permits a fresh exact missing-scene audit');
+  r.markSubmitting(plan,{snapshot:baseline});
+  assert.equal(r.pendingSubmission(submissionFile,{...baseline,mediaTiles:{...baseline.mediaTiles,generating_video_tile:1,flow_video_tile:3}}),null,'new generation confirms delivery');
+  const legacy={status:'submitting',numbers:[2,3,5],priorAgentCount:1,priorAgentText:'Old result',priorFailedVideos:0};
+  fs.writeFileSync(plan.receiptFile,JSON.stringify(legacy));
+  assert(r.pendingSubmission(submissionFile,baseline),'legacy receipt must not mistake existing clips for new activity');
   const changed={...result,tiles:[...tiles,{text:story.scenes[1].script_line,ready:true,assetId:'new'}]};let n=0;
   await assert.rejects(r.prepare({...opts,inspect:async()=>++n===1?result:changed}),/changed/);
  }finally{fs.rmSync(folder,{recursive:true,force:true});}

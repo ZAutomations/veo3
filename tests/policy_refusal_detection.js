@@ -33,6 +33,20 @@ const refusalTile={tagName:'FLOW-VIDEO-TILE',innerText:explicit,textContent:expl
  getBoundingClientRect:()=>({x:0,y:0,width:200,height:180}),querySelectorAll:()=>[],querySelector:()=>null};
 global.document={querySelectorAll:s=>s==='flow-video-tile, flow-image-tile'?[refusalTile]:[],documentElement:{scrollHeight:500},body:{scrollHeight:500}};
 const scanned=projectFrame().tiles[0];assert(scanned.failed&&scanned.policyFailure);assert.match(scanned.failureText,/prominent people/i);
+for(const message of [
+ 'Unable to generate videos that might cause reputational risk or misrepresent current events. Please try a different prompt or send feedback.',
+ 'This request risks misrepresenting current events.',
+ 'Generation declined due to reputational risk.'
+]){
+ assert(recovery.latestRefusal({policyRefusals:[message]}),'visible current-events refusal must reach recovery');
+ refusalTile.innerText=refusalTile.textContent=message;
+ const tile=projectFrame().tiles[0];assert(tile.failed&&tile.policyFailure,'project inventory must classify the refusal as failed policy media, not an active generation');
+}
+assert.equal(recovery.latestRefusal({policyRefusals:['A documentary explains current events and institutional roles.']}),'');
+const instructions=require('../agent_policy_recovery');
+assert(instructions.includes('CURRENT EVENTS / REPUTATIONAL RISK'));
+assert(instructions.includes('certified results'));
+assert(instructions.includes('stop for review if refused again'));
 delete global.window;delete global.document;
 
 const start=mode.indexOf('async function retryFailedMediaOnly');

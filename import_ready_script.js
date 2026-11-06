@@ -11,6 +11,7 @@ function prepare(s,aspect){
  if(require('./reference_video_preset').applies(p))return require('./reference_video_preset').prepare(W,p,s,aspect);
  if(require('./heartwarming_cat').applies(p))return require('./heartwarming_cat').prepare(W,p,s,aspect);
  if(require('./motivational_metaphor').applies(p))return require('./motivational_ready_script').prepare(W,p,s,aspect);
+ if(p.id==='world-politics-map-explain')return require('./world_politics_ready_script').prepare(W,p,s,aspect);
  if(p.id==='fern-documentary')return require('./fern_ready_script').prepare(W,p,s,aspect);
  if(['3d-zack-style','intimacy-health-3d'].includes(p.id))return require('./zack_ready_script').prepare(W,p,s,aspect);
  if(p.id==='geography-map')return require('./geography_ready_script').prepare(W,p,s,aspect);
@@ -71,7 +72,7 @@ function run(request){
  const root=path.resolve(request.out||path.join(__dirname,'stories'));fs.mkdirSync(root,{recursive:true});
  return prepared.map(({W,p,cast,story,warnings},i)=>{
   const s=parsed[i],key=semanticKey(s);
- if(!p.derived_video_preset&&!['fern-documentary','3d-zack-style','intimacy-health-3d','geography-map','3d-motivational-red-green','heartwarming-cat-3d'].includes(s.preset)){delete key.characters;delete key.locations;key.clips.forEach(c=>{if(!c.shots.length)delete c.shots;});}
+ if(!p.derived_video_preset&&!['world-politics-map-explain','fern-documentary','3d-zack-style','intimacy-health-3d','geography-map','3d-motivational-red-green','heartwarming-cat-3d'].includes(s.preset)){delete key.characters;delete key.locations;key.clips.forEach(c=>{if(!c.shots.length)delete c.shots;});}
   const hash=crypto.createHash('sha256').update(JSON.stringify({s:key,aspect})).digest('hex').slice(0,10);
   // Default ready-script imports into a per-preset folder, matching stories
   // produced by write_story.js. --out still chooses the stories root.

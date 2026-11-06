@@ -5,12 +5,16 @@ const media=require('./single_clip_omni_media');
 const {installGridScroller}=require('./flow_grid_scroll');
 const bg=require('./single_clip_omni_background');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-function chooseUpscaled(items,target=720){
+function chooseUpscaled(items,target=720,{versionOnly=false}={}){
  if(![720,1080].includes(target))throw Error('Unsupported upscale target.');
  const options=items.filter(i=>/\bupscaled\b/i.test(i.text)&&!i.disabled);
+ // Agent's GUI choice is a VERSION, not a fixed pixel count. Flow may offer
+ // 1080p Upscaled for a 720p source, or show just the Upscaled caption.
+ if(versionOnly&&options.length===1)return options[0];
  const exact=options.filter(i=>new RegExp(`\\b${target}p?\\b`,'i').test(i.text));
  if(exact.length===1)return exact[0];
  if(exact.length>1)throw Error(`More than one Upscaled ${target}p option; refusing to guess.`);
+ if(versionOnly)throw Error(options.length?'Multiple Upscaled versions are available without a unique matching choice; no Original substituted.':'Upscaled download version was not found. Original-size downloads are not used.');
  // Some Flow menus label 1080p without repeating the Upscaled caption.
  const labelled=items.filter(i=>!i.disabled&&new RegExp(`^${target}p(?:\\s|$)`,'i').test(i.text)&&!/original/i.test(i.text));
  if(labelled.length===1)return labelled[0];
@@ -36,7 +40,7 @@ function videoInfo(file,target=720){
  if(!validation.ok)throw Error(validation.why);
  const p=JSON.parse(execFileSync('ffprobe',['-v','error','-select_streams','v:0','-show_entries','stream=width,height','-of','json',file],{encoding:'utf8',timeout:30000,windowsHide:true}));
  const stream=p.streams?.[0];
- if(!stream||Math.min(stream.width,stream.height)!==target)throw Error(`Upscaled file is ${stream?.width||'?'}x${stream?.height||'?'}, not ${target}p. File kept for review.`);
+ if(!stream||(target===null?Math.min(stream.width,stream.height)<720:Math.min(stream.width,stream.height)!==target))throw Error(`Upscaled file is ${stream?.width||'?'}x${stream?.height||'?'}, not ${target===null?'a supported HD output':target+'p'}. File kept for review.`);
  return {...validation,width:stream.width,height:stream.height,sha256:crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')};
 }
 function verifiedExisting(entry,job,out,project,allowNative720=false,target=720,version='upscaled'){
@@ -139,6 +143,9 @@ class UpscaledDownloader{
   let target=this.downloadVersion==='original'?(receipt?.nativeResolution||this.targetResolution):(this.upscaleFromSource&&receipt?.native720?1080:this.targetResolution);
   this.targets.set(job.number,target);
   const old=this.ledger.clips.find(c=>c.scene===job.number);
+  if(this.downloadVersion==='upscaled'&&this.upscaleFromSource&&/^upscaled-\d+p$/.test(old?.route||'')){
+   target=Number(old.route.match(/\d+/)[0]);this.targets.set(job.number,target);
+  }
   if(this.downloadVersion==='original'&&/^original-(360|720|1080)p$/.test(old?.route||'')){
    target=Number(old.route.match(/\d+/)[0]);this.targets.set(job.number,target);
   }
@@ -164,10 +171,11 @@ class UpscaledDownloader{
    const items=await this.page.evaluate(menuItems);
    if(items.some(i=>/original|upscaled|1080p|720p|360p/i.test(i.text))){
     try{
-     upscaled=this.downloadVersion==='original'?chooseOriginal(items,target):chooseUpscaled(items,target);
-     if(this.downloadVersion==='original'){
-      const labelledResolution=upscaled.text.match(/\b(360|720|1080)p\b/i);
-      if(labelledResolution){target=Number(labelledResolution[1]);this.targets.set(job.number,target);route=`original-${target}p`;}
+     upscaled=this.downloadVersion==='original'?chooseOriginal(items,target):chooseUpscaled(items,target,{versionOnly:this.upscaleFromSource});
+     if(this.downloadVersion==='original'||this.upscaleFromSource){
+      const labelledResolution=upscaled.text.match(/\b(\d{3,4})p\b/i);
+      if(labelledResolution){target=Number(labelledResolution[1]);this.targets.set(job.number,target);route=`${this.downloadVersion}-${target}p`;}
+      else if(this.downloadVersion==='upscaled')target=null; // Bare version label: verify actual decoded dimensions after transfer.
      }
     }catch(error){
      const native=this.allowNative720&&receipt?.native720&&items.filter(i=>/original/i.test(i.text)&&!i.disabled&&!/360p|1080p|2160p|4k/i.test(i.text));
@@ -193,6 +201,7 @@ class UpscaledDownloader{
   const d=this.activeDownload;
   if(d.status!=='completed'||!d.guid){const error=Error(`Scene ${job.number}: upscaled download did not finish within 6 minutes.`);error.code='DOWNLOAD_TIMEOUT';throw error;}
   const source=path.join(this.temp,d.guid),info=videoInfo(source,target);
+  if(target===null){target=Math.min(info.width,info.height);route=`upscaled-${target}p`;this.targets.set(job.number,target);}
   const file=this.orderMode==='unresolved-assets'?`asset-${crypto.createHash('sha256').update(String(receipt?.assetId||hit.assetId)).digest('hex').slice(0,16)}.mp4`:`scene-${String(job.number).padStart(2,'0')}.mp4`,dest=path.join(this.out,file);
   fs.mkdirSync(this.out,{recursive:true});
   if(fs.existsSync(dest)){

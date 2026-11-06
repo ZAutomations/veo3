@@ -19,6 +19,7 @@ function basePromptForScene(story, index, options = {}) {
     if(require('./reference_video_preset').applies(story))return pace+require('./reference_video_preset').scene(story,index,{aspect:aspect||'Flow',seconds});
     if(require('./heartwarming_cat').applies(story))return pace+require('./heartwarming_cat').scene(story,index,{aspect:aspect||'Flow',seconds});
     if(require('./motivational_ready_script').applies(story))return pace+require('./motivational_ready_script').scene(story,index,{aspect:aspect||'Flow',seconds});
+    if(require('./world_politics_ready_script').applies(story))return pace+require('./world_politics_ready_script').scene(story,index,{aspect:aspect||'Flow',seconds});
     if(require('./fern_ready_script').applies(story))return pace+require('./fern_ready_script').scene(story,index,{aspect:aspect||'Flow',seconds});
     if(require('./geography_ready_script').applies(story))return pace+require('./geography_ready_script').scene(story,index,{aspect:aspect||'Flow',seconds});
     if(require('./zack_ready_script').applies(story))return pace+require('./zack_ready_script').scene(story,index,{aspect:aspect||'Flow',seconds});

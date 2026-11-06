@@ -352,8 +352,8 @@ function snapshotFn() {
         .map(el => d(el, 1));
 
     const videoEls = [...document.querySelectorAll('flow-video-tile')];
-    const FAIL = /audio generation failed|failed to generate|generation failed|something went wrong|try a different prompt|you have not been charged|might violate|may violate|violates? our|content polic|third.party content providers/i;
-    const POLICY_REFUSAL = /this prompt (?:might|may|could) violate|policies about generating|content polic|policy refusal|violates? (?:our )?(?:policy|policies|guidelines)|third.party content providers/i;
+    const FAIL = /audio generation failed|failed to generate|generation failed|something went wrong|try a different prompt|you have not been charged|might violate|may violate|violates? our|content polic|reputational risk|misrepresent(?:ing|ation of)? current events|third.party content providers/i;
+    const POLICY_REFUSAL = /this prompt (?:might|may|could) violate|policies about generating|content polic|policy refusal|violates? (?:our )?(?:policy|policies|guidelines)|reputational risk|misrepresent(?:ing|ation of)? current events|third.party content providers/i;
     const BUSY = /generating|generation in progress|queued|processing|creating|(?:^|\n)\s*\d{1,2}%\s*(?:\n|$)/i;
     const failedVideos = videoEls.filter(t => FAIL.test(t.innerText || t.textContent || '')
         || !!t.querySelector('[class*=error-tile], button[aria-label="Retry"]'));
@@ -441,8 +441,8 @@ function retryFn() {
     const vis = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
     // The specific Veo failure wording, NOT a bare /error/ - that appears in
     // unrelated UI and would make every page look broken.
-    const FAIL = /audio generation failed|failed to generate|generation failed|something went wrong|try a different prompt|this prompt (?:might|may|could) violate|policies about generating|content polic|third.party content providers/i;
-    const POLICY = /this prompt (?:might|may|could) violate|policies about generating|content polic|policy refusal|violates? (?:our )?(?:policy|policies|guidelines)|third.party content providers/i;
+    const FAIL = /audio generation failed|failed to generate|generation failed|something went wrong|try a different prompt|this prompt (?:might|may|could) violate|policies about generating|content polic|reputational risk|misrepresent(?:ing|ation of)? current events|third.party content providers/i;
+    const POLICY = /this prompt (?:might|may|could) violate|policies about generating|content polic|policy refusal|violates? (?:our )?(?:policy|policies|guidelines)|reputational risk|misrepresent(?:ing|ation of)? current events|third.party content providers/i;
     const policyScopes = [...new Set(document.querySelectorAll(
         '.chat-error-card, [class*=error-tile], [class*=generation-error], [class*=media-error], [role=alert], .messages-list .message-row, [class*=message-row]'))]
         .filter(vis).filter(el => POLICY.test(el.innerText || el.textContent || ''));
@@ -474,7 +474,7 @@ async function clickFailures(page) {
     return await page.evaluate(() => {
         const vis = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
         let retry = 0, reuse = 0;
-        const FAIL = /audio generation failed|failed to generate|generation failed|something went wrong|try a different prompt|you have not been charged|might violate|may violate|violates? our|content polic|third.party content providers/i;
+        const FAIL = /audio generation failed|failed to generate|generation failed|something went wrong|try a different prompt|you have not been charged|might violate|may violate|violates? our|content polic|reputational risk|misrepresent(?:ing|ation of)? current events|third.party content providers/i;
         const scopes = [...document.querySelectorAll('flow-video-tile, [class*=error-tile], [class*=generation-error], [class*=media-error]')]
             .filter(vis).filter(el => FAIL.test(el.innerText || el.textContent || '')
                 || !!el.querySelector('button[aria-label="Retry"], button.reuse-prompt-button, button[aria-label="Reuse prompt"]'));
@@ -593,7 +593,7 @@ async function reviewFailedBatch(page, snapshot) {
         log('Retry preflight unavailable: story/checkpoint files were not supplied. No batch-level recovery prompt submitted.');
         return false;
     }
-    if(require('./agent_missing_scenes').pendingSubmission(submissionFile)){
+    if(require('./agent_missing_scenes').pendingSubmission(submissionFile,snapshot)){
         log('A missing-scene/safety-review submission is already pending. Not sending a duplicate while its result is unconfirmed.');
         return false;
     }
@@ -644,7 +644,7 @@ async function retryFailedMediaOnly(page, snap, label = 'retry') {
         const st = await page.evaluate(retryFn);
         if(st.unusualActivity && !activityRetryPermit)throw Error('FLOW_UNUSUAL_ACTIVITY: Flow reported unusual activity; use the saved global cooldown before safe retry.');
 
-        const pendingReview=require('./agent_missing_scenes').pendingSubmission(flag('--submission-file',null));
+        const pendingReview=require('./agent_missing_scenes').pendingSubmission(flag('--submission-file',null),cur);
         if(pendingReview){
             const newRefusal=require('./agent_recovery_control').actionableRefusal(cur,flag('--submission-file',null));
             if(newRefusal)throw Error('FLOW_REVIEW_REQUIRED: The safety-revised scene was refused again. No further submission will be made; inspect the exact scene and references.');
@@ -1044,7 +1044,7 @@ async function uploadRefThroughPicker(page, box, file) {
         log('The full story prompt will not be typed or submitted.');
         log('Flow conversation-level "Try again" is ignored because it repeats every clip.');
         const reviewSnapshot=await readProjectSnapshot(page,true);
-        if(!require('./agent_missing_scenes').pendingSubmission(submissionCheckpoint)
+        if(!require('./agent_missing_scenes').pendingSubmission(submissionCheckpoint,s)
                 && await reviewFailedBatch(page,reviewSnapshot))await sweepFor(page,RETRY_WATCH,'failed-scene-review');
         const retried = await retryFailedMediaOnly(page, snap, 'safe-retry');
         const final = await snap('safe-retry-final');
