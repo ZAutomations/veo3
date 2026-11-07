@@ -293,9 +293,13 @@ ordered.forEach((f, i) => {
 });
 log('');
 log(`Total      : ${total ? total.toFixed(2) + 's (about ' + Math.round(total) + 's)' : 'unknown'}`);
-const thumbnailCandidates = NO_THUMBNAIL ? [] : ['thumbnail_downloaded.png','thumbnail_downloaded.jpg','thumbnail_downloaded.jpeg','thumbnail_downloaded.webp']
+const storyTitleBase = require('./story_output_name').storyTitleBase;
+const outputTitle = storyTitleBase(path.dirname(path.resolve(DIR)));
+const thumbnailNames = ['thumbnail_downloaded.png','thumbnail_downloaded.jpg','thumbnail_downloaded.jpeg','thumbnail_downloaded.webp',
+    ...['.png','.jpg','.jpeg','.webp'].map(ext => `${outputTitle}${ext}`)];
+const thumbnailCandidates = NO_THUMBNAIL ? [] : thumbnailNames
     .map(name => path.join(path.dirname(path.resolve(DIR)), name)).concat(
-        NO_THUMBNAIL ? [] : ['thumbnail_downloaded.png','thumbnail_downloaded.jpg','thumbnail_downloaded.jpeg','thumbnail_downloaded.webp'].map(name => path.join(path.resolve(DIR),name)));
+        NO_THUMBNAIL ? [] : thumbnailNames.map(name => path.join(path.resolve(DIR),name)));
 const thumbnailPath = thumbnailCandidates.find(file => fs.existsSync(file) && fs.statSync(file).size > 2048) || null;
 if (thumbnailPath) {
     log(`End card   : ${thumbnailPath} (${THUMBNAIL_SECONDS}s, appended after the final clip)`);
@@ -383,8 +387,7 @@ const listBody = ordered
     .join('\n') + '\n';
 fs.writeFileSync(listPath, listBody, 'utf8');
 
-const storyTitleBase = require('./story_output_name').storyTitleBase;
-const outputBase = storyTitleBase(path.dirname(path.resolve(DIR)));
+const outputBase = outputTitle + ' raw';
 const outPath = OUT_FLAG || path.join(path.dirname(path.resolve(DIR)),
     outputBase + (partialExport ? '_partial.mp4' : '.mp4'));
 // Keep the last complete export playable while the replacement is encoding.
@@ -460,6 +463,13 @@ catch (e) {
     process.exit(1);
 }
 if (thumbnailSegmentName) fs.rmSync(path.join(DIR,thumbnailSegmentName),{force:true});
+if (thumbnailPath) {
+    const namedThumbnail = path.join(path.dirname(path.resolve(DIR)), `${outputTitle}${path.extname(thumbnailPath).toLowerCase()}`);
+    if (path.resolve(namedThumbnail) !== path.resolve(thumbnailPath)) {
+        fs.copyFileSync(thumbnailPath, namedThumbnail);
+        log(`Thumbnail : ${namedThumbnail}`);
+    }
+}
 let start = 0;
 const orderReport = ordered.map((file, i) => {
     const label = file === thumbnailSegmentName ? `${path.basename(thumbnailPath)} (thumbnail end card)` : file;

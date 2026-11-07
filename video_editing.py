@@ -592,8 +592,12 @@ def edit(source,values=None,report=None,output=None):
     if output:
         final=Path(output).resolve()
     else:
-        base=re.sub(r'(?i)(?:_final|_joined|_concat|_partial)$','',source.stem)
-        final=source.with_name(base+'_edited.mp4')
+        if re.search(r'(?i)\s+raw$',source.stem):
+            base=re.sub(r'(?i)\s+raw$','',source.stem).rstrip()
+            final=source.with_name(base+'.mp4')
+        else:
+            base=re.sub(r'(?i)(?:_final|_joined|_concat|_partial)$','',source.stem)
+            final=source.with_name(base+'_edited.mp4')
     if final==source:raise ValueError('Edited output must be a different file from the original.')
     folder=source.parent/'video_editing';folder.mkdir(exist_ok=True)
     signature=hashlib.sha256(('camera_local_transitions_v3'+str(source)+str(source.stat().st_size)+str(source.stat().st_mtime_ns)+json.dumps(cfg,sort_keys=True)).encode()).hexdigest()
