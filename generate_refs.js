@@ -824,9 +824,14 @@ async function generateRefs(page, refs, opts = {}) {
         }
         const recovery = require('./reference_generation_receipt');
         const receipt = recovery.receiptFor(page.url().split('?')[0],r);
-        const recovered = await recovery.recoverPending(page,receipt,waitS,RI,log);
-        if(recovered?.alreadyNamed){made++;log('  verified reference already saved; skipped.');continue;}
-        const result = recovered || await RI.withActivityWait(async () => {
+        let recovered = await recovery.recoverPending(page,receipt,waitS,RI,log);
+        if(recovered?.alreadyNamed){
+            const label=await tileName(page,recovered.tileIndex);
+            const belongsToOther=refs.find(x=>String(x.name||'').trim().toLowerCase()===String(label||'').trim().toLowerCase()&&String(x.name||'').trim().toLowerCase()!==name.toLowerCase());
+            if(belongsToOther){log(`  saved receipt points to tile named "${label}" for ${belongsToOther.name}, not ${name}; leaving it untouched and clearing the stale receipt.`);receipt.clear();recovered=null;}
+            else {made++;log('  verified reference already saved; skipped.');continue;}
+        }
+        const generateFresh = async () => await RI.withActivityWait(async () => {
             // Recheck before every sheet and retry, so a stale Video selection
             // never silently turns a character sheet into a video.
             await prepare(r.aspect || '16:9');
@@ -878,6 +883,22 @@ async function generateRefs(page, refs, opts = {}) {
             }
             return {...result,why:`${result.why} Final audit found no completed image named "${name}".`};
         }, { log });
+        let result = recovered || await generateFresh();
+        if(result.ok && Number.isInteger(result.tileIndex)) {
+            const label=await tileName(page,result.tileIndex);
+            const labelKey=String(label||'').trim().toLowerCase();
+            const otherRef=refs.find(x=>String(x.name||'').trim().toLowerCase()===labelKey&&labelKey&&String(x.name||'').trim().toLowerCase()!==name.toLowerCase());
+            if(otherRef && recovered) {
+                log(`  recovered image is already named "${label}" (${otherRef.name}); it is not ${name}. Leaving it untouched and generating the missing ${name} image.`);
+                receipt.clear();
+                result=await generateFresh();
+            } else if(labelKey===name.toLowerCase()) {
+                result.alreadyNamed=true;
+            } else if(otherRef) {
+                failed++; stopReason=`image tile is already named "${label}" for ${otherRef.name}; refusing to rename it as ${name}`;
+                log(`  FAILED: ${stopReason}`); break;
+            }
+        }
         if (!result.ok) {
             failed++;
             log(`  FAILED: ${result.why}`);
@@ -890,6 +911,9 @@ async function generateRefs(page, refs, opts = {}) {
             break;
         }
         if (result.alreadyNamed) {
+            const state=await page.evaluate(RI.referenceState);
+            const image=state.images.find(x=>x.tileIndex===result.tileIndex);
+            if(image)receipt.write({status:'completed',imageKey:image.key});
             made++;
             log(`  final audit confirmed the image is already named "${name}"; skipping rename.`);
             continue;
@@ -898,6 +922,9 @@ async function generateRefs(page, refs, opts = {}) {
         const ren = await renameNewest(page, name, result.tileIndex);
         if (ren.ok) {
             made++;
+            const state=await page.evaluate(RI.referenceState);
+            const image=state.images.find(x=>x.tileIndex===result.tileIndex);
+            if(image)receipt.write({status:'completed',imageKey:image.key});
             log(`  ok - tile renamed "${name}"${ren.verified ? ` (read back from the ${ren.verified})` : ''}`);
             // Worth saying out loud: the rename box is the authority, but if the
             // tile is still drawing the old label the later @mention has nothing
