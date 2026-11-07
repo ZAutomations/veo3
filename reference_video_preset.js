@@ -6,6 +6,7 @@ function validate(source,p){
  for(const c of source.clips){
   if(p.ready_script_mode==='dialogue'){if(!c.dialogue.length||c.narration)throw Error(`Clip ${c.number}: use labelled character dialogue only.`);for(const t of c.dialogue)if(!names.has(t.speaker))throw Error(`Unknown speaker ${t.speaker}.`);}
   else if(c.dialogue.length||p.ready_script_mode==='narrated_visual'&&!c.narration||p.ready_script_mode==='silent_visual'&&c.narration)throw Error(`Clip ${c.number}: speech fields do not match this preset.`);
+  if(source.seconds===10&&c.narration){const pace=require('./narration_pace').targets(10),count=require('./narration_pace').countWords(c.narration);if(count<pace.min||count>pace.max)throw Error(`Clip ${c.number}: a 10-second narrated clip must contain ${pace.min}–${pace.max} words inclusive; got ${count}.`);}
   if(!c.sound||!c.start_state||!c.end_state)throw Error(`Clip ${c.number}: supply Audio:, Start state: and End state:.`);
   if(!c.shots.length||c.shots.length>4)throw Error(`Clip ${c.number}: supply one to four timed shots.`);
   let end=0;for(const s of c.shots){if(s.start_seconds!==end||s.end_seconds<=end||s.end_seconds>source.seconds)throw Error(`Clip ${c.number}: shot timings must cover 0–${source.seconds} without gaps or overlaps.`);end=s.end_seconds;}if(end!==source.seconds)throw Error(`Clip ${c.number}: shots must end at ${source.seconds} seconds.`);

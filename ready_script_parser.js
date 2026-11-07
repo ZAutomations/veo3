@@ -166,6 +166,7 @@ function parse(text,defaults={}) {
     }
     const count=words(c.narration);
     const {min:targetMin,max:targetMax,hard:hardMax}=require('./narration_pace').targets(s.seconds);
+    if(s.seconds===10&&(count<targetMin||count>targetMax))fail(`Every narrated 10-second clip must contain ${targetMin}–${targetMax} words inclusive; Clip ${c.number} has ${count}.`,c._source.fields.narration,'Narration');
     if(count<targetMin||count>targetMax)s.warnings.push(`Clip ${c.number}: ${count} narration words for ${s.seconds}s; reference-matched target ${targetMin}–${targetMax}, hard pacing limit ${hardMax}. Approximate read time at the calibrated pace: ${Math.round(count/3.125*10)/10}s. Narration was preserved.`);
    }else if(motivational){
     if(!c.narration||c.dialogue.length||c.shots.length)fail('3D Motivational requires Narration, Start state, Action and End state, with no dialogue or Shot fields.',c._source.line,'Clip');

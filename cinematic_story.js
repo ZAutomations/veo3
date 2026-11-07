@@ -22,6 +22,7 @@ function validate(source){
   if(!c.action||!c.start_state||!c.end_state||!c.sound)throw Error(`Clip ${c.number}: supply Action:, Start state:, End state: and Audio:.`);
   if(i&&c.transition==='continuous'&&(c.start_state!==source.clips[i-1].end_state||c.location!==source.clips[i-1].location))throw Error(`Clip ${c.number}: continuous Start state must exactly repeat previous End state and keep the same location.`);
   if(c.narration&&c.dialogue.length)throw Error(`Clip ${c.number}: use dialogue or narration, not both in one clip.`);
+  if(source.seconds===10&&c.narration){const pace=require('./narration_pace').targets(10),count=require('./narration_pace').countWords(c.narration);if(count<pace.min||count>pace.max)throw Error(`Clip ${c.number}: a 10-second narrated clip must contain ${pace.min}–${pace.max} words inclusive; got ${count}.`);}
   for(const t of c.dialogue)if(!cast.includes(t.speaker)||!t.offscreen&&!c.characters.includes(t.speaker))throw Error(`Clip ${c.number}: visible speaker must be listed in Characters; use Voice Name: for a declared offscreen speaker.`);
   if(!c.shots.length||c.shots.length>4)throw Error(`Clip ${c.number}: supply one to four timed shots.`);
   let end=0;for(const shot of c.shots){if(shot.start_seconds!==end||shot.end_seconds<=end||shot.end_seconds>source.seconds)throw Error(`Clip ${c.number}: shots must cover 0–${source.seconds} without gaps or overlaps.`);end=shot.end_seconds;}

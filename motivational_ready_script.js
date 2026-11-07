@@ -10,6 +10,7 @@ function validate(source){
  if(/mindset\s*101/i.test([source.left_label,source.right_label,source.footer_start,source.footer_end].join(' ')))throw Error('MINDSET 101 branding is not allowed.');
  for(const [i,c] of source.clips.entries()){
   if(!c.narration||c.dialogue.length||c.shots.length)throw Error('Clip '+c.number+': Motivational needs Narration: and one continuous Action:, not dialogue or timed Shot fields.');
+  if(source.seconds===10){const pace=require('./narration_pace').targets(10),count=require('./narration_pace').countWords(c.narration);if(count<pace.min||count>pace.max)throw Error('Clip '+c.number+': a 10-second narrated clip must contain '+pace.min+'–'+pace.max+' words inclusive; got '+count+'.');}
   for(const key of ['start_state','action','end_state'])if(!c[key]?.trim())throw Error('Clip '+c.number+': supply Start state:, Action: and End state: for both Red and Green.');
   if(i&&c.start_state.trim()!==source.clips[i-1].end_state.trim())throw Error('Clip '+c.number+': Start state must exactly repeat the preceding End state to preserve task progress.');
  }

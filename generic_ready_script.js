@@ -18,7 +18,7 @@ function validate(source,p){
   if(!c.shots.length||c.shots.length>4)throw Error(`Clip ${c.number}: supply one to four timed Shot fields.`);
   let end=0;for(const s of c.shots){if(s.start_seconds!==end||s.end_seconds<=end||s.end_seconds>source.seconds)throw Error(`Clip ${c.number}: shot timings have a gap, overlap or invalid endpoint.`);end=s.end_seconds;}
   if(end!==source.seconds)throw Error(`Clip ${c.number}: shots must cover exactly ${source.seconds} seconds.`);
-  if(c.narration&&require('./narration_pace').countWords(c.narration)>require('./narration_pace').targets(source.seconds).hard)throw Error(`Clip ${c.number}: narration exceeds the ${require('./narration_pace').targets(source.seconds).hard}-word ceiling for ${source.seconds} seconds.`);
+  if(c.narration){const pace=require('./narration_pace').targets(source.seconds),count=require('./narration_pace').countWords(c.narration);if(source.seconds===10&&(count<pace.min||count>pace.max))throw Error(`Clip ${c.number}: a 10-second narrated clip must contain ${pace.min}–${pace.max} words inclusive; got ${count}.`);if(count>pace.hard)throw Error(`Clip ${c.number}: narration exceeds the ${pace.hard}-word ceiling for ${source.seconds} seconds.`);}
  }
 }
 function scene(story,index,{seconds=story.scene_seconds,aspect=story.aspect_ratio}={}){

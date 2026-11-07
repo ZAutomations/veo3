@@ -2076,8 +2076,9 @@ function validate(story, cast, p = {}) {
                 ? 'clip 1: no script_line - the opening hook is the only narration this film has'
                 : `clip ${n}: no script_line - the agent would INVENT this scene`);
         } else {
-            const w = s.script_line.trim().split(/\s+/).length;
-            if (w > WORDS_HARD) bad.push(`clip ${n}: narration is ${w} words, over the ${WORDS_HARD}-word limit for ${SECONDS}s`);
+            const w = require('./narration_pace').countWords(s.script_line);
+            if (SECONDS === 10 && (w < WORDS_MIN || w > WORDS_MAX)) bad.push(`clip ${n}: narration is ${w} words; 10-second narrated clips must contain ${WORDS_MIN}–${WORDS_MAX} words inclusive`);
+            else if (w > WORDS_HARD) bad.push(`clip ${n}: narration is ${w} words, over the ${WORDS_HARD}-word limit for ${SECONDS}s`);
             if (p.preserve_source_narration && p.narrative_mode!=='what-if' && !(p.extra_cta_clip && n === story.scenes.length) && require('./source_narration').viewerScenario(s.script_line)) {
                 bad.push(`clip ${n}: documentary narration addresses the viewer as you/your; report the source event and its people instead`);
             }
