@@ -151,7 +151,7 @@
   },
   {
     "id": "geography-map",
-    "label": "Geography Map (2.5D relief)",
+    "label": "Map Animation",
     "file": "geography-map.txt",
     "route": "STORY WRITER"
   },
