@@ -14,10 +14,21 @@ async function recoverPending(page,receipt,seconds,RI,log){
  if(pending.status==='completed'){
   const state=await page.evaluate(RI.referenceState);
   const image=state.images.find(im=>im.key===pending.imageKey);
+  // Flow virtualizes older tiles. A completed, project-bound receipt remains
+  // valid even when its image is temporarily outside the rendered tile list.
   if(image)return {ok:true,alreadyNamed:true,tileIndex:image.tileIndex,imageKey:image.key};
-  return {ok:false,why:'No completed reference image after '+seconds+'s. Saved reference is not currently verifiable; no duplicate submitted.'};
+  return {ok:true,alreadyNamed:true,unverified:true,imageKey:pending.imageKey};
+ }
+ if(pending.status==='review'){
+  log(`Previous ${receipt.name} request was parked for review; a manual Retry / Continue will start one fresh request if no correctly named tile exists.`);
+  return null;
  }
  log('Resuming the previously submitted reference image; checking for late completion without submitting another prompt.');
- return RI.waitForReferenceImage(page,pending.before,seconds);
+ const result=await RI.waitForReferenceImage(page,pending.before,seconds);
+ if(!result.ok && /no completed reference image/i.test(result.why||'')){
+  receipt.write({...pending,status:'review',reviewedAt:new Date().toISOString()});
+  return {...result,why:`RECOVERY_REVIEW_REQUIRED: ${receipt.name} has no matching completed image after ${seconds}s. The pending receipt is parked to stop automatic retry loops. If its uploaded image is in Flow, rename that tile exactly "${receipt.name}" and Retry / Continue; otherwise Retry / Continue once to submit a fresh image.`};
+ }
+ return result;
 }
 module.exports={receiptFor,recoverPending};

@@ -807,6 +807,8 @@ async function generateRefs(page, refs, opts = {}) {
     for (const r of refs) {
         const name = String(r.name || '').trim();
         log(`\n[${made + failed + 1}/${refs.length}] ${name}`);
+        const recovery = require('./reference_generation_receipt');
+        const receipt = !r.localFile ? recovery.receiptFor(page.url().split('?')[0],r) : null;
         if (!r.localFile) {
             const state = await page.evaluate(RI.referenceState);
             let existing = false;
@@ -814,7 +816,13 @@ async function generateRefs(page, refs, opts = {}) {
                 const label = await tileName(page, image.tileIndex);
                 if (String(label || '').trim().toLowerCase() === name.toLowerCase()) { existing = true; break; }
             }
-            if (existing) { made++; log(`  verified existing completed image named "${name}"; skipping generation.`); continue; }
+            if (existing) {
+                // An explicitly named tile in the current Flow project is the
+                // strongest evidence. Remove any older pending/completed receipt
+                // so a later retry cannot block on a stale asset key.
+                receipt.clear();
+                made++; log(`  verified existing completed image named "${name}"; cleared any stale receipt and skipped generation.`); continue;
+            }
         }
         if (r.localFile) {
             const uploaded = await require('./upload_saved_reference').uploadSavedReference(page, r, log);
@@ -822,8 +830,6 @@ async function generateRefs(page, refs, opts = {}) {
             made++;
             continue;
         }
-        const recovery = require('./reference_generation_receipt');
-        const receipt = recovery.receiptFor(page.url().split('?')[0],r);
         let recovered = await recovery.recoverPending(page,receipt,waitS,RI,log);
         if(recovered?.alreadyNamed){
             const label=await tileName(page,recovered.tileIndex);
