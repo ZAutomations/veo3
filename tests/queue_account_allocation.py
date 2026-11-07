@@ -11,7 +11,7 @@ with tempfile.TemporaryDirectory() as tmp:
         p=Path(tmp)/f'story{i}.json';p.write_text(json.dumps(dict(title=f'Film {i}',scenes=[dict(veo3_prompt='test')]*2)));paths.append(str(p))
     def read(p,*args,**kw):return store if Path(p).name=='accounts.json' else original(p,*args,**kw)
     for view in ['agent','omni','ingredients']:
-        payload=dict(view=view,queue=paths,rotateQueueAccounts=True,videosPerAccount=2,_globalWorkflow=dict(rotateQueueAccounts=True,videosPerAccount=2),model='Omni 1.1 Flash',resolution='360p',aspect='9:16',cdp=9222,download=False,join=False)
+        payload=dict(view=view,queue=paths,rotateQueueAccounts=True,videosPerAccount=2,_globalWorkflow=dict(rotateQueueAccounts=True,videosPerAccount=2),model='Omni 1.2 Flash',resolution='360p',aspect='9:16',cdp=9222,download=False,join=False)
         with patch.object(app,'read_json',side_effect=read):_,ops=app.plan_action('generate_queue',payload)
         guards=[spec for kind,spec in ops if kind=='cli' and str(spec[1]).endswith('queue_account.js')]
         assert [spec[spec.index('--label')+1] for spec in guards]==['A','A','B','B','C','C']

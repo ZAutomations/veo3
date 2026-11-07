@@ -23,8 +23,8 @@ with tempfile.TemporaryDirectory() as tmp,patch.object(app,'ROOT',Path(tmp)):
         else:raise AssertionError(value)
 print('PASS: shared saved settings override stale mode fields; job snapshots survive edits; cooldown 90s and disabled immediate-stop work; invalid policies rejected.')
 
-video=app.global_workflow_settings(dict(videoModel='Omni 1.1 Flash',videoAspect='16:9',videoResolution='720p',videoSeconds=8,automationCdp=9333,agentPromptsPerBatch=8))
+video=app.global_workflow_settings(dict(videoModel='Omni 1.2 Flash',videoAspect='16:9',videoResolution='720p',videoSeconds=8,automationCdp=9333,agentPromptsPerBatch=8))
 resolved=app.global_workflow_payload(dict(view='agent',model='stale model',resolution='360p',_globalWorkflow=video))
-assert resolved['model']=='Omni 1.1 Flash' and resolved['resolution']=='720p' and resolved['cdp']==9333 and resolved['manualBatchSize']==8
+assert resolved['model']=='Omni 1.2 Flash' and resolved['resolution']=='720p' and resolved['cdp']==9333 and resolved['manualBatchSize']==8
 writer=app.global_workflow_payload(dict(view='writer',seconds=6,_globalWorkflow=video));assert writer['seconds']==6
 print('PASS: shared video settings override stale generation forms and leave story-writing duration untouched.')

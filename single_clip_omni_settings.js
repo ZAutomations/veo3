@@ -79,7 +79,7 @@ function videoControl({ action, ratio }) {
     return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
 }
 
-async function prepareVideo(page, { model = 'Omni 1.1 Flash', ratio = '9:16', resolution = '720p', log = () => {} } = {}) {
+async function prepareVideo(page, { model = 'Omni 1.2 Flash', ratio = '9:16', resolution = '720p', log = () => {} } = {}) {
     if (!['Flow', '16:9', '9:16', '1:1'].includes(ratio)) throw Error('Unsupported Single Clip Omni aspect ratio: ' + ratio);
     if (!/Omni.*Flash/i.test(model)) throw Error('Single Clip Omni requires an Omni Flash model.');
     if (!['360p','720p'].includes(resolution)) throw Error('Select 360p or 720p resolution.');

@@ -1,6 +1,6 @@
 const assert=require('assert');
 const {configureReferenceImages}=require('../reference_image_step');
-let opened=false,image=false,ratio=false,model='Omni 1.1 Flash',clicks=0;
+let opened=false,image=false,ratio=false,model='Omni 1.2 Flash',clicks=0;
 const visible=()=>({width:200,height:40,x:10,y:10});
 function node(label,click){return {getBoundingClientRect:visible,disabled:false,textContent:label,
  cloneNode(){return {textContent:typeof label==='function'?label():label,querySelectorAll:()=>[]};},
@@ -18,7 +18,7 @@ global.document={querySelectorAll:s=>s==='.settings-summary'?[summary]:s.include
 const page={evaluate:async(fn,arg)=>fn(arg),keyboard:{press:async()=>opened=false},mouse:{click:async()=>{throw Error('stale coordinate clicks must not be used');}}};
 (async()=>{
  for(let story=0;story<2;story++){
-  opened=false;image=false;ratio=false;model='Omni 1.1 Flash';
+  opened=false;image=false;ratio=false;model='Omni 1.2 Flash';
   await configureReferenceImages(page);
   assert(image&&ratio&&model==='Nano Banana Pro'&&!opened);
  }

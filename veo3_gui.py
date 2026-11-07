@@ -63,7 +63,7 @@ AGENT_ENGINE = os.path.join(BASE_DIR, "agent_mode.js")
 # name rather than a prefix.
 VIDEO_MODELS = [
     "Flow",
-    "Omni 1.1 Flash",
+    "Omni 1.2 Flash",
     "Veo 3.1 - Lite",
     "Veo 3.1 - Fast",
     "Veo 3.1 - Quality",
@@ -371,6 +371,10 @@ class Veo3LauncherGUI:
                 source = SETTINGS_FILE
             with open(source, "r", encoding="utf-8") as f:
                 s = json.load(f)
+            # Move saved model fields off the retired version while preserving the user's other settings.
+            for key, value in list(s.items()):
+                if value == "Omni 1.1 Flash":
+                    s[key] = "Omni 1.2 Flash"
             for field in ("file", "description"):
                 if "couple_sam_" + field not in s and "couple_george_" + field in s:
                     s["couple_sam_" + field] = s["couple_george_" + field]
@@ -1363,7 +1367,7 @@ class Veo3LauncherGUI:
         controls = ttk.LabelFrame(f, text="Single Clip Omni video and output settings")
         controls.grid(row=9, column=0, columnspan=4, sticky="ew", padx=14, pady=10)
         controls.columnconfigure(1, weight=1)
-        self.omni_ing_video_model_var = tk.StringVar(value=self.settings.get("omni_ing_video_model", "Omni 1.1 Flash"))
+        self.omni_ing_video_model_var = tk.StringVar(value=self.settings.get("omni_ing_video_model", "Omni 1.2 Flash"))
         self.omni_ing_aspect_var = tk.StringVar(value=self.settings.get("omni_ing_aspect", "9:16"))
         self.omni_ing_new_project_var = tk.BooleanVar(value=self.settings.get("omni_ing_new_project", False))
         self.omni_ing_download_var = tk.BooleanVar(value=self.settings.get("omni_ing_download", True))

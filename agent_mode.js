@@ -130,7 +130,7 @@ const CDP_URL    = `http://127.0.0.1:${CDP_PORT}`;
 const { normalizeProjectUrl, selectAgentPage } = require('./flow_project.js');
 const PROJECT_URL = typeof flag('--project-url') === 'string' ? normalizeProjectUrl(flag('--project-url')) : '';
 // The video model this project must generate with ("Veo 3.1 - Fast",
-// "Omni 1.1 Flash", ...). Empty leaves Flow's own setting alone, which is what
+// "Omni 1.2 Flash", ...). Empty leaves Flow's own setting alone, which is what
 // every run did before this existed.
 const VIDEO_MODEL = typeof flag('--video-model') === 'string' ? flag('--video-model').trim() : '';
 

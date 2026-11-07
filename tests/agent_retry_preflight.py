@@ -36,7 +36,7 @@ with tempfile.TemporaryDirectory(prefix='agent-retry-preflight-') as temp:
         'action': 'generate', 'status': 'failed', 'operation_index': 0,
         'payload': {'view': 'agent', 'story': str(story),
                     'project': f'https://flow.google.com/project/{project_id}',
-                    'model': 'Omni 1.1 Flash', 'resolution': '360p', 'aspect': '9:16',
+                    'model': 'Omni 1.2 Flash', 'resolution': '360p', 'aspect': '9:16',
                     'seconds': 8, 'cdp': 9222},
         'operations': [['cli', ['node', str(ROOT / 'join_clips.js'), str(folder / 'clips')]]],
     }

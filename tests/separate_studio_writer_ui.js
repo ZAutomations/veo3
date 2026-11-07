@@ -15,7 +15,7 @@ const assert=require('assert'),fs=require('fs'),path=require('path'),puppeteer=r
     if(url.pathname==='/')return req.respond({status:200,contentType:'text/html',body:fs.readFileSync(path.join(__dirname,'../desktop_ui/index.html'),'utf8').replace('__SESSION_TOKEN__','test')});
     if(url.pathname.startsWith('/api/')){
      headers.push(req.headers()['x-studio-surface']);let data={};
-     if(url.pathname==='/api/bootstrap')data={defaults:{preset:'relationship-dialogue-dog-couple',aspect:'9:16',transport:'web',cdp:9222},globalWorkflow:{videoModel:'Omni 1.1 Flash',videoAspect:'9:16',videoResolution:'360p',videoDownloadVersion:'upscaled',videoSeconds:8,automationCdp:9222,agentPromptsPerBatch:5},referenceLibrary:{modes:{agent:true,ingredients:true,omni:true}},presets:[{id:'relationship-dialogue-dog-couple',name:'Dog couple'}],models:['Omni 1.1 Flash'],preferences:{theme:'crimson',current:'writer',forms:{}},workflowDefaults:{}};
+     if(url.pathname==='/api/bootstrap')data={defaults:{preset:'relationship-dialogue-dog-couple',aspect:'9:16',transport:'web',cdp:9222},globalWorkflow:{videoModel:'Omni 1.2 Flash',videoAspect:'9:16',videoResolution:'360p',videoDownloadVersion:'upscaled',videoSeconds:8,automationCdp:9222,agentPromptsPerBatch:5},referenceLibrary:{modes:{agent:true,ingredients:true,omni:true}},presets:[{id:'relationship-dialogue-dog-couple',name:'Dog couple'}],models:['Omni 1.2 Flash'],preferences:{theme:'crimson',current:'writer',forms:{}},workflowDefaults:{}};
      if(url.pathname==='/api/master-prompt')data={name:'Dog couple',text:'Complete saved master prompt with parser fields.'};
      if(url.pathname==='/api/library')data=[];
      if(url.pathname==='/api/accounts')data={accounts:[]};

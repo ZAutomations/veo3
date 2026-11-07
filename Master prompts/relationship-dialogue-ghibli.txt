@@ -60,7 +60,7 @@ If I give one or more video URLs, use them as source/reference material only whe
 2) ASK ONLY FOR MISSING CHOICES
 Collect the following; do not repeat a choice I already gave:
 • Stories in this batch: 1 / 5 / 10 / Custom (enter any positive whole number).
-• Clip duration: 4 / 6 / 8 / 10 seconds per clip. These are the supported clip lengths; use exactly the selected value for every clip. Ten-second generation requires the tool's compatible Agent Mode + Omni 1.1 Flash configuration.
+• Clip duration: 4 / 6 / 8 / 10 seconds per clip. These are the supported clip lengths; use exactly the selected value for every clip. Ten-second generation requires the tool's compatible Agent Mode + Omni 1.2 Flash configuration.
 • Clips per story: 1 / 5 / 10 / Custom (enter any positive whole number). Custom clip counts are valid; do not restrict the story to preset example counts.
 • Topic/title or source transcript/video URL(s), and optional YouTube channel URL.
 When more than one choice is missing, ask in one compact numbered form. If no topic is selected, present the pillar/title menu before waiting for the selection. Once the selections are clear, proceed without asking for another approval.

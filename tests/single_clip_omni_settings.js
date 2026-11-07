@@ -10,8 +10,8 @@ const radios=[radio('Video','type'),radio('Image','type'),radio('Ingredients','m
 const summary={get innerText(){return `${model} ${selected.ratio} ${selected.resolution} x1`;},getBoundingClientRect:rect,scrollIntoView:()=>{},click:()=>{openAttempts++;if(ignoredOpens)ignoredOpens--;else open=true;}};
 const editor={getBoundingClientRect:rect};
 const trigger={getBoundingClientRect:rect,scrollIntoView:()=>{},get innerText(){return model;},click:()=>menu=true};
-const item={getBoundingClientRect:rect,scrollIntoView:()=>{},innerText:'Omni 1.1 Flash',
- querySelector:()=>({textContent:'Omni 1.1 Flash'}),click:()=>{model='Omni 1.1 Flash';open=false;menu=false;}};
+const item={getBoundingClientRect:rect,scrollIntoView:()=>{},innerText:'Omni 1.2 Flash',
+ querySelector:()=>({textContent:'Omni 1.2 Flash'}),click:()=>{model='Omni 1.2 Flash';open=false;menu=false;}};
 const root={querySelector:()=>trigger,querySelectorAll:()=>radios,getBoundingClientRect:rect};
 const doc={querySelector:s=>s.includes('Settings trigger')?summary:s==='flow-prompt-box-settings'?(open?root:null):s.includes('Select model family')?(open?trigger:null):null,
  querySelectorAll:s=>s.includes('ProseMirror')?[editor]:s.includes('Settings trigger')?[summary]:s.includes('menuitem')?(menu?[item]:[]):s.includes('role="radio"')?(open?radios:[]):[]};
@@ -27,19 +27,19 @@ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../single_clip_omni_sett
  document:doc,module:mod,exports:mod.exports,require:n=>n==='./generate_refs'?{setAgent:async()=>({ok:true})}:n==='./project_setup'?{}:{normalizeProjectUrl:u=>u}
 });
 (async()=>{
- assert(mod.exports.summaryMatches('Video · 360p · 8s x1',{model:'Omni 1.1 Flash',resolution:'360p',ratio:'9:16'}));
- assert(!mod.exports.summaryMatches('Video · 720p · 8s x1',{model:'Omni 1.1 Flash',resolution:'360p',ratio:'9:16'}));
+ assert(mod.exports.summaryMatches('Video · 360p · 8s x1',{model:'Omni 1.2 Flash',resolution:'360p',ratio:'9:16'}));
+ assert(!mod.exports.summaryMatches('Video · 720p · 8s x1',{model:'Omni 1.2 Flash',resolution:'360p',ratio:'9:16'}));
  for(const resolution of ['720p','360p']){
-  await mod.exports.prepareVideo(page,{model:'Omni 1.1 Flash',ratio:'9:16',resolution});
-  assert.equal(model,'Omni 1.1 Flash');assert.equal(selected.ratio,'9:16');assert.equal(selected.resolution,resolution);
+  await mod.exports.prepareVideo(page,{model:'Omni 1.2 Flash',ratio:'9:16',resolution});
+  assert.equal(model,'Omni 1.2 Flash');assert.equal(selected.ratio,'9:16');assert.equal(selected.resolution,resolution);
   assert.equal(selected.type,'Video');assert(!open,'panel must be closed after verification');
  }
  assert(openAttempts>=3,'an ignored opening click must be retried in place');
  const before=openAttempts;
- await mod.exports.prepareVideo(page,{model:'Omni 1.1 Flash',ratio:'9:16',resolution:'360p'});
+ await mod.exports.prepareVideo(page,{model:'Omni 1.2 Flash',ratio:'9:16',resolution:'360p'});
  assert.equal(openAttempts,before,'same settings after first submission must not reopen the panel');
  selected.ratio='16:9';
- await mod.exports.prepareVideo(page,{model:'Omni 1.1 Flash',ratio:'9:16',resolution:'360p'});
+ await mod.exports.prepareVideo(page,{model:'Omni 1.2 Flash',ratio:'9:16',resolution:'360p'});
  assert.equal(selected.ratio,'9:16','detect and fix a changed summary');
  assert(openAttempts>before);
  console.log('PASS: resolution/ratio verification, ignored-opening retry, cached settings reuse after submission, and changed-setting correction without reload.');

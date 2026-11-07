@@ -8,7 +8,7 @@ with tempfile.TemporaryDirectory() as folder:
         path=pathlib.Path(folder)/f'story_{n}_story.json'
         path.write_text(json.dumps({'title':f'Story {n}','scene_seconds':8,'scenes':[{'veo3_prompt':'Prompt'}]*(5+n)}))
         stories.append(str(path))
-    inputs={'view':'omni','queue':stories,'model':'Omni 1.1 Flash','resolution':'360p','aspect':'9:16','seconds':8,'cdp':9222,'download':True,'join':True,'batchGenRefs':True}
+    inputs={'view':'omni','queue':stories,'model':'Omni 1.2 Flash','resolution':'360p','aspect':'9:16','seconds':8,'cdp':9222,'download':True,'join':True,'batchGenRefs':True}
     lane,ops=studio.plan_action('generate_queue',inputs)
     assert lane=='flow' and len(ops)==4
     for n,(_,(_,req)) in enumerate(ops):

@@ -16,7 +16,7 @@ with tempfile.TemporaryDirectory() as directory:
     story.write_text(json.dumps({'title':'Adapter test', 'scene_seconds':8,
         'scenes':[{'veo3_prompt':f'Prompt {i}', 'dialogue':[]} for i in range(13)]}))
     inputs = dict(story=str(story), project='https://flow.google.com/project/test-project',
-                  view='omni', model='Omni 1.1 Flash', resolution='360p', aspect='9:16',
+                  view='omni', model='Omni 1.2 Flash', resolution='360p', aspect='9:16',
                   cdp=9222, **{'from':11, 'to':13}, usePresetRefs=False, reuseRefs=True, download=True)
     lane, operations = studio.plan_action('generate', inputs)
     assert lane == 'flow'

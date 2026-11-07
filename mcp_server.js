@@ -987,7 +987,7 @@ const TOOLS = [
                 cdp: { type: 'integer', description: 'CDP port. Default 9222.' },
                 watch: { type: 'integer', description: 'Seconds to watch after submit. Default 240.' },
                 model: { type: 'string', description: 'Model hint, e.g. "veo3.1 low priority".' },
-                video_model: { type: 'string', description: 'Video model this project must generate with, e.g. "Veo 3.1 - Fast" or "Omni 1.1 Flash". Set in Flow just before Generate. "Flow" (default) leaves the project on its own setting.' },
+                video_model: { type: 'string', description: 'Video model this project must generate with, e.g. "Veo 3.1 - Fast" or "Omni 1.2 Flash". Set in Flow just before Generate. "Flow" (default) leaves the project on its own setting.' },
                 video_resolution: { type: "string", enum: ["Flow", "360p", "720p"], description: "Agent video resolution; verified and repeated in every clip prompt." },
                 clip_batch_size: { type: "integer", minimum: 1, description: "Prompts per Agent batch; default 5. Pending batches retain their original range." },
                 download_version: { type: "string", enum: ["upscaled", "original"], description: "Download the upscaled version or preserve the original generated size." },
@@ -1118,7 +1118,7 @@ const TOOLS = [
                 model: { type: 'string', description: 'Gemini model for writing/analysing, e.g. gemini-3.6-flash.' },
                 models: { type: 'array', items: { type: 'string' }, description: 'Gemini fallback chain, newest first.' },
                 veo_model: { type: 'string', description: 'Veo model hint for Flow, e.g. "veo3.1 low priority".' },
-                video_model: { type: 'string', description: 'Video model this project must generate with, e.g. "Veo 3.1 - Fast" or "Omni 1.1 Flash". "Flow" (default) leaves it alone.' },
+                video_model: { type: 'string', description: 'Video model this project must generate with, e.g. "Veo 3.1 - Fast" or "Omni 1.2 Flash". "Flow" (default) leaves it alone.' },
                 video_resolution: { type: "string", enum: ["Flow", "360p", "720p"], description: "Agent video resolution; verified and repeated in every clip prompt." },
                 clip_batch_size: { type: "integer", minimum: 1, description: "Prompts per Agent batch; default 5. Pending batches retain their original range." },
                 download_version: { type: "string", enum: ["upscaled", "original"], description: "Download the upscaled version or preserve the original generated size." },
@@ -1273,7 +1273,7 @@ const TOOLS = [
                 models: { type: 'array', items: { type: 'string' }, description: 'Gemini fallback chain, newest first.' },
                 transport: { type: 'string', enum: ['api', 'web', 'auto'], description: '"api" (default): Gemini through the API key. "web": Google AI Studio in a real Chrome window writes and analyses everything instead - no key, no per-project quota, one film per chat. "auto": try the API, fall back to the browser. Every link in the batch uses it. The browser needs its profile signed in once; the tool says so if it is not.' },
                 veo_model: { type: 'string', description: 'Veo model hint for Flow, e.g. "veo3.1 low priority".' },
-                video_model: { type: 'string', description: 'Video model this project must generate with, e.g. "Veo 3.1 - Fast" or "Omni 1.1 Flash". "Flow" (default) leaves it alone.' },
+                video_model: { type: 'string', description: 'Video model this project must generate with, e.g. "Veo 3.1 - Fast" or "Omni 1.2 Flash". "Flow" (default) leaves it alone.' },
                 video_resolution: { type: "string", enum: ["Flow", "360p", "720p"], description: "Agent video resolution; verified and repeated in every clip prompt." },
                 clip_batch_size: { type: "integer", minimum: 1, description: "Prompts per Agent batch; default 5. Pending batches retain their original range." },
                 download_version: { type: "string", enum: ["upscaled", "original"], description: "Download the upscaled version or preserve the original generated size." },
@@ -1447,7 +1447,7 @@ const TOOLS = [
                     log(`[batch ${i}] saved story duration is ${savedSceneSeconds}s; using it instead of the shared default ${Number(a.seconds) || 8}s.`);
                 }
                 if (sceneSeconds === 10 && !/Omni.*Flash/i.test(String(a.video_model || ''))) {
-                    bad('run_agent', { text: 'This saved story requires 10-second clips, which need Agent Mode with Omni Flash. Select Omni 1.1 Flash before generation; no clips were submitted.' });
+                    bad('run_agent', { text: 'This saved story requires 10-second clips, which need Agent Mode with Omni Flash. Select Omni 1.2 Flash before generation; no clips were submitted.' });
                     continue;
                 }
                 const b = await doBuildPrompt({ story: storyArg, aspect: a.aspect, scene_seconds: sceneSeconds });

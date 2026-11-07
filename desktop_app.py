@@ -60,7 +60,7 @@ UI = ROOT / 'desktop_ui'
 STATE = ROOT / 'desktop_settings.json'
 WRITER_STATE = ROOT / 'desktop_writer_settings.json'
 TOKEN = secrets.token_urlsafe(32)
-MODELS = ['Flow', 'Omni 1.1 Flash', 'Veo 3.1 - Lite', 'Veo 3.1 - Fast', 'Veo 3.1 - Quality', 'Veo 3.1 - Lite [Lower Priority]']
+MODELS = ['Flow', 'Omni 1.2 Flash', 'Veo 3.1 - Lite', 'Veo 3.1 - Fast', 'Veo 3.1 - Quality', 'Veo 3.1 - Lite [Lower Priority]']
 lock = threading.RLock()
 _json_write_lock = threading.RLock()
 
@@ -223,13 +223,16 @@ def command(filename, *args):
 
 GLOBAL_WORKFLOW_DEFAULTS = dict(rotateQueueAccounts=False, videosPerAccount=2,
     activityCooldownEnabled=True, activityCooldownSeconds=60, activityMaxAttempts=3,
-    videoModel='Omni 1.1 Flash',videoAspect='9:16',videoResolution='360p',
+    videoModel='Omni 1.2 Flash',videoAspect='9:16',videoResolution='360p',
     videoDownloadVersion='upscaled',videoSeconds=8,automationCdp=9222,agentPromptsPerBatch=5)
 
 
 def global_workflow_settings(values=None):
     supplied = read_json(ROOT / 'gui_settings.json').get('workflow_globals', {}) if values is None else values
     if not isinstance(supplied, dict):raise ValueError('Invalid global workflow settings.')
+    # Migrate saved model selections so old preferences remain valid in the new picker.
+    if supplied.get('videoModel') == 'Omni 1.1 Flash':
+        supplied = dict(supplied, videoModel='Omni 1.2 Flash')
     cfg = dict(GLOBAL_WORKFLOW_DEFAULTS, **{k:v for k,v in supplied.items() if k in GLOBAL_WORKFLOW_DEFAULTS})
     for key in ('rotateQueueAccounts','activityCooldownEnabled'):
         if not isinstance(cfg[key], bool):raise ValueError(f'{key} must be enabled or disabled.')
@@ -373,7 +376,7 @@ def plan_action(action, p):
     aspect = p.get('aspect', '9:16')
     if aspect not in ('Flow', '9:16', '16:9', '1:1'):
         raise ValueError('Invalid aspect ratio.')
-    model = p.get('model', 'Omni 1.1 Flash')
+    model = p.get('model', 'Omni 1.2 Flash')
     if model not in MODELS:
         raise ValueError('Select a supported video model.')
     resolution = p.get('resolution', '360p')
@@ -398,9 +401,9 @@ def plan_action(action, p):
             details = ', '.join(f'clip {i}: {count} words' for i, count in long_lines)
             raise ValueError(f'Narration exceeds the shared pace ceiling at {seconds}s per clip ({details}; hard limit {max_words} words). Shorten the narration or choose a longer clip duration before generating.')
     if action in ('generate', 'manual') and seconds == 10 and view != 'agent':
-        raise ValueError('10-second clips require Agent Mode with Omni 1.1 Flash. Ingredients/Extend and Single Clip Omni do not support 10-second clips.')
+        raise ValueError('10-second clips require Agent Mode with Omni 1.2 Flash. Ingredients/Extend and Single Clip Omni do not support 10-second clips.')
     if action in ('generate', 'manual') and seconds == 10 and not re.search(r'Omni.*Flash', model, re.I):
-        raise ValueError('10-second clips require Omni 1.1 Flash. Select it in Shared video settings; Veo 3.1 Lite/Fast/Quality are limited to 8 seconds.')
+        raise ValueError('10-second clips require Omni 1.2 Flash. Select it in Shared video settings; Veo 3.1 Lite/Fast/Quality are limited to 8 seconds.')
     total = len(story['scenes'])
     first = integer(p.get('from', 1), 1, total, 'First scene')
     last = integer(p.get('to', total) or total, first, total, 'Last scene')
@@ -591,7 +594,7 @@ def retry_missing_agent_batch(record, remaining):
                        '--refs', story, '--submission-file', submission,
                        '--project-url', project, '--cdp', port,
                        '--aspect', payload.get('aspect', '9:16'),
-                       '--video-model', payload.get('model', 'Omni 1.1 Flash'),
+                       '--video-model', payload.get('model', 'Omni 1.2 Flash'),
                        '--video-resolution', payload.get('resolution', '360p'),
                        '--scene-seconds', payload.get('seconds', 8))
     _, download_ops = plan_action('download', {**payload, 'story': str(story), 'project': project, 'view': 'agent'})
@@ -1074,7 +1077,7 @@ def index():
 def bootstrap(studio_surface: str = Header(default='studio', alias='X-Studio-Surface')):
     legacy = read_json(ROOT / 'gui_settings.json')
     initial = dict(story=legacy.get('agent_story_json', ''), project=legacy.get('agent_project_url', ''),
-                   cdp=legacy.get('agent_cdp_port', 9222), model=legacy.get('video_model', 'Omni 1.1 Flash'),
+                   cdp=legacy.get('agent_cdp_port', 9222), model=legacy.get('video_model', 'Omni 1.2 Flash'),
                    resolution=legacy.get('mcp_video_resolution', '360p'), aspect=legacy.get('aspect_ratio', '9:16'),
                    preset=legacy.get('gen_preset', 'relationship-dialogue'), clips=8, seconds=8,
                    transport=legacy.get('story_transport', 'web'), geminiModel=legacy.get('gemini_model', ''))

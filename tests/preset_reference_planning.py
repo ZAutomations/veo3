@@ -13,7 +13,7 @@ with tempfile.TemporaryDirectory() as folder:
         'scene_seconds':8, 'scenes':[{'veo3_prompt':'Sample'}]}))
     for mode in ('agent', 'ingredients', 'omni'):
         payload = dict(view=mode, story=str(story), project='https://flow.google.com/project/sample',
-            model='Veo 3.1 - Lite' if mode == 'ingredients' else 'Omni 1.1 Flash',
+            model='Veo 3.1 - Lite' if mode == 'ingredients' else 'Omni 1.2 Flash',
             aspect='9:16', seconds=8, resolution='360p', reuseRefs=True,
             genRefs=False, usePresetRefs=True, download=False)
         _, ops = app.plan_action('generate', payload)

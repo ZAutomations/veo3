@@ -46,7 +46,7 @@ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../single_clip_omni.js')
  require:mockRequire,module:moduleObject,exports:moduleObject.exports,__dirname:path.join(__dirname,'..'),console:{log:()=>{}},setTimeout,process
 });
 (async()=>{
- const req={story:storyFile,project,from:1,to:12,model:'Omni 1.1 Flash',aspect:'9:16',resolution:'360p',reuseRefs:true,download:true};
+ const req={story:storyFile,project,from:1,to:12,model:'Omni 1.2 Flash',aspect:'9:16',resolution:'360p',reuseRefs:true,download:true};
  await moduleObject.exports.run(req);
  assert.equal(submits,12);assert.equal(refs,12);assert.equal(settingsCalls.length,12);assert.equal(reloads,0);
  assert.deepEqual(events.filter(e=>e.startsWith('download:')),['download:1,2,3,4,5','download:6,7,8,9,10','download:11,12']);
