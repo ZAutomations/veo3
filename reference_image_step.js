@@ -32,12 +32,18 @@ function compactControls(action) {
     const scope = panel || document;
     const ratio = [...scope.querySelectorAll('button[role="radio"]')]
         .find(el => visible(el) && label(el) === wantedRatio);
+    const outputCountRadios = [...scope.querySelectorAll('flow-toggles[aria-label="Output count"] button[role="radio"]')]
+        .filter(visible);
+    const outputCountOne = outputCountRadios.find(el => label(el).toLowerCase() === 'x1');
+    const selectedOutputCount = outputCountRadios.find(el => el.getAttribute('aria-checked') === 'true');
     const picker = [...scope.querySelectorAll('button[aria-label="Select model family"]')].find(visible);
     const summary = [...document.querySelectorAll('.settings-summary')].find(visible);
     if (action === 'state') return {
         image: !!image && image.getAttribute('aria-checked') === 'true',
         ratio: !!ratio && ratio.getAttribute('aria-checked') === 'true',
         model: text(picker),
+        outputCount: selectedOutputCount ? label(selectedOutputCount).toLowerCase()
+            : /(?:^|\s)x1(?:\s|$)/i.test(text(summary)) ? 'x1' : '',
         summary: text(summary),
         summaryLandscape: !!summary && [...summary.querySelectorAll('mat-icon')]
             .some(i => (i.textContent || '').trim() === 'crop_16_9'),
@@ -48,6 +54,7 @@ function compactControls(action) {
     if (action === 'open') target = summary && (summary.closest('button, [role="button"]') || summary);
     if (action === 'image') target = image;
     if (action === 'ratio') target = ratio;
+    if (action === 'count') target = outputCountOne;
     if (action === 'model') target = picker;
     if (action === 'pro') {
         target = [...document.querySelectorAll('.cdk-overlay-pane span.label, [role="menuitem"], [role="option"]')]
@@ -85,12 +92,17 @@ async function configureReferenceImages(page, say = () => {}, aspect = IMAGE_RAT
     await until(async () => (await state()).image, 'Image mode did not become selected');
     await click('ratio');
     await until(async () => (await state()).ratio, `${aspect} did not become selected`);
+    if ((await state()).outputCount !== 'x1') {
+        await click('count');
+        await until(async () => (await state()).outputCount === 'x1', 'Output count did not become x1');
+    }
     await click('model');
     await click('pro');
     await until(async () => {
         const s = await state();
-        return s.image && s.ratio && s.model.toLowerCase().replace(/[^a-z0-9]/g, '') === 'nanobananapro';
-    }, `Image / ${aspect} / Nano Banana Pro could not be verified`);
+        return s.image && s.ratio && s.outputCount === 'x1'
+            && s.model.toLowerCase().replace(/[^a-z0-9]/g, '') === 'nanobananapro';
+    }, `Image / ${aspect} / Nano Banana Pro / x1 could not be verified`);
     // This compact popover applies immediately; it has no full-drawer Save.
     // Escape closes the compact menu on the current Flow layout. Do not click
     // the summary again here: on some builds that immediately reopens the menu
@@ -116,9 +128,10 @@ async function configureReferenceImages(page, say = () => {}, aspect = IMAGE_RAT
     await until(async () => !(await state()).open, 'compact settings popover stayed open over the prompt composer');
     await until(async () => {
         const s = await state();
-        return /nano\s+banana\s+pro/i.test(s.summary) && (aspect === '16:9' ? s.summaryLandscape : true);
-    }, `settings summary did not confirm Nano Banana Pro and ${aspect}`);
-    say(`Reference settings verified: Image / ${aspect} / Nano Banana Pro.`);
+        return s.outputCount === 'x1' && /nano\s+banana\s+pro/i.test(s.summary)
+            && (aspect === '16:9' ? s.summaryLandscape : true);
+    }, `settings summary did not confirm Nano Banana Pro, ${aspect} and x1`);
+    say(`Reference settings verified: Image / ${aspect} / Nano Banana Pro / x1.`);
 }
 
 // A failed tile can have More options too. Count only completed image media,

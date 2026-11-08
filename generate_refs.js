@@ -903,6 +903,10 @@ async function generateRefs(page, refs, opts = {}) {
             if (!await insertPrompt(page, String(r.prompt).trim())) {
                 return { ok: false, why: 'Reference prompt did not land.' };
             }
+            const imageSettings = await page.evaluate(RI.compactControls, { action: 'state', ratio: r.aspect || '16:9' });
+            if (imageSettings.outputCount !== 'x1') {
+                return { ok: false, why: `Flow output count is "${imageSettings.outputCount || 'unknown'}" immediately before submitting ${name}; expected x1. Nothing submitted.` };
+            }
             const before = await page.evaluate(RI.referenceState);
             // Persist before submit: if the process stops after a click, retry
             // observes the pending image rather than spending credits again.
