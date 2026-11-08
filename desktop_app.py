@@ -677,12 +677,22 @@ class Job:
             label = str(active_account_details().get('label') or active_account()).strip()
             raise ValueError('Add the Gmail address for the active Flow account in Settings → Accounts first.' + (f' Active profile: {label}.' if label else ''))
         marker = source.parent / 'incomplete project.txt'
+        resume_state = source.parent / 'incomplete project.resume.json'
         temp = marker.with_name(marker.name + '.' + uuid.uuid4().hex + '.tmp')
         try:
-            temp.write_text(f'Google account (Gmail): {email}\nFlow project URL: {project_url}\n', encoding='utf-8')
+            temp.write_text(f'Google account (Gmail): {email}\nFlow project URL: {project_url}\nStory JSON: {source}\nResume state: {resume_state.name}\nSaved phase: {self.phase}\nOperation: {self.operation_index + 1} of {len(self.operations)}\n', encoding='utf-8')
             temp.replace(marker)
         finally:
             temp.unlink(missing_ok=True)
+        safe_payload = dict(self.payload)
+        for secret_field in ('apiKeys', 'gemini_api_keys', 'api_key', 'apiKey', 'token'):
+            safe_payload.pop(secret_field, None)
+        save_json(resume_state, dict(version=1, story=str(source), project=project_url,
+                                     action=self.action, lane=self.lane, payload=safe_payload,
+                                     operations=self.operations, operation_index=self.operation_index,
+                                     operation_projects=self.operation_projects, operation_phases=self.operation_phases,
+                                     phase=self.phase, status='incomplete', auto_retry_count=self.auto_retry_count,
+                                     saved_at=time.time(), account_email=email))
         self.log('INCOMPLETE PROJECT: saved the active Flow account Gmail and Flow project URL in ' + str(marker) + '.')
         if self.status == 'running':
             self.stop()
@@ -1406,6 +1416,49 @@ def mark_job_incomplete(job_id: str):
         return dict(ok=True, **result)
     except ValueError as exc:
         raise HTTPException(409, str(exc))
+
+
+@app.post('/api/incomplete-projects/resume')
+def resume_incomplete_project(body: dict):
+    try:
+        story_file, _story = story_path(body.get('story', ''))
+        project = project_url(body.get('project', ''), required=True)
+        state_file = story_file.parent / 'incomplete project.resume.json'
+        state = read_json(state_file)
+        if state and Path(str(state.get('story', ''))).resolve() != story_file:
+            raise ValueError('The saved resume state belongs to a different story. Mark this story incomplete again to refresh it.')
+        if state and state.get('project') and project_url(state['project'], required=True) != project:
+            raise ValueError('The Flow URL does not match this story’s saved incomplete project.')
+        if state and state.get('operations') and state.get('action') in RETRY_ACTIONS:
+            # Downloads get their own resumable ledger and must never resubmit generated prompts.
+            if str(state.get('phase', '')).lower() == 'download':
+                payload = dict(state.get('payload') or {}, story=str(story_file), project=project, view='agent')
+                lane, operations = plan_action('download', payload)
+                action = 'download'
+            else:
+                record = dict(state, status='stopped')
+                record['payload'] = dict(record.get('payload') or {}, story=str(story_file), project=project, view='agent')
+                operations = retry_plan(record)
+                action, lane = record['action'], record.get('lane', 'flow')
+                payload = record['payload']
+        else:
+            # Backward compatible with older incomplete project.txt markers.
+            payload = dict(body, story=str(story_file), project=project, view='agent')
+            lane, operations = plan_action('download', payload)
+            action = 'download'
+    except (ValueError, TypeError, OSError) as exc:
+        raise HTTPException(400, str(exc))
+    with lock:
+        if any(j.status == 'running' and j.lane == lane for j in jobs.values()):
+            raise HTTPException(409, f'A {lane} job is already running. Stop it or wait for it to finish.')
+        job = Job(action, payload, lane, operations)
+        job.current_story, job.current_project_url = str(story_file), project
+        jobs[job.id] = job
+        save_json(ROOT / 'logs' / 'desktop' / 'last_agent_job.json', dict(id=job.id, action=action, payload=payload, lane=lane,
+                  operations=operations, operation_index=0, operation_projects={}, operation_phases={}, phase='incomplete resume', status='running', auto_retry_count=0))
+        job.log(f'Resuming incomplete project from saved phase: {state.get("phase", "download checkpoint" ) if state else "legacy project download"}.')
+        threading.Thread(target=job.run, daemon=True).start()
+        return job.summary()
 
 
 @app.get('/api/jobs/{job_id}/log')

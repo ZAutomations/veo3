@@ -9,20 +9,24 @@ function relevantLocations(story,scene){
   return specific.length>0&&specific.every(token=>text.includes(token));
  });
 }
+function visualContinuity(story){
+ const continuity=String(story.visual_continuity||'').trim();
+ return `WORLD CONTINUITY (story facts only; visual-style conflicts are resolved by the preset STYLE, PALETTE and matching reference image): ${continuity||'Preserve the story premise and consistent locations.'}. Do not let older or generic color, lighting, or rendering notes in this continuity field override the selected preset or reference look. Preserve only color details essential to the real subject (for example, a naturally colored object or a factual diagram).`;
+}
 function scene(story,index,{aspect=story.aspect_ratio,seconds=8}={}){
  const s=story.scenes[index];
  const present=new Set((s.characters||[]).map(n=>n.toLowerCase()));
  const refs=[...(story.imported_cast||[]).filter(n=>present.has(n.toLowerCase())),story.place?.name].filter(Boolean);
  const locations=relevantLocations(story,s);
  return [`Generate ONE standalone ${seconds}-second clip for scene ${index+1} only. These shots are internal views in this one clip, not extra clips.`,
-  `FILM TOPIC: ${story.title}. ${story.visual_continuity||''}`,
+  `FILM TOPIC: ${story.title}.\n${visualContinuity(story)}`,
   require('./zack_topic_visuals').CONTRACT,
   require('./narration_callout_contract').forScene(story,s,seconds),
   require('./zack_camera_transitions').DIRECTION,
   require('./clip_join_camera_contract').DIRECTION,
   `FORMAT: ${aspect==='Flow'?'Use the ratio selected in Flow':aspect}.`,
   `STYLE: ${story.style}\nPALETTE: ${story.palette}`,
-  `REFERENCES: ${refs.map(n=>'@'+n).join(', ')||'None'}. Reference images hold identity and design only; do not reproduce a reference sheet as a frame.`,
+  `REFERENCES: ${refs.map(n=>'@'+n).join(', ')||'None'}. Treat each attached matching reference as a strong visual design anchor: match its 3D rendering language, material finish, color richness, palette balance, contrast and lighting character, while adapting the composition to the exact supplied scene. For @Environment, carry its stylized, vivid multicolour 3D look into the scene’s buildings, streets, props and lighting; do not replace it with muted photorealism, slate-blue grading or a generic cyan look. Preserve the reference’s identity and design, but do not copy its exact framing or reproduce the reference sheet as a frame.`,
   ...Object.entries(story.character_descriptions||{}).filter(([name])=>present.has(name.toLowerCase())).map(([name,description])=>`IDENTITY ${name}: ${description}`),
   `LOCATIONS: ${locations.length?JSON.stringify(locations):'Use the concrete setting described in each shot.'} A location reference does not force interiors onto exterior or diagram shots.`,
   ...(story.imported_details?[`CREATOR CONTEXT: ${story.imported_details}`]:[]),
@@ -55,4 +59,4 @@ function prepare(W,p,s,aspect){
  const warnings=[...(s.warnings||[])];
  return {W,p,cast,story,warnings};
 }
-module.exports={applies,visual,scene,agent,prepare,relevantLocations};
+module.exports={applies,visual,scene,agent,prepare,relevantLocations,visualContinuity};
