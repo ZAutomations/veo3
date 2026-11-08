@@ -11,6 +11,7 @@ function validate(source){
  }
  if(Math.abs(map-total/2)>0.5)throw Error(`World Politics requires 50% map screen time (±0.5s); received ${map}s map in ${total}s. Adjust timed shot markers; do not add new fields.`);
  if(!String(source.sources||'').trim())throw Error('World Politics needs Sources: with research cutoff, supporting source URLs and claim attribution. Research must happen before import.');
+ require('./politics_visual_alignment').validate(source);
 }
 function scene(story,index,{seconds=story.scene_seconds||8,aspect=story.aspect_ratio}={}){
  const s=story.scenes[index];
@@ -21,7 +22,7 @@ function scene(story,index,{seconds=story.scene_seconds||8,aspect=story.aspect_r
  ...s.shots.map((shot,i)=>{const mode=shot.visual.match(/^\[(MAP|RECONSTRUCTION|EXPLAINER)\]/)?.[1];return `SHOT ${i+1} (${shot.start_seconds}-${shot.end_seconds}s): ${MEDIUM[mode]||''} ${shot.visual}`;}),
  require('./within_clip_camera_contract').DIRECTION,require('./clip_join_camera_contract').DIRECTION,
  'For a medium change, track a map pin or document edge into a visible foreground occlusion, then reveal the next medium and settle. Keep relevant labels readable; no arbitrary hard internal cuts or unrelated globe spins.',
- require('./narration_callout_contract').forScene(story,s,seconds),
+ require('./politics_visual_alignment').forScene(story,s,seconds),
  `EFFECT: ${s.effect||'Use restrained narration-linked place/entity labels and sourced numeric callouts.'}`,
  require('./narration_pace').lock(seconds),
  `NATIVE AUDIO: One consistent off-screen ${story.narrator_voice}; established Flow voice ${story.flow_voice||'Alnilam'}. Read verbatim: ${JSON.stringify(s.script_line)}. All pictured figures silent. SOUND: ${s.sound||'Restrained factual documentary instrumental pulse and scene ambience'}. Pair place/person/object callouts with audible restrained pop/click, dates and numbers with synchronized typewriter ticks. Narration foreground; no lyrics. Honor explicit No music.`,
@@ -40,6 +41,6 @@ function prepare(W,p,source,aspect){
 }
 function agent(story,{from=1,to=story.scenes.length,...options}={}){
  if(!applies(story))return null;
- return [`Create exactly ${to-from+1} separate clips for scenes ${from}-${to}. Preserve scene IDs, supplied facts, narration, duration and per-shot medium markers.`,...story.scenes.slice(from-1,to).map((s,i)=>`Scene ${from+i}\n${scene(story,from+i-1,options)}`)].join('\n\n');
+ return [`Create exactly ${to-from+1} separate clips for scenes ${from}-${to}. Preserve scene IDs, supplied facts, narration, duration and per-shot medium markers. The 50% map allocation is a whole-film target, never a mandatory first-half map template for every clip. Follow each clip's actual subject and explicit graphics/SFX cues.`,require('./current_events_policy'),require('./prominent_people_policy'),...story.scenes.slice(from-1,to).map((s,i)=>`Scene ${from+i}\n${scene(story,from+i-1,options)}`)].join('\n\n');
 }
 module.exports={ID,applies,validate,scene,prepare,agent};

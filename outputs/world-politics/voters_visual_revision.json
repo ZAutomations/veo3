@@ -1,0 +1,240 @@
+{
+  "title": "Why American Voters Turned Against the Republicans",
+  "preset": "world-politics-map-explain",
+  "storyNumber": 1,
+  "seconds": 10,
+  "declaredDuration": 80,
+  "setting": "Accurate United States and Iran maps; illustrative civilian household kitchen, public survey desk and election counting office.",
+  "story_brief": "As of November 6, 2026; Why American Voters Turned Against the Republicans. Current verified reporting and legal/institutional context; projections and reported incidents remain qualified.",
+  "sources": "Research cutoff: 2026-11-06 10:37 America/Los_Angeles; elect: https://www.ap.org/news-highlights/elections/2026/how-trump-and-republicans-lost-the-2026-midterm-elections-according-to-the-ap-voter-poll/; poll: https://www.cbsnews.com/news/cbs-news-exit-polls-midterm-elections-2026/; cbs: https://www.cbsnews.com/live-updates/election-day-2026-midterms/",
+  "characters": [],
+  "locations": [
+    {
+      "name": "Map Reference",
+      "description": "Accurate US state boundaries and Iran/Persian Gulf geography, used only for the relevant geographic shots."
+    },
+    {
+      "name": "Household Kitchen",
+      "description": "Neutral civilian kitchen table, grocery basket, receipts and wallet; illustrative anonymous faceless adults."
+    },
+    {
+      "name": "Survey Desk",
+      "description": "Neutral tabletop with symbolic survey documents and small institutional models, no fabricated official records."
+    }
+  ],
+  "clips": [
+    {
+      "number": 1,
+      "title": "Clip 1",
+      "narration": "America voted on November third, and major news organizations projected Democrats winning both congressional chambers. Why did so many midterm voters move away from Republican candidates across the country?",
+      "action": "",
+      "dialogue": [],
+      "shots": [
+        {
+          "start_seconds": 0,
+          "end_seconds": 3,
+          "visual": "[MAP] Start over the accurate continental United States relief map. A ballot-box pictogram pops over the country as NOV 3 types in beside it, linked to America voted; no state results or vote totals are invented."
+        },
+        {
+          "start_seconds": 3,
+          "end_seconds": 7,
+          "visual": "[MAP] Track toward Washington and anchor neutral HOUSE and SENATE building badges beside the Capitol locator. Show MEDIA PROJECTIONS, not certified totals; both badges receive a source-attributed Democratic projection label without shading unsupported state outcomes."
+        },
+        {
+          "start_seconds": 7,
+          "end_seconds": 10,
+          "visual": "[MAP] Pull back to national scope; anonymous voter-dot symbols appear without partisan colors or numeric meaning. An amber question ring connects voter concerns to congressional choice. Do not pan to unrelated states or an office."
+        }
+      ],
+      "effect": "On America voted, ballot-box popup and exact NOV 3 type-on. On both chambers, sequential HOUSE/SENATE badges. At the closing question, one amber ring over national voter concerns; no unspoken state labels.",
+      "sound": "One consistent Alnilam narrator reads the original line unchanged. Quiet situation-matched instrumental documentary bed. A distinct restrained pop/click for each named label, icon, badge or process node at its spoken cue; short whoosh only during motivated camera movement. Soft typewriter ticks only while the exact date or survey fraction types on. SFX and music remain below clear narration, with no lyrics or competing speech."
+    },
+    {
+      "number": 2,
+      "title": "Clip 2",
+      "narration": "The Associated Press voter survey found daily costs dominated many household voting decisions. Groceries, fuel, medical bills, and other expenses remained painful even after political promises to lower them.",
+      "action": "",
+      "dialogue": [],
+      "shots": [
+        {
+          "start_seconds": 0,
+          "end_seconds": 3.7,
+          "visual": "[RECONSTRUCTION] Show an anonymous faceless adult civilian pair at a household kitchen table reviewing receipts and an open wallet, shoulders visibly slumped with restrained concern. This is illustrative household budgeting, not named survey respondents or proof of private voting motives. A small AP VOTER SURVEY attribution appears beside the receipts."
+        },
+        {
+          "start_seconds": 3.7,
+          "end_seconds": 5,
+          "visual": "[RECONSTRUCTION] Pan from the receipts to a real grocery basket with bread, milk and vegetables. On the spoken word groceries, pop a circular basket badge labelled GROCERIES, point an amber ring to it and hold briefly. The civilians remain visible behind the actual household-cost subject; no office or government documents."
+        },
+        {
+          "start_seconds": 5,
+          "end_seconds": 7,
+          "visual": "[EXPLAINER] Track the grocery badge through foreground occlusion into an ivory household-budget graphic. On fuel, pop a clear fuel-pump pictogram in a circle labelled FUEL, then introduce a medical-invoice icon with a small cross labelled MEDICAL BILLS on the corresponding phrase; sequence icons rather than covering them with a map."
+        },
+        {
+          "start_seconds": 7,
+          "end_seconds": 10,
+          "visual": "[EXPLAINER] Hold the medical-invoice badge through medical bills, then bring in a receipt-and-wallet badge labelled OTHER EXPENSES on that phrase. A subdued amber cost-burden ring pulses once; use no invented prices or falling income graph. End with two relevant icons visible and a small household silhouette."
+        }
+      ],
+      "effect": "At the spoken phrases groceries, fuel, medical bills and other expenses, show respectively basket/GROCERIES, pump/FUEL, invoice-cross/MEDICAL BILLS and receipt-wallet/OTHER EXPENSES circular badges. Approximate entries 4, 4.8, 5.5 and 6.5 seconds; actual phrase timing is authoritative. Hold each through its phrase, clear the oldest, and show at most two at once. Include a concerned anonymous civilian reaction; no invented prices.",
+      "sound": "One consistent Alnilam narrator reads the original line unchanged. Quiet situation-matched instrumental documentary bed. Sequential audible soft pops on GROCERIES, FUEL, MEDICAL BILLS and OTHER EXPENSES; light receipt rustle under the kitchen reaction. SFX and music remain below clear narration, with no lyrics or competing speech."
+    },
+    {
+      "number": 3,
+      "title": "Clip 3",
+      "narration": "CBS exit polling also identified dissatisfaction with the economy, while voters differed on immigration and other issues. No single grievance explains every individual state or every single ballot cast.",
+      "action": "",
+      "dialogue": [],
+      "shots": [
+        {
+          "start_seconds": 0,
+          "end_seconds": 3,
+          "visual": "[MAP] Keep the accurate United States as a stable geographic anchor. An attributed CBS EXIT POLL card appears above the country with a restrained pop; no invented colored election regions or state percentages."
+        },
+        {
+          "start_seconds": 3,
+          "end_seconds": 7,
+          "visual": "[MAP] Stay on the same national map and reveal a receipt/wallet badge labelled ECONOMY on economy, followed by a neutral border-checkpoint pictogram labelled IMMIGRATION on immigration. A short pointer links each badge to the national survey context, not a claim about a specific locality."
+        },
+        {
+          "start_seconds": 7,
+          "end_seconds": 10,
+          "visual": "[MAP] Pull back enough to retain country outline and the two issue badges. Show DIFFERENT VOTERS, DIFFERENT CONCERNS with spaced neutral voter-dot icons; no quantitative chart or implication that all people voted for one reason."
+        }
+      ],
+      "effect": "CBS EXIT POLL attribution near 0.5 seconds, receipt/wallet ECONOMY badge on economy, border-checkpoint IMMIGRATION badge on immigration; ring the distinct concern cards. No made-up numeric distribution.",
+      "sound": "One consistent Alnilam narrator reads the original line unchanged. Quiet situation-matched instrumental documentary bed. A distinct restrained pop/click for each named label, icon, badge or process node at its spoken cue; short whoosh only during motivated camera movement. SFX and music remain below clear narration, with no lyrics or competing speech."
+    },
+    {
+      "number": 4,
+      "title": "Clip 4",
+      "narration": "Poll respondents frequently cited the importance of institutional checks and balances. The AP reported roughly seven in ten believed Congress was doing too little to constrain presidential power.",
+      "action": "",
+      "dialogue": [],
+      "shots": [
+        {
+          "start_seconds": 0,
+          "end_seconds": 3,
+          "visual": "[RECONSTRUCTION] Move from a public survey summary on an unbranded tabletop toward a small model of the Capitol and White House. The summary is labelled AP VOTER SURVEY; it is an illustrative graphic, not a fabricated original questionnaire or signed document."
+        },
+        {
+          "start_seconds": 3,
+          "end_seconds": 7,
+          "visual": "[EXPLAINER] Sweep the model edge into a clean ivory checks-and-balances diagram. Pop CONGRESS and PRESIDENCY institution boxes with opposing oversight arrows; on roughly seven in ten type ABOUT 7 IN 10 RESPONDENTS. Illuminate seven of ten neutral respondent dots as a qualitative rendering of that stated proportion, not vote totals."
+        },
+        {
+          "start_seconds": 7,
+          "end_seconds": 10,
+          "visual": "[EXPLAINER] Hold the qualified survey callout above a short label WANTED STRONGER CONGRESSIONAL CHECKS. An amber arrow points from the respondent-dot group to the institutional relationship. Keep ABOUT and RESPONDENTS readable; do not assert unlimited congressional power or show an unrelated state."
+        }
+      ],
+      "effect": "Checks-and-balances institution badges with arrows on the matching phrase; exact ABOUT 7 IN 10 RESPONDENTS type-on on roughly seven in ten. Seven highlighted neutral dots out of ten, clearly survey respondents rather than election votes; AP attribution stays visible.",
+      "sound": "One consistent Alnilam narrator reads the original line unchanged. Quiet situation-matched instrumental documentary bed. A distinct restrained pop/click for each named label, icon, badge or process node at its spoken cue; short whoosh only during motivated camera movement. Soft typewriter ticks only while the exact date or survey fraction types on. SFX and music remain below clear narration, with no lyrics or competing speech."
+    },
+    {
+      "number": 5,
+      "title": "Clip 5",
+      "narration": "The Iran war entered the picture too. Surveys found many voters opposed the military action, but economic worries were generally more prominent than foreign policy in voter responses.",
+      "action": "",
+      "dialogue": [],
+      "shots": [
+        {
+          "start_seconds": 0,
+          "end_seconds": 3,
+          "visual": "[MAP] Begin with a geographically accurate regional relief map of Iran and the Persian Gulf. Pop exact IRAN label beside its correct landmass when the country is named. Use a neutral conflict-context badge, without inventing a particular launch, strike, explosion or frontline."
+        },
+        {
+          "start_seconds": 3,
+          "end_seconds": 7,
+          "visual": "[MAP] Pull back and track through a globe-scale travel move toward the United States. Bring up a source-attributed survey concern badge with a small neutral military-policy symbol; label OPINION ABOUT MILITARY ACTION without invented protest footage, attacks or casualty figures."
+        },
+        {
+          "start_seconds": 7,
+          "end_seconds": 10,
+          "visual": "[MAP] Land above the United States and place ECONOMIC WORRIES and FOREIGN POLICY cards beside its outline. Emphasize the economy card with an amber ring when the narration says more prominent; present a qualitative comparison with no invented bar lengths, percentages or numeric rankings."
+        }
+      ],
+      "effect": "IRAN place label with geographic pointer and popup on Iran; military-policy symbol on military action; ECONOMIC WORRIES and FOREIGN POLICY issue cards with an amber ring emphasizing the reported qualitative comparison. No invented war event or ratio.",
+      "sound": "One consistent Alnilam narrator reads the original line unchanged. Quiet situation-matched instrumental documentary bed. A distinct restrained pop/click for each named label, icon, badge or process node at its spoken cue; short whoosh only during motivated camera movement. SFX and music remain below clear narration, with no lyrics or competing speech."
+    },
+    {
+      "number": 6,
+      "title": "Clip 6",
+      "narration": "Look across Maine, Ohio, North Carolina, and Texas: local candidates and state-specific contests mattered alongside broader nationwide political moods. A national map does not explain every individual vote.",
+      "action": "",
+      "dialogue": [],
+      "shots": [
+        {
+          "start_seconds": 0,
+          "end_seconds": 3,
+          "visual": "[MAP] Show accurate United States state boundaries. On Maine, fly to Maine and pop MAINE beside the state; move next to Ohio as OHIO pops in. Keep past labels small and do not imply a particular election result."
+        },
+        {
+          "start_seconds": 3,
+          "end_seconds": 7,
+          "visual": "[MAP] Continue a readable map pan to North Carolina and then Texas in spoken order. Pop NORTH CAROLINA and TEXAS beside their correct shapes, with a pointer ring on each entry. No arbitrary transit line or geographic path presented as actual voter movement."
+        },
+        {
+          "start_seconds": 7,
+          "end_seconds": 10,
+          "visual": "[MAP] Pull back to show the four geographic anchors together. A small LOCAL CONTESTS badge points to each state in turn while a NATIONAL MOOD frame remains broader; do not invent vote shares, candidate likenesses or a uniform state-level motive."
+        }
+      ],
+      "effect": "MAINE, OHIO, NORTH CAROLINA and TEXAS anchored to their real states and revealed in narration order, each with its own popup and short pointer ring. Local-contest badges hold without fabricated vote totals.",
+      "sound": "One consistent Alnilam narrator reads the original line unchanged. Quiet situation-matched instrumental documentary bed. A distinct restrained pop/click for each named label, icon, badge or process node at its spoken cue; short whoosh only during motivated camera movement. SFX and music remain below clear narration, with no lyrics or competing speech."
+    },
+    {
+      "number": 7,
+      "title": "Clip 7",
+      "narration": "Crucially, media projections are not officially certified vote totals. Some contests were still being finalized as reporting continued, and incoming legislators will take office in the next congressional term.",
+      "action": "",
+      "dialogue": [],
+      "shots": [
+        {
+          "start_seconds": 0,
+          "end_seconds": 3,
+          "visual": "[RECONSTRUCTION] Track across two neutral election-results folders on a public counting-office desk, labelled PROJECTION and CERTIFICATION. Show only symbolic documents; no fabricated official totals, seals, signatures or identifiable election workers."
+        },
+        {
+          "start_seconds": 3,
+          "end_seconds": 5,
+          "visual": "[RECONSTRUCTION] Pan to the separate certification folder and a blank verification-checklist symbol; hold a clear PROJECTION IS NOT CERTIFICATION callout. The scene illustrates the distinction without asserting certification of a specific race."
+        },
+        {
+          "start_seconds": 5,
+          "end_seconds": 10,
+          "visual": "[EXPLAINER] Use the folder edge to reveal a clean ivory three-stage process: MEDIA PROJECTION, CERTIFICATION, NEW TERM. On still being finalized, softly pulse the certification node, then trace to NEW TERM when incoming legislators are discussed. No invented date or automatic transfer of power on election night."
+        }
+      ],
+      "effect": "PROJECTION and CERTIFICATION labels with separate document symbols and a contrasting amber ring; then process nodes MEDIA PROJECTION, CERTIFICATION and NEW TERM. No invented dates, signatures or numbers.",
+      "sound": "One consistent Alnilam narrator reads the original line unchanged. Quiet situation-matched instrumental documentary bed. A distinct restrained pop/click for each named label, icon, badge or process node at its spoken cue; short whoosh only during motivated camera movement. SFX and music remain below clear narration, with no lyrics or competing speech."
+    },
+    {
+      "number": 8,
+      "title": "Clip 8",
+      "narration": "The broader lesson is complicated: dissatisfaction with Republicans did not mean universal enthusiasm for Democrats. Future governing choices will test whether voters feel their everyday concerns were actually heard.",
+      "action": "",
+      "dialogue": [],
+      "shots": [
+        {
+          "start_seconds": 0,
+          "end_seconds": 3,
+          "visual": "[RECONSTRUCTION] Show anonymous faceless adult civilians beside their neighborhood community noticeboard, with restrained concerned postures. They look at household-cost and public-service pictograms, not at an unrelated office map; no party rally, persuasion message or claims about identifiable voters."
+        },
+        {
+          "start_seconds": 3,
+          "end_seconds": 7,
+          "visual": "[RECONSTRUCTION] Pan between the civilians and two neutral party-name cards, REPUBLICANS and DEMOCRATS, on an explicitly illustrative explanatory board. A small NOT THE SAME THING badge distinguishes dissatisfaction with one party from enthusiasm for the other; do not show celebratory crowds, invented poll percentages or private thoughts."
+        },
+        {
+          "start_seconds": 7,
+          "end_seconds": 10,
+          "visual": "[EXPLAINER] Follow a cost-receipt symbol into an ivory feedback loop: VOTER CONCERNS to GOVERNING CHOICES to FUTURE EVALUATION. Pop each node with a quiet click and settle on a question mark at the final node, illustrating the narration without predicting a result."
+        }
+      ],
+      "effect": "Concerned anonymous civilian reaction followed by NOT THE SAME THING distinction; final three-node feedback loop with a relevant cost/public-service icon, each with popup sound. No invented future vote outcome.",
+      "sound": "One consistent Alnilam narrator reads the original line unchanged. Quiet situation-matched instrumental documentary bed. A distinct restrained pop/click for each named label, icon, badge or process node at its spoken cue; short whoosh only during motivated camera movement. SFX and music remain below clear narration, with no lyrics or competing speech."
+    }
+  ]
+}

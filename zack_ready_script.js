@@ -21,6 +21,7 @@ function scene(story,index,{aspect=story.aspect_ratio,seconds=8}={}){
  return [`Generate ONE standalone ${seconds}-second clip for scene ${index+1} only. These shots are internal views in this one clip, not extra clips.`,
   `FILM TOPIC: ${story.title}.\n${visualContinuity(story)}`,
   require('./zack_topic_visuals').CONTRACT,
+  ...(story.preset_id==='intimacy-health-3d'?[require('./intimacy_health_contract').DIRECTION]:[]),
   require('./narration_callout_contract').forScene(story,s,seconds),
   require('./zack_camera_transitions').DIRECTION,
   require('./clip_join_camera_contract').DIRECTION,
