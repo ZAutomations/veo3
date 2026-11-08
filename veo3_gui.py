@@ -63,6 +63,7 @@ AGENT_ENGINE = os.path.join(BASE_DIR, "agent_mode.js")
 # name rather than a prefix.
 VIDEO_MODELS = [
     "Flow",
+    "Omni 1.1 Flash",
     "Omni 1.2 Flash",
     "Veo 3.1 - Lite",
     "Veo 3.1 - Fast",
@@ -371,10 +372,6 @@ class Veo3LauncherGUI:
                 source = SETTINGS_FILE
             with open(source, "r", encoding="utf-8") as f:
                 s = json.load(f)
-            # Move saved model fields off the retired version while preserving the user's other settings.
-            for key, value in list(s.items()):
-                if value == "Omni 1.1 Flash":
-                    s[key] = "Omni 1.2 Flash"
             for field in ("file", "description"):
                 if "couple_sam_" + field not in s and "couple_george_" + field in s:
                     s["couple_sam_" + field] = s["couple_george_" + field]

@@ -60,7 +60,7 @@ UI = ROOT / 'desktop_ui'
 STATE = ROOT / 'desktop_settings.json'
 WRITER_STATE = ROOT / 'desktop_writer_settings.json'
 TOKEN = secrets.token_urlsafe(32)
-MODELS = ['Flow', 'Omni 1.2 Flash', 'Veo 3.1 - Lite', 'Veo 3.1 - Fast', 'Veo 3.1 - Quality', 'Veo 3.1 - Lite [Lower Priority]']
+MODELS = ['Flow', 'Omni 1.1 Flash', 'Omni 1.2 Flash', 'Veo 3.1 - Lite', 'Veo 3.1 - Fast', 'Veo 3.1 - Quality', 'Veo 3.1 - Lite [Lower Priority]']
 lock = threading.RLock()
 _json_write_lock = threading.RLock()
 
@@ -230,9 +230,6 @@ GLOBAL_WORKFLOW_DEFAULTS = dict(rotateQueueAccounts=False, videosPerAccount=2,
 def global_workflow_settings(values=None):
     supplied = read_json(ROOT / 'gui_settings.json').get('workflow_globals', {}) if values is None else values
     if not isinstance(supplied, dict):raise ValueError('Invalid global workflow settings.')
-    # Migrate saved model selections so old preferences remain valid in the new picker.
-    if supplied.get('videoModel') == 'Omni 1.1 Flash':
-        supplied = dict(supplied, videoModel='Omni 1.2 Flash')
     cfg = dict(GLOBAL_WORKFLOW_DEFAULTS, **{k:v for k,v in supplied.items() if k in GLOBAL_WORKFLOW_DEFAULTS})
     for key in ('rotateQueueAccounts','activityCooldownEnabled'):
         if not isinstance(cfg[key], bool):raise ValueError(f'{key} must be enabled or disabled.')
