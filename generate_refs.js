@@ -773,6 +773,48 @@ async function renameNewest(page, name, tileIndex = 0) {
     return { ok: false, why: 'rename did not commit after 3 attempts' };
 }
 
+// A user can manually add the finished thumbnail to Flow after its generated
+// image request failed. The old pending receipt cannot identify an uploaded
+// tile. At the Thumbnail step, adopt only the single image left unclaimed after
+// every earlier required reference has been verified by name. If several
+// candidates remain, stop rather than renaming an unrelated image.
+async function reconcileUploadedThumbnail(page, refs, refIndex, log, receipt) {
+    const ref = refs[refIndex];
+    if (String(ref?.kind || '').toLowerCase() !== 'thumbnail') return null;
+    const state = await page.evaluate(RI.referenceState);
+    const tiles = await Promise.all(state.images.map(async image => ({
+        ...image,
+        name: String(await tileName(page, image.tileIndex) || '').trim(),
+    })));
+    const earlier = refs.slice(0, refIndex);
+    if (earlier.some(item => !tiles.some(tile =>
+        tile.name.toLowerCase() === String(item.name || '').trim().toLowerCase()))) return null;
+
+    const expected = new Set(refs.map(item => String(item.name || '').trim().toLowerCase()).filter(Boolean));
+    const unclaimed = tiles.filter(tile => !expected.has(tile.name.toLowerCase()));
+    if (!unclaimed.length) return null;
+    const thumbnailNamed = unclaimed.filter(tile => /thumb(?:nail)?|end[\s_-]*card|cover/i.test(tile.name));
+    const pending = receipt?.read();
+    const beforeKeys = new Set((pending?.before?.images || []).map(image => image.key));
+    const addedSinceRequest = beforeKeys.size
+        ? unclaimed.filter(tile => !beforeKeys.has(tile.key))
+        : [];
+    const candidate = thumbnailNamed.length === 1 ? thumbnailNamed[0]
+        : addedSinceRequest.length === 1 ? addedSinceRequest[0]
+        : unclaimed.length === 1 && tiles.length === refs.length ? unclaimed[0]
+        : null;
+    if (!candidate) {
+        return { ok: false, why: `Found ${unclaimed.length} unclaimed image tiles while looking for Thumbnail. Name the intended image tile "Thumbnail" and resume; no image was renamed.` };
+    }
+
+    log(`Found one unclaimed completed image tile${candidate.name ? ` named "${candidate.name}"` : ''} after verifying earlier references; adopting it as Thumbnail.`);
+    const renamed = await renameNewest(page, 'Thumbnail', candidate.tileIndex);
+    if (!renamed.ok) return { ok: false, why: `Found the manually added thumbnail${candidate.name ? ` ("${candidate.name}")` : ''}, but could not rename it: ${renamed.why}` };
+    const finalState = await page.evaluate(RI.referenceState);
+    const image = finalState.images.find(item => item.key === candidate.key);
+    return { ok: true, imageKey: image?.key || candidate.key };
+}
+
 // ── main ---------------------------------------------------------------------
 // ── the routine ──────────────────────────────────────────────────────────────
 // Exported so the Scenes/Ingredients engine can make the sheets on a page it has
@@ -804,7 +846,8 @@ async function generateRefs(page, refs, opts = {}) {
     };
 
     let made = 0, failed = 0, blocked = false, stopReason = '';
-    for (const r of refs) {
+    for (let refIndex = 0; refIndex < refs.length; refIndex++) {
+        const r = refs[refIndex];
         const name = String(r.name || '').trim();
         log(`\n[${made + failed + 1}/${refs.length}] ${name}`);
         const recovery = require('./reference_generation_receipt');
@@ -822,6 +865,22 @@ async function generateRefs(page, refs, opts = {}) {
                 // so a later retry cannot block on a stale asset key.
                 receipt.clear();
                 made++; log(`  verified existing completed image named "${name}"; cleared any stale receipt and skipped generation.`); continue;
+            }
+        }
+        if (!r.localFile) {
+            const manualThumbnail = await reconcileUploadedThumbnail(page, refs, refIndex, log, receipt);
+            if (manualThumbnail?.ok) {
+                receipt?.clear();
+                if (receipt && manualThumbnail.imageKey) receipt.write({status:'completed',imageKey:manualThumbnail.imageKey});
+                made++;
+                log('  verified manually added image as "Thumbnail"; continuing without generating a replacement.');
+                continue;
+            }
+            if (manualThumbnail && !manualThumbnail.ok) {
+                failed++;
+                stopReason = manualThumbnail.why;
+                log(`  FAILED: ${stopReason}`);
+                break;
             }
         }
         if (r.localFile) {
