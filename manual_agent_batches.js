@@ -10,6 +10,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const CLIPS_PER_FILE = 6;
+const FULL_STORY_FILE = 'MANUAL_AGENT_FULL_STORY_ALL_BATCHES.txt';
 
 function writeManualAgentBatches(storyPath, options = {}) {
     const absoluteStory = path.resolve(storyPath);
@@ -39,6 +40,14 @@ function writeManualAgentBatches(storyPath, options = {}) {
         '',
     ];
 
+    const fullStory = [
+        `FULL STORY — ALL MANUAL FLOW AGENT BATCHES`,
+        `Story: ${safeTitle}`,
+        `Clips: ${scenes.length} | Clip duration: ${seconds}s | Aspect ratio: ${aspect}`,
+        'All numbered batches follow in story order, with their complete Agent instructions.',
+        'For six-clip submissions, copy one batch section at a time and wait for it to finish before the next.',
+        '',
+    ];
     let written = 0;
     for (let from = 1; from <= scenes.length; from += CLIPS_PER_FILE) {
         const to = Math.min(scenes.length, from + CLIPS_PER_FILE - 1);
@@ -66,12 +75,17 @@ function writeManualAgentBatches(storyPath, options = {}) {
             '============================================================',
             '',
         ].join('\n');
-        fs.writeFileSync(file, header + prompt + '\n', 'utf8');
+        const contents = header + prompt + '\n';
+        fs.writeFileSync(file, contents, 'utf8');
+        fullStory.push(contents);
         index.push(`${number}. Scenes ${from}-${to}: ${path.basename(file)}`);
         written++;
     }
+    const fullStoryFile = path.join(outputDir, FULL_STORY_FILE);
+    fs.writeFileSync(fullStoryFile, fullStory.join('\n'), 'utf8');
+    index.push('', `Full story with every batch and complete instructions: ${FULL_STORY_FILE}`);
     fs.writeFileSync(path.join(outputDir, 'MANUAL_AGENT_BATCHES.txt'), index.join('\n') + '\n', 'utf8');
-    return { folder: outputDir, count: written };
+    return { folder: outputDir, count: written, fullStoryFile };
 }
 
 if (require.main === module) {
@@ -90,4 +104,4 @@ if (require.main === module) {
     }
 }
 
-module.exports = { writeManualAgentBatches, CLIPS_PER_FILE };
+module.exports = { writeManualAgentBatches, CLIPS_PER_FILE, FULL_STORY_FILE };

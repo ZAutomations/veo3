@@ -16,7 +16,8 @@ async function thumbnailTiles(page) {
             .filter(tile => { const r = tile.getBoundingClientRect(); return r.width > 0 && r.height > 0; })
             .map(tile => {
                 const r = tile.getBoundingClientRect();
-                const title = tile.querySelector('.asset-title,[data-asset-title]')?.textContent?.trim() || '';
+                const title = tile.querySelector('.asset-title,.footer-title,[data-asset-title]')?.textContent?.trim()
+                    || tile.querySelector('flow-tile-hover-footer .footer-left[aria-label]')?.getAttribute('aria-label') || '';
                 const text = (tile.innerText || tile.textContent || '').trim();
                 const media = [...tile.querySelectorAll('img,video,source')].map(el => el.currentSrc || el.getAttribute('src') || '').join(' ');
                 const assetId = (media.match(/\/(?:image|asb)\/([^=?/#\s]+)/) || [])[1] || '';

@@ -300,7 +300,13 @@ const thumbnailNames = ['thumbnail_downloaded.png','thumbnail_downloaded.jpg','t
 const thumbnailCandidates = NO_THUMBNAIL ? [] : thumbnailNames
     .map(name => path.join(path.dirname(path.resolve(DIR)), name)).concat(
         NO_THUMBNAIL ? [] : thumbnailNames.map(name => path.join(path.resolve(DIR),name)));
-const thumbnailPath = thumbnailCandidates.find(file => fs.existsSync(file) && fs.statSync(file).size > 2048) || null;
+let thumbnailPath = thumbnailCandidates.find(file => fs.existsSync(file) && fs.statSync(file).size > 2048) || null;
+if (!thumbnailPath && !NO_THUMBNAIL && !DRY_RUN) {
+    // Manual Join must enforce the same preset-thumbnail step as batch download.
+    execFileSync(process.execPath, [path.join(__dirname,'ensure_story_thumbnail.js'), path.dirname(path.resolve(DIR))],
+        {stdio:'inherit',windowsHide:true,timeout:240000});
+    thumbnailPath = thumbnailCandidates.find(file => fs.existsSync(file) && fs.statSync(file).size > 2048) || null;
+}
 if (thumbnailPath) {
     log(`End card   : ${thumbnailPath} (${THUMBNAIL_SECONDS}s, appended after the final clip)`);
     total += THUMBNAIL_SECONDS;

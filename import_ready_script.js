@@ -84,6 +84,8 @@ function run(request){
   warnings.forEach(w=>console.log(`WARNING: ${s.title}: ${w}`));
   const marker=path.join(dir,'READY_IMPORT_COMPLETE.json');
   if(fs.existsSync(file)&&fs.existsSync(marker)&&!request.overwrite){
+   const manualExport=require('./manual_agent_batches');
+   if(!fs.existsSync(path.join(dir,'manual_agent_batches',manualExport.FULL_STORY_FILE)))manualExport.writeManualAgentBatches(file,{aspect,seconds:s.seconds});
    reports.write(dir,s,prepared[i],origins.get(s).text);
    console.log(`Already imported; preserved existing package: ${file}\nPreflight: ${path.join(dir,'IMPORT_PREFLIGHT.txt')}`);return file;
   }

@@ -585,6 +585,24 @@ def apply_speed(source,output,speed):
     if info['audio'] and not result['audio']:raise RuntimeError('Speed output lost its audio.')
 
 
+def sync_video_thumbnail(source, final):
+    """Ensure the preset image exists, then name its copy exactly as the video."""
+    folder=source.parent
+    if list(folder.glob('*_story.json')) and not any((folder/('thumbnail_downloaded'+ext)).is_file() for ext in ('.png','.jpg','.jpeg','.webp')):
+        subprocess.run(['node',str(ROOT/'ensure_story_thumbnail.js'),str(folder)],check=True,
+                       timeout=240,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
+    candidates=[folder/('thumbnail_downloaded'+ext) for ext in ('.png','.jpg','.jpeg','.webp')]
+    base=re.sub(r'(?i)\s+raw$','',source.stem)
+    candidates += [folder/(base+ext) for ext in ('.png','.jpg','.jpeg','.webp')]
+    image=next((p for p in candidates if p.is_file() and p.stat().st_size>2048),None)
+    if image:
+        named=final.with_suffix(image.suffix.lower())
+        if image.resolve()!=named.resolve():shutil.copy2(image,named)
+        log(f'Thumbnail: {named}')
+        return named
+    return None
+
+
 def edit(source,values=None,report=None,output=None):
     source=media_path(source);cfg=settings(values);info=probe(source)
     if not enabled(cfg):log('All editing features are disabled; original video retained.');return source
@@ -605,7 +623,7 @@ def edit(source,values=None,report=None,output=None):
     if receipt.is_file():
         saved=json.loads(receipt.read_text(encoding='utf-8'))
         if cfg.get('silence_skip_done',True) and saved.get('signature')==signature and saved.get('output')==str(final) and final.is_file():
-            probe(final);log(f'Existing edited output already matches these settings: {final}');return final
+            probe(final);sync_video_thumbnail(source,final);log(f'Existing edited output already matches these settings: {final}');return final
     work=folder/signature[:16];work.mkdir(exist_ok=True)
     current=source;segments=[(0,info['duration'])]
     boundaries=original_boundaries(source,report)
@@ -660,6 +678,7 @@ def edit(source,values=None,report=None,output=None):
     staging=final.with_name(final.stem+f'.building_{os.getpid()}.mp4');shutil.copy2(current,staging);os.replace(staging,final)
     receipt.write_text(json.dumps(dict(signature=signature,input=str(source),output=str(final),settings=cfg,
         keep_intervals=segments,transition_boundaries=[t/float(cfg['editing_speed']) for t in mapped],speed=cfg['editing_speed'],duration=result['duration']),indent=2),encoding='utf-8')
+    sync_video_thumbnail(source,final)
     log(f'EDITED_VIDEO: {final}')
     return final
 
