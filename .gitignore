@@ -86,3 +86,5 @@ desktop_writer_settings.json
 # Personal editing preferences and local render caches
 video_editing_settings.json
 **/video_editing_preview_cache/
+# Local media inspections can contain temporary signed Flow URLs.
+outputs/scene-recovery/

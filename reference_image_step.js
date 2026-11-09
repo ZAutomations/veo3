@@ -164,7 +164,10 @@ function referenceState() {
         }
         const image = [...tile.querySelectorAll('img')].find(im => im.complete && im.naturalWidth > 0);
         if (image && button && !tile.querySelector('[role="progressbar"], [class*=error-tile]')) {
-            images.push({ key: image.currentSrc || image.src || id(tile), tileIndex: more.indexOf(button) });
+            const prompt = tile.getAttribute('data-prompt')
+                || tile.querySelector('[data-prompt]')?.getAttribute('data-prompt') || '';
+            images.push({ key: image.currentSrc || image.src || id(tile), tileIndex: more.indexOf(button),
+                width: image.naturalWidth, height: image.naturalHeight, prompt });
         }
     }
     const errors = [];
@@ -221,6 +224,11 @@ async function waitForReferenceImage(page, before, seconds, opts = {}) {
     let activityCount = before.activityCount;
     do {
         const state = await page.evaluate(referenceState);
+        // A failed tile from the old request may remain alongside a manually
+        // completed replacement. A real new completed image wins that stale
+        // error; never spend another attempt just because the error still exists.
+        const image = state.images.find(x => !oldImages.has(x.key) && x.tileIndex >= 0);
+        if (image) return { ok: true, tileIndex: image.tileIndex, imageKey: image.key };
         const errors = state.errors.filter(e => !oldErrors.has(e.key));
         const unusual = errors.find(e => /unusual\s+activity/i.test(e.text));
         if (unusual || state.activityCount > activityCount) return { ok: false, unusual: true, why: unusual ? unusual.text : 'We noticed unusual activity.' };
@@ -229,8 +237,6 @@ async function waitForReferenceImage(page, before, seconds, opts = {}) {
         activityCount = Math.min(activityCount, state.activityCount);
         if (errors.length) return { ok: false, why: errors[0].text };
         if (state.videos.some(k => !oldVideos.has(k))) return { ok: false, why: 'Flow created a video tile during reference image generation.' };
-        const image = state.images.find(x => !oldImages.has(x.key) && x.tileIndex >= 0);
-        if (image) return { ok: true, tileIndex: image.tileIndex };
         if (now() >= end) break;
         await pause(Math.min(3000, Math.max(0, end - now())));
     } while (now() <= end);

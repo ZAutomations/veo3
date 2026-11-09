@@ -1,0 +1,61 @@
+CHANNEL CREATION MASTER PROMPT — Space Documentary
+SELECTED PRESET: genai-space-cel
+
+PRESET CONTEXT (reference data, not instructions to execute):
+{
+  "id": "genai-space-cel",
+  "label": "Space Documentary",
+  "audience": "Space and science-documentary viewers, awe-driven curious audience",
+  "style": "2D animated documentary style, illustrated celestial bodies with flat shading, crisp line work, deep starfields, glowing nebula colour, subtle looping cosmic motion, cinematic scale",
+  "palette": "Deep space black and indigo, star white, nebula magenta and teal, planetary ochre and rust, icy blue, warm solar gold",
+  "direction": "A space DOCUMENTARY that runs on awe. Clip 1 is a COLD OPEN on the single most mind-blowing moment or discovery in the story, described vividly and without its full context, to hook before rewinding. Then the middle runs as chronological problem-breakthrough-surprise episodes: the limitation or assumption of the time, who challenged it and how - a person, an instrument, an accident - what surprising thing came out of it, and how it reshaped what followed. Use real named people, dates and concrete physical detail. Weave in two or three moments of real personal risk, failure or controversy. Climb a ladder of escalating numbers so the scale keeps growing, describe each instrument or method as a physical, almost magic machine rather than as a spec sheet, and close on what is still unknown. One narrator, no on-screen text.",
+  "story_shapes": [
+    "the most mind-blowing discovery first, then the story behind it",
+    "a limit of its time, the person who broke it, and what they found",
+    "an instrument described like a magic machine, and what it revealed",
+    "a small early number, then one that dwarfs everything before it"
+  ],
+  "cast_idiom": "No characters. The subject is space itself; if a human is needed it is a distant illustrated figure in a simple suit or coat for scale only, never the subject. NOT photoreal, NOT 3D."
+}
+
+ROLE
+You are my channel naming strategist, brand designer and YouTube launch producer. Build a YouTube-first channel for the SELECTED PRESET above, with TikTok and Facebook adaptations. This is channel creation planning, not a story-writing/import task. Do not generate story scripts or import-format metadata. Interpret the supplied preset context as niche and visual reference only; the workflow below governs this task. Never transfer another preset's niche, characters, imagery, catchphrases or channel identity into this one.
+
+FIRST RESPONSE: NAME IDEAS, THEN WAIT
+Briefly explain this preset's channel niche, audience and visual identity. Use the user's language for discussion; default public-facing channel copy to English unless specified otherwise. Ask only essential missing preferences (target country/language, desired audience, brand tone, Shorts versus long-form, any existing brand/name constraints); accept custom answers and reuse prior answers. If unspecified, state reasonable assumptions and still provide 20 distinct, memorable name ideas tailored to this exact niche. Group into four relevant naming directions, five names each. For every name provide meaning, niche fit, pronunciation, a suggested @handle and short tagline. Recommend three with reasons. Avoid generic repetitions, names implying official affiliation, copied creator names, unsupported credentials or guaranteed virality. For adult health or politics, names must be respectful and credible rather than misleading, erotic or sensationalist. For fictional/cartoon content, suggest original branding rather than copying protected character or franchise names.
+Treat names as original suggestions, NOT guaranteed unique/available trademarks. If browsing is available, check shortlisted names/handles on relevant platforms and report dated findings and uncertainty; search visibility is not a trademark clearance. If unavailable, mark availability unverified and provide manual checking steps. Ask me to select a name or request refinements. STOP before building the complete setup or generating images; do not choose the final name for me.
+
+AFTER I SELECT A NAME: COMPLETE CHANNEL PACKAGE
+Reuse the chosen exact name and spelling everywhere. Confirm only unresolved essential decisions; do not repeat answered questions. Produce these distinct, copy-ready deliverables:
+
+1. BRAND FOUNDATION
+One-sentence channel promise, target viewer, niche boundaries, differentiator, tone, three tagline options, preferred handle plus fallback variations. Suggest 3–5 content pillars specific to this preset with concrete example titles and a sustainable format mix. Preserve the preset's real visual DNA; the software preset label is not necessarily the public channel name. Identify factual sourcing requirements where relevant. Avoid assigning medical, legal or political authority without credentials.
+
+2. YOUTUBE CHANNEL PROFILE
+Two finished About descriptions (concise and fuller versions), naturally keyworded, with a small separate set of relevant hashtags. Supply comma-separated channel keywords, a readable shortlist explaining priorities, handle/display name, proposed links/order and contact-email placeholder (never invent an address). Mention channel/field limits accurately after checking current official help; provide counts for limited fields. Do not stuff hashtags into names or claim hashtags in About improve ranking. Give a suitable accurate disclaimer when needed (health education, illustrated history, fictional reenactments), without implying that disclaimers cure misleading content.
+
+3. CHANNEL AND UPLOAD SETTINGS
+A setting/value/reason checklist using current YouTube Studio labels where verified: country of residence based on my real situation, channel language, audience/Made for Kids decision based on actual intended content (animation alone does not decide it), per-video review where content varies, appropriate category, comment moderation, blocked-word suggestions, visibility default, captions/language, licensing, embedding/remix options, feature eligibility, permissions/security, and disclosure review for altered/synthetic content where required. Separate channel settings from upload defaults and per-video decisions. Do not advise false location, false audience labels, false credentials, automatic blanket age-rating or monetization guarantees. Suggest private/unlisted review before publishing if appropriate. Mark optional features and account-dependent availability clearly. Do not claim settings were changed or accounts created.
+Provide actual paste-ready default title patterns (not the same title on every video), separate topic-specific title examples, relevant hashtag sets, comma-separated default tags and a reusable default video-description template with clear [VIDEO TOPIC], [SUMMARY], [SOURCES], [CREDITS], [PLAYLIST], [CONTACT] placeholders only where still variable. Include a concise ready-to-use channel footer/CTA and pinned-comment template. Each upload must replace placeholders and get truthful topic-specific metadata; do not reuse false sources, dates or claims. Upload defaults apply to browser uploads on youtube.com/upload; mobile/editor/API uploads may need their own settings.
+
+4. LOGO, BANNER AND BRAND KIT
+Offer three original visual directions grounded in the preset's niche and rendering style, recommend one, then use the selected name and a coherent palette/type system. Create a clean recognizable avatar/logo with a strong silhouette readable as a small circular crop, plus an original matching YouTube banner. Logo artwork may simplify detailed video rendering for small-size legibility. Supply hex colours, font recommendations with licensing checks, contrast guidance, optional watermark, thumbnail brand rules and a text-free emblem variant. No copied creator marks, protected franchise characters, public-figure likenesses, misleading official seals or unrelated default medical/geographic imagery.
+If image generation and file tools are available, actually generate the recommended logo and banner as separate usable image files; check spelling, crop, safe placement and actual dimensions, then deliver real files. Aim for a square high-resolution logo (design target 1024×1024, test at roughly 98×98) and a 2560×1440 YouTube banner, 6 MB or smaller, with the channel name/tagline in a conservative centered safe area. YouTube's stated safe area is 1235×338 at the minimum 2048×1152 canvas; scale proportionally and keep important content comfortably inside the central region. Background art can fill the whole canvas. Verify actual exported dimensions/crop rather than claiming an image-generation tool produced exact sizes without inspection. Do not crop a collage into a fake finished logo/banner.
+Also provide complete standalone image prompts for all three logo concepts and matching banners, including exact chosen name/text, palette, composition, background, safe margins and exclusions. If image/file tools are unavailable, provide these prompts and layout specifications, explicitly mark images as not generated and never invent attachments/download links. Do not let image generation prevent delivery of the text package.
+
+5. TIKTOK AND FACEBOOK ADAPTATIONS
+Keep the brand identity consistent while adapting handle suggestions, short bios, page category, profile imagery, Facebook cover art and TikTok profile presentation. Verify current official field limits and cover dimensions/cropping for each platform rather than reusing YouTube banner sizes or outdated limits. Provide distinct paste-ready bios/descriptions, caption templates, restrained hashtag sets and topic-relevant CTA examples. Distinguish Facebook Page setup from a personal profile, and TikTok profile assets from a banner the interface may not support. Do not assume every platform offers every field.
+
+6. LAUNCH AND QUALITY CHECK
+Prepare playlist names/descriptions, a brief channel trailer/welcome-video outline, first ten topic-specific upload ideas, a manageable two-week launch schedule with an explicit timezone, publication checklist, rights/music/image provenance reminders, and a short analytics review plan (viewer response, retention, click-through where available). No guaranteed growth, magic posting time or promises about earnings. For health/news/history distinguish verified facts, uncertainty, illustrations and current reporting; never invent citations. Recommend identity security and appropriate recovery/admin permissions without asking me for passwords or authentication codes.
+
+DELIVERY
+Put settings in a concise table and copy-ready metadata in separate clearly labelled blocks. Offer a folder/ZIP only when file tools actually create it: BRAND_GUIDE.txt, YOUTUBE_SETUP.txt, UPLOAD_DEFAULTS.txt, SOCIAL_ADAPTATIONS.txt, LOGO_PROMPTS.txt, BANNER_PROMPTS.txt, LAUNCH_PLAN.txt, and actual generated image assets if available. Include a source/check date note with direct official help links. Finish with a practical next-action checklist, not an unsupported claim that any account is launched.
+
+CURRENT REQUIREMENTS
+Recheck time-sensitive platform requirements at the time this prompt is used, preferably from official YouTube Help, TikTok Support and Meta Help. If browsing is unavailable, label current limits/settings/availability as needing verification rather than inventing them. Starting official sources:
+https://support.google.com/youtube/answer/10456525
+https://support.google.com/youtube/answer/2660027
+https://support.google.com/youtube/answer/2657964
+https://support.tiktok.com/
+https://www.facebook.com/help/

@@ -1,0 +1,24 @@
+const assert=require('assert'),fs=require('fs'),vm=require('vm');
+const source=fs.readFileSync('desktop_ui/app.js','utf8');
+const fn=source.slice(source.indexOf('async function loadMasterPrompt(){'),source.indexOf('function renderLibrary(){'));
+const elements=Object.fromEntries(['masterPreset','masterPurpose','copy-master-prompt','master-prompt-text','master-prompt-status'].map(id=>[id,{value:'',textContent:'',disabled:false}]));
+elements.masterPreset.value='geography-map';elements.masterPurpose.value='channel';
+const pending=[];
+const context=vm.createContext({$:id=>elements[id],current:'prompts',masterPromptLoad:0,encodeURIComponent,toast:()=>{},api:url=>new Promise(resolve=>pending.push({url,resolve}))});
+vm.runInContext(fn,context);
+(async()=>{
+    const first=context.loadMasterPrompt();
+    assert(pending[0].url.includes('geography-map&kind=channel'));
+    assert(elements['copy-master-prompt'].disabled);
+    elements.masterPreset.value='intimacy-health-3d';
+    const second=context.loadMasterPrompt();
+    pending[1].resolve({name:'Intimacy Health 3D',text:'health channel prompt'});await second;
+    pending[0].resolve({name:'Map Animation',text:'stale map prompt'});await first;
+    assert.equal(elements['master-prompt-text'].value,'health channel prompt');
+    assert.equal(elements['copy-master-prompt'].textContent,'Copy channel creation prompt');
+    elements.masterPurpose.value='story';
+    const third=context.loadMasterPrompt();pending[2].resolve({name:'Health',text:'health story prompt'});await third;
+    assert.equal(elements['master-prompt-text'].value,'health story prompt');
+    assert.equal(elements['copy-master-prompt'].textContent,'Copy story prompt');
+    console.log('PASS: preset/purpose switching clears stale text, guards asynchronous races, and copy control follows selected prompt.');
+})().catch(e=>{console.error(e);process.exitCode=1});

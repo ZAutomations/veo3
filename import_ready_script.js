@@ -83,11 +83,12 @@ function run(request){
   warnings=[...new Set([...(s.warnings||[]),...(warnings||[])])];
   warnings.forEach(w=>console.log(`WARNING: ${s.title}: ${w}`));
   const marker=path.join(dir,'READY_IMPORT_COMPLETE.json');
-  if(fs.existsSync(file)&&fs.existsSync(marker)){
+  if(fs.existsSync(file)&&fs.existsSync(marker)&&!request.overwrite){
    reports.write(dir,s,prepared[i],origins.get(s).text);
    console.log(`Already imported; preserved existing package: ${file}\nPreflight: ${path.join(dir,'IMPORT_PREFLIGHT.txt')}`);return file;
   }
-  if(!fs.existsSync(file)){
+  if(!fs.existsSync(file)||request.overwrite){
+   if(fs.existsSync(file))fs.copyFileSync(file,file+'.before-override-'+Date.now());
    W.writePackage(dir,p,story,cast);
    if(p.derived_video_preset)require('./reference_video_preset').writeRefs(dir,p,story,cast);
    if(story.zack_ready_import||story.motivational_ready_import){

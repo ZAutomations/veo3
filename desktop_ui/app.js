@@ -98,17 +98,21 @@ async function updateStoryInfo(path){if(!$('story-info'))return;try{const s=awai
 let masterPromptLoad=0;
 function renderPrompts(){
  $('main').innerHTML=heading('Master prompts','Choose a preset and copy its saved master prompt into ChatGPT.','PROMPT LIBRARY')+
- `<form id="view-form">${panel('Select preset','Master prompts are read directly from the tool’s Master prompts folder.','01',field('Preset','masterPreset',forms.prompts?.masterPreset||bootstrap.presets[0]?.id,{items:[...bootstrap.presets,{id:'video-reverse-engineering',name:'Video Reverse Engineering (AI Studio)'}]}))}
- ${panel('Master prompt','Copy the complete text, including its format instructions.','02',`<div class="buttons"><button type="button" id="copy-master-prompt" class="button primary" disabled>Copy prompt</button><span id="master-prompt-status" role="status">Loading…</span></div><textarea id="master-prompt-text" readonly aria-label="Preset master prompt" spellcheck="false"></textarea>`)}</form>`;
+ `<form id="view-form">${panel('Select preset','Choose story writing or channel creation for this preset.','01',field('Preset','masterPreset',forms.prompts?.masterPreset||bootstrap.presets[0]?.id,{items:[...bootstrap.presets,{id:'video-reverse-engineering',name:'Video Reverse Engineering (AI Studio)'}]})+field('Master prompt type','masterPurpose',forms.prompts?.masterPurpose||'story',{items:[{id:'story',name:'Story writing'},{id:'channel',name:'Channel creation — YouTube / TikTok / Facebook'}]}))}
+ ${panel('Master prompt','Copy the selected prompt into ChatGPT. Channel creation starts with name ideas.','02',`<div class="buttons"><button type="button" id="copy-master-prompt" class="button primary" disabled>Copy prompt</button><span id="master-prompt-status" role="status">Loading…</span></div><textarea id="master-prompt-text" readonly aria-label="Preset master prompt" spellcheck="false"></textarea>`)}</form>`;
 }
 async function loadMasterPrompt(){
  const preset=$('masterPreset')?.value,version=++masterPromptLoad;
  if(!preset)return;
+ const purpose=$('masterPurpose');
+ if(preset==='video-reverse-engineering'&&purpose?.value==='channel'){purpose.value='story';toast('Choose a content preset for channel creation.');}
+ const kind=purpose?.value||'story';
+ $('copy-master-prompt').textContent=kind==='channel'?'Copy channel creation prompt':'Copy story prompt';
  $('copy-master-prompt').disabled=true;$('master-prompt-text').value='';$('master-prompt-status').textContent='Loading…';
  try{
-  const result=await api('master-prompt?preset='+encodeURIComponent(preset));
+  const result=await api('master-prompt?preset='+encodeURIComponent(preset)+'&kind='+encodeURIComponent(kind));
   if(current!=='prompts'||version!==masterPromptLoad)return;
-  $('master-prompt-text').value=result.text;$('copy-master-prompt').disabled=!result.text;$('master-prompt-status').textContent=result.name;
+  $('master-prompt-text').value=result.text;$('copy-master-prompt').disabled=!result.text;$('master-prompt-status').textContent=result.name+' · '+(kind==='channel'?'Channel creation':'Story writing');
  }catch(e){if(current==='prompts'&&version===masterPromptLoad)$('master-prompt-status').textContent=e.message;}
 }
 function renderLibrary(){
@@ -196,7 +200,13 @@ async function runAction(action,p=payload()){
  if(action==='account_remove'){if(!await confirmAction('Remove account from the pool?',p.label+'\nThis removes the saved account entry.'))return;p.confirmed=true;}
  if(action==='account_use'||action==='account_activate'){if(!await confirmAction('Make this account active for automation?',p.label+'\nThe current automation browser profile will close and this Google account profile will be opened.'))return;}
  try{
-  const job=await api('jobs',{action,payload:p});selectedJob=job.id;cursor=0;logLines=[];logView.reset('Starting…');$('activity').classList.add('expanded');document.body.classList.add('log-open');toast('Job started. Follow its progress below.');await pollJobs();
+  let job=await api('jobs',{action,payload:p});
+  if(job.requiresDuplicateConfirmation){
+   const details=job.duplicates.map(x=>`${x.title} (${x.preset}) — ${x.existing.length?'already saved': 'repeated in this batch'}`).join('\n');
+   if(!await confirmAction('Story / batch already exists — Ignore and Override?',details+'\n\nContinue to process these stories again? Existing downloaded clips are retained. Cancel to leave them unchanged.'))return;
+   job=await api('jobs',{action,payload:{...p,duplicateOverride:true}});
+  }
+  selectedJob=job.id;cursor=0;logLines=[];logView.reset('Starting…');$('activity').classList.add('expanded');document.body.classList.add('log-open');toast('Job started. Follow its progress below.');await pollJobs();
  }catch(e){toast(e.message,true);}
 }
 function bindView(){
@@ -223,6 +233,7 @@ function bindView(){
  }
  if(current==='prompts'){
   $('masterPreset').onchange=()=>{remember();loadMasterPrompt();};
+  $('masterPurpose').onchange=()=>{remember();loadMasterPrompt();};
   $('copy-master-prompt').onclick=async()=>{const text=$('master-prompt-text');try{await navigator.clipboard.writeText(text.value);toast('Master prompt copied.');}catch(_){text.focus();text.select();toast('Press Ctrl+C to copy the selected master prompt.');}};
   loadMasterPrompt();
  }

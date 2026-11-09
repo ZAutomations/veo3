@@ -66,7 +66,7 @@ function adoptVerified(d,entries,downloadVersion,priorFile,expectedHash){
 }
 async function completePartialSceneIds(browser,page,project,tiles,story,log){
  const sceneIds=require('./agent_scene_ids'),partial=sceneIds.partialPlan(tiles,story);
- if(!partial.entries.length||!partial.missing.length)return null;
+ if(!partial.missing.length)return partial.entries;
  log(`Scene-ID download mapping is partial (${partial.entries.length}/${story.scenes.length}); checking source prompts read-only for the remaining ${partial.missing.length} scene(s).`);
  const jobs=partial.missing.map(number=>{const scene=story.scenes[number-1];return {number,scene,prompt:scene.veo3_prompt||scene.script_line||'',silentVisual:require('./silent_scene_identity').isSilent(story)};});
  const inspected=await require('./single_clip_omni_recovery').inspectProject({browser,page,projectUrl:project},jobs,{}, {log,page,sourceCache:new Map()});
@@ -79,7 +79,9 @@ async function completePartialSceneIds(browser,page,project,tiles,story,log){
   used.add(found.assetId);
   const metadata=String(tile.text||tile.prompt||'');
   const nativeResolution=/\b360p\b/i.test(metadata)?360:/\b720p\b/i.test(metadata)?720:null;
-  byNumber.set(job.number,{job:{number:job.number,scene:job.scene,prompt:job.prompt,sceneId:null},receipt:{scene:job.number,sceneId:null,assetId:found.assetId,key:'',...(nativeResolution?{nativeResolution,native720:nativeResolution===720}:{}),match_from:'verified_source_prompt'}});
+  const sourceId=sceneIds.tileId({...found,sourcePrompt:found.sourcePrompt||found.prompt});
+  const verifiedId=sourceId===sceneIds.sceneId(story,job.number)?sourceId:null;
+  byNumber.set(job.number,{job:{number:job.number,scene:job.scene,prompt:job.prompt,sceneId:verifiedId},receipt:{scene:job.number,sceneId:verifiedId,assetId:found.assetId,key:'',...(nativeResolution?{nativeResolution,native720:nativeResolution===720}:{}),match_from:'verified_source_prompt'}});
  }
  const all=[...partial.entries,...byNumber.values()].sort((a,b)=>a.job.number-b.job.number);
  if(all.length!==story.scenes.length||all.some((entry,i)=>entry.job.number!==i+1))throw Error('RECOVERY_REVIEW_REQUIRED: Mixed scene-ID/source mapping is incomplete.');
@@ -97,7 +99,7 @@ async function download(browser,page,{storyFile,outDir,project,tiles,thumbnailTi
  if(entries)log('Verified scene IDs map each completed video asset to its story scene. No transcription or video analysis needed.');
  if(!entries&&!idConflict){
   const partial=sceneIds.partialPlan(tiles,story);partialIds=partial.entries.length>0;
-  if(partialIds)try{entries=await completePartialSceneIds(browser,page,project,tiles,story,log);}
+  try{entries=await completePartialSceneIds(browser,page,project,tiles,story,log);}
   catch(error){log(`Partial scene-ID recovery could not safely resolve all scenes: ${error.message}`);}
  }
  if(partialIds&&!entries)throw Error('RECOVERY_REVIEW_REQUIRED: Some Flow tiles have valid scene IDs but the remaining clip sources could not be verified. Download stopped before assigning ambiguous asset filenames. Retry after Flow exposes the missing source prompts.');

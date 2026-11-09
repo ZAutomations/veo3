@@ -14,10 +14,10 @@ async function recoverPending(page,receipt,seconds,RI,log){
  if(pending.status==='completed'){
   const state=await page.evaluate(RI.referenceState);
   const image=state.images.find(im=>im.key===pending.imageKey);
-  // Flow virtualizes older tiles. A completed, project-bound receipt remains
-  // valid even when its image is temporarily outside the rendered tile list.
+  // The caller audits the full grid first. A receipt alone is not proof that
+  // this image still exists (it may have been removed or manually replaced).
   if(image)return {ok:true,alreadyNamed:true,tileIndex:image.tileIndex,imageKey:image.key};
-  return {ok:true,alreadyNamed:true,unverified:true,imageKey:pending.imageKey};
+  return {ok:false,why:`RECOVERY_REVIEW_REQUIRED: Saved ${receipt.name} image is not verified in the project; no duplicate submitted. Check or rename the intended existing image and retry.`};
  }
  if(pending.status==='review'){
   log(`Previous ${receipt.name} request was parked for review; a manual Retry / Continue will start one fresh request if no correctly named tile exists.`);

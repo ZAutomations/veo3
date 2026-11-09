@@ -661,6 +661,15 @@ async function tileName(page, idx) {
         const more = eval(expr);
         const b = more[i];
         if (!b) return null;
+        // Prefer the actual title field over concatenated hover-menu text.
+        // A filename like Environment.png must not become "Environment.png
+        // Menu" or lose words that happen to also be icon ligatures.
+        const tile = b.closest('flow-image-tile, flow-video-tile') || b.closest('[class*=hover-overlay]');
+        const named = tile?.querySelector('.asset-title, .footer-title, [data-asset-title], input.editable-text-input:not(.editing)');
+        const explicit = named && String(named.value || named.getAttribute('data-asset-title') || named.textContent || '').trim();
+        if (explicit) return explicit;
+        const footerLabel = tile?.querySelector('flow-tile-hover-footer button.footer-left[aria-label]')?.getAttribute('aria-label')?.trim();
+        if (footerLabel) return footerLabel;
         const clean = (s) => String(s || '').replace(ICON, ' ').replace(/\s+/g, ' ').trim();
         // Nothing but icon ligatures, run together with no separators between
         // them: Flow's hover actions come back as one word, "favoriteredom
@@ -671,7 +680,13 @@ async function tileName(page, idx) {
         const soup = (s) => !String(s || '').replace(ANY, '').replace(/[\s_]+/g, '').trim();
         const textsOf = (el) => {
             const out = [];
-            const raw = String(el.innerText || el.textContent || '');
+            // Hover icons are separate DOM nodes but innerText concatenates
+            // them with the filename on some Flow builds. Remove those nodes
+            // before reading a fallback label; word-boundary regexes cannot
+            // split "favoriteredomore_vertimageEnviornment" safely.
+            const copy = el.cloneNode(true);
+            copy.querySelectorAll('mat-icon, button, [role="button"]').forEach(node => node.remove());
+            const raw = String(copy.innerText || copy.textContent || '');
             // The soup test belongs to innerText alone: it is the only place the
             // hover ligatures appear. An input holds a real name, so a place
             // called "Home" must not be thrown away for spelling an icon word.
@@ -773,48 +788,6 @@ async function renameNewest(page, name, tileIndex = 0) {
     return { ok: false, why: 'rename did not commit after 3 attempts' };
 }
 
-// A user can manually add the finished thumbnail to Flow after its generated
-// image request failed. The old pending receipt cannot identify an uploaded
-// tile. At the Thumbnail step, adopt only the single image left unclaimed after
-// every earlier required reference has been verified by name. If several
-// candidates remain, stop rather than renaming an unrelated image.
-async function reconcileUploadedThumbnail(page, refs, refIndex, log, receipt) {
-    const ref = refs[refIndex];
-    if (String(ref?.kind || '').toLowerCase() !== 'thumbnail') return null;
-    const state = await page.evaluate(RI.referenceState);
-    const tiles = await Promise.all(state.images.map(async image => ({
-        ...image,
-        name: String(await tileName(page, image.tileIndex) || '').trim(),
-    })));
-    const earlier = refs.slice(0, refIndex);
-    if (earlier.some(item => !tiles.some(tile =>
-        tile.name.toLowerCase() === String(item.name || '').trim().toLowerCase()))) return null;
-
-    const expected = new Set(refs.map(item => String(item.name || '').trim().toLowerCase()).filter(Boolean));
-    const unclaimed = tiles.filter(tile => !expected.has(tile.name.toLowerCase()));
-    if (!unclaimed.length) return null;
-    const thumbnailNamed = unclaimed.filter(tile => /thumb(?:nail)?|end[\s_-]*card|cover/i.test(tile.name));
-    const pending = receipt?.read();
-    const beforeKeys = new Set((pending?.before?.images || []).map(image => image.key));
-    const addedSinceRequest = beforeKeys.size
-        ? unclaimed.filter(tile => !beforeKeys.has(tile.key))
-        : [];
-    const candidate = thumbnailNamed.length === 1 ? thumbnailNamed[0]
-        : addedSinceRequest.length === 1 ? addedSinceRequest[0]
-        : unclaimed.length === 1 && tiles.length === refs.length ? unclaimed[0]
-        : null;
-    if (!candidate) {
-        return { ok: false, why: `Found ${unclaimed.length} unclaimed image tiles while looking for Thumbnail. Name the intended image tile "Thumbnail" and resume; no image was renamed.` };
-    }
-
-    log(`Found one unclaimed completed image tile${candidate.name ? ` named "${candidate.name}"` : ''} after verifying earlier references; adopting it as Thumbnail.`);
-    const renamed = await renameNewest(page, 'Thumbnail', candidate.tileIndex);
-    if (!renamed.ok) return { ok: false, why: `Found the manually added thumbnail${candidate.name ? ` ("${candidate.name}")` : ''}, but could not rename it: ${renamed.why}` };
-    const finalState = await page.evaluate(RI.referenceState);
-    const image = finalState.images.find(item => item.key === candidate.key);
-    return { ok: true, imageKey: image?.key || candidate.key };
-}
-
 // ── main ---------------------------------------------------------------------
 // ── the routine ──────────────────────────────────────────────────────────────
 // Exported so the Scenes/Ingredients engine can make the sheets on a page it has
@@ -852,35 +825,16 @@ async function generateRefs(page, refs, opts = {}) {
         log(`\n[${made + failed + 1}/${refs.length}] ${name}`);
         const recovery = require('./reference_generation_receipt');
         const receipt = !r.localFile ? recovery.receiptFor(page.url().split('?')[0],r) : null;
+        const auditExisting = () => require('./reference_project_recovery').auditExisting(
+            page, refs, refIndex, receipt, tileName, renameNewest, log);
         if (!r.localFile) {
-            const state = await page.evaluate(RI.referenceState);
-            let existing = false;
-            for (const image of state.images) {
-                const label = await tileName(page, image.tileIndex);
-                if (String(label || '').trim().toLowerCase() === name.toLowerCase()) { existing = true; break; }
-            }
-            if (existing) {
-                // An explicitly named tile in the current Flow project is the
-                // strongest evidence. Remove any older pending/completed receipt
-                // so a later retry cannot block on a stale asset key.
-                receipt.clear();
-                made++; log(`  verified existing completed image named "${name}"; cleared any stale receipt and skipped generation.`); continue;
-            }
-        }
-        if (!r.localFile) {
-            const manualThumbnail = await reconcileUploadedThumbnail(page, refs, refIndex, log, receipt);
-            if (manualThumbnail?.ok) {
-                receipt?.clear();
-                if (receipt && manualThumbnail.imageKey) receipt.write({status:'completed',imageKey:manualThumbnail.imageKey});
-                made++;
-                log('  verified manually added image as "Thumbnail"; continuing without generating a replacement.');
-                continue;
-            }
-            if (manualThumbnail && !manualThumbnail.ok) {
-                failed++;
-                stopReason = manualThumbnail.why;
-                log(`  FAILED: ${stopReason}`);
-                break;
+            // Reconcile every reference role before observing its old failed
+            // request. Manual uploads may be completed but not yet named.
+            const existing = await auditExisting();
+            if (existing?.ok) { made++; continue; }
+            if (existing && !existing.ok) {
+                failed++; stopReason = existing.why;
+                log(`  FAILED: ${stopReason}`); break;
             }
         }
         if (r.localFile) {
@@ -897,6 +851,11 @@ async function generateRefs(page, refs, opts = {}) {
             else {made++;log('  verified reference already saved; skipped.');continue;}
         }
         const generateFresh = async () => await RI.withActivityWait(async () => {
+            // The creator can upload a replacement DURING the 60-second
+            // cooldown. Reconcile on every internal attempt, not just when the
+            // whole driver starts, before touching the composer or spending.
+            const replacement = await auditExisting();
+            if (replacement) return replacement;
             // Recheck before every sheet and retry, so a stale Video selection
             // never silently turns a character sheet into a video.
             await prepare(r.aspect || '16:9');
@@ -907,6 +866,10 @@ async function generateRefs(page, refs, opts = {}) {
             if (imageSettings.outputCount !== 'x1') {
                 return { ok: false, why: `Flow output count is "${imageSettings.outputCount || 'unknown'}" immediately before submitting ${name}; expected x1. Nothing submitted.` };
             }
+            // Uploads may also finish while settings/prompt entry is running.
+            // This is the final check immediately before the submission.
+            const beforeSubmitReplacement = await auditExisting();
+            if (beforeSubmitReplacement) return beforeSubmitReplacement;
             const before = await page.evaluate(RI.referenceState);
             // Persist before submit: if the process stops after a click, retry
             // observes the pending image rather than spending credits again.
@@ -915,11 +878,15 @@ async function generateRefs(page, refs, opts = {}) {
             let generationBaseline = before;
             for (let a = 2; a <= 3 && !click.ok; a++) {
                 await wait(5000);
+                const replacement = await auditExisting();
+                if (replacement) return replacement;
                 click = await clickSubmit(page);
             }
             if (!click.ok) {receipt.clear();return { ok: false, why: `Could not submit: ${click.why}` };}
             let submitted = await RI.waitForReferenceSubmission(page, before, String(r.prompt).trim(), 15);
             if (!submitted.ok && submitted.safeToRetry) {
+                const replacement = await auditExisting();
+                if (replacement) return replacement;
                 log(`  submit was not acknowledged: ${submitted.why}`);
                 log('  prompt is still present and no new tile appeared; retrying this same reference once.');
                 const retryBefore = submitted.state;

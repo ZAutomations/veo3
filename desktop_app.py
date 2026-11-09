@@ -309,6 +309,7 @@ def plan_action(action, p):
         if aspect not in ('Flow', '9:16', '16:9', '1:1'):
             raise ValueError('Invalid aspect ratio.')
         return 'writer', [('request', ('import_ready_script.js', dict(text=text, preset=p['preset'], aspect=aspect,
+            overwrite=bool(p.get('duplicateOverride', False)),
             seconds=integer(p.get('seconds', 8), 4, 10, 'Clip duration'),
             strict8x8=bool(p.get('strictZack8x8', False)))))]
     if action in ('write', 'finalize', 'aistudio'):
@@ -329,7 +330,7 @@ def plan_action(action, p):
             raise ValueError('Choose browser or API writing.')
         args = dict(preset=preset, seconds=seconds, duration=clips * seconds, clips=clips,
                     aspect=p.get('aspect', '9:16'), transport=transport,
-                    match_ref=bool(p.get('matchSource', True)), reuse=True,
+                    match_ref=bool(p.get('matchSource', True)), reuse=not bool(p.get('duplicateOverride', False)),
                     generate=False, submit=False, download=False, join=False,
                     generate_refs=False, new_project=False)
         if p.get('geminiModel'):
@@ -1254,11 +1255,20 @@ def master_prompt_list():
 
 
 @app.get('/api/master-prompt')
-def master_prompt(preset: str):
+def master_prompt(preset: str, kind: str = 'story'):
     allowed = {p['id']: p for p in presets()}
     allowed['video-reverse-engineering'] = dict(name='Video Reverse Engineering (AI Studio)')
     if preset not in allowed:
         raise HTTPException(400, 'Select a known preset.')
+    if kind not in ('story', 'channel'):
+        raise HTTPException(400, 'Select Story writing or Channel creation.')
+    if kind == 'channel':
+        from channel_creation_prompt import build
+        try:
+            text = build(ROOT, preset)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
+        return dict(id=preset, name=allowed[preset]['name'], kind=kind, text=text)
     folder = (ROOT / 'Master prompts').resolve()
     source = (folder / (preset + '.txt')).resolve()
     if source.parent != folder or not source.is_file():
@@ -1361,6 +1371,10 @@ def start_job(body: dict):
     try:
         payload=global_workflow_payload(payload)
         lane, operations = plan_action(action, payload)
+        from story_duplicate_check import check as check_story_duplicates
+        duplicates = check_story_duplicates(ROOT, action, payload)
+        if duplicates and not payload.get('duplicateOverride'):
+            return dict(requiresDuplicateConfirmation=True, duplicates=duplicates)
     except (ValueError, TypeError, OSError) as exc:
         raise HTTPException(400, str(exc))
     with lock:

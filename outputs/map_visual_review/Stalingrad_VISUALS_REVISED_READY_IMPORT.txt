@@ -1,0 +1,75 @@
+Story 1
+Title: Why the Battle of Stalingrad Changed World War II
+Preset: geography-map
+Production profile: zetomate-flex
+Clip seconds: 10
+Estimated duration: 80 seconds
+Characters:
+None
+Locations:
+Stalingrad battlefield: Accurate 1942–1943 regional relief of Stalingrad on the Volga, northern and southern approaches and Kalach. Anonymous period-appropriate military miniatures and a recognizable miniature factory/street district are geographically anchored.
+Continuity: Polished colorful 2.5D map with readable dimensional miniature soldiers, supply props, aircraft and buildings where narrated. Keep force colours, city/riverside orientation and chronology consistent. Non-graphic educational historical illustration, no live action, invented casualty counts or prominent-person likeness. Camera continuously moves between framing beats, including map-to-miniature pushes; arrows support actual subject motion, never replace it.
+
+Clip 1:
+Narration: "An army attacked a city and ended up trapped inside the battlefield it wanted to conquer. Stalingrad was that nightmare. Let's map the reversal that changed World War Two."
+Shot 1: 0-3 seconds — Push from southern Soviet relief toward a miniature Stalingrad street grid beside the Volga, showing anonymous period-correct German infantry columns approaching the urban edge.
+Shot 2: 3-7 seconds — Track along the advancing column into the miniature city, then curve around it as opposing force markers appear outside the city; no unsupported exact unit count.
+Shot 3: 7-10 seconds — Pull back to show the city and a clearly illustrative encirclement preview around the attacking column, visually establishing the narrated reversal rather than an extra historical event.
+Effect: 0-10 seconds — Anchor only the exact short names and dates specified in these shots beside their actual map subjects. Reveal each at its spoken beat with a brief pop; type dates with restrained typing ticks. Use one pointing ring at the current focus, at most two callouts together. No random catalogue labels, large subtitles or invented numerical facts.
+Sound: SFX: quiet synchronized label and miniature-reveal pops, typewriter ticks during date reveals, brief camera-move whoosh; when fighting is narrated use restrained distant rifle reports and impact puffs under speech; aircraft ambience only in the supply-aircraft shot; BGM: one restrained documentary low-string and soft-percussion theme, tense during the pocket and resolving at the factual conclusion; Mix: exact foreground narration in consistent Orus voice, no dialogue, screaming, singing or additional narration.
+
+Clip 2:
+Narration: "Notice: In 1942, German forces advanced into southern Soviet territory while seeking strategic resources and transport links. Stalingrad stood beside the Volga River, making its position militarily significant."
+Shot 1: 0-3 seconds — Push across the 1942 regional map with separate German advance miniatures moving toward southern Soviet territory; anchor the year beside the advancing front.
+Shot 2: 3-7 seconds — Track beside the visible infantry columns and small logistics wagons toward the transport corridor; keep routes as secondary thin lines rather than replacements for units.
+Shot 3: 7-10 seconds — Pan down to Stalingrad's visible factory roofs and the Volga's riverbank, showing the city beside the water and connecting transport features without inventing measured distances.
+Effect: 0-10 seconds — Anchor only the exact short names and dates specified in these shots beside their actual map subjects. Reveal each at its spoken beat with a brief pop; type dates with restrained typing ticks. Use one pointing ring at the current focus, at most two callouts together. No random catalogue labels, large subtitles or invented numerical facts.
+Sound: SFX: quiet synchronized label and miniature-reveal pops, typewriter ticks during date reveals, brief camera-move whoosh; when fighting is narrated use restrained distant rifle reports and impact puffs under speech; aircraft ambience only in the supply-aircraft shot; BGM: one restrained documentary low-string and soft-percussion theme, tense during the pocket and resolving at the factual conclusion; Mix: exact foreground narration in consistent Orus voice, no dialogue, screaming, singing or additional narration.
+
+Clip 3:
+Narration: "Fighting pushed into streets, factories and shattered neighborhoods. Soviet defenders held positions near the Volga while German forces struggled to control a city transformed into a deadly battlefield."
+Shot 1: 0-3 seconds — Track down from the Stalingrad marker into miniature damaged street blocks, recognizable factory roofs and anonymous opposing infantry taking cover.
+Shot 2: 3-7 seconds — Pan along the street as small opposing soldier miniatures exchange brief restrained muzzle flashes and dust puffs; no gore, visible casualties or invented named skirmish.
+Shot 3: 7-10 seconds — Follow the street toward visible Soviet defensive positions near the Volga, then pull back enough to retain the factory district and river orientation; do not jump to Kalach.
+Effect: 0-10 seconds — Anchor only the exact short names and dates specified in these shots beside their actual map subjects. Reveal each at its spoken beat with a brief pop; type dates with restrained typing ticks. Use one pointing ring at the current focus, at most two callouts together. No random catalogue labels, large subtitles or invented numerical facts.
+Sound: SFX: quiet synchronized label and miniature-reveal pops, typewriter ticks during date reveals, brief camera-move whoosh; when fighting is narrated use restrained distant rifle reports and impact puffs under speech; aircraft ambience only in the supply-aircraft shot; BGM: one restrained documentary low-string and soft-percussion theme, tense during the pocket and resolving at the factual conclusion; Mix: exact foreground narration in consistent Orus voice, no dialogue, screaming, singing or additional narration.
+
+Clip 4:
+Narration: "But the decisive surprise developed outside the city. Soviet commanders prepared attacks against weaker Axis positions to the north and south, rather than merely pushing through Stalingrad's ruined center."
+Shot 1: 0-3 seconds — Pull back from Stalingrad's miniature ruined buildings to show the city beside the Volga and the broader battlefield outside it.
+Shot 2: 3-7 seconds — Pan north to visible Axis infantry position markers and separate Soviet troop miniatures assembling opposite them; do not invent secret meetings or specific command decisions.
+Shot 3: 7-10 seconds — Track around the city to the southern flank with a second visible Soviet force group; show the two outside approaches distinctly, not arrows converging through the city center.
+Effect: 0-10 seconds — Anchor only the exact short names and dates specified in these shots beside their actual map subjects. Reveal each at its spoken beat with a brief pop; type dates with restrained typing ticks. Use one pointing ring at the current focus, at most two callouts together. No random catalogue labels, large subtitles or invented numerical facts.
+Sound: SFX: quiet synchronized label and miniature-reveal pops, typewriter ticks during date reveals, brief camera-move whoosh; when fighting is narrated use restrained distant rifle reports and impact puffs under speech; aircraft ambience only in the supply-aircraft shot; BGM: one restrained documentary low-string and soft-percussion theme, tense during the pocket and resolving at the factual conclusion; Mix: exact foreground narration in consistent Orus voice, no dialogue, screaming, singing or additional narration.
+
+Clip 5:
+Narration: "Notice: In November 1942, Soviet forces launched Operation Uranus. Advancing from both flanks, they linked near Kalach and encircled a large German led force within the Stalingrad area."
+Shot 1: 0-3 seconds — Begin on the November 1942 regional view; type the date beside a restrained OPERATION URANUS badge while two visible Soviet infantry-column miniatures begin advancing from separate flanks.
+Shot 2: 3-7 seconds — Track with the converging columns toward Kalach, keeping the city and river in the wider frame as orientation anchors; supplementary arrows follow the actual moving miniature groups.
+Shot 3: 7-10 seconds — Pull back as the two force groups link near the Kalach anchor and form a closed enclosing perimeter around visible German-led force miniatures in the Stalingrad area; no invented troop totals.
+Effect: 0-10 seconds — Anchor only the exact short names and dates specified in these shots beside their actual map subjects. Reveal each at its spoken beat with a brief pop; type dates with restrained typing ticks. Use one pointing ring at the current focus, at most two callouts together. No random catalogue labels, large subtitles or invented numerical facts.
+Sound: SFX: quiet synchronized label and miniature-reveal pops, typewriter ticks during date reveals, brief camera-move whoosh; when fighting is narrated use restrained distant rifle reports and impact puffs under speech; aircraft ambience only in the supply-aircraft shot; BGM: one restrained documentary low-string and soft-percussion theme, tense during the pocket and resolving at the factual conclusion; Mix: exact foreground narration in consistent Orus voice, no dialogue, screaming, singing or additional narration.
+
+Clip 6:
+Narration: "Notice: Trapped troops faced collapsing supplies, hunger and intense fighting. Attempts to supply them by air fell far short, while relief efforts failed to break the Soviet encirclement."
+Shot 1: 0-3 seconds — Push into the enclosed map area with visible stationary infantry miniatures and nearly empty supply crates beside damaged streets; no emaciated bodies or invented deaths.
+Shot 2: 3-7 seconds — Track to anonymous transport-aircraft miniatures approaching the pocket and a small, inadequate stack of supply crates, illustrating the narrated shortfall without inventing a delivery quantity or aircraft loss.
+Shot 3: 7-10 seconds — Pan outward to a relief-force marker stopped outside the closed perimeter, then settle with the trapped soldiers and separated relief group visible together; no invented breakthrough.
+Effect: 0-10 seconds — Anchor only the exact short names and dates specified in these shots beside their actual map subjects. Reveal each at its spoken beat with a brief pop; type dates with restrained typing ticks. Use one pointing ring at the current focus, at most two callouts together. No random catalogue labels, large subtitles or invented numerical facts.
+Sound: SFX: quiet synchronized label and miniature-reveal pops, typewriter ticks during date reveals, brief camera-move whoosh; when fighting is narrated use restrained distant rifle reports and impact puffs under speech; aircraft ambience only in the supply-aircraft shot; BGM: one restrained documentary low-string and soft-percussion theme, tense during the pocket and resolving at the factual conclusion; Mix: exact foreground narration in consistent Orus voice, no dialogue, screaming, singing or additional narration.
+
+Clip 7:
+Narration: "Notice: By February 1943, remaining German forces surrendered. Stalingrad became a major turning point on the Eastern Front, showing that Germany's advance could be stopped and decisively reversed."
+Shot 1: 0-3 seconds — Begin at the enclosed Stalingrad street model and reveal FEBRUARY 1943 beside the existing city marker.
+Shot 2: 3-7 seconds — Track toward remaining anonymous German force miniatures lowering their weapons and gathering without fighting, then pan to opposing positions; respectful surrender, no humiliation or graphic suffering.
+Shot 3: 7-10 seconds — Pull back to the wider Eastern Front map, showing Germany's directional advance stopped at this sector and a restrained TURNING POINT badge; no fabricated border shift or global claim that the war ended here.
+Effect: 0-10 seconds — Anchor only the exact short names and dates specified in these shots beside their actual map subjects. Reveal each at its spoken beat with a brief pop; type dates with restrained typing ticks. Use one pointing ring at the current focus, at most two callouts together. No random catalogue labels, large subtitles or invented numerical facts.
+Sound: SFX: quiet synchronized label and miniature-reveal pops, typewriter ticks during date reveals, brief camera-move whoosh; when fighting is narrated use restrained distant rifle reports and impact puffs under speech; aircraft ambience only in the supply-aircraft shot; BGM: one restrained documentary low-string and soft-percussion theme, tense during the pocket and resolving at the factual conclusion; Mix: exact foreground narration in consistent Orus voice, no dialogue, screaming, singing or additional narration.
+
+Clip 8:
+Narration: "The battlefield's biggest twist happened outside the streets everyone watched. Could you have spotted the encirclement before it closed? Tell us your answer, and follow if you like it."
+Shot 1: 0-3 seconds — Start above the miniature ruined street blocks the narration refers to, with the correctly anchored Stalingrad label beside the Volga.
+Shot 2: 3-7 seconds — Pull the camera back toward both outside flank approaches and replay only the already explained converging force movement near Kalach, with the physical soldier groups visible beneath secondary arrows.
+Shot 3: 7-10 seconds — Settle on the complete city, river and closed perimeter with one short COULD YOU SPOT IT? question badge; keep the miniature armies visible as the final narration finishes.
+Effect: 0-10 seconds — Anchor only the exact short names and dates specified in these shots beside their actual map subjects. Reveal each at its spoken beat with a brief pop; type dates with restrained typing ticks. Use one pointing ring at the current focus, at most two callouts together. No random catalogue labels, large subtitles or invented numerical facts.
+Sound: SFX: quiet synchronized label and miniature-reveal pops, typewriter ticks during date reveals, brief camera-move whoosh; when fighting is narrated use restrained distant rifle reports and impact puffs under speech; aircraft ambience only in the supply-aircraft shot; BGM: one restrained documentary low-string and soft-percussion theme, tense during the pocket and resolving at the factual conclusion; Mix: exact foreground narration in consistent Orus voice, no dialogue, screaming, singing or additional narration.
