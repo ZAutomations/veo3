@@ -1,0 +1,5 @@
+Video audit: sampled frames show repeated home walking/rubbing and pictogram overlays; the source script did not specify an actual volumetric gland cutaway. Revised TXT keeps all six exact narration lines and 10-second durations, but explicitly plans gland-region reveal, contact transfer and context-specific 3D views. Original project media/checkpoints remain untouched. Import this copy as a new story/project to test the revised visuals.
+Evidence checked for gland/rubbing example:
+https://www.cats.org.uk/cats-blog/why-does-my-cat-rub-against-me
+https://pmc.ncbi.nlm.nih.gov/articles/PMC10845437
+Thumbnail workflow corrected by adding cats-behavior-3d to the shared Flow-endcard preset gate. A separate Thumbnail is prepared after character/location references and required for download/finish. Real new rendering remains to be reviewed.

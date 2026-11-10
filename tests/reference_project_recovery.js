@@ -22,6 +22,16 @@ assert(R.chooseImage([{ ...env, name: 'image1' }, { ...thumb, name: 'image2' }, 
 assert.equal(R.chooseImage([{ ...env, name: 'Environment' }, { ...thumb, name: 'manual.png' }], refs, 1, pending).image.key, thumb.key);
 assert.equal(R.chooseImage([{ ...env, name: 'manual.png', prompt: refs[0].prompt }], refs, 0, null).evidence, 'exact source prompt');
 
+// Same recorded image, refreshed signed URL; two captions remain identical.
+const savedURL='https://flow-content.google/image/b30f7e70-2e44-45c9-9242-628c8f9cc6a2?Expires=1&Signature=old';
+const refreshedURL='https://flow-content.google/image/b30f7e70-2e44-45c9-9242-628c8f9cc6a2?Expires=2&Signature=new';
+const differentURL='https://flow-content.google/image/2c2ced2f-4e9d-45cb-a6cd-19ef469c648c?Expires=2&Signature=new';
+const duplicateCaption=[{...env,key:refreshedURL,name:'Cat watching birds through window'},{...env,key:differentURL,name:'Cat watching birds through window'}];
+assert.equal(R.chooseImage(duplicateCaption,refs,0,{status:'completed',imageKey:savedURL}).image.key,refreshedURL);
+assert(R.chooseImage(duplicateCaption,refs,0,{status:'pending'}).ambiguous,'Still refuse ambiguous images without a recorded identity');
+assert.notEqual(R.imageIdentity('https://example.com/image?id=1'),R.imageIdentity('https://example.com/image?id=2'));
+assert.equal(R.imageIdentity('https://flow.google.com/asb/ExactToken=s1600-rw'),R.imageIdentity('https://flow.google.com/asb/ExactToken=s400-rw'));
+
 (async () => {
     let position = 0, renamed = [], record = pending;
     // Two virtualized pages: older thumbnail is not mounted at the first view.

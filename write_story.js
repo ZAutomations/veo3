@@ -1314,6 +1314,7 @@ ${lookBlock(p, choosePlace ? '' : undefined)}
 ${require('./source_narration').instructions(p, CONTENT_MAP)}
 
 TASK
+${p.id==='cats-behavior-3d'?'CATS THUMBNAIL OVERRIDE: use the complete story question as headline, not a five-word fragment. Large expressive 3D cat behavior close-up, softly blurred blue/teal home background, bold white/yellow headline with dark outline and rough red brush backing. Preserve the cat reference, actual behavior and chosen aspect ratio.':''}
 Also design "thumbnail": {"headline":"maximum five simple words","supporting_question":"a short, factual curiosity question of 2–5 words","visual_concept":"one specific striking composition highlighting this story's main topic"}. Use the same character designs and visual style. Make the topic and emotional hook clear at phone size with simple composition and strong contrast. Do not invent events or misleading claims. For intimacy-health-3d, the supporting_question is required and must accurately describe the story's central health question. This is thumbnail metadata, not an extra scene.
 1. Write a one-sentence "description" of the whole video (max 30 words). It must
    describe WHAT HAPPENS, never what it looks like - the look is already fixed above.
@@ -1890,7 +1891,7 @@ function buildStory(p, cast, meta, scenes) {
     return {
         title: TITLE,
         description: meta.description,
-        thumbnail: { headline: String(meta.thumbnail?.headline || TITLE).split(/\s+/).slice(0, 5).join(' '), supporting_question: String(meta.thumbnail?.supporting_question || ''), visual_concept: String(meta.thumbnail?.visual_concept || meta.description || TITLE) },
+        thumbnail: { headline: p.id==='cats-behavior-3d' ? String(meta.thumbnail?.headline || TITLE) : String(meta.thumbnail?.headline || TITLE).split(/\s+/).slice(0, 5).join(' '), supporting_question: String(meta.thumbnail?.supporting_question || ''), visual_concept: String(meta.thumbnail?.visual_concept || meta.description || TITLE) },
         total_scenes: scenes.length,
         video_duration: `${total} seconds`,
         target_audience: meta.target_audience || '',

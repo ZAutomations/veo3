@@ -3,6 +3,7 @@ function scene(story,index,{seconds=story.scene_seconds,aspect=story.aspect_rati
  const names=[...(s.characters||[]),story.place?.name].filter(Boolean);
  return [`AUDIO FIRST: Generate ONE ${seconds}-second background-only video for scene ${index+1}. Format ${aspect}.`,
  require('./cats_behavior_contract').forStory(story),
+ require('./cats_behavior_contract').forScene(story,s),
  `STYLE: ${story.style||''}. PALETTE: ${story.palette||''}`,
  `REFERENCES: ${names.map(n=>'@'+n).join(', ')}. Match the actual references' rendering, colors, character identity and materials.`,
  `CAST: ${JSON.stringify(story.character_descriptions||{})}`,

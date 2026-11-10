@@ -3,6 +3,17 @@ const RI = require('./reference_image_step');
 const grid = require('./flow_grid_scroll');
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const key = value => String(value || '').trim().toLowerCase();
+// Signed expiry/signature and thumbnail-size parameters are not asset identities.
+// Normalize only known Flow image routes; never collapse arbitrary query-based URLs.
+function imageIdentity(value) {
+ const raw=String(value||'');
+ try {
+  const url=new URL(raw);
+  if(url.hostname==='flow-content.google'&&/^\/image\/[a-f0-9-]{36}$/i.test(url.pathname))return 'flow-image:'+url.pathname.split('/').pop().toLowerCase();
+  if(url.hostname==='flow.google.com'&&url.pathname.startsWith('/asb/'))return url.origin+url.pathname.replace(/=s\d+(?:-[a-z]+)*$/i,'');
+ }catch{}
+ return raw;
+}
 function fileLabel(value) {
     return key(value).replace(/^(?:(?:favorite|favourite|redo|undo|more_vert))+(?:image)?/i, '')
         .replace(/\.(?:png|jpe?g|webp|avif)$/i, '')
@@ -29,8 +40,8 @@ function chooseImage(images, refs, refIndex, pending) {
     if (aliases.length) return unique(aliases, 'reference filename/name') || { ambiguous: aliases };
     const candidates = unclaimed.filter(im => !refs.some(r => key(r.name) !== key(ref.name) && matchesName(im, r))
         && (ref.kind === 'thumbnail' || !thumbnailName(im)));
-    const recorded = candidates.filter(im => pending?.imageKey && im.key === pending.imageKey);
-    if (recorded.length) return unique(recorded, 'saved project asset');
+    const recorded = candidates.filter(im => pending?.imageKey && imageIdentity(im.key) === imageIdentity(pending.imageKey));
+    if (recorded.length) return unique(recorded, 'saved project asset') || { ambiguous: recorded };
     const promptMatches = candidates.filter(im => im.prompt && key(im.prompt) === key(ref.prompt));
     if (promptMatches.length) return unique(promptMatches, 'exact source prompt') || { ambiguous: promptMatches };
     if (ref.kind === 'thumbnail') {
@@ -46,8 +57,8 @@ function chooseImage(images, refs, refIndex, pending) {
         const aspect = String(ref.aspect || '16:9');
         const sameAspect = missing.filter(r => String(r.aspect || '16:9') === aspect);
         if (sameAspect.length === 1) {
-            const [w, h] = aspect.split(':').map(Number), old = new Set(pending.before.images.map(im => im.key));
-            const added = candidates.filter(im => !old.has(im.key) && im.width > 0 && im.height > 0
+            const [w, h] = aspect.split(':').map(Number), old = new Set(pending.before.images.map(im => imageIdentity(im.key)));
+            const added = candidates.filter(im => !old.has(imageIdentity(im.key)) && im.width > 0 && im.height > 0
                 && Math.abs(im.width / im.height - w / h) < 0.035);
             if (added.length) return unique(added, 'unique new reference aspect after saved request') || { ambiguous: added };
         }
@@ -73,7 +84,7 @@ async function scanImages(page, readName, log = () => {}, opts = {}) {
         const position = await page.evaluate(grid.gridMetrics);
         for (const image of state.images.filter(im => im.tileIndex >= 0)) {
             const name = await readName(page, image.tileIndex);
-            records.set(image.key, { ...image, name: String(name || '').trim(), scrollTop: position.top });
+            records.set(imageIdentity(image.key), { ...image, name: String(name || '').trim(), scrollTop: position.top });
         }
         const end = position.mediaEnd ?? position.scroll;
         if (position.mediaCovered || position.top >= end - position.client - 2) { complete = true; break; }
@@ -101,7 +112,7 @@ async function reconcile(page, refs, refIndex, receipt, inventory, readName, ren
     await page.evaluate(grid.scrollGrid, candidate.scrollTop || 0);
     await (opts.sleep || sleep)(200);
     const current = await page.evaluate(RI.referenceState);
-    const live = current.images.find(im => im.key === candidate.key && im.tileIndex >= 0);
+    const live = current.images.find(im => imageIdentity(im.key) === imageIdentity(candidate.key) && im.tileIndex >= 0);
     if (!live) return { ok: false, why: `RECOVERY_REVIEW_REQUIRED: Existing ${ref.name} image could not be relocated by asset identity. No duplicate submitted.` };
     const label = String(await readName(page, live.tileIndex) || '').trim();
     if (refs.some(r => key(r.name) !== key(ref.name) && key(r.name) === key(label)))
@@ -113,7 +124,7 @@ async function reconcile(page, refs, refIndex, receipt, inventory, readName, ren
         let verified = false;
         for (let n = 0; n < 8; n++) {
             const audit = await page.evaluate(RI.referenceState);
-            const same = audit.images.find(im => im.key === live.key && im.tileIndex >= 0);
+            const same = audit.images.find(im => imageIdentity(im.key) === imageIdentity(live.key) && im.tileIndex >= 0);
             if (same && key(await readName(page, same.tileIndex)) === key(ref.name)) { verified = true; break; }
             await (opts.sleep || sleep)(250);
         }
@@ -128,4 +139,4 @@ async function auditExisting(page, refs, refIndex, receipt, readName, rename, lo
     const inventory = await scanImages(page, readName, log, opts);
     return reconcile(page, refs, refIndex, receipt, inventory, readName, rename, log, opts);
 }
-module.exports = { matchesName, chooseImage, scanImages, reconcile, auditExisting };
+module.exports = { imageIdentity, matchesName, chooseImage, scanImages, reconcile, auditExisting };

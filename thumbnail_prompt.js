@@ -8,6 +8,7 @@ const FLOW_ENDCARD_PRESETS = new Set([
     'world-politics-map-explain',
     'fern-documentary',
     '3d-zack-style',
+    'cats-behavior-3d',
     'intimacy-health-3d',
 ]);
 
@@ -51,6 +52,7 @@ function intimacySupportingQuestion(story) {
 function thumbnailPrompt(story, ratio = '9:16') {
     const concept = story.thumbnail || {};
     const headline = headlineFor(story);
+    if (story.preset_id === 'cats-behavior-3d') return require('./cats_thumbnail_prompt').prompt(story,ratio,headline);
     if (story.preset_id === 'reference-wolf-dark-secrets-fable-dialogue') {
         const cast = Object.values(story.character_descriptions || {}).join('\n');
         const dialogue = (story.scenes || []).flatMap(s => (s.dialogue || []).map(t => `${t.speaker}: ${t.line}`)).join(' ').slice(0, 1000);

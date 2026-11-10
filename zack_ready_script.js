@@ -22,6 +22,7 @@ function scene(story,index,{aspect=story.aspect_ratio,seconds=8}={}){
   `FILM TOPIC: ${story.title}.\n${visualContinuity(story)}`,
   require('./zack_topic_visuals').CONTRACT,
   require('./cats_behavior_contract').forStory(story),
+ require('./cats_behavior_contract').forScene(story,s),
   ...(story.preset_id==='intimacy-health-3d'?[require('./intimacy_health_contract').DIRECTION]:[]),
   require('./narration_callout_contract').forScene(story,s,seconds),
   require('./zack_camera_transitions').DIRECTION,
