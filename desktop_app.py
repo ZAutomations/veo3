@@ -15,7 +15,7 @@ import urllib.request
 import uuid
 
 from fastapi import FastAPI, HTTPException, Request, Header
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from mcp_client import MCPClient
 
@@ -1336,6 +1336,36 @@ def preferences(data: dict, studio_surface: str = Header(default='studio', alias
     with lock:
         save_json(WRITER_STATE if studio_surface == 'writer' else STATE, data)
     return {'ok': True}
+
+
+@app.post('/api/heygen/configure')
+def configure_heygen(body: dict):
+    import heygen_audio
+    heygen_audio.configure(body.get('key'))
+    try:
+        return {'voices': heygen_audio.voices()}
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+
+
+@app.post('/api/heygen/preview')
+def preview_heygen(body: dict):
+    import heygen_audio
+    try:
+        return heygen_audio.preview(body.get('voice'), body.get('text'))
+    except (ValueError, OSError) as exc:
+        raise HTTPException(400, str(exc))
+
+
+@app.get('/api/heygen/audio/{filename}')
+def heygen_preview_audio(filename: str):
+    import heygen_audio
+    if not re.fullmatch(r'[0-9a-f]{32}\.mp3', filename):
+        raise HTTPException(400, 'Invalid preview file.')
+    file = heygen_audio.STORE / filename
+    if not file.is_file():
+        raise HTTPException(404, 'Preview audio not found.')
+    return FileResponse(file, media_type='audio/mpeg')
 
 
 @app.post('/api/settings')
