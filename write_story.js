@@ -79,7 +79,7 @@ try {
     if (typeof net.setDefaultAutoSelectFamily === 'function') net.setDefaultAutoSelectFamily(false);
 } catch (e) { /* older Node: keep the defaults */ }
 
-const isZackPreset = id => ['3d-zack-style','intimacy-health-3d'].includes(id);
+const isZackPreset = id => ['3d-zack-style','cats-behavior-3d','intimacy-health-3d'].includes(id);
 const HERE = __dirname;
 const STORIES_DIR = path.join(HERE, 'stories');
 const STYLES_FILE = path.join(HERE, 'styles.json');
@@ -922,7 +922,7 @@ function lookBlock(p, place) {
         `PALETTE: ${p.palette}`,
         `CAMERA: ${p.camera}`,
         ...(p.dialogue_delivery ? [`DIALOGUE DELIVERY: ${p.dialogue_delivery}`] : []),
-        ...(['3d-zack-style','intimacy-health-3d','fern-documentary','geography-map'].includes(p.id)
+        ...(['3d-zack-style','cats-behavior-3d','intimacy-health-3d','fern-documentary','geography-map'].includes(p.id)
             ? [require('./narration_callout_contract').DIRECTION] : []),
         // One place, named once, for the whole film. Scenes are written in
         // separate batches that share no state beyond the previous clip's

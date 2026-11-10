@@ -1,5 +1,5 @@
 'use strict';
-const SPECIAL=new Set(['world-politics-map-explain','fern-documentary','3d-zack-style','intimacy-health-3d','geography-map','3d-motivational-red-green','heartwarming-cat-3d','relationship-dialogue-real','relationship-dialogue-ghibli','relationship-dialogue-3d','relationship-dialogue-colorful-cartoon','relationship-dialogue-dog-couple']);
+const SPECIAL=new Set(['world-politics-map-explain','fern-documentary','3d-zack-style','cats-behavior-3d','intimacy-health-3d','geography-map','3d-motivational-red-green','heartwarming-cat-3d','relationship-dialogue-real','relationship-dialogue-ghibli','relationship-dialogue-3d','relationship-dialogue-colorful-cartoon','relationship-dialogue-dog-couple']);
 const appliesPreset=p=>!!p&&!p.derived_video_preset&&!SPECIAL.has(p.id);
 const mode=p=>p.narration_scope==='dialogue'?'dialogue':p.narration_scope==='none'?'silent':p.narration_scope==='intro'?'intro':'narrated';
 const applies=s=>s?.generic_ready_import===true;

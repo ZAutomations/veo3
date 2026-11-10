@@ -162,6 +162,12 @@
     "route": "DIRECT IMPORT"
   },
   {
+    "id": "cats-behavior-3d",
+    "label": "Cats Behavior — Zack Animation",
+    "file": "cats-behavior-3d.txt",
+    "route": "DIRECT IMPORT"
+  },
+  {
     "id": "intimacy-health-3d",
     "label": "Health 3D ZackStyle",
     "file": "intimacy-health-3d.txt",

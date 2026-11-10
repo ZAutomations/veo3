@@ -39,7 +39,7 @@ function parse(text,defaults={}) {
   const heading=line.match(/^Clip\s+(\d+)\s*(?:[-–—]\s*(.*?))?\s*:\s*$/i);
   if(heading){
    const n=Number(heading[1]);if(n!==story.clips.length+1)fail('Clip numbers must start at 1 and be consecutive and unique.',lineNo,'Clip');
-  clip={number:n,title:heading[2]||(['world-politics-map-explain','fern-documentary','3d-zack-style','intimacy-health-3d','geography-map','3d-motivational-red-green','heartwarming-cat-3d'].includes(story.preset)?`Clip ${n}`:`Conversation ${n}`),action:'',dialogue:[],shots:[]};
+  clip={number:n,title:heading[2]||(['world-politics-map-explain','fern-documentary','3d-zack-style','cats-behavior-3d','intimacy-health-3d','geography-map','3d-motivational-red-green','heartwarming-cat-3d'].includes(story.preset)?`Clip ${n}`:`Conversation ${n}`),action:'',dialogue:[],shots:[]};
    Object.defineProperty(clip,'_source',{value:{line:lineNo,fields:{},shots:[]},enumerable:false});
    story.clips.push(clip);section='';last=null;continue;
   }
@@ -101,7 +101,7 @@ function parse(text,defaults={}) {
   }
   if(key==='characters'||key==='locations'){
    seen(story,key,lineNo,label);section=/^None\.?$/i.test(value)?'':key;
-   if(value&&!/^None\.?$/i.test(value)&&['3d-zack-style','intimacy-health-3d'].includes(story.preset))fail(`Put named ${key} on separate lines below ${label}:.`,lineNo,label);
+   if(value&&!/^None\.?$/i.test(value)&&['3d-zack-style','cats-behavior-3d','intimacy-health-3d'].includes(story.preset))fail(`Put named ${key} on separate lines below ${label}:.`,lineNo,label);
    continue;
   }
   if(key==='duration'||key==='estimated duration'){
@@ -121,7 +121,7 @@ function parse(text,defaults={}) {
   story=s;clip=null;section='Metadata';
   const generalPreset=preset(s.preset),general=require('./generic_ready_script').appliesPreset(generalPreset);
   if(!generalPreset)fail('Unknown preset: '+s.preset,s._source.line,'Preset');
-  const p=custom(s.preset),zack=['3d-zack-style','intimacy-health-3d'].includes(s.preset),motivational=s.preset==='3d-motivational-red-green',cat=s.preset==='heartwarming-cat-3d';
+  const p=custom(s.preset),zack=['3d-zack-style','cats-behavior-3d','intimacy-health-3d'].includes(s.preset),motivational=s.preset==='3d-motivational-red-green',cat=s.preset==='heartwarming-cat-3d';
   const fern=['fern-documentary','world-politics-map-explain'].includes(s.preset),geography=s.preset==='geography-map';
   // The 8x8 profile name remains accepted for older Zack scripts, but it no
   // longer overrides an explicit clip count or duration. Strict 8x8 is opt-in.
