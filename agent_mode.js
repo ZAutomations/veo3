@@ -261,7 +261,7 @@ const AUTO_NATIVE_DIALOGUE_VOICES = STORY_AUDIO?.narration_scope === 'dialogue' 
 // individual dialogue speakers, so dialogue stories use Veo's native voices.
 const STORY_FLOW_VOICE = STORY_AUDIO ? resolveFlowVoice(STORY_AUDIO)?.name : null;
 const REQUESTED_FLOW_VOICES = flags('--voice');
-const VOICES = AUTO_NATIVE_DIALOGUE_VOICES ? [] : (REQUESTED_FLOW_VOICES.length
+const VOICES = AUTO_NATIVE_DIALOGUE_VOICES || STORY_AUDIO?.audio_first ? [] : (REQUESTED_FLOW_VOICES.length
     ? REQUESTED_FLOW_VOICES
     : STORY_FLOW_VOICE ? [STORY_FLOW_VOICE] : ['Alnilam']);
 if (AUTO_NATIVE_DIALOGUE_VOICES && SEND_TEXT) {
@@ -1344,7 +1344,7 @@ async function uploadRefThroughPicker(page, box, file) {
     // ---- 5c. Voice asset(s) ------------------------------------------------
     // Flow voice ingredients apply to the whole prompt, not individual turns.
     // Dialogue stories clear stale shared voices and use Veo-native speakers.
-    if (AUTO_NATIVE_DIALOGUE_VOICES) {
+    if (AUTO_NATIVE_DIALOGUE_VOICES || STORY_AUDIO?.audio_first) {
         banner('NATIVE DIALOGUE VOICES');
         await page.evaluate(require('./agent_voice_chip').agentVoiceChipState, { phase: 'clear' });
         let remaining = 0;
@@ -1354,7 +1354,7 @@ async function uploadRefThroughPicker(page, box, file) {
             await wait(250);
         }
         if (remaining) throw Error(`Could not clear ${remaining} shared voice ingredient(s). No batch submitted.`);
-        log(`No voice asset attached. Veo will generate distinct native voices for: ${DIALOGUE_SPEAKERS.join(', ')}.`);
+        log(STORY_AUDIO?.audio_first ? 'Audio First: all voice ingredients cleared. Generate background ambience/SFX only; no speech or music.' : `No voice asset attached. Veo will generate distinct native voices for: ${DIALOGUE_SPEAKERS.join(', ')}.`);
     }
     if (VOICES.length) {
         banner(`VOICE (${VOICES.join(', ')})`);

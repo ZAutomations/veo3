@@ -2,8 +2,9 @@ const fs = require('fs');
 const path = require('path');
 
 function promptForScene(story,index,options={}) {
+    if(story.audio_first)return require('./audio_first_prompt').scene(story,index,options);
     const prompt=basePromptForScene(story,index,options);
-    if(prompt.includes('CLIP CALLOUT AUDIT SOURCE'))return prompt;
+    if(prompt.includes('CLIP CALLOUT AUDIT SOURCE'))return prompt+(prompt.includes('ZACK ANIMATED ROUND PICTOGRAM BADGES')?'':'\n'+require('./zack_badge_contract').forScene(story,story.scenes[index]));
     return prompt+'\n\n'+require('./narration_callout_contract').forScene(story,story.scenes[index],Number(options.seconds||story.scene_seconds)||8)+'\n';
 }
 

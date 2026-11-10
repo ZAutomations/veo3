@@ -157,13 +157,13 @@
   },
   {
     "id": "3d-zack-style",
-    "label": "3D Shorts (Zack D. style)",
+    "label": "Zack Animation",
     "file": "3d-zack-style.txt",
     "route": "DIRECT IMPORT"
   },
   {
     "id": "intimacy-health-3d",
-    "label": "Intimacy Health 3D",
+    "label": "Health 3D ZackStyle",
     "file": "intimacy-health-3d.txt",
     "route": "DIRECT IMPORT"
   },

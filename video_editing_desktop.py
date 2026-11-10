@@ -25,6 +25,8 @@ def manifest():
 
 def prepare_preview(payload):
     cfg=editor.settings(payload.get('settings'))
+    if cfg.get('voiceover_mode','native')!='native' and payload.get('actualWords'):
+        raise ValueError('Apply external voiceover first, then browse the resulting edited video with Veo3 Native selected to preview its actual captions. Sample caption previews do not call voice APIs.')
     source=editor.media_path(payload['video']) if payload.get('video') else None
     session=uuid.uuid4().hex;folder=editor.ROOT/'logs'/'video_editing_previews'/session;folder.mkdir(parents=True)
     if source:

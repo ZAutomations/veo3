@@ -25,11 +25,11 @@ def api_key():
         raise ValueError('Save your HeyGen API key first.')
     return key
 
-def request(route, payload=None):
+def request(route, payload=None, idempotency_key=None):
     key = api_key()
     headers = {'X-Api-Key': key, 'Content-Type': 'application/json'}
     if payload is not None:
-        headers['Idempotency-Key'] = str(uuid.uuid4())
+        headers['Idempotency-Key'] = idempotency_key or str(uuid.uuid4())
     req = urllib.request.Request('https://api.heygen.com' + route,
         data=json.dumps(payload).encode() if payload is not None else None, headers=headers)
     try:
@@ -48,17 +48,23 @@ def voices():
     data = result.get('data', [])
     return data if isinstance(data, list) else data.get('voices', [])
 
+def speech(voice_id, text, idempotency_key=None):
+    return request('/v3/models/audio/tts', {
+        'model': 'heygen-voice-1-turbo-free',
+        'voice_id': voice_id, 'text': text,
+    }, idempotency_key=idempotency_key)
+
 def preview(voice_id, text):
     text = str(text or '').strip()
     if not voice_id or not 1 <= len(text) <= 500:
         raise ValueError('Choose a voice and enter 1–500 characters for the preview.')
-    result = request('/v3/voices/speech', {'voice_id': voice_id, 'text': text, 'speed': 1.0})
+    result = speech(voice_id, text)
     data = result.get('data') or {}
     url = data.get('audio_url')
     if not isinstance(url, str) or not url.startswith('https://'):
         raise ValueError('HeyGen did not return an audio URL: ' + str(result)[:500])
     STORE.mkdir(parents=True, exist_ok=True)
-    target = STORE / (uuid.uuid4().hex + '.mp3')
+    target = STORE / (uuid.uuid4().hex + '.wav')
     # Audio download uses no API credential header.
     with urllib.request.urlopen(url, timeout=120) as response:
         audio = response.read(20 * 1024 * 1024)

@@ -252,6 +252,10 @@ def global_workflow_payload(payload):
 
 
 def plan_action(action, p):
+    if action == 'prepare_audio_first':
+        import video_editing
+        path, _ = story_path(p.get('story',''))
+        return 'writer', [('request', ('audio_first.py',{'story':str(path),'from':p.get('from',1),'to':p.get('to',''),'editingSettings':video_editing.settings()}))]
     if action == 'edit_video':
         import video_editing
         source = video_editing.media_path(p.get('video', ''))
@@ -268,6 +272,34 @@ def plan_action(action, p):
         if not isinstance(selected, list) or not selected or len(selected) > 50:
             raise ValueError('Select one to fifty saved stories for the batch.')
         resolved = [story_path(item) for item in selected]
+        audio_mode=p.get('queueAudioMode','native')
+        if audio_mode not in ('native','audio_first'): raise ValueError('Choose Native or Audio First batch audio.')
+        preparation=[];prepared_paths={}
+        if audio_mode=='audio_first':
+            if p.get('view')!='agent': raise ValueError('Audio First batch generation uses Agent Mode.')
+            import audio_first, video_editing
+            cfg=video_editing.settings(p.get('_editingSettings'))
+            local_map={};map_file=None
+            if cfg['voiceover_mode']=='local':
+                map_file=Path(str(p.get('audioFirstLocalMap') or '')).expanduser().resolve()
+                if not map_file.is_file(): raise ValueError('Local Audio First batches need an audio manifest mapping every story to its recording and timing JSON.')
+                raw_map=read_json(map_file)
+                if not isinstance(raw_map,dict): raise ValueError('The local batch audio manifest must be a JSON object.')
+                local_map={str((map_file.parent/str(k)).resolve()):v for k,v in raw_map.items()}
+            # Validate every story before starting paid audio calls or creating Flow projects.
+            for source,_story in resolved:
+                story_cfg=dict(cfg)
+                if cfg['voiceover_mode']=='local':
+                    item=local_map.get(str(source))
+                    if not isinstance(item,dict) or not item.get('audio'): raise ValueError(f'Missing local audio mapping for {source.name}.')
+                    story_cfg.update(voiceover_file=str((map_file.parent/item['audio']).resolve()),
+                                     voiceover_timing=str((map_file.parent/item['timing']).resolve()) if item.get('timing') else '')
+                request=dict(story=str(source),editingSettings=story_cfg,batch=True,**{'from':1,'to':''})
+                planned=audio_first.plan_package(request)
+                prepared_paths[str(source)]=str(planned['file'])
+                preparation.append(('request',('audio_first.py',request)))
+        if p.get('view')!='agent' and any(item[1].get('audio_first') for item in resolved):
+            raise ValueError('Audio First packages currently generate through Agent Mode only.')
         paths = [str(item[0]) for item in resolved]
         if len(set(paths)) != len(paths):
             raise ValueError('The queue contains duplicate stories.')
@@ -284,7 +316,7 @@ def plan_action(action, p):
             if not available:
                 raise ValueError('No eligible saved account is available. Nothing started.')
             allocations = [available[(i//quota)%len(available)]['label'] for i in range(len(paths))]
-        operations = []
+        operations = list(preparation)
         for index, path in enumerate(paths):
             if allocations:
                 operations.append(('cli', command('queue_account.js', '--label', allocations[index], '--cdp', p.get('cdp', 9222))))
@@ -296,6 +328,10 @@ def plan_action(action, p):
             inputs = dict(p, story=path, seconds=clip_seconds, _queueAccount=allocations[index] if allocations else '', project='', newProject=True, reuseRefs=False,
                           genRefs=bool(p.get('batchGenRefs', True) or p.get('genRefs')), **{'from':1, 'to':''})
             _, steps = plan_action('generate', inputs)
+            if audio_mode=='audio_first':
+                for kind,spec in steps:
+                    if kind!='mcp' or spec[0]!='batch_pipeline': raise ValueError('Audio First batch requires the new-project Agent pipeline.')
+                    spec[1]['stories']=[prepared_paths[path]]
             operations.extend(steps)
         return 'flow', operations
     """Validate UI input and create allowlisted operations, never arbitrary commands."""
@@ -370,6 +406,8 @@ def plan_action(action, p):
     view = p.get('view', 'agent')
     if view not in ('agent', 'ingredients', 'omni'):
         raise ValueError('Invalid workflow.')
+    if story.get('audio_first') and view!='agent' and action in ('generate','manual','retry_failed'):
+        raise ValueError('Use Agent Mode for Audio First packages.')
     port = integer(p.get('cdp', 9222), 1024, 65535, 'Browser port')
     aspect = p.get('aspect', '9:16')
     if aspect not in ('Flow', '9:16', '16:9', '1:1'):
@@ -1348,6 +1386,26 @@ def configure_heygen(body: dict):
         raise HTTPException(400, str(exc))
 
 
+@app.post('/api/voiceover/configure')
+def configure_voiceover(body: dict):
+    import voiceover
+    try:
+        provider=str(body.get('provider',''))
+        voiceover.configure(provider,body.get('key',''))
+        return {'voices':voiceover.voices(provider)}
+    except (ValueError,KeyError,OSError) as exc:
+        raise HTTPException(400,str(exc))
+
+
+@app.post('/api/voiceover/calibrate')
+def calibrate_voiceover(body: dict):
+    import voice_calibration
+    try:
+        return voice_calibration.calibrate(str(body.get('provider','')),str(body.get('voice','')),int(body.get('seconds',10)))
+    except (ValueError,KeyError,OSError) as exc:
+        raise HTTPException(400,str(exc))
+
+
 @app.post('/api/heygen/preview')
 def preview_heygen(body: dict):
     import heygen_audio
@@ -1360,12 +1418,12 @@ def preview_heygen(body: dict):
 @app.get('/api/heygen/audio/{filename}')
 def heygen_preview_audio(filename: str):
     import heygen_audio
-    if not re.fullmatch(r'[0-9a-f]{32}\.mp3', filename):
+    if not re.fullmatch(r'[0-9a-f]{32}\.(?:mp3|wav)', filename):
         raise HTTPException(400, 'Invalid preview file.')
     file = heygen_audio.STORE / filename
     if not file.is_file():
         raise HTTPException(404, 'Preview audio not found.')
-    return FileResponse(file, media_type='audio/mpeg')
+    return FileResponse(file, media_type='audio/wav' if file.suffix=='.wav' else 'audio/mpeg')
 
 
 @app.post('/api/settings')
@@ -1521,7 +1579,7 @@ class DesktopBridge:
         if kind == 'folder':
             result = (self._window or webview.windows[0]).create_file_dialog(webview.FileDialog.FOLDER, directory=str(ROOT / 'Preset References'))
             return str(result[0]) if result else ''
-        types = ('Videos (*.mp4;*.mov;*.m4v;*.webm;*.mkv;*.avi)',) if kind == 'video' else ('Images (*.png;*.jpg;*.jpeg;*.webp)',) if kind == 'image' else ('JSON files (*.json)',)
+        types = ('Audio (*.wav;*.mp3)',) if kind == 'audio' else ('Videos (*.mp4;*.mov;*.m4v;*.webm;*.mkv;*.avi)',) if kind == 'video' else ('Images (*.png;*.jpg;*.jpeg;*.webp)',) if kind == 'image' else ('JSON files (*.json)',)
         result = (self._window or webview.windows[0]).create_file_dialog(webview.FileDialog.OPEN, directory=str(ROOT / 'stories'), file_types=types)
         return str(result[0]) if result else ''
 

@@ -524,6 +524,7 @@ let body = require('./generic_ready_script').agent(story,{from:rangeFrom,to:rang
 if (NARRATED && !DIALOGUE) {
     body = `${require('./narration_pace').lock(SECONDS)}\n\n${body}`;
 }
+if(story.audio_first)body=require('./audio_first_prompt').agent(story,{from:rangeFrom,to:rangeTo,seconds:SECONDS,aspect:aspectRaw});
 body = require('./reference_identity').forAgent(body, storyPath, [...charNames, placeName].filter(Boolean));
 body = require('./agent_scene_ids').inject(body,story);
 const outPath = OUT || path.join(path.dirname(storyPath), 'agent_prompt.txt');

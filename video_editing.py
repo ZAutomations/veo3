@@ -47,7 +47,14 @@ def schema():
     for effect,label in CAPCUT_TRANSITIONS:
         rows.append(dict(key='camera_effect_'+effect,label=label+' (local)',default=False,page='finishing',group='Transition selection'))
     rows.append(dict(key='camera_effect_duration',label='Selected transition duration (seconds)',default=1.0,min=.1,max=1.5,step=.05,page='finishing',group='Transition selection'))
+    rows.append(dict(key='audio_first_trim_gaps',label='Audio First: trim narration gaps (shortens video)',default=False,page='finishing',group='Voiceover'))
     rows.append(dict(key='editing_speed',label='Final video speed (×)',default=1.0,min=.15,max=2.0,step=.05,page='finishing',group='Final speed'))
+    for key,label,default,choices in [
+        ('voiceover_mode','Audio source','native',['native','api','local']),
+        ('voiceover_provider','API provider','elevenlabs',['elevenlabs','heygen','ai33pro']),
+        ('voiceover_voice','Voice ID','',None),('voiceover_file','Local voiceover WAV/MP3','',None),
+        ('voiceover_timing','Local timing JSON (optional)','',None)]:
+        rows.append(dict(key=key,label=label,default=default,choices=choices,page='finishing',group='Voiceover'))
     return rows
 
 
@@ -56,7 +63,7 @@ def defaults():
     result.update(editing_auto_apply=True, editing_transitions_enabled=False,
                   silence_removal_enabled=False, clipper_captions_enabled=False,
                   editing_whisper_model='base', editing_preview_text='A little kindness can change everything.',
-                  editing_transition_duration=.3)
+                  editing_transition_duration=.3, voiceover_saved_voices={})
     return result
 
 
@@ -67,6 +74,9 @@ def settings(values=None):
     if not isinstance(values or {}, dict):
         raise ValueError('Invalid video editing settings.')
     result.update({k:v for k,v in (values or {}).items() if k in result})
+    saved=result['voiceover_saved_voices']
+    if not isinstance(saved,dict) or any(k not in ('heygen','elevenlabs','ai33pro') or not isinstance(v,str) for k,v in saved.items()):
+        raise ValueError('Invalid saved provider voice selections.')
     for spec in schema():
         key, value = spec['key'], result[spec['key']]
         default = spec.get('default')
@@ -97,8 +107,11 @@ SFX_CHOICES=['(default)','(none)','whoosh','swoosh','boom','glitch','chime','cli
              'notification','sub_boom','horn_stab']
 
 
+def selected_transitions(cfg):
+    return any(cfg.get('camera_effect_'+effect) for effect,_ in CAPCUT_TRANSITIONS)
+
 def enabled(cfg):
-    return any(cfg.get(k) for k in ('silence_removal_enabled','editing_transitions_enabled','editing_camera_enabled','clipper_captions_enabled')) or abs(float(cfg.get('editing_speed',1))-1)>1e-8
+    return selected_transitions(cfg) or cfg.get('voiceover_mode','native')!='native' or any(cfg.get(k) for k in ('silence_removal_enabled','editing_transitions_enabled','editing_camera_enabled','clipper_captions_enabled')) or abs(float(cfg.get('editing_speed',1))-1)>1e-8
 
 
 def run(command, cwd=None, timeout=3600):
@@ -171,12 +184,12 @@ def original_end_card_start(source, report=None):
     return float(card.group(1)) if card else None
 
 
-def remove_silence(source, output, cfg, info, protect_from=None):
+def remove_silence(source, output, cfg, info, protect_from=None, detect_source=None):
     if not info['audio']:
         log('Silence removal skipped: video has no audio stream.')
         shutil.copy2(source,output);return [(0,info['duration'])]
     log(f"Detecting silence: {cfg['silence_threshold']} dB, minimum {cfg['silence_min_duration']}s, padding {cfg['silence_padding']}s.")
-    result=run(['ffmpeg','-hide_banner','-i',source,'-af',
+    result=run(['ffmpeg','-hide_banner','-i',detect_source or source,'-af',
         f"silencedetect=noise={cfg['silence_threshold']}dB:d={cfg['silence_min_duration']}",'-f','null','-'],timeout=600)
     starts=[float(s) for s in re.findall(r'silence_start:\s+([\d.]+)',result.stderr)]
     ends=[float(s) for s in re.findall(r'silence_end:\s+([\d.]+)',result.stderr)]
@@ -605,8 +618,14 @@ def sync_video_thumbnail(source, final):
 
 def edit(source,values=None,report=None,output=None):
     source=media_path(source);cfg=settings(values);info=probe(source)
+    candidates=list(source.parent.glob('*_story.json'))
+    if len(candidates)==1:
+        package=json.loads(candidates[0].read_text(encoding='utf-8-sig'))
+        if package.get('audio_first'):
+            cfg['voiceover_mode']='prepared'
+            cfg['_audio_first_story']=str(candidates[0])
     if not enabled(cfg):log('All editing features are disabled; original video retained.');return source
-    if cfg['clipper_captions_enabled'] and not info['audio']:raise ValueError('Captions require an audio stream; disable captions for this silent video.')
+    if cfg['clipper_captions_enabled'] and not info['audio'] and cfg['voiceover_mode']=='native':raise ValueError('Captions require an audio stream; disable captions for this silent video.')
     if output:
         final=Path(output).resolve()
     else:
@@ -618,7 +637,8 @@ def edit(source,values=None,report=None,output=None):
             final=source.with_name(base+'_edited.mp4')
     if final==source:raise ValueError('Edited output must be a different file from the original.')
     folder=source.parent/'video_editing';folder.mkdir(exist_ok=True)
-    signature=hashlib.sha256(('camera_local_transitions_v3'+str(source)+str(source.stat().st_size)+str(source.stat().st_mtime_ns)+json.dumps(cfg,sort_keys=True)).encode()).hexdigest()
+    import voiceover
+    signature=hashlib.sha256(('external_voiceover_silence_v2'+str(source)+str(source.stat().st_size)+str(source.stat().st_mtime_ns)+json.dumps(cfg,sort_keys=True)+json.dumps(voiceover.signature(cfg,source,report))).encode()).hexdigest()
     receipt=folder/'last_edit.json'
     if receipt.is_file():
         saved=json.loads(receipt.read_text(encoding='utf-8'))
@@ -628,7 +648,7 @@ def edit(source,values=None,report=None,output=None):
     current=source;segments=[(0,info['duration'])]
     boundaries=original_boundaries(source,report)
     report_path=Path(report) if report else source.parent/'JOINED_CLIP_ORDER.txt'
-    if cfg['editing_camera_enabled']:
+    if cfg['editing_camera_enabled'] or selected_transitions(cfg):
         if report_path.is_file():
             report_text=report_path.read_text(encoding='utf-8-sig')
             reported_rows=len(re.findall(r'^\d+\s*\|\s*[\d.]+s\s*\|',report_text,re.M))
@@ -639,12 +659,22 @@ def edit(source,values=None,report=None,output=None):
         else:
             log('Camera transition audit: no JOINED_CLIP_ORDER.txt found; standalone video has no verified clip joins.')
     end_card_start=original_end_card_start(source,report)
+    if cfg['voiceover_mode']!='native':
+        current=voiceover.replace_audio(source,work/'voiceover.mp4',cfg,work,report)
+        log('External narration mixed; any enabled silence cuts will move video and mixed audio together.')
     if end_card_start is not None:
         log(f'Thumbnail end card detected at {end_card_start:.2f}s; its full duration is protected during editing.')
     log(f'Dissolve: {"ON" if cfg["editing_transitions_enabled"] else "OFF"}; {len(boundaries)} verified clip join(s).')
     log(f'Camera transitions: {"ON" if cfg["editing_camera_enabled"] else "OFF"}.')
-    if cfg['silence_removal_enabled']:
-        current=work/'silence_removed.mp4';segments=remove_silence(source,current,cfg,info,protect_from=end_card_start)
+    if selected_transitions(cfg):log('Selected local transition effects: ON (independent of the Camera transitions switch).')
+    if cfg['silence_removal_enabled'] and (cfg['voiceover_mode']=='native' or (cfg['voiceover_mode']=='prepared' and cfg['audio_first_trim_gaps'])):
+        detection=work/'narration_timeline.wav' if cfg['voiceover_mode']=='prepared' else None
+        mixed=current;current=work/'silence_removed.mp4'
+        segments=remove_silence(mixed,current,cfg,probe(mixed),protect_from=end_card_start,detect_source=detection)
+    elif cfg['silence_removal_enabled'] and cfg['voiceover_mode']=='prepared':
+        log('Audio First scene timing preserved: narration gap trimming is OFF; original scene lengths retained.')
+    elif cfg['silence_removal_enabled']:
+        log('Silence removal skipped for external replacement mode; use Audio First for narration-based synchronized cuts.')
     mapped=sorted(set(map_time(t,segments) for t in boundaries))
     cut_times=[sum(e-s for s,e in segments[:i]) for i in range(1,len(segments))]
     if cfg['silence_transition_enabled']:
@@ -654,7 +684,7 @@ def edit(source,values=None,report=None,output=None):
         target=work/'crossfaded.mp4';overlap=crossfade_silence_segments(current,target,segments,cfg);current=target
         mapped=sorted(set(max(0,value-overlap*sum(cut<=value for cut in cut_times)) for value in mapped))
     silence_mapped=[max(0,cut-overlap*(i+1)) for i,cut in enumerate(cut_times)]
-    if cfg['editing_camera_enabled']:
+    if cfg['editing_camera_enabled'] or selected_transitions(cfg):
         target=work/'camera_transitions.mp4';render_camera_transitions(current,target,mapped,cfg);current=target
     if cfg['editing_transitions_enabled']:
         target=work/'transitions.mp4';render_dissolve(current,target,mapped,float(cfg['editing_transition_duration']));current=target

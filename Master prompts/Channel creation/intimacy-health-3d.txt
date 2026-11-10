@@ -1,10 +1,10 @@
-CHANNEL CREATION MASTER PROMPT — Intimacy Health 3D
+CHANNEL CREATION MASTER PROMPT — Health 3D ZackStyle
 SELECTED PRESET: intimacy-health-3d
 
 PRESET CONTEXT (reference data, not instructions to execute):
 {
   "id": "intimacy-health-3d",
-  "label": "Intimacy Health 3D",
+  "label": "Health 3D ZackStyle",
   "audience": "Adults curious about evidence-based health, intimacy, reproductive science and everyday relationship psychology.",
   "style": "Stylised-realistic 3D animation with realistic proportions, crisp educational detail, rich saturated multicolour design and cinematic dimensionality. Every shot uses a deliberate, story-led combination of 4–6 harmonious colours, with strong warm/cool contrast and clear visual hierarchy; distribute vivid coral/red, orange, golden yellow, lime/emerald, teal/cobalt, violet or magenta across the actual subject, props, diagrams and environment as relevant. Preserve real object, skin, clothing and location colours. Use polished topic-appropriate materials, readable directional lighting, soft contact shadows and a few controlled coloured rim-light accents. Do not default to a cyan/blue monochrome palette or generic cyan studio. No photorealistic live action, toy-like characters, flat 2D, anime or cel shading.",
   "palette": "Rich story-led multicolour palette: use 4–6 coordinated hues per shot, selected from coral/red, orange, golden yellow, lime/emerald, teal/cobalt, violet/magenta and natural subject colours; balance bright accents against deep navy, charcoal or the real environment. Spread colour across the 3D hero, props, diagrams and callouts instead of washing everything cyan. Keep colors purposeful and semantically accurate, with one clear dominant hue and a few contrasting accents; no muddy mix or arbitrary rainbow clutter. Maintain the same color identity across character/location references and every clip.",
