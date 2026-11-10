@@ -47,6 +47,7 @@ def schema():
     for effect,label in CAPCUT_TRANSITIONS:
         rows.append(dict(key='camera_effect_'+effect,label=label+' (local)',default=False,page='finishing',group='Transition selection'))
     rows.append(dict(key='camera_effect_duration',label='Selected transition duration (seconds)',default=1.0,min=.1,max=1.5,step=.05,page='finishing',group='Transition selection'))
+    rows.append(dict(key='preset_cta_enabled',label='Append preset CTA video when present',default=True,page='finishing',group='Preset CTA'))
     rows.append(dict(key='audio_first_trim_gaps',label='Audio First: trim narration gaps (shortens video)',default=False,page='finishing',group='Voiceover'))
     rows.append(dict(key='editing_speed',label='Final video speed (×)',default=1.0,min=.15,max=2.0,step=.05,page='finishing',group='Final speed'))
     for key,label,default,choices in [
@@ -624,7 +625,9 @@ def edit(source,values=None,report=None,output=None):
         if package.get('audio_first'):
             cfg['voiceover_mode']='prepared'
             cfg['_audio_first_story']=str(candidates[0])
-    if not enabled(cfg):log('All editing features are disabled; original video retained.');return source
+    import preset_cta
+    cta=preset_cta.find(source,ROOT) if cfg['preset_cta_enabled'] else None
+    if not enabled(cfg) and not cta:log('All editing features are disabled; original video retained.');return source
     if cfg['clipper_captions_enabled'] and not info['audio'] and cfg['voiceover_mode']=='native':raise ValueError('Captions require an audio stream; disable captions for this silent video.')
     if output:
         final=Path(output).resolve()
@@ -638,7 +641,7 @@ def edit(source,values=None,report=None,output=None):
     if final==source:raise ValueError('Edited output must be a different file from the original.')
     folder=source.parent/'video_editing';folder.mkdir(exist_ok=True)
     import voiceover
-    signature=hashlib.sha256(('external_voiceover_silence_v2'+str(source)+str(source.stat().st_size)+str(source.stat().st_mtime_ns)+json.dumps(cfg,sort_keys=True)+json.dumps(voiceover.signature(cfg,source,report))).encode()).hexdigest()
+    signature=hashlib.sha256(('preset_cta_finishing_v1'+str(source)+str(source.stat().st_size)+str(source.stat().st_mtime_ns)+json.dumps(cfg,sort_keys=True)+json.dumps(voiceover.signature(cfg,source,report))+json.dumps(preset_cta.signature(cta))).encode()).hexdigest()
     receipt=folder/'last_edit.json'
     if receipt.is_file():
         saved=json.loads(receipt.read_text(encoding='utf-8'))
@@ -705,8 +708,13 @@ def edit(source,values=None,report=None,output=None):
     if abs(float(cfg['editing_speed'])-1)>1e-8:
         target=work/'speed_adjusted.mp4';apply_speed(current,target,cfg['editing_speed']);current=target
         result=probe(current)
+    if cta:
+        thumbnail_seconds=(info['duration']-end_card_start)/float(cfg['editing_speed']) if end_card_start is not None else 0.
+        target=work/'with_preset_cta.mp4'
+        current=preset_cta.append(current,cta,target,work,thumbnail_seconds)
+        result=probe(current)
     staging=final.with_name(final.stem+f'.building_{os.getpid()}.mp4');shutil.copy2(current,staging);os.replace(staging,final)
-    receipt.write_text(json.dumps(dict(signature=signature,input=str(source),output=str(final),settings=cfg,
+    receipt.write_text(json.dumps(dict(signature=signature,input=str(source),output=str(final),settings=cfg,preset_cta=preset_cta.signature(cta),
         keep_intervals=segments,transition_boundaries=[t/float(cfg['editing_speed']) for t in mapped],speed=cfg['editing_speed'],duration=result['duration']),indent=2),encoding='utf-8')
     sync_video_thumbnail(source,final)
     log(f'EDITED_VIDEO: {final}')

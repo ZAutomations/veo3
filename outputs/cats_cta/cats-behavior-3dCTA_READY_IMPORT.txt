@@ -1,0 +1,17 @@
+Story 1
+Title: Cats Club CTA
+Preset: cats-behavior-3d
+Production profile: zetomate-flex
+Clip seconds: 6
+Estimated duration: 6 seconds
+Characters:
+Miso: Adult ginger tabby domestic cat with amber eyes, white chin and white paws; natural quadrupedal anatomy, no clothing.
+Locations:
+Living Room: Warm colorful living room with emerald armchair, unused cat bed and soft toy, rich multicolour Zack 3D rendering.
+Continuity: Miso keeps the same coat, eyes, paws and feline proportions; one continuous camera take, no human-style gestures.
+Clip 1:
+Narration: "Your cat already owns the house. Join the club—subscribe, and share this with another proud cat parent."
+Shot 1: 0–3 seconds — Track from Miso's stretched white paw on the oversized emerald armchair to the relaxed face, revealing the unused cat bed nearby; a funny relatable cat-owner observation, no talking mouth.
+Shot 2: 3–6 seconds — Continuously pull back as Miso nudges a soft toy toward the lens; keep the same coat and living-room layout, no hard cut.
+Effect: On Join the club, spring-pop a small perfectly round paw badge beside the cat with an animated multicolour neon outer ring and orbiting arc. On share, spring-pop a round share-arrow pictogram; hold the center icons stable and shrink toward their anchors at the end with curved light trails. Maximum two badges, safe margins and no subtitles.
+Sound: SFX: soft toy tap, separate synchronized popup on each round badge entry and swoosh on exit, below narration; BGM: one quiet original playful plucked-string motif; Mix: one off-screen adult male American English narrator, playful clear documentary tone, exact complete narration once, no other speech or cat lip-sync.

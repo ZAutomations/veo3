@@ -26,7 +26,7 @@ assert(prepared.cast[0].type==='cat');
 assert(!prepared.cast[0].description.includes('Keep the same face, proportions, hair and fixed clothing'));
 assert(story.scenes[0].characters.includes('miso'));
 const prompt=S.promptForScene(story,0,{seconds:10});
-for(const t of ['CATS BEHAVIOR EXPLAINER','ZACK ANIMATED ROUND PICTOGRAM BADGES','orbiting arc','popup/plop','swoosh','Natural non-speaking animals'])assert(prompt.includes(t),t);
+for(const t of ['CATS BEHAVIOR EXPLAINER','ZACK ANIMATED ROUND PICTOGRAM BADGES','orbiting arc','popup/plop','swoosh','Natural non-speaking animals','FUNNY HOOK + VIEWER QUESTION','exactly one short topic-specific viewer question'])assert(prompt.includes(t),t);
 assert(!prompt.includes('Silent on-screen cast, mouths closed'));
 const audioStory={...story,audio_first:true,scenes:story.scenes.map(s=>({...s,script_line:'',external_narration:s.script_line,audio_first_duration:9.4}))};
 const audio=A.scene(audioStory,0);assert(audio.includes('CATS BEHAVIOR EXPLAINER')&&audio.includes('ZACK ANIMATED ROUND')&&audio.includes('NO narration'));
@@ -34,4 +34,5 @@ assert.throws(()=>I.parse(text.replace('28','31').replace('situation around your
 const master=fs.readFileSync('Master prompts/cats-behavior-3d.txt','utf8');
 for(const t of ['LOVE & TRUST','BOUNDARIES & WARNING SIGNALS','INSTINCTS & PLAY','SENSES & EVERYDAY MYSTERIES','cats-behavior-3d','28–30','cats-first'])assert(master.includes(t),t);
 assert(JSON.parse(fs.readFileSync('Master prompts/INDEX.json','utf8')).some(x=>x.id===p.id));
+assert(master.includes('Does your cat do this too?')&&master.includes('first 1-2 seconds'));
 console.log('PASS: cats preset preserves Zack visual DNA, four pillars, feline cast, strict importer pacing, native/audio-first badge prompts and master catalog. No live API calls.');

@@ -1,5 +1,11 @@
 [
   {
+    "id": "cats-behavior-3d",
+    "label": "Cats Behavior — Zack Animation",
+    "file": "cats-behavior-3d.txt",
+    "route": "DIRECT IMPORT"
+  },
+  {
     "id": "ww2-history",
     "label": "World War 2 History",
     "file": "ww2-history.txt",
@@ -159,12 +165,6 @@
     "id": "3d-zack-style",
     "label": "Zack Animation",
     "file": "3d-zack-style.txt",
-    "route": "DIRECT IMPORT"
-  },
-  {
-    "id": "cats-behavior-3d",
-    "label": "Cats Behavior — Zack Animation",
-    "file": "cats-behavior-3d.txt",
     "route": "DIRECT IMPORT"
   },
   {
