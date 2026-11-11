@@ -387,6 +387,11 @@ def plan_action(action, p):
         if args['aspect'] not in ('Flow', '9:16', '16:9', '1:1'):
             raise ValueError('Invalid aspect ratio.')
         return 'writer', [('mcp', ('batch_pipeline', args))]
+    if action == 'account_credits':
+        label = str(p.get('label', '')).strip()
+        if not label or label != active_account():
+            raise ValueError('Make this account active before refreshing its credits.')
+        return 'flow', [('cli', command('flow_credits.js', '--label', label, '--cdp', integer(p.get('cdp') or global_workflow_settings()['automationCdp'], 1024, 65535, 'Browser port'), '--open-browser'))]
     if action.startswith('account_'):
         operation = action.removeprefix('account_')
         if operation not in ('add', 'use', 'signin', 'activate', 'pause', 'resume', 'reset', 'remove', 'move_up', 'move_down'):
@@ -855,6 +860,19 @@ class Job:
             env['VEO_EDITING_SETTINGS'] = json.dumps(self.payload['_editingSettings'])
         return env
 
+    def refresh_flow_credits(self):
+        if self.stopped or self.lane != 'flow' or self.action not in ('generate','generate_queue','manual','retry_failed','refs','account_use','account_activate'):
+            return
+        try:
+            port = integer(self.payload.get('cdp') or self.payload.get('_globalWorkflow', {}).get('automationCdp', 9222), 1024, 65535, 'Browser port')
+            checked = subprocess.run(command('flow_credits.js', '--cdp', port), cwd=ROOT, capture_output=True,
+                text=True, encoding='utf-8', errors='replace', timeout=65,
+                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+            for line in checked.stdout.splitlines():
+                self.log(line)
+        except Exception:
+            self.log('FLOW CREDITS: refresh unavailable; generation/checkpoints are unaffected.')
+
     def _run_operations(self):
         # On resume, restore only the originally assigned account. Never choose
         # another account in response to an error or platform restriction.
@@ -880,6 +898,8 @@ class Job:
                 self.log('STORY QUEUE: starting ' + str(story))
             if self.stopped:
                 break
+            if kind != 'request' and self.action not in ('account_use','account_activate'):
+                self.refresh_flow_credits()
             if kind == 'request':
                 filename, request = spec
                 requestfile = ROOT / 'logs' / 'desktop' / (self.id + '.json')
@@ -916,6 +936,7 @@ class Job:
                 self.client = None
                 if result['isError'] and not self.stopped:
                     raise RuntimeError('The workflow reported an error. See the log above.')
+            self.refresh_flow_credits()
 
     def run(self):
         try:
@@ -929,6 +950,7 @@ class Job:
                     self.status = 'stopped' if self.stopped else 'completed'
                     break
                 except Exception as exc:
+                    self.refresh_flow_credits()
                     self.log(str(exc))
                     recent = '\n'.join(row['text'] for row in self.logs if row['id'] > attempt_start)
                     if self.stopped:
@@ -1352,10 +1374,30 @@ def inspect_story(path: str):
         raise HTTPException(400, str(exc))
 
 
+@app.post('/api/accounts/reset-day')
+def save_credit_reset_day(body: dict):
+    label = str(body.get('label', '')).strip()
+    raw = body.get('day')
+    if raw is None or raw == '':
+        day = None
+    else:
+        if isinstance(raw, bool) or not re.fullmatch(r'[0-9]{1,2}', str(raw)) or not 1 <= int(raw) <= 31:
+            raise HTTPException(400, 'Monthly reset day must be a whole number from 1 to 31.')
+        day = int(raw)
+    with lock:
+        data = read_json(ROOT / 'accounts.json')
+        account = next((a for a in data.get('accounts', []) if str(a.get('label', '')).lower() == label.lower()), None)
+        if not account:
+            raise HTTPException(404, 'Saved account not found.')
+        account['credits_reset_day'] = day
+        save_json(ROOT / 'accounts.json', data)
+    return dict(ok=True, day=day)
+
+
 @app.get('/api/accounts')
 def account_list():
     data = read_json(ROOT / 'accounts.json')
-    return dict(current=data.get('current', 0), accounts=[{k: a.get(k) for k in ('label', 'email', 'max_clips', 'clips_used', 'clips_month', 'paused')} for a in data.get('accounts', [])])
+    return dict(current=data.get('current', 0), accounts=[{k: a.get(k) for k in ('label', 'email', 'max_clips', 'clips_used', 'clips_month', 'paused', 'flow_credits', 'credits_reset_day')} for a in data.get('accounts', [])])
 
 
 def surface_preferences(surface):

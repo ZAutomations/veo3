@@ -15,8 +15,8 @@ try{
  assert(fs.readFileSync(path.join(folder,'thumbnail_prompt.txt'),'utf8').includes('CATS APPROVED'));
  assert(T.thumbnailPrompt(story,'16:9').includes('ONE complete original 16:9'));
  for(const clip of [S.promptForScene(story,0,{seconds:10}),S.promptForScene({...story,audio_first:true,scenes:story.scenes.map(s=>({...s,script_line:'',external_narration:s.script_line,audio_first_duration:9.4}))},0,{seconds:10})]){
-  for(const t of ['CATS 3D EXPLANATORY REVEAL','SCENE-SPECIFIC 3D REVEAL PLAN','transparent surface window','facial scent-gland','abstract particles'])assert(clip.includes(t),t);
+  for(const t of ['CATS 3D EXPLANATORY REVEAL','SCENE-SPECIFIC 3D REVEAL PLAN','ACTION -> EXPLANATION -> RESULT','localized','volumetric'])assert(clip.includes(t),t);
  }
  assert.equal(C.forScene({preset_id:'3d-zack-style'},story.scenes[0]),'');
- console.log('PASS: cats-only expressive thumbnail layout, full title, references-before-thumbnail, repeat safety, selected ratio and native/audio-first 3D gland/process cues.');
+ console.log('PASS: cats-only expressive thumbnail layout, full title, references-before-thumbnail, repeat safety, selected ratio and native/audio-first topic-led 3D process cues without forced anatomy.');
 }finally{fs.rmSync(folder,{recursive:true,force:true});}

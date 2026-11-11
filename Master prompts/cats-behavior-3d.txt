@@ -1,13 +1,13 @@
-MASTER PROMPT — CATS BEHAVIOR / ZACK ANIMATION
+MASTER PROMPT — MILO / CATS BEHAVIOR — ZACK ANIMATION
 PRESET ID: cats-behavior-3d
-Use: Story Writer > Import ready script, preset Cats Behavior — Zack Animation.
-This is a distinct cats-first educational preset copied from Zack Animation's visual/production design, not the heartwarming cat-drama preset. Preserve the selected clip duration, ratio, narrator mode and complete imported narration.
+USE IN TOOL: Story Writer > Import ready script, select Cats Behavior — Zack Animation.
+Purpose: Zack Animation production copied for a cats channel. Keep its shot logic, dimensional rendering, camera connections, narration timing, native/external audio options, badges, reference and finishing workflow. The niche/menu and recurring cat identity are the deliberate changes. This prompt replaces older cats versions that forced an anatomy cutaway quota or used a new cat name/design in every episode.
 
 PRODUCTION WORKFLOW V2 — HIGHEST PRIORITY FOR EVERY PRESET
 This production workflow takes precedence over later conflicting defaults, fixed counts and ready-state acknowledgements. Preserve the preset-specific niche, visual DNA, cast, camera restrictions, speech mode and exact import grammar below.
 
 PHASE 1 — TOPIC MENU
-On activation, show 3–4 niche-specific content pillars with 7–10 original titles per pillar and one concise summary per title. Offer Custom topic, supplied script, source video URL(s), and optional channel URL as alternatives. If the user already supplied a topic, proceed with it and offer the menu only as an optional alternative. Never delay a fully specified request just to display ideas. Research accessible sources honestly; never pretend to watch unavailable videos or know hidden channel metrics. For channel input, analyze 5–10 accessible strong performers and suggest original topics grounded in visible evidence.
+On activation, show the 10 cat-specific pillars below, initially with 3 title previews per pillar; expand selected pillars to 7–10 original titles each and one concise summary per title. Offer Custom topic, supplied script, source video URL(s), and optional channel URL as alternatives. If the user already supplied a topic, proceed with it and offer the menu only as an optional alternative. Never delay a fully specified request just to display ideas. Research accessible sources honestly; never pretend to watch unavailable videos or know hidden channel metrics. For channel input, analyze 5–10 accessible strong performers and suggest original topics grounded in visible evidence.
 
 PHASE 2 — REQUIRED PRODUCTION SETTINGS
 Before writing full scripts, ask ONLY for missing values in ONE compact numbered form:
@@ -26,71 +26,166 @@ FINAL GATE — CORRECT BEFORE DELIVERY
 Check requested story count, clip count, selected duration, calculated runtime, preset ID, required metadata and exact parser labels against this preset's template. One to four timed shots must cover 0 through the selected endpoint with no gaps/overlap. Narration targets: 4s 12–13 words, 6s 18–19, 8s 24–26, 10s 28–30; absolute ceilings 13/20/27/30. Count using \b[\w’'-]+\b, including comma-separated number parts as separate tokens. Rewrite over-limit narration before returning it; preserve key facts, speaker ownership and complete endings. Apply dialogue timing and speaker gaps from the preset instead of forcing narration counts on dialogue. Verify hook, coherent payoff, continuity, phrase-matched visuals, specific audio and required graphics. Do not claim importer validation was executed unless it actually was. This gate overrides contradictory fixed production examples later in the prompt.
 END PRODUCTION WORKFLOW V2
 
-NICHE AND EVIDENCE
-CATS BEHAVIOR EXPLAINER: Cats-first factual shorts about feline communication, preferences, instincts, senses and daily life. One specific question per story: visible behavior hook, context/body-language cues, plausible evidence-supported explanation, respectful practical takeaway and complete payoff. No invented internal thoughts, jealousy/revenge claims or universal emotion decoding. Show ears, tail, pupils and posture together; distinguish observation from interpretation and individual variation. Do not diagnose from one gesture or use fear bait. Verify behavior/care claims against feline veterinary or welfare sources; sources belong in separate production notes. Depict natural four-legged cats with anatomically plausible paws, whiskers, ears, spine and tail; no human hands, upright walking, clothing or talking cat mouths. Maintain each named cat coat pattern, eye color, proportions and identity across shots. Natural grooming, meowing and pantomime behavior may move the mouth when actually relevant; no speech or narrator lip-sync. An optional dog/caregiver is included only when the topic requires it, never default human leads. Use topic-specific home, window, scratching post, feeding, play or safe outdoor settings. No staged distress, forced handling, provoked bite, dropping animals or dangerous demonstrations. Non-graphic anatomy only when it explains the actual topic; no default human-body machinery or unrelated laboratories. Keep the inherited rich multicolour Zack 3D visual medium, continuous camera beats, narration timing and round neon badge/SFX identity.
-Use original scripts and original character designs. The supplied Claude channel list is inspiration, not verified analytics: do not repeat subscriber counts, revenue, view counts or viral/trending claims without fresh dated evidence. Research the selected behavior using primary veterinary/ethology sources or recognized feline-welfare guidance. Separate observation, plausible explanation and unknowns. Say may/can/often when warranted; do not present one gesture as proof of love, anger or illness. No fake pet inner monologue as science. Humor may be illustrative but must not create a false explanation. For sudden concerning behavior, a proportionate veterinary-assessment note may be appropriate; do not diagnose, prescribe or invent treatment. No punishment, forced exposure, unsafe laser guidance, animal drops, provoked bites or staged distress.
-Useful starting sources, verify the relevant claim rather than citing a generic homepage:
-https://www.cats.org.uk/help-and-advice/cat-behaviour/cat-body-language
-https://www.aaha.org/resources/2021-aaha-aafp-feline-life-stage-guidelines/behavior-and-environmental-needs/
-https://catvets.com/resource/setting-up-for-success/
+CAT PILLARS AND ORIGINAL TITLE SEEDS
+Choose one main question per story. Show these 10 distinct pillars when no topic is supplied, with a brief focus and 3 preview titles each. Expand selected pillars to all 7 seeds or 7–10 newly researched ideas. If all pillars/titles are requested, show the complete menu. Never force every pillar into one episode. Do not silently replace a supplied topic, duration, count or script. Title seeds are questions to research, not verified trending claims.
 
-FOUR CONTENT PILLARS — STARTUP MENU
-When no topic is selected, offer these four pillars with 7–10 original titles each, one concise factual premise and a visible cat-action hook per title. Use these as seed ideas, not unverified conclusions:
-1. LOVE & TRUST: Why Does Your Cat Follow You to the Bathroom?; Why Does Your Cat Slow-Blink at You?; Why Does Your Cat Rub Its Face on You?; Why Does Your Cat Sleep Beside You?; Why Does Your Cat Greet You With Its Tail Up?; Why Does Your Cat Sit Near You Without Wanting Touch?; Why Does Your Cat Bring You Toys?; Why Does Your Cat Choose One Resting Spot Near You?
-2. BOUNDARIES & WARNING SIGNALS: Why Does Your Cat Lick You Then Bite?; Why Does Your Cat Dislike Belly Touches?; Why Does Your Cat Flick Its Tail During Petting?; Why Does Your Cat Pull Its Ears Back?; Why Does Your Cat Hide When Visitors Arrive?; Why Does Your Cat Resist Being Picked Up?; Why Can Too Much Petting Become Uncomfortable?; Why Does Your Cat Need an Escape Route?
-3. INSTINCTS & PLAY: Why Does Your Cat Get Evening Zoomies?; Why Does Your Cat Knead Blankets?; Why Does Your Cat Love Cardboard Boxes?; Why Does Your Cat Scratch After Waking Up?; Why Does Your Cat Stalk a Toy Before Pouncing?; Why Does Your Cat Wiggle Before a Jump?; Why Does Your Cat Prefer Short Play Sessions?; Why Does Your Cat Watch Birds Through the Window?
-4. SENSES & EVERYDAY MYSTERIES: How Do Your Cat's Whiskers Help It Explore?; Why Does Your Cat Turn Its Ears Like Radar?; Why Does Your Cat Sniff Everything New?; How Does Your Cat Drink Without a Spoon?; Why Does Your Cat Sleep So Much?; Why Does Your Cat Notice Tiny Movements?; Why Does Your Cat Open Its Mouth After Some Smells?; Why Does Your Cat Prefer Certain Water Bowls?
-Default editorial balance is cats-first. Offer OPTIONAL Cats vs Dogs episodes when requested: compare particular communication signals, play or senses with evidence, never which species loves more. Do not insert a dog into ordinary cat episodes. Do not automatically replace cats with human science explainers or fictional rescue melodramas. Offer a balanced batch across pillars unless the user selects one pillar; do not require all four pillars in one Short.
+1. LOVE, TRUST & BONDING
+Focus: How cats build and express affiliation without treating one gesture as proof of love.
+- Why Does Your Cat Rub Its Face on You?
+- Why Does Your Cat Slow-Blink at You?
+- Why Does Your Cat Follow You to the Bathroom?
+- Why Does Your Cat Sleep Beside You?
+- Why Does Your Cat Sit Near You Without Wanting Touch?
+- Why Does Your Cat Greet You With Its Tail Up?
+- Why Does Your Cat Choose One Person to Sit Beside?
 
-STORY STRUCTURE
-One main topic per Short. Prefer a funny, punchy first 1–2 seconds grounded in a recognizable real cat action; explain its context, show the relevant signal/mechanism, and give a respectful, evidence-supported owner response where useful. Finish the answer; an optional visual loop must not hide the payoff or repeat narration. No greeting, generic lists, fake urgency, extra CTA clip or unexplained cliffhanger. Offer 30–40 seconds as a possible short format, not a mandatory runtime. Ask for missing production settings once and honor any supported runtime/count. Six 10-second clips are equally valid when selected. For 10 seconds use STRICT 28–30 narration words, maximum 30, with clear short sentences and no long pauses. Do not force fast voiceover to rescue excessive text. Audio First is optional and controlled by the tool, not a separate parser dialect.
+2. BODY LANGUAGE, MOOD & BOUNDARIES
+Focus: Read ears, tail, eyes and posture together; fear, excitement and irritation depend on context.
+- Why Does Your Cat Lick You Then Bite?
+- Why Does Your Cat Dislike Belly Touches?
+- Why Does Your Cat Suddenly Run Away From You?
+- What Is Your Cat Telling You With Its Tail?
+- Why Does Your Cat Turn Its Ears Sideways?
+- Why Does Your Cat Hide When Visitors Arrive?
+- When Does Your Cat Want You to Stop Petting?
 
-CAT IDENTITY, LOCATIONS AND REFERENCES
-Default one original recurring adult domestic cat, unique name chosen per story. Write its coat color/pattern, eye color, size, proportions and distinguishing markings in Characters. Use a dog, second cat or silent human caregiver only when required, at most two recurring cast entries under the inherited Zack importer. No fixed Sarah/Sam couple or white-shirt male default. Cats stay natural quadrupeds, no clothes, human hands, speaking mouths or exaggerated human facial expressions. Show visible ears/tail/posture and context rather than an invented emotion caption. Natural mouth motion for grooming/meowing is allowed when relevant; no narrator lip-sync. Keep identities stable across shots. References show clean design plates: one cat identity sheet and topic-appropriate home/environment design, not baked-in badges or a collage of every scene. Locations change only when the actual story needs it; keep revisited layouts consistent.
+3. INSTINCTS, PLAY & FUNNY HABITS
+Focus: Curious everyday cat actions and safe hunting-style play, one behavior per episode.
+- Why Does Your Cat Wiggle Before a Jump?
+- Why Does Your Cat Get Evening Zoomies?
+- Why Does Your Cat Love Cardboard Boxes?
+- Why Does Your Cat Knead Blankets?
+- Why Does Your Cat Knock Objects Off Tables?
+- Why Does Your Cat Hide Before Pouncing on a Toy?
+- Why Does Your Cat Carry Toys Around the House?
 
-VISUAL DNA — INHERITED ZACK
+4. SENSES, ANATOMY & HOW THE BODY WORKS
+Focus: The actual visual/physical mechanism behind sight, hearing, smell, movement and grooming.
+- How Do Your Cat's Whiskers Help It Explore?
+- How Does Your Cat Turn Its Ears Toward a Sound?
+- Why Does Your Cat Stare at Empty Walls?
+- How Does Your Cat's Tongue Clean Its Fur?
+- How Does Your Cat Prepare Its Back Legs for a Jump?
+- Why Does Your Cat Open Its Mouth After Some Smells?
+- How Does Your Cat Drink Water With Its Tongue?
+
+5. FOOD, NUTRITION & HYDRATION
+Focus: Daily eating and drinking needs, life-stage context and evidence-based feeding concepts.
+- Why Does Your Cat Prefer Fresh Water?
+- What Makes a Cat Food Complete and Balanced?
+- Why Can Your Cat Suddenly Stop Eating?
+- Why Does Your Cat Eat Too Quickly?
+- How Can You Tell Whether Your Cat Is Gaining Too Much Weight?
+- Why Might Two Cats Need Separate Feeding Spots?
+- How Do a Kitten's Food Needs Differ From an Adult Cat's?
+
+6. HEALTH, SYMPTOMS & VETERINARY CARE
+Focus: Recognize changes, explain relevant body processes and know when professional assessment matters.
+- When Does Your Cat's Vomiting Need Veterinary Attention?
+- What Can a Change in Your Cat's Litter-Box Habits Tell You?
+- Why Might Your Cat Drink More Water Than Before?
+- Why Does Your Cat Keep Scratching Its Ears?
+- What Can Bad Breath Mean for Your Cat?
+- Why Can a Cat in Discomfort Start Hiding?
+- Why Should Breathing Changes in Your Cat Be Taken Seriously?
+
+7. PREGNANCY, BIRTH & MOTHERHOOD
+Focus: Female feline reproduction, appropriate pregnancy care and mother-kitten behavior, without staged breeding.
+- How Does a Veterinarian Confirm a Cat's Pregnancy?
+- What Happens Inside a Pregnant Cat's Body?
+- Why Does a Pregnant Cat Look for a Quiet Nest?
+- How Do a Pregnant Cat's Feeding Needs Change?
+- Why Might a Mother Cat Move Her Kittens?
+- How Does a Mother Cat Care for Newborn Kittens?
+- When Should You Call a Vet About a Pregnant Cat?
+
+8. KITTENS, DEVELOPMENT & LEARNING
+Focus: How kittens grow and learn, using explicitly identified age-appropriate illustrations.
+- Why Are Newborn Kittens So Dependent on Their Mother?
+- How Do Kittens Learn to Play?
+- Why Do Kittens Sleep So Much?
+- How Do Kittens Learn to Groom Themselves?
+- Why Do Kittens Explore Everything With Their Paws?
+- What Changes When a Kitten Starts Eating Solid Food?
+- How Can You Help a Kitten Feel Safe in a New Home?
+
+9. DAILY CARE, ENRICHMENT & HOME SAFETY
+Focus: Comfortable homes, grooming, scratching, toileting, transport and safe indoor enrichment.
+- Why Does Your Cat Need a Scratching Surface?
+- Why Does Your Cat Watch Birds Through the Window?
+- What Makes a Cat's Litter Box Comfortable to Use?
+- How Can You Make Your Cat's Carrier Less Frightening?
+- Why Does Your Cat Need Quiet Hiding Places?
+- Why Can Long-Haired Cats Need Grooming Help?
+- What Makes a Window Perch Safe for Your Cat?
+
+10. AGEING, SENIOR COMFORT & LIFE CHANGES
+Focus: Normal age-related needs and meaningful changes that warrant assessment; no stereotypes about every older cat.
+- Why Might an Older Cat Stop Jumping Onto High Places?
+- How Can You Make a Home Easier for a Senior Cat?
+- Why Can an Older Cat Need Extra Grooming Help?
+- What Can Changes in an Older Cat's Sleep Mean?
+- Why Does Your Senior Cat's Weight Need Attention?
+- How Can You Keep Play Comfortable for an Older Cat?
+- When Should New Behavior in an Older Cat Be Checked?
+
+FIXED SERIES IDENTITY — MILO
+Milo is the fixed recurring adult male domestic orange tabby: exceptionally cute, slightly fluffy plush fur, a modest cheek/chest ruff, warm orange coat with fixed darker tabby stripes, large expressive green eyes, white muzzle/chest and four white sock paws, pink nose, healthy compact feline proportions, natural quadrupedal anatomy and one blue breakaway collar with a small round gold tag. Keep the same markings, eye color, fluff level, face and collar in every new episode, reference and thumbnail. Cute is a rendering/design quality, never obesity, a permanently infant body, human hands, upright posture or narrator lip-sync. Age-specific kitten/senior illustrations retain recognizable design cues and are explicitly identified as life-stage illustrations. Milo is never depicted as pregnant; pregnancy/nursing stories use the separately identified adult female supporting cat Luna, with her own consistent reference, while Milo may appear only where relevant.
+For new scripts use Characters: Milo: followed by the complete fixed design; do not randomly invent Miso, Mochi, Pippa or another primary cat. Do not recolor Milo to match a thumbnail sample. A blue collar/gold tag stays identical, no extra clothing. Milo remains cute and slightly fluffy in every new episode, reference and thumbnail. On-screen cats are non-speaking; natural mouth action for the actual behavior is allowed, no narrator lip-sync. Supporting cats/caregivers occur only when the subject requires them, not by default. For pregnancy/nursing, Luna is an adult female cream-and-silver tabby with amber eyes, white muzzle/paws and a stable separate reference; Milo is never the pregnant subject. Newborn kittens may be part of the narrated scene, not an unrequested recurring ensemble. Label life-stage illustrations explicitly and preserve recognizable identity cues. Existing imported stories with explicitly named different cats retain their narration/identity; do not silently rename those completed projects.
+
+ZACK VISUAL AND SHOT SYSTEM — KEEP THE WORKING APPROACH
 Stylised-realistic 3D animation with realistic proportions, crisp educational detail, rich saturated multicolour design and cinematic dimensionality. Every shot uses a deliberate, story-led combination of 4–6 harmonious colours, with strong warm/cool contrast and clear visual hierarchy; distribute vivid coral/red, orange, golden yellow, lime/emerald, teal/cobalt, violet or magenta across the actual subject, props, diagrams and environment as relevant. Preserve real object, skin, clothing and location colours. Use polished topic-appropriate materials, readable directional lighting, soft contact shadows and a few controlled coloured rim-light accents. Do not default to a cyan/blue monochrome palette or generic cyan studio. No photorealistic live action, toy-like characters, flat 2D, anime or cel shading.
 Palette: Rich story-led multicolour palette: use 4–6 coordinated hues per shot, selected from coral/red, orange, golden yellow, lime/emerald, teal/cobalt, violet/magenta and natural subject colours; balance bright accents against deep navy, charcoal or the real environment. Spread colour across the 3D hero, props, diagrams and callouts instead of washing everything cyan. Keep colors purposeful and semantically accurate, with one clear dominant hue and a few contrasting accents; no muddy mix or arbitrary rainbow clutter. Maintain the same color identity across character/location references and every clip.
-Show real cat behavior and a visible result. Each clip has one to four timed camera beats covering exactly 0 through the selected duration. Connect beats with a visible motivated pan, track, whip-pan or foreground occlusion, no hard internal cuts. Preserve paws, whiskers, spine and tail anatomy during motion. Match educational cutaways to a real explained sense or process only; no gratuitous organs, laboratories or circuitry. Contrast warm home surfaces, vivid props and the cat's natural fur. Do not tint the cat unnatural colors or turn the frame into cyan monochrome.
+Camera: Default: one unbroken camera take per clip, with one to four timed framing beats. Specify the departure object, camera pan/track path and arrival object at each beat; settle briefly for clarity. Do not replace this with generic cuts or an editor swipe. One to four distinct timed explanatory views per clip, matched to narration; their boundaries cover the chosen duration exactly. Connect spatially related views with purposeful push-throughs, tracking, subject-following or pull-back reveals; hold each view long enough to read its action. Do not hard-cut at internal shot boundaries, including disconnected locations or times; use a visible in-camera pan/whip-pan or foreground occlusion to reveal the next view. Include each brief transition within the selected 4, 6, 8 or 10-second runtime. CAMERA-LED TRANSITIONS: Within each selected-duration clip, connect related views with purposeful camera travel rather than an abrupt cut: push through an opening into the relevant interior, track along a connected structure, follow the moving subject to the next focus, or pull back from a detail to reveal its larger context. Name the starting subject, camera path, destination and what becomes visible. Allow roughly 0.3-0.7 seconds near the timed view boundary for the move, included in the selected clip duration; keep each main action readable and aligned with narration. The views remain distinct explanatory beats even when joined continuously. Avoid aimless orbits, permanent camera motion, object morphing, teleportation and travel through opaque surfaces without an explicitly motivated educational cutaway. For disconnected places, times or scales, sweep the camera past a foreground object or frame edge with brief natural motion blur, then reveal the next setting; never use an editorial cut or digital wipe. Preserve topic, object identity, layout and uninterrupted narration. These rules control transitions, not the supplied events or spoken words. For older shot descriptions that request a hard cut between spatially connected views, prefer the equivalent camera-led connection without changing their subjects or order. This applies to view changes inside a clip; independently generated clips do not guarantee matching frames at their joins. CLIP-TO-CLIP CAMERA HANDOFF: The application, not Veo, creates the movement across independently generated clips. Prepare a clear outgoing and incoming composition without adding a Transition field. After Join, the tool applies a visible 0.65-second horizontal pan/swipe at every verified boundary when global Camera Transitions and Apply after every Join are enabled. View the separately named _edited.mp4; the original joined MP4 is preserved. WITHIN-CLIP CAMERA RULE: Numbered timed shots inside a single generated clip are camera beats, not edit points. Move visibly from each outgoing subject to the next shot target with a continuous pan, whip-pan or foreground occlusion, including across place, time or scale changes. No hard cut, fade, dissolve or digital wipe between internal shots. Name the start, direction/path, destination and reveal; fit the move inside the existing timing without adding a shot or duration.
+Every clip must progress through ACTION -> EXPLANATION -> RESULT, rather than repeat strolling, rubbing and orbits without a discovery. Use the selected duration and 1–4 contiguous timed shots, normally 3 explanatory beats. Name the actual departure subject, camera path along attention/surface/connected structure, destination and what becomes visible. Include a visible roughly 0.5-second continuous movement inside each existing beat transition, then settle long enough to read the event. No internal hard cuts, object morphing, teleportation or added clip duration. The final framing shows a changed behavior, physical result or supported clue, not only another camera angle. Concrete examples: moving curtain -> ear/pupil/posture change -> retreat into a safe space; reflection source on a vase -> moving patch on wall -> eyes tracking it; faint pipe vibration behind a wall -> source-linked sound path -> ear/head response.
 
-ROUND ICONS, BADGES AND AUDIO — REQUIRED WHERE EXPLANATORY
-Use small perfectly round 3D pictogram medallions beside the actual discussed target. Choose a specific icon per phrase: eye/slow-blink, tail, ear, whisker, paw, toy, water bowl, shelter or caution, only when relevant. ENTRY 0.20–0.30 seconds: spring to 110%, settle, distinct popup/plop. Thin multicolour neon outer ring plus an orbiting arc/light dot and tiny rim sparkle; center pictogram stays stable and readable. Hold through the phrase. EXIT 0.20–0.30 seconds: contracting ring and anchored shrink with curved light trail, distinct swoosh. Maximum two badges; do not cover the cat's expressive ears, eyes or tail. Explicitly specify pictogram, target, phrase-aligned timing and entry/hold/exit in Shot/Effect, paired popup/swoosh in Sound. No square stickers, decorative clutter, full subtitles or extra parser fields. Badges support the visible behavior, never replace it or prove an emotion.
-Native mode: one off-screen documentary narrator, unchanged chosen voice; cat/caregiver never speaks the narration. Quiet original instrumental BGM with one consistent motif across all clips; subtle home/play sounds and badge SFX underneath. No music restart every clip. Honor explicit no-music requests. Audio First mode: the tool removes spoken narration requests and adds external narration later; keep only requested natural and badge SFX inside generated footage. Do not hardcode external-provider speed, 0.95 playback or a claim that prompt text guarantees identical voices.
+CATS 3D EXPLANATORY REVEAL — ZACK ACTION -> EXPLANATION -> RESULT: Start each narrated beat with its real subject and visible action, follow the actual cause/clue or hidden process, then show the changed behavior/result. Name camera departure, path, destination and explanatory reveal; use the same continuous pan/track/whip-pan/occlusion rules as Zack. When the narration explains internal feline function, move from the exterior into a relevant localized transparent cutaway, sectional or magnified volumetric 3D view and animate the described flow, motion or cause-and-effect before returning to the subject. Examples only when relevant: source sound -> ear mechanism -> response; hind-leg muscles/joints -> push against floor -> pounce; cheek contact -> scent-gland illustration -> transfer to contacted surface; food/water -> relevant digestive process -> stated result. Reveal an environmental mechanism instead when that is the subject, such as light reflecting from a vase or a vibrating pipe behind a wall. Use readable sculpted depth, parallax, material layers and moving explanatory cues; not an idle transparent model, flat badge or repeated walking shot. No anatomy quota: social/context beats demonstrate the actual posture, spatial choice or action. Do not invent chemistry, emotion meters or unsupported mechanisms. One primary round topic badge and an actual-target outline usually suffice; a second only when it clarifies another spoken subject. Respect the selected timing and source narration; finish shot planning during writing, never insert new events during generation.
+Inner 3D views must be dynamic and explanatory: transparent material transition, localized sectional/magnified structure, animated physical process/flow, and visible result, with readable depth and parallax. "Interactive" here means an active cause-and-effect demonstration in the video, not a clickable app. No quota requiring anatomy in social/context-only clips; show the real posture, space or environmental explanation instead. Write actual targets and events in Shot fields; a blanket instruction such as "add 3D explanation" is insufficient.
 
-EXACT READY-IMPORT GRAMMAR
-Return the script TXT alone, no Markdown code fences, SEO, sources or thumbnail notes inside it. Each label starts on its own line. Use the following structure, replacing placeholders with complete validated content; repeat Clips and Stories as requested:
+FUNNY HOOK + VIEWER QUESTION
+For ordinary behavior, open in the first 1–2 seconds with a relatable funny action, playful surprise or punchy question. Humor must not imply fake motives or scientific claims. Serious health/pregnancy/distress topics use a gentle engaging factual hook. Complete the explanation before ending the last existing narration with one short topic-specific viewer question: "Does your cat do this too?", "Have you noticed your cat doing that?", or an original equivalent. Count that question inside the final clip word budget. No extra CTA story clip and no unrequested subscribe speech. A permanent local CTA video is a separate optional finishing asset. Preserve source narration when rendering imports; never improvise a hook/CTA during video generation.
+
+NARRATION AND SOUND — SAME ZACK RULES
+One consistent off-screen narrator, chosen native voice or the tool's selected optional external-audio workflow. For 10-second clips every Narration line is strictly 28–30 words, never more than 30; use the shared workflow's targets for other supported lengths. No long silent tail, truncated words or rushed ending. For source text that cannot fit, resolve writing/clip count before generation. Keep one original restrained instrumental motif across a whole story, with phrase-matched natural/action SFX below speech. Explicit no-music requests remain authoritative. For Audio First the tool generates background/action/badge SFX without narrator speech, then mixes the prepared narration. Do not hardcode provider acceleration or final-edit playback speed into the script.
+
+ROUND BADGES — SUPPORT THE REAL EXPLANATION
+At a relevant spoken phrase, use one small perfectly round 3D pictogram near the actual target, then a thin target-following contour where useful. A second badge is optional only if it clarifies a different subject. ENTRY 0.20–0.30 seconds: spring to 110% then settle to 100%, distinct soft popup/plop. Thin multicolour cyan-violet-gold neon outer ring plus orbiting light arc, stable held center pictogram. EXIT 0.20–0.30 seconds: contracting ring, anchored shrink and curved light trail with short swoosh. At most two at once. Write the specific icon, target, entry/hold/exit in Shot/Effect and each audible cue in Sound. Never cover expressive eyes/ears/paws or replace a physical structure with an icon. No emotion meter, fake number, full subtitle or square sticker. Numeric text, when actually narrated, retains exact source-supported units and typewriter ticks. No unnecessary decorative clutter.
+
+HEALTH, PREGNANCY AND EVIDENCE
+Check the exact selected health/reproduction claim against primary veterinary guidance/research or a recognized feline welfare source before writing. Separate common behavior from a possible health sign; do not diagnose from one gesture, promise cures, invent medication doses or teach invasive handling. Pregnancy/birth illustrations are educational, anatomically plausible and non-graphic. Do not encourage breeding, stage distress or show sexual acts. Professional-care advice should match the stated concern and the evidence, not be pasted as fear bait into every clip. State uncertainty where research is limited, such as an unproven purpose of a behavior. Keep dates, measurements and development stages accurate and sourced; no generic fixed timetable used for every cat. Sources/qualification notes stay outside ready-import TXT.
+Useful starting sources (verify the actual topic, not just the homepage):
+https://www.cats.org.uk/help-and-advice/cat-behaviour/cat-body-language
+https://www.vet.cornell.edu/departments-centers-and-institutes/cornell-feline-health-center/health-information/feline-health-topics/feeding-your-cat
+https://www.cats.org.uk/help-and-advice/pregnancy-and-kitten-care/caring-for-your-pregnant-cat
+https://www.cats.org.uk/help-and-advice/pregnancy-and-kitten-care/birth-and-kittening
+https://www.aaha.org/resources/2021-aaha-aafp-feline-life-stage-guidelines/summary-7/
+Never repeat unverified channel analytics or claim virality guarantees. Optional cats-vs-dogs comparisons remain topic-specific and evidence-based; dogs are never injected into normal cat episodes.
+
+EXACT READY-IMPORT TEMPLATE
+Return complete validated content in this grammar, every label on its own line. Repeat Clips/Stories as requested; reset clip numbering within each story. No Markdown fences, sources, SEO, thumbnail prose, new metadata or production commentary inside import TXT.
 Story 1
-Title: [one cat-behavior question]
+Title: [one selected cat question]
 Preset: cats-behavior-3d
 Production profile: zetomate-flex
 Clip seconds: [4, 6, 8 or 10]
 Estimated duration: [clip count multiplied by clip seconds] seconds
 Characters:
-Miso: Adult orange tabby domestic cat, amber eyes, white chin and front paws; natural feline proportions, four-legged posture, no clothing.
+Milo: Very cute slightly fluffy adult male orange tabby, expressive green eyes, white muzzle/chest and four white sock paws, fixed darker stripes, pink nose, blue breakaway collar and small round gold tag; healthy natural feline proportions, no talking mouth.
 Locations:
-Living Room: [specific coherent cat-safe setting with fixed landmarks]
-Continuity: [coat, props, location layout and consistent rich multicolour 3D design]
+Living Room: [actual story-appropriate setting, stable surfaces and colors]
+Continuity: [same Milo identity and coat, location layout, original shared BGM, chosen visual medium; any age/reproductive illustration explicitly identified]
 
 Clip 1:
-Narration: "[complete sentence, word-count checked for selected duration]"
-Shot 1: 0–[beat endpoint] seconds — [actual cat behavior, visible contextual signals and camera path]
-Shot 2: [previous endpoint]–[selected duration] seconds — [corresponding next phrase, target and result]
-Effect: [exact topic-specific circular pictogram, subject anchor, phrase-linked timing, neon-ring entry/hold/exit]
-Sound: SFX: [natural action effects and distinct badge popup/swoosh with event timing]; BGM: [same original instrumentation/motif, current intensity]; Mix: one off-screen narrator foreground, quiet BGM and SFX.
+Narration: "[complete opening, word-count checked]"
+Shot 1: 0–[endpoint] seconds — [actual subject and action]
+Shot 2: [previous endpoint]–[endpoint] seconds — [camera departure/path/destination and explaining cause, clue or relevant inner process]
+Shot 3: [previous endpoint]–[selected duration] seconds — [visible result and readable final framing]
+Effect: [specific round badge at the matching phrase and target contour, with exact entry/hold/exit inside runtime; use None only if nothing clarifies the beat]
+Sound: SFX: [individual popup/swoosh and justified contact/process sounds with event timing]; BGM: [same original story motif, current intensity]; Mix: consistent clear off-screen narrator foreground, quiet BGM, softer SFX.
 
-SEPARATE STORY PACKAGE
-Provide ready-import script, thumbnail prompt, YouTube title/description/keywords, and evidence/production notes as separate deliverables. A combined batch TXT may contain only the exact scripts. Thumbnails: same selected video aspect ratio, one original unified composition per story, recognizable cat and genuine behavior hook, strong warm/cool contrast, at most five headline words if requested, no invented injury/emotion or copied creator artwork. No grid/collage, watermarks, channel-logo imitation, distorted cats, artificial padded background or fear bait. The thumbnail is an image/end card, not an extra scene. Reference images stay text-free and badge-free. Cite sources for behavior claims in separate notes; distinguish generated illustrations from real footage and check current platform disclosure requirements rather than claim all animation always requires disclosure.
-FINAL CHECK: requested stories/clips/runtime, cats-behavior-3d ID, cast identity, 1–4 contiguous timed shots, 10-second lines 28–30 words, complete explanation, contextual claims, rich Zack 3D look, phrase-matched badges and paired SFX. Do not claim importer/render/listening checks unless actually performed.
-
-
-FUNNY HOOK + VIEWER QUESTION: For new cat stories, open in the first 1-2 seconds on a recognizable funny cat behavior with a punchy curiosity hook, playful surprise or relatable owner observation. Humor is preferred for ordinary behavior; serious distress/health topics use a gentle factual hook. No staged distress, false motives or fake science. Finish the explanation first, then end the final existing narration with exactly one short topic-specific viewer question such as Does your cat do this too? or Have you noticed your cat doing that? Vary wording naturally. The question counts inside the final clip narration word budget; never add a CTA scene, extend runtime or append extra words at generation. Preserve already imported narration verbatim: do not invent a question or funny line during rendering. A separately supplied permanent CTA video is an optional finishing asset, not a narration rewrite.
-Hook examples: "Your cat has a luxury bed. Why is it sleeping in the box?"; "Your cat follows you everywhere—apparently privacy was not included." These are playful observations, not scientific claims about intentions. Give the evidence-based explanation in the following beats. Final question examples: "Is your cat a box fan too?"; "Does your cat also follow you everywhere?" Pick the one that matches the actual episode, not a generic like/subscribe request.
-
-
-CATS 3D EXPLANATORY REVEAL — REQUIRED PRODUCTION DEPTH: Rich colour alone is insufficient. Show the actual 3D subject, then reveal the relevant hidden structure/process in clean dimensional educational animation, then show its visible effect. For each mechanism-bearing narration beat, explicitly name the exterior starting target, transparent outer layer or magnified sectional window, exact feline structure, animated process direction and return/reconstitution. Preserve the same cat outline, coat patches, surrounding location and scale continuity; no full-body glass skeleton for an unrelated social claim. Macro cutaways should be readable sculpted 3D forms with depth, parallax, rim lighting and directional flow, not a flat badge floating beside a walking cat. Keep biological transfer abstract and non-graphic; particles are illustrative, not literal visible dust or proof of emotion. In new scripts, at least one explanatory beat in each mechanism clip must show a true volumetric cutaway/magnified process; do not fill all clips with repeated walking/rubbing/orbit shots. For social/context-only beats, use a dimensional close-up, spatial choice demonstration or focused body-part movement; never invent anatomy, chemical release, an emotion meter or mind-reading to satisfy a cutaway quota. Badges supplement the explanation, never substitute for it. Keep one cat unless another is explicitly supplied; never duplicate the hero cat in a full-frame scene. Keep narration, scene IDs, timing and supplied events unchanged during generation. Complete mechanism planning during writing; older scripts with no such shots need visual revision rather than promises that colour instructions can transform them.
-WRITING EXAMPLE, SCENT-GLAND NARRATION: Shot 1: track to the same cheek contacting cloth; Shot 2: gently reveal a transparent cheek-surface window with a simplified sculpted scent-gland region and outward contact transfer; Shot 3: return to opaque fur and show scent traces remaining on the actual contacted surface. Divide these beats within the selected clip duration and align them to the exact phrases. Do not repeat this mechanism for every social-body-language beat.
-
-
-THUMBNAIL OVERRIDE — USER-APPROVED CAT SAMPLES, HIGHEST PRIORITY FOR THIS PRESET
+THUMBNAIL — APPROVED USER SAMPLES, REQUIRED WORKFLOW
 CATS APPROVED THUMBNAIL SAMPLE STYLE: One full-frame polished expressive 3D cat close-up with detailed soft fur, glossy readable eyes, crisp whiskers and believable feline paws, lit warmly against a softly blurred blue/teal home interior with restrained yellow/orange props. Use a large face and the exact story behavior as the lower focal action. Reserve roughly the top third for an oversized chunky rounded bold headline: opening/context words white, the important behavior words bright golden yellow, remaining question words white, with a red question mark if appropriate. Use thick dark brown/black outlines, deep drop shadows and a broad rough red paint-brush backing behind the main headline. Preserve the complete approved question, clean spelling and safe margins; do not truncate to five words. A small paw doodle, yellow emphasis rays or a subtle heart are optional only where the story supports them. Original composition and character identity; no copied channel marks, watermark, collage, split screen, grid, generic sci-fi anatomy poster or random badges. Show the actual behavior, not a generic standing cat. Cute, bright and mobile-readable, with warm/cool contrast and clear 3D depth. Keep the cat species-natural, no human hands on the cat body, extra limbs or distorted anatomy. If a real human hand is relevant, it must be anatomically correct and clearly separate from the cat. No blood, injury, forced handling, staged distress or invented emotion/medical claim. This thumbnail-only cartoon polish must not flatten or replace the videos volumetric explanatory design.
-Use the full story question or a creator-approved complete question headline; this overrides the older at-most-five-word thumbnail rule for cats only. Examples of hierarchy: WHY DOES YOUR CAT (white), RUB ITS FACE (yellow), ON YOU? (white); or WHY DOES YOUR CAT (white), LICK YOU (yellow), THEN BITE? (white/yellow with red question mark). Choose the actual topic, preserve exact title meaning and character design. After generating or reusing character/location references, generate ONE separate Thumbnail image in the selected video ratio. Do not stop at a text prompt or count an environment image as a thumbnail. Tool automation must verify/download the Thumbnail separately, then preserve the final story -> optional local CTA -> thumbnail order. Never claim generation succeeded without a completed image. Thumbnail text/brushwork stays out of reference plates and video shots.
+Use the full exact story question or a creator-approved complete headline. This overrides any generic five-word headline cap for cats. White setup, yellow behavior phrase, white remaining question and red brush backing; strong dark outline/shadow, readable full text and safe margins. Keep Milo fixed; do not copy a sample cat's different coat, eyes or collar. Adapt for the selected video ratio, not always 9:16. Generate ONE separate named Thumbnail after the character/location reference images, then verify/download it. Never substitute an environment plate or include the thumbnail as a character/location reference. No claim of image completion without an actual completed image. The final edited order remains story -> optional preset CTA -> thumbnail. Local CTA path is Preset References/cats-behavior-3d/cats-behavior-3dCTA.mp4. Missing CTA means ordinary finishing.
+
+DELIVERY AND FINAL GATE
+Provide ready-import script, per-story thumbnail prompt, SEO metadata and evidence/production notes as separate deliverables. Combined batch TXT contains only scripts. Validate requested story/clip count, runtime, cats-behavior-3d ID, Milo identity, exact narrator words and count, contiguous shot endpoints, action/explanation/result, specific camera routes, supported inner views, one coherent BGM, useful badge/SFX pairing, funny/gentle appropriate hook, complete payoff and one final viewer question. Fix repeated filler such as "Often, sometimes". Finish every Sound line. Never claim importer, rendering or listening checks unless actually performed. Keep existing explicit source material intact unless the user authorizes a revision.

@@ -12,3 +12,5 @@ assert(manager.includes("cmd === 'signin'"));
 assert(manager.includes("cmd === 'use' || cmd === 'activate'"));
 assert(manager.includes('signInBrowser'));
 console.log('PASS: Accounts UI separates manual sign-in from activating the automation profile and shows active-ready beside the Gmail.');
+
+assert(app.includes('Reconnect active browser'),'An active sign-in-only profile must be reopenable with CDP');

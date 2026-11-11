@@ -962,6 +962,7 @@ function lookBlock(p, place) {
 }
 
 function castPrompt(p, houseCast) {
+    if(require('./cats_behavior_contract').applies(p))houseCast=require('./cats_behavior_contract').houseCast(TITLE+' '+DETAIL);
     if(p.derived_video_preset)return require('./reference_video_preset').castPrompt(p,{title:TITLE,detail:DETAIL,count:SCENES});
     if(require('./heartwarming_cat').applies(p))return require('./heartwarming_cat').castPrompt(p,{title:TITLE,detail:DETAIL,count:SCENES,seconds:SECONDS,aspect:ASPECT});
     if(require('./dog_couple').applies(p))return require('./dog_couple').cast(p,{title:TITLE,detail:DETAIL,count:SCENES,seconds:SECONDS,aspect:ASPECT,source:CONTENT_MAP});
@@ -1712,6 +1713,7 @@ ${skeleton}`;
 // ambiguity - and left blank when it does, because guessing "human" for the dog
 // would hand an animal a person's wardrobe rules.
 function normaliseCast(p, cast) {
+    cast=require('./cats_behavior_contract').fixedCast(p,cast||[]);
     if(p.derived_video_preset)return p.reference_cast.map(c=>({...c,sheet_prompt:p.style+' Character reference, neutral background, no labels: '+c.description}));
     cast=require('./heartwarming_cat').approvedCast(p,cast||[]);
     cast=require('./dog_couple').approvedCast(p,cast||[]);

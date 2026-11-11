@@ -2,7 +2,7 @@ const assert=require('assert'),fs=require('fs');
 const I=require('../import_ready_script'),S=require('../single_scene_prompts'),A=require('../audio_first_prompt');
 const p=JSON.parse(fs.readFileSync('styles.json','utf8')).styles.find(p=>p.id==='cats-behavior-3d');
 const z=JSON.parse(fs.readFileSync('styles.json','utf8')).styles.find(p=>p.id==='3d-zack-style');
-assert(p&&p.content_pillars.length===4&&p.style===z.style&&p.palette===z.palette);
+assert(p&&p.content_pillars.length===10&&p.style===z.style&&p.palette===z.palette);
 const text=`Story 1
 Title: Why Does Your Cat Slow-Blink?
 Preset: cats-behavior-3d
@@ -32,7 +32,18 @@ const audioStory={...story,audio_first:true,scenes:story.scenes.map(s=>({...s,sc
 const audio=A.scene(audioStory,0);assert(audio.includes('CATS BEHAVIOR EXPLAINER')&&audio.includes('ZACK ANIMATED ROUND')&&audio.includes('NO narration'));
 assert.throws(()=>I.parse(text.replace('28','31').replace('situation around your cat.','situation around your cat every single day in every home.')));
 const master=fs.readFileSync('Master prompts/cats-behavior-3d.txt','utf8');
-for(const t of ['LOVE & TRUST','BOUNDARIES & WARNING SIGNALS','INSTINCTS & PLAY','SENSES & EVERYDAY MYSTERIES','cats-behavior-3d','28–30','cats-first'])assert(master.includes(t),t);
+for(const t of ['LOVE, TRUST & BONDING','BODY LANGUAGE, MOOD & BOUNDARIES','INSTINCTS, PLAY & FUNNY HABITS','SENSES, ANATOMY & HOW THE BODY WORKS','cats-behavior-3d','28–30','cats channel'])assert(master.includes(t),t);
 assert(JSON.parse(fs.readFileSync('Master prompts/INDEX.json','utf8')).some(x=>x.id===p.id));
-assert(master.includes('Does your cat do this too?')&&master.includes('first 1-2 seconds'));
-console.log('PASS: cats preset preserves Zack visual DNA, four pillars, feline cast, strict importer pacing, native/audio-first badge prompts and master catalog. No live API calls.');
+assert(master.includes('Does your cat do this too?')&&master.includes('first 1–2 seconds'));
+const C=require('../cats_behavior_contract'),W=require('../write_story');
+assert.equal(W.normaliseCast(p,[])[0].name,'Milo');
+assert(W.normaliseCast(p,[])[0].description.includes('slightly fluffy'));
+assert(W.castPrompt(p,[]).includes('Milo'));
+assert(C.houseCast('pregnancy')[1].name==='Luna');
+assert.equal(p.content_pillars.reduce((n,x)=>n+x.titles.length,0),70);
+for(const key of ['style','palette','camera','sound_style','narration_voice'])assert.equal(p[key],z[key],key);
+assert(p.direction.startsWith(z.direction),'Zack production rules remain inherited');
+const noCast=text.replace(/Miso: Adult orange tabby[^\n]+/,'None').replace(/Miso/g,'cat');
+const fixed=I.prepare(I.parse(noCast)[0],'9:16');
+assert.equal(fixed.cast[0].name,'Milo');assert(fixed.story.scenes[0].characters.includes('milo'));
+console.log('PASS: cats preset preserves Zack visual DNA, ten pillars, Milo identity and 70 title seeds, feline cast, strict importer pacing, native/audio-first badge prompts and master catalog. No live API calls.');

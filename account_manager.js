@@ -237,7 +237,7 @@ Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" | Where-Object {
 // Bring the automation browser up on the given account's profile and wait
 // for the CDP port to answer. First launch of a new profile opens a fresh
 // Chrome - the caller/user signs that account into Flow once, by hand.
-async function launchBrowser(acc, port) {
+async function launchBrowser(acc, port, options = {}) {
     const dir = profileDir(acc);
     fs.mkdirSync(path.join(dir, 'Default'), { recursive: true });
     spawn(CHROME_EXE, [
@@ -251,7 +251,7 @@ async function launchBrowser(acc, port) {
         ...require('./automation_browser').backgroundArgs,
         'https://flow.google.com/',
     ], { detached: true, stdio: 'ignore' }).unref();
-    const deadline = Date.now() + 90000;
+    const deadline = Date.now() + (options.waitMs || 90000);
     while (Date.now() < deadline) {
         if (await cdpAlive(port)) return true;
         await new Promise(r => setTimeout(r, 1500));
