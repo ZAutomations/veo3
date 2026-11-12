@@ -46,4 +46,12 @@ assert(p.direction.startsWith(z.direction),'Zack production rules remain inherit
 const noCast=text.replace(/Miso: Adult orange tabby[^\n]+/,'None').replace(/Miso/g,'cat');
 const fixed=I.prepare(I.parse(noCast)[0],'9:16');
 assert.equal(fixed.cast[0].name,'Milo');assert(fixed.story.scenes[0].characters.includes('milo'));
+const family={...parsed,characters:[...parsed.characters,
+ {name:'Luna',description:'Adult female cream-and-silver tabby, amber eyes.'},
+ {name:'Kittens',description:'Newborn kittens, natural feline anatomy and age-appropriate movement.'}]};
+const familyResult=I.prepare(family,'9:16');
+assert.equal(familyResult.cast.length,3,'cat-family imports must preserve every supplied reference');
+assert.deepEqual(familyResult.cast.map(c=>c.name),['Miso','Luna','Kittens']);
+assert.equal(I.prepare({...family,preset:'3d-zack-style'},'9:16').cast.length,3,'shared Zack importer must allow topic-required cast');
+assert.equal(I.prepare({...family,preset:'intimacy-health-3d'},'9:16').cast.length,3,'health importer must preserve topic-required cast too');
 console.log('PASS: cats preset preserves Zack visual DNA, ten pillars, Milo identity and 70 title seeds, feline cast, strict importer pacing, native/audio-first badge prompts and master catalog. No live API calls.');

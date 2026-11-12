@@ -48,7 +48,6 @@ function agent(story,{from=1,to=story.scenes.length,aspect=story.aspect_ratio,se
 function prepare(W,p,s,aspect){
  require('./zack_topic_visuals').validate(s);
  if(![4,6,8,10].includes(s.seconds))throw Error('Zack D supports 4, 6, 8 or 10 seconds per clip.');
- if(s.characters.length>2)throw Error('Zack D supports at most two recurring characters.');
  const catPreset=p.id==='cats-behavior-3d';
  const cast=W.normaliseCast(catPreset?{...p,_cats_import_preserve:s.characters.length>0}:p,s.characters.map(c=>({name:c.name,type:catPreset?(/\bdog\b/i.test(c.description)?'dog':/\b(human|caregiver|owner|adult (man|woman))\b/i.test(c.description)?'human':'cat'):'human',description:`IMPORTED ZACK 3D CHARACTER. ${c.description} ${p.style}. ${catPreset?'Keep species anatomy, coat markings, eye color and proportions; natural quadrupedal animals, no clothes or human hands.':'Keep the same face, proportions, hair and fixed clothing.'} Silent on-screen character.`,sheet_prompt:`IMPORTED ZACK 3D CHARACTER. ${p.style}. Multi-angle character identity sheet of ${c.name}: ${c.description}. ${catPreset?'Same species, coat markings, eye color and natural anatomy in every view; no clothes, no human hands.':'Same clothing and proportions in every view'}, rendered in full rich color. Mouth closed; use a neutral warm-grey or charcoal backdrop that makes the specified subject colors vivid, never plain cyan. No text or watermark.`})));
  const locations=s.locations.length?s.locations:[{name:'Environment',description:s.setting}];
