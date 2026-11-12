@@ -26,11 +26,15 @@ async function readMarkedDuration(page){
  try{
   await page.mouse.move(0,0);
   await element.hover();
+  await page.evaluate(()=>{
+   const v=document.querySelector('[data-veo-duration-target="active"] video');
+   if(v&&v.readyState===0&&v.getAttribute('src')){v.preload='metadata';v.load();}
+  });
   await page.waitForFunction(()=>{const v=document.querySelector('[data-veo-duration-target="active"] video');return v&&Number.isFinite(v.duration)&&v.duration>0;},{timeout:8000});
   return await page.evaluate(()=>{const v=document.querySelector('[data-veo-duration-target="active"] video');return v&&Number.isFinite(v.duration)?v.duration:null;});
  }catch{return null;}finally{await element.dispose();}
 }
-async function readDurations(page,targets,{sleep=wait}={}){
+async function readDurations(page,targets,{sleep=wait,snapshot=media.snapshot,read=readMarkedDuration}={}){
  const wanted=new Set(targets.map(t=>t.assetId)),found=new Map();
  // Reuse already loaded metadata from the same project's existing player(s).
  // Source identity must match exactly; never use row position or generic titles.
@@ -44,19 +48,26 @@ async function readDurations(page,targets,{sleep=wait}={}){
   for(const row of cached)found.set(row.assetId,row.duration);
  }
  await page.evaluate(require('./flow_grid_scroll').installGridScroller);
- await page.evaluate(bg.scrollToPosition,0);await sleep(300);
+ for(let pass=0;pass<3&&found.size<wanted.size;pass++){
+ await page.evaluate(bg.scrollToPosition,0);await sleep(pass?500:300);
  let stuck=0;
  for(let round=0;round<100&&found.size<wanted.size;round++){
-  const mounted=await media.snapshot(page);
+  const mounted=await snapshot(page);
   for(const tile of mounted){
    if(!wanted.has(tile.assetId)||found.has(tile.assetId))continue;
-   if(await page.evaluate(markTile,tile))found.set(tile.assetId,await readMarkedDuration(page));
+   if(await page.evaluate(markTile,tile)){
+    const duration=await read(page);
+    // Missing metadata is transient, not a resolved result. Retry this asset
+    // on the grid instead of counting null as found and opening its editor.
+    if(Number.isFinite(duration)&&duration>0)found.set(tile.assetId,duration);
+   }
   }
   if(found.size===wanted.size)break;
   const before=await page.evaluate(bg.metrics);
   if(before.top>=before.scroll-before.client-2)break;
   await page.evaluate(bg.scrollToPosition,before.top+Math.max(120,Math.floor(before.client*0.7)));await sleep(300);
   const after=await page.evaluate(bg.metrics);if(after.top<=before.top+2){if(++stuck>=2)break;}else stuck=0;
+ }
  }
  return targets.map(t=>({scene:t.scene,assetId:t.assetId,duration:found.get(t.assetId)??null}));
 }
@@ -71,6 +82,11 @@ async function confirmShortPreviews(page,rows,story,project,seconds,log){
  for(const row of rows){
   row.durationSource='grid_video_metadata';
   if(Number.isFinite(row.duration)&&Math.abs(row.duration-seconds)<=0.35)continue;
+  if(!Number.isFinite(row.duration)||row.duration<=0){
+   row.duration=null;row.durationSource='unverified';
+   log(`Scene ${row.scene}: grid duration is still unavailable after metadata retries; no clip/editor click and no short-duration inference.`);
+   continue;
+  }
   row.previewDuration=row.duration;row.duration=null;row.durationSource='unverified';
   const title=require('./agent_scene_ids').sceneId(story,row.scene);
   try{

@@ -11,4 +11,8 @@ context.filterStoryQueue('available');assert(!rows[0].classList.hidden);assert(r
 context.filterStoryQueue('done');assert(rows[0].classList.hidden);assert(!rows[1].classList.hidden);assert(!rows[0].input.checked);assert(buttons[1].classList.selected);
 context.filterStoryQueue('all');assert(rows.every(r=>!r.classList.hidden));assert(buttons[2].classList.selected);
 context.filterStoryQueue('bad');assert.equal(ids.queueFilter.value,'available');
+rows[0].dataset.generationOnly='true';
+context.filterStoryQueue('available');assert(rows[0].classList.hidden);
+context.filterStoryQueue('generation_only');assert(!rows[0].classList.hidden);assert(rows[1].classList.hidden);
+context.filterStoryQueue('all');assert(rows.every(r=>!r.classList.hidden));
 console.log('PASS: three filters show the correct rows and deselect hidden stories before batch generation.');

@@ -5,7 +5,11 @@ for(const key of ['camera','flow_voice','narration_voice','sound_style','avoid']
 assert(h.cast_idiom.includes('Default Characters: None'));
 for(const key of ['style','whisk','palette'])assert(/pink|rose/i.test(h[key]),key);
 assert(h.direction.includes('Default to anatomy/mechanism references'));
-assert(h.palette.includes('scientifically meaningful'));
+assert(h.palette.includes('medically meaningful'));
+assert(h.palette.includes('SHOCKING-PINK HIGH-SATURATION LOCK'));
+assert(h.style.includes('#FF1493'));
+assert(h.whisk.includes('electric magenta'));
+assert.equal(h.style,require('../intimacy_health_contract').STYLE);
 assert(h.hook_line.includes('Facts Vs Myths Decoded'));
 const text=`Story 1
 Title: Why Does Your Heart Race Around Someone You Like?
@@ -35,8 +39,11 @@ const master=fs.readFileSync('Master prompts/intimacy-health-3d.txt','utf8');
 for(const s of ['Unavailable Partners','Our Ex','28–30','6, 8, 10 plus custom','Facts Vs Myths Decoded','Adult Presenter','Pregnancy Science vs Myths'])assert(master.includes(s),s);
 assert(!master.includes('at most 22 words'));
 assert(master.includes('PINK PRESENTATION LOCK'));
-assert(prompt.includes('Dominant blush pink'));
+assert(prompt.includes('SHOCKING-PINK HIGH-SATURATION LOCK'));
+assert(prompt.includes('saturated shocking-pink/electric-magenta/deep-aubergine identity'));
 const thumb=require('../thumbnail_prompt').thumbnailPrompt(result.story);
-assert(thumb.includes('blush-rose to deep-plum'));
+assert(thumb.includes('saturated shocking-pink (#FF1493)'));
+assert(master.includes('Dominant hot pink #FF1493'));
+assert(master.includes('never pale pastel'));
 assert(!thumb.includes('deep cobalt-blue background'));
 console.log('PASS: health uses pink Zack visuals and unchanged voice, no forced cast, 10s import, scoped topic contract and master prompt.');

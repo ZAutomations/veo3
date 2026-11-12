@@ -221,7 +221,7 @@ def command(filename, *args):
     return ['node', str(ROOT / filename), *map(str, args)]
 
 
-GLOBAL_WORKFLOW_DEFAULTS = dict(rotateQueueAccounts=False, videosPerAccount=2,
+GLOBAL_WORKFLOW_DEFAULTS = dict(rotateQueueAccounts=False, videosPerAccount=2, generationOnly=False,
     activityCooldownEnabled=True, activityCooldownSeconds=60, activityMaxAttempts=3,
     videoModel='Omni 1.2 Flash',videoAspect='9:16',videoResolution='360p',
     videoDownloadVersion='upscaled',videoSeconds=8,automationCdp=9222,agentPromptsPerBatch=5)
@@ -231,7 +231,7 @@ def global_workflow_settings(values=None):
     supplied = read_json(ROOT / 'gui_settings.json').get('workflow_globals', {}) if values is None else values
     if not isinstance(supplied, dict):raise ValueError('Invalid global workflow settings.')
     cfg = dict(GLOBAL_WORKFLOW_DEFAULTS, **{k:v for k,v in supplied.items() if k in GLOBAL_WORKFLOW_DEFAULTS})
-    for key in ('rotateQueueAccounts','activityCooldownEnabled'):
+    for key in ('rotateQueueAccounts','activityCooldownEnabled','generationOnly'):
         if not isinstance(cfg[key], bool):raise ValueError(f'{key} must be enabled or disabled.')
     for key,low,high in [('videosPerAccount',1,50),('activityCooldownSeconds',60,3600),('activityMaxAttempts',1,3),('videoSeconds',4,10),('automationCdp',1024,65535),('agentPromptsPerBatch',1,1000000)]:
         value=integer(cfg[key],low,high,key)
@@ -245,13 +245,41 @@ def global_workflow_settings(values=None):
 
 def global_workflow_payload(payload):
     cfg=global_workflow_settings(payload.get('_globalWorkflow'))
-    result=dict(payload, _globalWorkflow=cfg, rotateQueueAccounts=cfg['rotateQueueAccounts'], videosPerAccount=cfg['videosPerAccount'])
+    result=dict(payload, _globalWorkflow=cfg, rotateQueueAccounts=cfg['rotateQueueAccounts'], videosPerAccount=cfg['videosPerAccount'], generationOnly=cfg['generationOnly'])
     if payload.get('view') in ('agent','ingredients','omni'):
         result.update(model=cfg['videoModel'],aspect=cfg['videoAspect'],resolution=cfg['videoResolution'],downloadVersion=cfg['videoDownloadVersion'],seconds=cfg['videoSeconds'],cdp=cfg['automationCdp'],manualBatchSize=cfg['agentPromptsPerBatch'])
     return result
 
 
 def plan_action(action, p):
+    if action == 'resume_generations':
+        import generation_only
+        selected = p.get('queue', [])
+        if not isinstance(selected, list) or not 1 <= len(selected) <= 50:
+            raise ValueError('Select one to fifty generation-only stories to resume.')
+        operations=[]
+        seen=set()
+        for value in selected:
+            story_file, _ = story_path(value)
+            if str(story_file) in seen:raise ValueError('The resume queue contains duplicate stories.')
+            seen.add(str(story_file))
+            saved=generation_only.load(story_file)
+            if not saved or saved.get('status') not in ('generated','finishing'):
+                raise ValueError(f'{story_file.name}: no pending generation-only handoff for this story version.')
+            account=generation_only.resolve_account(ROOT,saved)
+            inputs=dict(p, **saved.get('settings', {}))
+            inputs.update(story=str(story_file),project=saved['project'],view=saved['view'],generationOnly=False,
+                          newProject=False,genRefs=False,reuseRefs=True,cdp=p.get('cdp',9222), **{'from':1,'to':''})
+            operations.append(('cli',command('queue_account.js','--label',account['label'],'--cdp',inputs['cdp'],'--resume-only')))
+            for next_action in ('download','join'):
+                _, steps=plan_action(next_action,inputs)
+                operations.extend(steps)
+        return 'flow',operations
+    if action == 'generate' and p.get('generationOnly'):
+        p=dict(p,download=False,join=False)
+        if not p.get('_queueAccount'):
+            account=active_account_details()
+            if '@' not in str(account.get('email','')):raise ValueError('Save the active account Gmail in Accounts before using Generation only.')
     if action == 'prepare_audio_first':
         import video_editing
         path, _ = story_path(p.get('story',''))
@@ -316,6 +344,8 @@ def plan_action(action, p):
             if not available:
                 raise ValueError('No eligible saved account is available. Nothing started.')
             allocations = [available[(i//quota)%len(available)]['label'] for i in range(len(paths))]
+            if p.get('generationOnly') and any('@' not in str(a.get('email','')) for a in available):
+                raise ValueError('Save Gmail addresses for allocated accounts before using Generation only.')
         operations = list(preparation)
         for index, path in enumerate(paths):
             if allocations:
@@ -450,6 +480,8 @@ def plan_action(action, p):
     total = len(story['scenes'])
     first = integer(p.get('from', 1), 1, total, 'First scene')
     last = integer(p.get('to', total) or total, first, total, 'Last scene')
+    if action=='generate' and p.get('generationOnly') and (first!=1 or last!=total):
+        raise ValueError('Generation only saves complete stories. Use the full scene range.')
     project = project_url(p.get('project'), required=action in ('manual', 'retry_failed', 'delete', 'download'))
     if action == 'download':
         validate_download_project(path, project)
@@ -671,6 +703,16 @@ def operation_finishes_video(kind, spec):
     return False
 
 
+def operation_finishes_generation(kind, spec):
+    if kind == 'mcp':
+        return spec[0]=='batch_pipeline' and bool(spec[1].get('generate')) and not spec[1].get('download') and not spec[1].get('join')
+    if kind == 'request':
+        return spec[0]=='single_clip_omni.js' and not spec[1].get('refsOnly') and not spec[1].get('downloadOnly')
+    if kind == 'cli' and len(spec)>1:
+        return Path(spec[1]).name=='agent_batch_run.js' or (Path(spec[1]).name=='veo3_flow_new_ui.js' and '--auto-start' in spec)
+    return False
+
+
 class Job:
     def __init__(self, action, payload, lane, operations):
         self.id = uuid.uuid4().hex
@@ -679,6 +721,8 @@ class Job:
         if lane == 'flow' and '_editingSettings' not in self.payload:
             import video_editing
             self.payload['_editingSettings'] = video_editing.settings()
+        if action=='resume_generations':
+            self.payload['_editingSettings']=dict(self.payload.get('_editingSettings',{}),editing_auto_apply=True)
         self.status = 'running'
         self.created = time.time()
         self.finished = None
@@ -693,7 +737,7 @@ class Job:
         self.phase = 'starting'
         self.operation_projects = {}
         self.operation_phases = {}
-        self.current_story = payload.get('story') or (payload.get('queue') or [''])[0]
+        self.current_story = payload.get('_resumeStory') or payload.get('story') or (payload.get('queue') or [''])[0]
         self.current_project_url = payload.get('project', '')
         self.project_account_email = str(active_account_details().get('email') or '').strip()
 
@@ -801,7 +845,7 @@ class Job:
                       dict(id=self.id, action=self.action, payload=self.payload, lane=self.lane,
                            operations=self.operations, operation_index=self.operation_index,
                            operation_projects=self.operation_projects, operation_phases=self.operation_phases,
-                           phase=self.phase, status=self.status, auto_retry_count=self.auto_retry_count))
+                           current_story=self.current_story, phase=self.phase, status=self.status, auto_retry_count=self.auto_retry_count))
 
     def log(self, line):
         # Driver output may contain keys. Never display complete tokens in the UI.
@@ -896,7 +940,7 @@ class Job:
     def _run_operations(self):
         # On resume, restore only the originally assigned account. Never choose
         # another account in response to an error or platform restriction.
-        if self.action == 'generate_queue' and self.payload.get('rotateQueueAccounts') and self.operation_index:
+        if self.action in ('generate_queue','resume_generations') and (self.payload.get('rotateQueueAccounts') or self.action=='resume_generations') and self.operation_index:
             assigned = next((spec for kind,spec in reversed(self.operations[:self.operation_index])
                 if kind == 'cli' and len(spec)>1 and str(spec[1]).endswith('queue_account.js')), None)
             if assigned and not self.stopped:
@@ -907,16 +951,23 @@ class Job:
         for index in range(self.operation_index, len(self.operations)):
             kind, spec = self.operations[index]
             check_credits_after_merge = operation_finishes_video(kind, spec)
+            generation_handoff = self.payload.get('generationOnly') and self.action in ('generate','generate_queue') and operation_finishes_generation(kind,spec)
             self.operation_index = index
             self.phase = 'running operation ' + str(index + 1)
             self.save_progress()
-            if self.action == 'generate_queue':
+            if self.action in ('generate_queue','resume_generations'):
                 story = self._story_for_operation(index) or (self.current_story if index == 0 else '')
                 if story and story != self.current_story:
                     self.current_story = story
                     self.current_project_url = ''
                     self.project_account_email = ''
                 self.log('STORY QUEUE: starting ' + str(story))
+                if self.action=='resume_generations' and self.current_story:
+                    import generation_only
+                    handoff=generation_only.load(self.current_story)
+                    if not handoff:raise RuntimeError('RECOVERY_REVIEW_REQUIRED: Saved generation-only handoff changed or is missing.')
+                    self.current_project_url=handoff['project']
+                    self.project_account_email=handoff['account_email']
             if self.stopped:
                 break
             if kind == 'request':
@@ -955,6 +1006,21 @@ class Job:
                 self.client = None
                 if result['isError'] and not self.stopped:
                     raise RuntimeError('The workflow reported an error. See the log above.')
+            if not self.stopped and generation_handoff:
+                import generation_only
+                source=self._story_for_operation(index) or self.current_story
+                settings=dict(self.payload)
+                settings['seconds']=read_json(Path(source)).get('scene_seconds',settings.get('seconds',8))
+                account=active_account_details()
+                if self.project_account_email:account=dict(account,email=self.project_account_email)
+                try:
+                    generation_only.generated(source,self.current_project_url,account,self.payload.get('view','agent'),settings)
+                except (ValueError,OSError) as exc:
+                    raise RuntimeError('RECOVERY_REVIEW_REQUIRED: Generation completed but its finishing handoff could not be saved. No next story started. '+str(exc)) from exc
+                self.log('GENERATION ONLY: verified generation saved with Gmail and project URL. Download, Join and Editing deferred.')
+            if not self.stopped and self.action=='resume_generations' and self.current_story:
+                import generation_only
+                generation_only.progress(self.current_story,self.phase,complete=check_credits_after_merge)
             if not self.stopped and check_credits_after_merge:
                 self.refresh_flow_credits(after_merge=True)
 
@@ -1010,6 +1076,7 @@ class Job:
                                   operation_index=self.operation_index,
                                   operation_projects=self.operation_projects,
                                   operation_phases=self.operation_phases,
+                                  current_story=self.current_story,
                                   phase=self.phase, status='failed')
                     if self.client:
                         self.client.stop()
@@ -1043,7 +1110,7 @@ class Job:
 
 jobs = {}
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
-RETRY_ACTIONS = {'reverse_video', 'write', 'import_script', 'finalize', 'generate', 'generate_queue', 'refs', 'download', 'order', 'join', 'fix_join', 'build', 'export_excel', 'retry_failed'}
+RETRY_ACTIONS = {'reverse_video', 'write', 'import_script', 'finalize', 'generate', 'generate_queue', 'resume_generations', 'refs', 'download', 'order', 'join', 'fix_join', 'build', 'export_excel', 'retry_failed'}
 
 
 def retry_plan(record):
@@ -1056,6 +1123,17 @@ def retry_plan(record):
     if not isinstance(cursor, int) or cursor < 0 or cursor >= len(operations):
         raise ValueError('Saved workflow step is unavailable.')
     remaining = json.loads(json.dumps(operations[cursor:]))
+    if record.get('action')=='resume_generations':
+        import generation_only
+        source=record.get('current_story') or next((str(arg) for kind,spec in reversed(operations[:cursor+1]) if kind=='cli' for arg in spec if str(arg).endswith('_story.json')), '')
+        saved=generation_only.load(source) if source else None
+        if not saved:raise ValueError('Saved generation-only story is missing or changed; no account/project guessed.')
+        account=generation_only.resolve_account(ROOT,saved)
+        port=record.get('payload',{}).get('cdp',9222)
+        if not (remaining[0][0]=='cli' and Path(remaining[0][1][1]).name=='queue_account.js'):
+            remaining.insert(0,('cli',command('queue_account.js','--label',account['label'],'--cdp',port,'--resume-only')))
+        record['payload']=dict(record['payload'],_resumeStory=source)
+        return remaining
     missing_batch_retry = retry_missing_agent_batch(record, remaining)
     if missing_batch_retry:
         return missing_batch_retry
@@ -1270,8 +1348,12 @@ def story_completion(path, story, manifest):
     if not final.is_file():  # recognize projects joined by older tool versions
         final = path.parent / 'clips_final.mp4'
     completed_final = final.is_file() and final.stat().st_size > 0 and final.stat().st_mtime >= path.stat().st_mtime
-    return dict(downloaded=len(downloaded), done=bool(complete_clips or completed_final),
-                completion='Final video saved' if completed_final else 'All clips downloaded' if complete_clips else 'Available')
+    import generation_only
+    handoff=generation_only.load(path)
+    pending=bool(handoff and handoff.get('status') in ('generated','finishing'))
+    return dict(downloaded=len(downloaded), done=bool(complete_clips or completed_final), generationOnlyPending=pending,
+                generationAccount=handoff.get('account_email','') if pending else '',
+                completion='Generation only · finishing pending' if pending else 'Final video saved' if completed_final else 'All clips downloaded' if complete_clips else 'Available')
 
 
 @app.get('/api/reverse-runs')
@@ -1548,7 +1630,7 @@ def start_job(body: dict):
     with lock:
         if any(j.status == 'running' and j.lane == lane for j in jobs.values()):
             raise HTTPException(409, f'A {lane} job is running. Stop it or wait for completion.')
-        if action in ('account_use','account_activate','account_signin') and any(j.status == 'running' and j.lane == 'writer' for j in jobs.values()):
+        if action in ('account_use','account_activate','account_signin','resume_generations') and any(j.status == 'running' and j.lane == 'writer' for j in jobs.values()):
             # The legacy browser switch matches the flow-profiles prefix, which
             # also matches AI Studio's profile. Do not close a writing session.
             raise HTTPException(409, 'Finish or stop writing before switching the account browser.')

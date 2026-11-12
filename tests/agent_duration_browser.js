@@ -1,5 +1,5 @@
 const assert=require('assert'),fs=require('fs'),os=require('os'),path=require('path'),puppeteer=require('puppeteer');
-const {execFileSync}=require('child_process'),{readMarkedDuration,assess,editorDuration,confirmShortPreviews}=require('../agent_duration_check');
+const {execFileSync}=require('child_process'),{readMarkedDuration,readDurations,assess,editorDuration,confirmShortPreviews}=require('../agent_duration_check');
 (async()=>{const dir=fs.mkdtempSync(path.join(os.tmpdir(),'duration-metadata-'));let browser;
 try{
  const file=path.join(dir,'four.mp4');execFileSync('ffmpeg',['-v','error','-y','-f','lavfi','-i','color=size=96x160:rate=12:duration=4','-c:v','libx264','-preset','ultrafast','-pix_fmt','yuv420p',file],{windowsHide:true});
@@ -13,6 +13,13 @@ try{
  await page.setContent('<span class="duration-timecode-label"><span>Total duration: </span><span class="duration-timecode-value">00:10:00</span></span>');
  assert.equal(await page.evaluate(editorDuration),10);
  const story={scenes:[{script_line:'Exact scene.'}]};
+ let metadataReads=0;
+ const grid={browser:()=>({pages:async()=>[]}),evaluate:async fn=>fn.name==='metrics'?{top:0,scroll:100,client:100}:true};
+ const recovered=await readDurations(grid,[{scene:1,assetId:'verified-source'}],{sleep:async()=>{},snapshot:async()=>[{assetId:'verified-source'}],read:async()=>++metadataReads===1?null:10});
+ assert.equal(metadataReads,2);assert.equal(recovered[0].duration,10,'delayed metadata must be retried on grid');
+ const unknown=[{scene:1,assetId:'verified-source',duration:null}];
+ await confirmShortPreviews({goto:async()=>{throw Error('Unknown metadata must not navigate to a clip');}},unknown,story,'https://flow.google.com/project/test',10,()=>{});
+ assert.equal(unknown[0].durationSource,'unverified');assert.throws(()=>assess(unknown,10),/CLIP_DURATION_UNVERIFIED/);
  const fake={goto:async()=>{},waitForSelector:async()=>{},waitForFunction:async()=>{},evaluate:async fn=>fn.name==='editorDuration'?10:fn.name==='installGridScroller'?undefined:true};
  const rows=[{scene:1,assetId:'verified-source',duration:4}];
  await confirmShortPreviews(fake,rows,story,'https://flow.google.com/project/test',10,()=>{});
