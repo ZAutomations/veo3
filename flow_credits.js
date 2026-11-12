@@ -1,6 +1,18 @@
 // Actual Flow balance snapshots. Never estimate spend or add daily/monthly allowances.
 'use strict';
 const manager=require('./account_manager');
+const fs=require('fs'),path=require('path');
+function accountEmail(acc){
+ const saved=String(acc.email||'').trim().toLowerCase();
+ if(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(saved))return saved;
+ // Older entries sometimes stored the Gmail username instead of its address.
+ // Bind it only through the saved Chrome profile's actual signed-in identity.
+ let emails=[];
+ try{const prefs=JSON.parse(fs.readFileSync(path.join(manager.profileDir(acc),'Default','Preferences'),'utf8'));emails=[...new Set((prefs.account_info||[]).map(x=>String(x.email||'').trim().toLowerCase()).filter(x=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x)))];}catch{}
+ const matches=emails.filter(email=>saved&&email.split('@')[0]===saved);
+ if(matches.length===1)return matches[0];
+ throw Error('Saved account email is not a full Google email address and could not be verified from its Chrome profile. Save the full signed-in Google email before refreshing credits.');
+}
 function parseCount(text){
  const m=String(text||'').replace(/\u00a0/g,' ').trim().match(/^([\d][\d,\s]*)\s+(?:Google\s+Flow|AI)\s+credits?$/i);
  if(!m)return null;
@@ -11,7 +23,7 @@ function readPanel(){
  return [...document.querySelectorAll('.credits-count')].filter(visible).map(e=>({text:e.textContent.trim(),href:e.closest('a.credits-link')?.href||''}));
 }
 function selectReading(rows,expectedEmail){
- const readings=rows.map(r=>{let email='';try{email=new URL(r.href).searchParams.get('Email')||new URL(r.href).searchParams.get('email')||'';}catch{}return {...r,balance:parseCount(r.text),email:email.toLowerCase()};}).filter(r=>r.balance!==null);
+ const readings=rows.map(r=>{let email='';try{email=new URL(r.href).searchParams.get('Email')||new URL(r.href).searchParams.get('email')||'';}catch{}return {...r,balance:parseCount(r.text),email:email.trim().toLowerCase()};}).filter(r=>r.balance!==null);
  const expected=String(expectedEmail||'').trim().toLowerCase();
  if(!expected)throw Error('Save the Google email for this account before syncing its balance.');
  const own=readings.filter(r=>r.email===expected);
@@ -22,7 +34,9 @@ function selectReading(rows,expectedEmail){
 }
 function storeReading(store,label,reading,now=new Date().toISOString()){
  const acc=manager.findAccount(store,label);if(!acc)throw Error('Saved account no longer exists.');
- if(String(acc.email||'').trim().toLowerCase()!==reading.email)throw Error('Account identity changed during refresh.');
+ if(accountEmail(acc)!==reading.email)throw Error('Account identity changed during refresh.');
+ // Upgrade a legacy username only AFTER the live balance and email matched.
+ acc.email=reading.email;
  const previous=acc.flow_credits?.remaining;
  acc.flow_credits={remaining:reading.balance,updated_at:now,checked_at:now,status:'verified',source:'Flow profile',balance_change:Number.isInteger(previous)?reading.balance-previous:null,error:null};
  return acc.flow_credits;
@@ -31,6 +45,7 @@ async function refreshActive({port=9222,label='',api=manager,connect,openBrowser
  const start=api.load(),acc=start.accounts[start.current];
  if(!acc||start.browser!==acc.label||label&&label!==acc.label)throw Error('Activate this account first. Credit refresh never switches accounts.');
  if(!acc.email)throw Error('This account needs its saved Google email to verify its Flow balance.');
+ const expectedEmail=accountEmail(acc);
  let browser,page;
  try{
   const attach=()=> (connect||require('puppeteer').connect)({browserURL:`http://127.0.0.1:${port}`});
@@ -52,7 +67,7 @@ async function refreshActive({port=9222,label='',api=manager,connect,openBrowser
    let rows;
    try{rows=await page.evaluate(readPanel);}catch(error){if(!/execution context|cannot find context|navigation|detached/i.test(error.message))throw error;await new Promise(r=>setTimeout(r,350));continue;}
    try{
-    const candidate=selectReading(rows,acc.email);
+    const candidate=selectReading(rows,expectedEmail);
     if(previous&&candidate.balance===previous.balance&&candidate.email===previous.email){reading=candidate;break;}
     previous=candidate;
    }catch(error){lastError=error;previous=null;}
@@ -75,4 +90,4 @@ if(require.main===module){
  const arg=(name,def)=>{const n=process.argv.indexOf(name);return n<0?def:process.argv[n+1];};
  refreshActive({port:Number(arg('--cdp',9222)),label:arg('--label',''),openBrowser:process.argv.includes('--open-browser')}).then(r=>console.log(`FLOW CREDITS: ${r.remaining} remaining; verified ${r.updated_at}.`)).catch(e=>{console.log('FLOW CREDITS: '+e.message);process.exitCode=1;});
 }
-module.exports={parseCount,readPanel,selectReading,storeReading,refreshActive};
+module.exports={parseCount,readPanel,selectReading,storeReading,refreshActive,accountEmail};

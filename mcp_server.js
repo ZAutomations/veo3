@@ -289,6 +289,8 @@ function fail(s) { return { content: [{ type: 'text', text: String(s) }], isErro
 function tailOf(s, n = 240) {
     const t = String(s || '').replace(/\s+/g, ' ').trim();
     if (!t) return '(no output)';
+    const review=t.match(/(?:RECOVERY_REVIEW_REQUIRED:|FLOW_REVIEW_REQUIRED:)/);
+    if(review)return t.slice(review.index,review.index+n);
     const m = t.match(/FAILED:.{0,200}/);
     return (m ? m[0] : t.slice(-n)).slice(0, n);
 }
@@ -594,6 +596,10 @@ async function doBuildPrompt(a) {
 async function doRunAgent(a) {
     const storyJson = resolveStoryJson(a.story);
     if (!storyJson) return { ok: false, text: `No story JSON found at "${a.story}".` };
+    if(a.submit && !a._single_batch){
+        const local=await require('./local_clip_recovery').reconcile(storyJson,{run:runNode,log});
+        if(local.complete)return {ok:true,storyJson,text:'All story scenes are already verified on disk. Generation skipped; continuing to download/join checks.'};
+    }
     const savedCouple = require('./dog_couple').savedForStory(storyJson,'agent');
     require('./saved_couple').bindSavedStory(storyJson, savedCouple);
     if (a.submit && !a._single_batch) {
@@ -1455,6 +1461,7 @@ const TOOLS = [
                 log(`[batch ${i}] prompt built -> ${storyArg}`);
 
                 if (a.generate && a.submit) {
+                    const localCompletion=await require('./local_clip_recovery').reconcile(storyArg,{run:runNode,log});
                     // One project per film: a fresh grid means the downloader can
                     // only find this film's clips, never a mix of two films.
                     let projectUrl = resumeUrl;
@@ -1462,7 +1469,7 @@ const TOOLS = [
                         out.push(`  clip generation in existing project -> ${projectUrl}`);
                         log(`[batch ${i}] opening existing project; reference preparation skipped: ${projectUrl}`);
                     }
-                    if (a.new_project) {
+                    if (a.new_project && !localCompletion.complete) {
                         log(`[batch ${i}] creating a new Flow project...`);
                         const np = await doNewProject({ cdp: a.cdp });
                         if (!np.ok) { bad('new_project', np); continue; }
@@ -1471,7 +1478,7 @@ const TOOLS = [
                         log(`[batch ${i}] project ${projectUrl}`);
                     }
                     let noUpload = !!a.no_upload_refs;
-                    if (a.generate_refs) {
+                    if (a.generate_refs && !localCompletion.complete) {
                         log(`[batch ${i}] generating the reference images in Flow...`);
                         const g = await doGenerateRefs({ story: storyArg, project_url: projectUrl, cdp: a.cdp, wait: a.wait, video_model: a.video_model });
                         if (!g.ok) {

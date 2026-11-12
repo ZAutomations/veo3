@@ -1,0 +1,23 @@
+const assert=require('assert'),fs=require('fs'),os=require('os'),path=require('path'),puppeteer=require('puppeteer');
+const {execFileSync}=require('child_process'),{readMarkedDuration,assess,editorDuration,confirmShortPreviews}=require('../agent_duration_check');
+(async()=>{const dir=fs.mkdtempSync(path.join(os.tmpdir(),'duration-metadata-'));let browser;
+try{
+ const file=path.join(dir,'four.mp4');execFileSync('ffmpeg',['-v','error','-y','-f','lavfi','-i','color=size=96x160:rate=12:duration=4','-c:v','libx264','-preset','ultrafast','-pix_fmt','yuv420p',file],{windowsHide:true});
+ browser=await puppeteer.launch({headless:true});const page=await browser.newPage();
+ const uri='data:video/mp4;base64,'+fs.readFileSync(file).toString('base64');
+ await page.setContent(`<div class="ProseMirror">Original prompt untouched</div><button id="submit">Generate</button><flow-video-tile data-veo-duration-target="active" style="display:block;width:96px;height:160px"><video muted preload="metadata" src="${uri}" style="width:96px;height:160px"></video></flow-video-tile>`);
+ await page.evaluate(()=>{window.submissions=0;document.querySelector('#submit').onclick=()=>window.submissions++;});
+ const duration=await readMarkedDuration(page);assert(Math.abs(duration-4)<0.1);
+ assert.throws(()=>assess([{scene:1,duration}],10),/actual 4.00s/);
+ assert.equal(await page.evaluate(()=>window.submissions),0);assert.equal(await page.$eval('.ProseMirror',e=>e.textContent),'Original prompt untouched');
+ await page.setContent('<span class="duration-timecode-label"><span>Total duration: </span><span class="duration-timecode-value">00:10:00</span></span>');
+ assert.equal(await page.evaluate(editorDuration),10);
+ const story={scenes:[{script_line:'Exact scene.'}]};
+ const fake={goto:async()=>{},waitForSelector:async()=>{},waitForFunction:async()=>{},evaluate:async fn=>fn.name==='editorDuration'?10:fn.name==='installGridScroller'?undefined:true};
+ const rows=[{scene:1,assetId:'verified-source',duration:4}];
+ await confirmShortPreviews(fake,rows,story,'https://flow.google.com/project/test',10,()=>{});
+ assert.equal(rows[0].previewDuration,4);assert.equal(rows[0].duration,10);assess(rows,10);
+ fake.evaluate=async fn=>fn.name==='editorDuration'?4:fn.name==='installGridScroller'?undefined:true;
+ await confirmShortPreviews(fake,[{scene:1,assetId:'verified-source',duration:4}],story,'https://flow.google.com/project/test',10,()=>{}).then(r=>assert.throws(()=>assess(r,10),/actual 4.00s/));
+ console.log('PASS: actual browser video metadata detects a four-second clip; no generation click or composer edit.');
+}finally{if(browser)await browser.close();fs.rmSync(dir,{recursive:true,force:true});}})().catch(e=>{console.error(e);process.exitCode=1;});

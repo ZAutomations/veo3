@@ -1,0 +1,234 @@
+## MASTER PROMPT ADDITION — EXCEL SEO METADATA & COMPLETE STORY PACKAGE DELIVERY V3
+
+**HIGHEST PRIORITY — MANDATORY FOR EVERY FUTURE BATCH**
+
+This section overrides all older SEO metadata, filename, Excel formatting, and delivery instructions wherever they conflict. Preserve the preset's existing ready-import script grammar, character identity, narration, visual style, and production settings.
+
+### 1. TWO MAIN BATCH DELIVERABLES
+
+For every selected batch, generate:
+
+**FILE 1 — Combined Ready-Import Scripts (.txt)**
+
+- Include every selected story in one combined TXT file.
+- Preserve exact ready-import grammar and preset metadata.
+- Maintain original selected topic order.
+- Preserve the requested clips, duration, narration word limits, timed shots, effects, and sound instructions.
+- Do not insert SEO descriptions, hashtags, source lists, or thumbnail prompts inside the import TXT.
+
+**FILE 2 — Combined YouTube SEO Metadata (.xlsx)**
+
+Create one properly formatted Excel workbook containing one row per selected story.
+
+The Excel workbook MUST use exactly these six columns in this precise order:
+
+| Column | Required Content |
+|---|---|
+| video_id | Exact original selected video title |
+| filename | Exact video_id + `.mp4` |
+| title | Exact video_id + 3 relevant viral-style hashtags |
+| description | Approximately 200 words of topic-specific SEO description, including sources and ending with 10 relevant hashtags |
+| Tags | Exactly 15 relevant SEO tags, separated by commas |
+| thumbnail | Exact video_id + `.png` |
+
+Do not add, delete, rename, or reorder these six columns.
+
+### 2. EXACT FIELD RULES
+
+**COLUMN 1 — video_id**
+
+- Use the exact original selected story title.
+- Preserve its wording, punctuation, capitalization, and question marks.
+- Never replace the selected title with a shorter or rewritten version.
+- The same video_id must be used consistently across metadata records.
+
+**COLUMN 2 — filename**
+
+Generate automatically:
+
+`{video_id}.mp4`
+
+Example:
+
+video_id: Why Does Your Cat Chase Its Own Shadow?
+
+filename: Why Does Your Cat Chase Its Own Shadow?.mp4
+
+Keep this exact Excel naming convention unless the user explicitly requests sanitized filenames.
+
+IMPORTANT: Characters such as `?`, `:`, `/`, `\`, `*`, `"`, `<`, `>`, and `|` are invalid in Windows filenames. These Excel values are metadata conventions. If creating actual video files, generate valid filesystem-safe filenames and report any difference between the metadata and the actual filenames. Never claim an invalid Windows filename exists.
+
+**COLUMN 3 — title**
+
+- Start with the exact video_id.
+- Add exactly 3 relevant, high-discovery-potential hashtags.
+- Hashtags must be specific to the actual story.
+- Avoid irrelevant or misleading viral hashtags.
+- Never replace or shorten the original video title.
+
+Example:
+
+Why Does Your Cat Chase Its Own Shadow? #CatBehavior #CatFacts #FunnyCats
+
+**COLUMN 4 — description**
+
+Write an approximately 200-word, engaging, original, SEO-optimized YouTube description for each story.
+
+Required description structure:
+
+1. Strong opening hook relevant to the specific topic.
+2. Brief explanation of the actual behavior, science, or mechanism.
+3. Interesting educational facts grounded in reliable evidence.
+4. Naturally incorporated topic-specific search keywords.
+5. A short audience-engagement question when appropriate.
+6. A clearly labelled `Sources:` section containing relevant, checkable source URLs.
+7. Exactly 10 topic-relevant hashtags at the very end of the description.
+
+**SOURCE REQUIREMENTS**
+
+- Every description MUST include a `Sources:` section.
+- Prefer topic-appropriate primary research, official institutions, original documents, recognized subject specialists, and authoritative guidance. Apply the NICHE-SPECIFIC SOURCE STANDARD below; veterinary/feline sources apply only to relevant animal topics.
+- Verify that each cited source supports the actual story.
+- Include direct URLs to the relevant article or study rather than generic homepages when available.
+- Never invent URLs, publications, research findings, or statistics.
+- Distinguish established facts from theories and uncertain behavioral explanations.
+- Do not present speculation as proven science.
+- Source URLs must appear BEFORE the final 10 hashtags.
+- The final 10 hashtags must be the last content in the description.
+
+**COLUMN 5 — Tags**
+
+- Write exactly 15 relevant SEO tags.
+- Separate all tags using commas.
+- Use ordinary keyword phrases without `#`.
+- Include a sensible mixture of broad keywords, topic-specific long-tail keywords, and relevant channel-niche keywords.
+- Avoid repeated, irrelevant, or misleading tags.
+- Keep tags relevant to the actual story.
+
+**COLUMN 6 — thumbnail**
+
+Generate automatically:
+
+`{video_id}.png`
+
+Example:
+
+video_id: Why Does Your Cat Chase Its Own Shadow?
+
+thumbnail: Why Does Your Cat Chase Its Own Shadow?.png
+
+Follow the same filesystem-safety rule described for filename.
+
+This column specifies the expected thumbnail filename. It does not mean a thumbnail image has already been generated.
+
+### 3. PROFESSIONAL EXCEL FORMATTING
+
+Every generated Excel workbook must have:
+
+- Exactly six columns in the specified order.
+- One header row.
+- One story per data row.
+- Bold, clearly styled headers.
+- Readable adjusted column widths.
+- Wrapped description text.
+- Consistent alignment.
+- Filters enabled.
+- Frozen header row.
+- No merged data cells.
+- No blank story records.
+- No duplicated video_id values.
+
+Preserve full source URLs, hashtags, metadata, and tags without truncation.
+
+### 4. INDIVIDUAL STORY PACKAGE STRUCTURE
+
+For EVERY selected story, create a separate story folder containing:
+
+1. `Story_XX_Ready_Import.txt`
+2. `Story_XX_YouTube_SEO.xlsx`
+
+The individual script TXT contains only that story's ready-import content.
+
+The individual Excel workbook contains exactly one story data row using all six required columns.
+
+Use the exact same metadata in individual Excel files and the combined master Excel workbook.
+
+If thumbnail images are separately requested and generated, save each unique thumbnail inside its matching story folder. Never substitute thumbnail filename text for an actual generated image.
+
+### 5. COMBINED MASTER FILES & ZIP
+
+The final batch package must follow this structure:
+
+```text
+BATCH_COMPLETE_PACKAGES/
+│
+├── Story_01/
+│   ├── Story_01_Ready_Import.txt
+│   └── Story_01_YouTube_SEO.xlsx
+│
+├── Story_02/
+│   ├── Story_02_Ready_Import.txt
+│   └── Story_02_YouTube_SEO.xlsx
+│
+├── Story_03/
+│   ├── Story_03_Ready_Import.txt
+│   └── Story_03_YouTube_SEO.xlsx
+│
+├── ... remaining story folders ...
+│
+├── Combined_Ready_Import_Scripts.txt
+├── Combined_YouTube_SEO.xlsx
+└── PACKAGE_MANIFEST.json
+```
+
+Create one ZIP archive containing the complete folder structure.
+
+Also provide separate download links for:
+
+- Complete batch ZIP.
+- Combined scripts TXT.
+- Combined SEO Excel XLSX.
+
+### 6. MANDATORY VALIDATION BEFORE DELIVERY
+
+Before providing download links, verify:
+
+- Total number of stories matches the user's selection.
+- All story titles match the original selections.
+- Story ordering is preserved.
+- Every story folder exists.
+- Every story folder contains its required TXT and XLSX files.
+- Combined TXT contains all stories.
+- Combined Excel contains exactly one row per story.
+- Excel column names and order match the required six-column schema.
+- Every filename equals video_id + `.mp4`.
+- Every thumbnail field equals video_id + `.png`.
+- Every SEO title includes exactly 3 relevant hashtags.
+- Every description contains approximately 200 words, a relevant Sources section, and exactly 10 ending hashtags.
+- Every Tags cell contains exactly 15 comma-separated tags.
+- No duplicate story IDs or missing metadata.
+- ZIP archive passes an integrity check.
+- Every delivered download link refers to an actual generated file.
+
+If any requirement fails, correct the affected file before delivery.
+
+Never claim that files, thumbnails, external video renders, or importer tests were completed unless they actually were.
+
+### 7. PERMANENT WORKFLOW RULE
+
+For all future batches, deliver:
+
+**Individual story folders + individual script TXT + individual Excel SEO file + combined scripts TXT + combined master SEO Excel + verified complete ZIP.**
+
+Do not revert to text-only SEO metadata.
+
+Do not omit individual story folders.
+
+Do not omit source URLs from descriptions.
+
+Do not change the six-column Excel structure unless explicitly instructed by the user.
+
+**END — EXCEL SEO METADATA & COMPLETE STORY PACKAGE DELIVERY V3**
+
+DELIVERY PRIORITY AND TOOL HONESTY
+This V3 section supersedes conflicting older four-file packages, SEO_METADATA.txt-only delivery, five-hashtag rules, optional-combined-script rules and optional-folder/ZIP rules. Existing thumbnail design, cast/style DNA, script grammar, clip counts, timings, narration limits and selected production settings remain authoritative for their own content. Any requested thumbnail prompts, images or production notes are supplementary files inside the matching story folder; they do not replace the required TXT/XLSX files. The thumbnail column is expected filename metadata, never evidence of an image. Keep the exact six Excel columns; report actual Windows-safe filename differences in PACKAGE_MANIFEST.json, not an extra workbook column. If the exact original title plus three hashtags exceeds a destination platform limit, explicitly flag that conflict for the creator; never silently rewrite the selected title. Preserve titles and names as plain text cells, not formulas. Read back workbook rows, inspect the ZIP member list and integrity, and confirm that all advertised files exist before linking. If this ChatGPT session lacks file/spreadsheet/ZIP tools, state the limitation and provide usable copyable contents or request a file-capable session; do not call a Markdown table/CSV an XLSX or invent download links. Do not claim source URLs were verified when browsing was unavailable. Fiction remains clearly labelled original fiction; never attach invented evidence to fictional events.

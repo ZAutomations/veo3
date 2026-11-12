@@ -11,8 +11,8 @@ function scrollToPosition(top){
  s.dispatchEvent(new Event('scroll',{bubbles:true}));
 }
 function closeMenus(){
- const backdrop=[...document.querySelectorAll('.cdk-overlay-backdrop')].find(e=>e.getBoundingClientRect().width>0);
- if(backdrop)backdrop.click();
+ const backdrop=[...document.querySelectorAll('.cdk-overlay-backdrop')].reverse().find(e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.pointerEvents!=='none';});
+ if(backdrop){backdrop.click();return true;}return false;
 }
 function openClipMenu({key,assetId}){
  const store=window.__singleOmniTileKeys;
@@ -33,7 +33,7 @@ function openClipMenu({key,assetId}){
 }
 function clickMenuText(text){
  const items=[...document.querySelectorAll('.cdk-overlay-container [role="menuitem"],.cdk-overlay-container mat-option,.cdk-overlay-container button')];
- const matches=items.filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&(e.innerText||e.textContent||'').trim()===text&&!e.disabled&&e.getAttribute('aria-disabled')!=='true';});
+ const matches=items.filter(e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.pointerEvents!=='none'&&hit&&(hit===e||e.contains(hit))&&(e.innerText||e.textContent||'').trim()===text&&!e.disabled&&e.getAttribute('aria-disabled')!=='true';});
  if(matches.length!==1)return false;
  matches[0].click();return true;
 }

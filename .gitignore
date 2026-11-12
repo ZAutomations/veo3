@@ -88,3 +88,4 @@ video_editing_settings.json
 **/video_editing_preview_cache/
 # Local media inspections can contain temporary signed Flow URLs.
 outputs/scene-recovery/
+outputs/health_review/

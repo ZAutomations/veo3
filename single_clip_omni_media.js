@@ -31,7 +31,8 @@ function tileSnapshot(){
    ||sources.some(s=>/^https?:/i.test(s)&&! /placeholder|loading|\.svg(?:[?#]|$)/i.test(s)));
   const r=tile.getBoundingClientRect();
   const assetIds=[...new Set(sources.map(s=>(s.match(/\/(?:video|image|asb)\/([^=?/#\s]+)/)||[])[1]).filter(Boolean))];
-  const assetTitle=scope.querySelector('.asset-title,[data-asset-title]')?.textContent?.trim()||'';
+  const assetTitle=scope.querySelector('.asset-title,.footer-title,[data-asset-title]')?.textContent?.trim()
+   ||scope.querySelector('flow-tile-hover-footer .footer-left[aria-label]')?.getAttribute('aria-label')||'';
   return {key:store.keys.get(tile),assetId,assetIds,assetTitle,text,failed,busy,ready,x:r.x,y:r.y,width:r.width,height:r.height};
  });
 }

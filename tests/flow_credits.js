@@ -14,7 +14,7 @@ C.storeReading(store,'A',{balance:120,email:'verified@example.com'},'2026-11-11T
 assert.equal(store.accounts[0].flow_credits.balance_change,33,'Refresh/refund increases must be actual readings');
 assert.equal(store.accounts[0].clips_used,7);assert.equal(store.accounts[0].credits_reset_day,17);assert.equal(store.accounts[1].flow_credits,undefined);
 (async()=>{
- const b=await P.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+ const b=await P.launch({headless:true});
  try{
   const page=await b.newPage();await page.setContent(`<span class="tier-chip" aria-label="PRO tier">PRO</span><a class="credits-link" href="${href}"><span class="credits-count">87 Google Flow credits</span></a>`);
   assert.equal(C.selectReading(await page.evaluate(C.readPanel),'verified@example.com').balance,87);

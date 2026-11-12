@@ -645,6 +645,19 @@ async function activateVideoTile(page, tile, needSource = true) {
 (async () => {
     fs.mkdirSync(RUN_DIR, { recursive: true });
 
+    if(STORY_FILE&&!flag('--probe')){
+        const recovery=require('./local_clip_recovery');
+        const local=await recovery.reconcile(path.resolve(STORY_FILE),{outDir:OUT_DIR,run:recovery.runNode,log});
+        const meta=JSON.parse(fs.readFileSync(STORY_FILE,'utf8'));
+        const folder=path.dirname(path.resolve(STORY_FILE));
+        const needsThumbnail=require('./thumbnail_prompt').isFlowEndcardPreset(meta)&&fs.existsSync(path.join(folder,'thumbnail_prompt.txt'));
+        const hasThumbnail=['.png','.jpg','.jpeg','.webp'].some(ext=>{const f=path.join(folder,'thumbnail_downloaded'+ext);return fs.existsSync(f)&&fs.statSync(f).size>2048;});
+        if(local.complete&&(!needsThumbnail||hasThumbnail)){
+            log('All local story clips are verified. No browser video downloads needed; continuing to the next workflow step.');
+            return;
+        }
+    }
+
     const browser = await require('./automation_browser').connectAutomationBrowser({browserURL:CDP_URL,log});
     const { normalizeProjectUrl, selectAgentPage } = require('./flow_project');
     const requestedUrl = flag('--project-url') ? normalizeProjectUrl(flag('--project-url')) : '';

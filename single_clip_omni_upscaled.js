@@ -14,7 +14,12 @@ function chooseUpscaled(items,target=720,{versionOnly=false}={}){
  const exact=options.filter(i=>new RegExp(`\\b${target}p?\\b`,'i').test(i.text));
  if(exact.length===1)return exact[0];
  if(exact.length>1)throw Error(`More than one Upscaled ${target}p option; refusing to guess.`);
- if(versionOnly)throw Error(options.length?'Multiple Upscaled versions are available without a unique matching choice; no Original substituted.':'Upscaled download version was not found. Original-size downloads are not used.');
+ if(versionOnly){
+  if(options.length)throw Error('Multiple Upscaled versions are available without a unique matching choice; no Original substituted.');
+  const available=items.filter(i=>!i.disabled&&/original|\b\d{3,4}p\b|\b4k\b|GIF/i.test(i.text)).map(i=>i.text.replace(/\s+/g,' ').trim());
+  const error=Error(`Upscaled download version was not found. Available: ${available.join('; ')||'no video versions visible'}. Original-size downloads are not used. This asset needs an explicit available download-version choice; retrying the same Upscaled selection cannot create that option.`);
+  error.code='DOWNLOAD_VERSION_UNAVAILABLE';throw error;
+ }
  // Some Flow menus label 1080p without repeating the Upscaled caption.
  const labelled=items.filter(i=>!i.disabled&&new RegExp(`^${target}p(?:\\s|$)`,'i').test(i.text)&&!/original/i.test(i.text));
  if(labelled.length===1)return labelled[0];
@@ -31,7 +36,7 @@ function chooseOriginal(items,target){
 }
 function menuItems(){
  return [...document.querySelectorAll('.cdk-overlay-container [role="menuitem"],.cdk-overlay-container mat-option,.cdk-overlay-container button')]
- .filter(e=>{const r=e.getBoundingClientRect();return r.width&&r.height;})
+ .filter(e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return r.width&&r.height&&s.visibility!=='hidden'&&s.pointerEvents!=='none'&&hit&&(hit===e||e.contains(hit));})
  .map(e=>{const r=e.getBoundingClientRect();return {text:(e.innerText||e.textContent||'').trim(),x:r.x+r.width/2,y:r.y+r.height/2,
  disabled:e.disabled||e.getAttribute('aria-disabled')==='true'};});
 }
@@ -104,7 +109,12 @@ class UpscaledDownloader{
   }
  }
  async find(job,receipt){
-  await this.page.evaluate(bg.closeMenus);
+  // Angular can leave the old overlay mounted during its close animation.
+  // Finish dismissal before opening another tile's menu.
+  for(let i=0;i<5;i++){
+   if(!await this.page.evaluate(bg.closeMenus))break;
+   await sleep(150);
+  }
   await this.page.evaluate(installGridScroller);
   const initial=await this.page.evaluate(bg.metrics);
   const mounted=media.locateJob(await media.snapshot(this.page),job,receipt?.assetId?{assetId:receipt.assetId,key:''}:null);
@@ -140,9 +150,33 @@ class UpscaledDownloader{
   throw Error(`Scene ${job.number}: completed tile not found; nothing substituted.`);
  }
  async download(job,receipt){
+  const recovered=(this.localRecovery||[]).find(c=>c.scene===job.number);
+  if(recovered&&path.basename(recovered.file)===recovered.file){
+   const file=path.join(this.out,recovered.file);
+   if(fs.existsSync(file)&&crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')===recovered.sha256){
+    const info=JSON.parse(execFileSync('ffprobe',['-v','error','-select_streams','v:0','-show_entries','stream=width,height','-of','json',file],{encoding:'utf8',windowsHide:true,timeout:30000})).streams[0];
+    this.targets.set(job.number,Math.min(info.width,info.height));
+    const entry={scene:job.number,file:recovered.file,project:this.project,promptHash:crypto.createHash('sha256').update(job.prompt).digest('hex'),
+     sceneId:receipt?.sceneId||null,match_from:recovered.match_from,route:'verified-local-manual',width:info.width,height:info.height,sha256:recovered.sha256};
+    this.ledger.clips=this.ledger.clips.filter(c=>c.scene!==job.number);this.ledger.clips.push(entry);this.save();
+    this.log(`Scene ${job.number}: verified local clip accepted; browser download skipped.`);return entry;
+   }
+  }
   let target=this.downloadVersion==='original'?(receipt?.nativeResolution||this.targetResolution):(this.upscaleFromSource&&receipt?.native720?1080:this.targetResolution);
   this.targets.set(job.number,target);
   const old=this.ledger.clips.find(c=>c.scene===job.number);
+  const manual=require('./manual_download_receipt').find(this.folder,this.out,this.project,this.ledger.storyHash,receipt?.assetId,this.downloadVersion);
+  if(manual){
+   const info=videoInfo(manual.path,null),resolution=Math.min(info.width,info.height);
+   this.targets.set(job.number,resolution);
+   const entry={scene:job.number,file:manual.file,project:this.project,
+    promptHash:crypto.createHash('sha256').update(job.prompt).digest('hex'),assetId:receipt.assetId,
+    sceneId:receipt.sceneId||null,match_from:'user_confirmed_manual_source',route:`manual-original-${resolution}p`,
+    width:info.width,height:info.height,sha256:info.sha256,manualReceipt:true};
+   this.ledger.clips=this.ledger.clips.filter(c=>c.scene!==job.number);this.ledger.clips.push(entry);this.save();
+   this.log(`Asset ${receipt.assetId}: verified manually supplied ${info.width}x${info.height} clip accepted; no browser download requested.`);
+   return entry;
+  }
   if(this.downloadVersion==='upscaled'&&this.upscaleFromSource&&/^upscaled-\d+p$/.test(old?.route||'')){
    target=Number(old.route.match(/\d+/)[0]);this.targets.set(job.number,target);
   }
@@ -164,7 +198,12 @@ class UpscaledDownloader{
   }
   if(!opened.direct){
    if(!download)throw Error(`Scene ${job.number}: Download menu item was not found.`);
-   if(!await this.page.evaluate(bg.clickMenuText,download.text))throw Error('Download menu click did not target one visible item.');
+   let clicked=false;
+   for(let i=0;i<10&&!clicked;i++){
+    clicked=await this.page.evaluate(bg.clickMenuText,download.text);
+    if(!clicked)await sleep(100);
+   }
+   if(!clicked)throw Error('Download menu click did not target one visible item.');
   }
   let upscaled,route=`${this.downloadVersion}-${target}p`;
   for(let i=0;i<20&&!upscaled;i++){
@@ -215,19 +254,33 @@ class UpscaledDownloader{
   this.log(`Scene ${job.number}: saved and decoded ${info.width}x${info.height} ${this.downloadVersion} clip.`);return entry;
  }
  async group(jobs,receipts){
+  const unavailable=[];
   for(const job of jobs)this.targets.set(job.number,this.downloadVersion==='original'?(receipts[job.number]?.nativeResolution||this.targetResolution):(this.upscaleFromSource&&receipts[job.number]?.native720?1080:this.targetResolution));
   try{for(const job of jobs){
    await this.checkGeneration();
    for(let attempt=0;attempt<2;attempt++){
     try{await this.download(job,receipts[job.number]);break;}
     catch(error){
+     if(error.code==='DOWNLOAD_VERSION_UNAVAILABLE'){
+      const label=this.orderMode==='unresolved-assets'?`Asset ${receipts[job.number]?.assetId||job.number}`:`Scene ${job.number}`;
+      unavailable.push(`${label}: ${error.message}`);
+      this.log(`${label}: selected download version unavailable; keeping it pending and collecting the remaining clips. No generation or Original substitution.`);
+      this.activeDownload=null;
+      if(this.page){await this.page.keyboard.press('Escape');await this.page.evaluate(bg.closeMenus);}
+      break;
+     }
      if(attempt||!['DOWNLOAD_NOT_STARTED','DOWNLOAD_TIMEOUT'].includes(error.code))throw error;
      this.log(`Scene ${job.number}: retrying this download once; completed clips are preserved and no generation prompt is submitted.`);
      this.activeDownload=null;
      await this.page.keyboard.press('Escape');await sleep(1000);
     }
    }
-  }}finally{try{if(!this.engine.page.isClosed?.())await this.engine.page.bringToFront();}catch{}}
+  }
+  if(unavailable.length){
+   const error=Error(`RECOVERY_REVIEW_REQUIRED: ${unavailable.length} clip(s) have no selected Upscaled version. Other available clips were collected; completed downloads are preserved. ${unavailable.join(' | ')}`);
+   error.code='DOWNLOAD_VERSION_UNAVAILABLE';throw error;
+  }
+  }finally{try{if(!this.engine.page.isClosed?.())await this.engine.page.bringToFront();}catch{}}
  }
  async close(){if(this.cdp){await this.cdp.send('Browser.setDownloadBehavior',{behavior:'default',eventsEnabled:false}).catch(()=>{});await this.cdp.detach().catch(()=>{});}if(this.page&&!this.useExistingPage)await this.page.close();}
 }

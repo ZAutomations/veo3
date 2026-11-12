@@ -18,7 +18,8 @@ function validatePreset(p){
  if(!clean.direction.includes('CURRENT EVENTS / REPUTATIONAL RISK'))clean.direction+=' '+require('./current_events_policy');
  return {...clean,label:p.name,derived_video_preset:true,cast_types:[...new Set(p.reference_cast.map(c=>c.type))],cast_count:p.reference_cast.length,narration_scope:p.ready_script_mode==='dialogue'?'dialogue':p.ready_script_mode==='silent_visual'?'none':'all',narrated:p.ready_script_mode==='narrated_visual',silent_cast:p.ready_script_mode!=='dialogue',whisk:p.style,location_medium:p.style,seconds:p.scene_seconds,duration:p.default_clips*p.scene_seconds,default_clip_count:p.default_clips,default_duration:p.default_clips*p.scene_seconds};
 }
-function masterPrompt(p){
+function masterPrompt(p){return require('./master_prompt_package').apply(basemasterPrompt(p),p.id);}
+function basemasterPrompt(p){
  p=validatePreset(p);
  const wolfConversation=p.id==='reference-wolf-dark-secrets-fable-dialogue';
  const babyGhostConversation=p.id==='reference-babyandghost-relationship';

@@ -402,6 +402,8 @@ def plan_action(action, p):
         cmd = command('account_manager.js', operation, '--label', label)
         if operation == 'add':
             cmd += ['--email', str(p.get('email', '')), '--max-clips', str(integer(p.get('maxClips', 100), 1, 100000, 'Monthly clip limit'))]
+            if p.get('creditsResetDay') not in (None, ''):
+                cmd += ['--credits-reset-day', str(integer(p['creditsResetDay'], 1, 31, 'Monthly credit reset day'))]
         if operation in ('use', 'activate'):
             cmd += ['--cdp', str(integer(p.get('cdp', 9222), 1024, 65535, 'Browser port'))]
         if operation == 'remove' and not p.get('confirmed'):
@@ -653,6 +655,22 @@ def retry_step_name(recent, phase):
     return phase
 
 
+def operation_finishes_video(kind, spec):
+    """Called only AFTER the operation succeeds; partial steps never read credits."""
+    if kind == 'mcp':
+        return (isinstance(spec, (list, tuple)) and len(spec) == 2
+                and spec[0] == 'batch_pipeline' and isinstance(spec[1], dict)
+                and bool(spec[1].get('join')))
+    if kind == 'request':
+        return (isinstance(spec, (list, tuple)) and len(spec) == 2
+                and spec[0] == 'single_clip_omni.js' and isinstance(spec[1], dict)
+                and bool(spec[1].get('join')) and not spec[1].get('refsOnly'))
+    if kind == 'cli' and len(spec) > 1:
+        script = Path(spec[1]).name
+        return script == 'join_clips.js' or (script == 'veo3_flow_new_ui.js' and '--join' in spec)
+    return False
+
+
 class Job:
     def __init__(self, action, payload, lane, operations):
         self.id = uuid.uuid4().hex
@@ -860,8 +878,10 @@ class Job:
             env['VEO_EDITING_SETTINGS'] = json.dumps(self.payload['_editingSettings'])
         return env
 
-    def refresh_flow_credits(self):
-        if self.stopped or self.lane != 'flow' or self.action not in ('generate','generate_queue','manual','retry_failed','refs','account_use','account_activate'):
+    def refresh_flow_credits(self, *, after_merge=False):
+        # Automatic balance reads belong only to a successful finished film.
+        # Explicit Accounts -> Refresh credits uses its own allowlisted action.
+        if not after_merge or self.stopped or self.lane != 'flow':
             return
         try:
             port = integer(self.payload.get('cdp') or self.payload.get('_globalWorkflow', {}).get('automationCdp', 9222), 1024, 65535, 'Browser port')
@@ -886,6 +906,7 @@ class Job:
                 if checked.returncode:raise RuntimeError('FLOW_REVIEW_REQUIRED: Could not restore the assigned queue account. No alternate account selected.')
         for index in range(self.operation_index, len(self.operations)):
             kind, spec = self.operations[index]
+            check_credits_after_merge = operation_finishes_video(kind, spec)
             self.operation_index = index
             self.phase = 'running operation ' + str(index + 1)
             self.save_progress()
@@ -898,8 +919,6 @@ class Job:
                 self.log('STORY QUEUE: starting ' + str(story))
             if self.stopped:
                 break
-            if kind != 'request' and self.action not in ('account_use','account_activate'):
-                self.refresh_flow_credits()
             if kind == 'request':
                 filename, request = spec
                 requestfile = ROOT / 'logs' / 'desktop' / (self.id + '.json')
@@ -936,7 +955,8 @@ class Job:
                 self.client = None
                 if result['isError'] and not self.stopped:
                     raise RuntimeError('The workflow reported an error. See the log above.')
-            self.refresh_flow_credits()
+            if not self.stopped and check_credits_after_merge:
+                self.refresh_flow_credits(after_merge=True)
 
     def run(self):
         try:
@@ -950,7 +970,6 @@ class Job:
                     self.status = 'stopped' if self.stopped else 'completed'
                     break
                 except Exception as exc:
-                    self.refresh_flow_credits()
                     self.log(str(exc))
                     recent = '\n'.join(row['text'] for row in self.logs if row['id'] > attempt_start)
                     if self.stopped:
@@ -1398,6 +1417,25 @@ def save_credit_reset_day(body: dict):
 def account_list():
     data = read_json(ROOT / 'accounts.json')
     return dict(current=data.get('current', 0), accounts=[{k: a.get(k) for k in ('label', 'email', 'max_clips', 'clips_used', 'clips_month', 'paused', 'flow_credits', 'credits_reset_day')} for a in data.get('accounts', [])])
+
+
+@app.post('/api/accounts/email')
+def save_account_email(body: dict):
+    label = str(body.get('label', '')).strip()
+    email = str(body.get('email', '')).strip().lower()
+    if len(email) > 254 or not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+', email):
+        raise HTTPException(400, 'Enter the full Google email address, such as name@gmail.com.')
+    with lock:
+        data = read_json(ROOT / 'accounts.json')
+        account = next((a for a in data.get('accounts', []) if str(a.get('label', '')).lower() == label.lower()), None)
+        if not account:
+            raise HTTPException(404, 'Saved account not found.')
+        if str(account.get('email', '')).strip().lower() != email:
+            account['email'] = email
+            # An old snapshot must not be attributed to a newly entered identity.
+            account.pop('flow_credits', None)
+            save_json(ROOT / 'accounts.json', data)
+    return dict(ok=True, email=email)
 
 
 def surface_preferences(surface):

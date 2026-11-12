@@ -4,7 +4,9 @@ const text='Scene 1 - Hook\nLilly: "Listen carefully."\nScene 2 - Advice\nLilly:
 const converted=withSettings(text,{model:'Omni 1.2 Flash',resolution:'360p',seconds:10,aspect:'9:16'});
 assert.equal((converted.match(/VIDEO GENERATION SETTINGS/g)||[]).length,3);
 assert(converted.includes('duration 10 seconds'));assert(converted.includes('resolution 360p'));assert(converted.includes('Lilly: "Trust takes time."'));
-assert.equal(withSettings(text,{resolution:'Flow'}),text);
+assert(withSettings(text,{resolution:'Flow',seconds:10}).includes('DURATION PARAMETER CHECK'));
+assert(withSettings(text,{resolution:'Flow',seconds:10}).includes('explicitly set its supported duration parameter to 10 seconds'));
+assert.throws(()=>withSettings(text,{seconds:9}),/Invalid Agent clip duration/);
 const actualBatch='Create exactly 2 clips.\n\nScene 1 — Opening\nUse @Environment.\n\nScene 2 — Result\nUse @Environment.';
 const prepared=withSettings(preparePrompt(actualBatch),{model:'Omni 1.2 Flash',resolution:'360p',seconds:8,aspect:'9:16'});
 assert.equal((prepared.match(/VIDEO GENERATION SETTINGS/g)||[]).length,3,'actual driver preparation retains scene headings for every-clip instructions');

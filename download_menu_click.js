@@ -1,7 +1,7 @@
 function menuTarget(text){
  const visible=e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden';};
  const matches=[...document.querySelectorAll('.cdk-overlay-container [role="menuitem"],.cdk-overlay-container mat-option,.cdk-overlay-container button')]
- .filter(e=>visible(e)&&(e.innerText||e.textContent||'').trim()===text&&!e.disabled&&e.getAttribute('aria-disabled')!=='true');
+ .filter(e=>{if(!visible(e)||(e.innerText||e.textContent||'').trim()!==text||e.disabled||e.getAttribute('aria-disabled')==='true')return false;const r=e.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return hit&&(hit===e||e.contains(hit));});
  if(matches.length!==1)return null;
  const item=matches[0];item.scrollIntoView({block:'nearest',inline:'nearest'});
  const r=item.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2,hit=document.elementFromPoint(x,y);

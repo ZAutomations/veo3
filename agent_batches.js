@@ -104,7 +104,22 @@ async function runAgentBatches(a, storyJson, run, log) {
         fs.renameSync(stateFile + '.tmp', stateFile);
     };
     const output = [];
+    const verifyDuration = async (from,to) => {
+        log(`Checking actual Flow clip durations for scenes ${from}-${to} before advancing the checkpoint...`);
+        const audit=await run('agent_duration_check.js',['--story',storyJson,'--project',a.project_url,
+            '--from',String(from),'--to',String(to),'--seconds',String(a.scene_seconds||a.seconds||story.scene_seconds||8),
+            '--cdp',String(a.cdp||9222),'--out',stateFile+'.duration.json'],{timeoutMs:240000});
+        state.durationReviewRequired=audit.code!==0;
+        state.durationExpectedSeconds=Number(a.scene_seconds||a.seconds||story.scene_seconds||8);
+        if(audit.code===0)state.durationVerifiedThrough=to;
+        save();
+        return audit.code===0?null:`RECOVERY_REVIEW_REQUIRED: Actual clip duration verification failed. ${audit.err||audit.out||'No verified duration result.'}`;
+    };
     if (!total) return { ok: false, text: 'Story has no scenes.' };
+    if(state.completed>0){
+        const error=await verifyDuration(1,Math.min(state.completed,total));
+        if(error)return {ok:false,storyJson,text:error};
+    }
     // Do not rebuild a finished project's queue or submit any prompts again.
     if (state.completed >= total) return { ok: true, storyJson, text: `All ${total} clips were previously completed in this project; nothing resubmitted.` };
     state.aspect = aspect;
@@ -154,7 +169,10 @@ async function runAgentBatches(a, storyJson, run, log) {
             return { ok: false, storyJson, text: output.join('\n\n') };
         }
         const reconciled = Number(result.reconciledTo);
-        state.completed = Number.isInteger(reconciled) && reconciled >= to && reconciled <= total ? reconciled : to;
+        const completedThrough=Number.isInteger(reconciled) && reconciled >= to && reconciled <= total ? reconciled : to;
+        const durationError=await verifyDuration(from,completedThrough);
+        if(durationError)return {ok:false,storyJson,text:durationError};
+        state.completed = completedThrough;
         if (state.completed > to) log(`Checkpoint synchronized with verified Flow batches: scenes 1-${state.completed} complete. No prompts replayed.`);
         state.pending = null;
         save();

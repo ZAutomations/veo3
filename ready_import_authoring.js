@@ -1,5 +1,6 @@
 'use strict';
-function contract(p){
+function contract(p){return require('./master_prompt_package').apply(basecontract(p),p.id);}
+function basecontract(p){
  const mode=require('./generic_ready_script').mode(p);
  const cast=p.approved_cartoon_cast||Object.values(p.fixed_couple_names||{}).map(name=>({name,description:'Original adult character matching the established reference.'}));
  const characters=p.single_speaker_advice?'Lilly: Original adult woman in the exact established princess design and fixed gown.\nPip: Silent green frog with tiny gold crown; no spoken words.':cast.length?cast.map(c=>`${c.name}: ${c.description}`).join('\n'):'Mira: An original character in this preset’s visual medium, with a fixed appearance and wardrobe appropriate to the new story.';

@@ -85,6 +85,9 @@ async function completePartialSceneIds(browser,page,project,tiles,story,log){
  }
  const all=[...partial.entries,...byNumber.values()].sort((a,b)=>a.job.number-b.job.number);
  if(all.length!==story.scenes.length||all.some((entry,i)=>entry.job.number!==i+1))throw Error('RECOVERY_REVIEW_REQUIRED: Mixed scene-ID/source mapping is incomplete.');
+ const namingInventory=[...new Map([...tiles,...inspected.tiles].map(t=>[t.assetId,t])).values()];
+ await require('./agent_video_names').ensure(page,story,all.map(e=>({scene:e.job.number,assetId:e.receipt.assetId})),namingInventory,{log});
+ for(const entry of all){entry.receipt.sceneId=sceneIds.sceneId(story,entry.job.number);entry.job.sceneId=entry.receipt.sceneId;}
  log(`Verified mixed mapping: ${partial.entries.length} scene IDs plus ${byNumber.size} exact source-prompt matches. Scene filenames are safe to use.`);
  return all;
 }
@@ -148,6 +151,7 @@ async function download(browser,page,{storyFile,outDir,project,tiles,thumbnailTi
   adoptVerified(d,entries,downloadVersion,path.join(folder,`agent_${downloadVersion}_assets_${project.split('/project/')[1]}.json`),priorHash);
  }
  try{
+  if(!unresolved)d.localRecovery=require('./local_clip_recovery').verified(path.resolve(storyFile),outDir);
   await d.group(jobs,receipts);
   d.save();
   if(thumbnailRequired){

@@ -84,7 +84,8 @@ function findAccount(store, label) {
 
 // ─── registry ops ────────────────────────────────────────────────────────────
 
-function add(label, email, maxClips) {
+function add(label, email, maxClips, resetDay) {
+    if(resetDay!=null&&resetDay!==''&&(!/^\d{1,2}$/.test(String(resetDay))||Number(resetDay)<1||Number(resetDay)>31))throw Error('Monthly credit reset day must be a whole number from 1 to 31.');
     const store = load();
     if (findAccount(store, label)) throw new Error(`An account labelled "${label}" already exists.`);
     const acc = {
@@ -95,6 +96,7 @@ function add(label, email, maxClips) {
         clips_used: 0,
         max_clips: Number(maxClips) > 0 ? Number(maxClips) : 100,
         paused: false,
+        credits_reset_day: resetDay==null||resetDay===''?null:Number(resetDay),
     };
     store.accounts.push(acc);
     if (store.accounts.length === 1) store.current = 0;
@@ -299,7 +301,7 @@ async function cli() {
         } else if (cmd === 'add') {
             const label = flag('--label');
             if (!label) throw new Error('--label is required');
-            const acc = add(label, flag('--email'), flag('--max-clips'));
+            const acc = add(label, flag('--email'), flag('--max-clips'), flag('--credits-reset-day'));
             console.log(`Added "${acc.label}" (profile: ${acc.profile}, max ${acc.max_clips} clips/month).`);
             console.log(`Sign it in once: node account_manager.js use --label "${acc.label}"`);
         } else if (cmd === 'remove') {
