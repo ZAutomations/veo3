@@ -1,0 +1,5 @@
+const assert=require('assert'),{withSettings,preparePrompt}=require('../agent_video_contract');
+const prompt='Create 5 separate clips for scenes 2-6.\nScene 2 — First remaining\nUse @Environment.\nScene 3 — Next\nKeep this distinct.';
+const initial=withSettings(preparePrompt(prompt),{seconds:10});assert(initial.includes('FIRST RENDER GATE:'));assert(!initial.includes('DURATION PREFLIGHT ALREADY VERIFIED:'));
+const released=withSettings(preparePrompt(prompt),{seconds:10,durationVerified:true});assert(!released.includes('FIRST RENDER GATE:'));assert(released.includes('Submit ALL remaining requested scenes now'));assert(released.includes('without waiting for one render to finish'));assert(released.includes('quantity 1 per scene'));assert(released.includes('concurrency limit'));assert(released.includes('DURATION PARAMETER CHECK:'));assert(released.includes('REFERENCE-TO-VIDEO CAPABILITY GATE:'));
+console.log('PASS: verified preflight removes repeated first-render gate and queues all requested scenes; per-scene settings and capability checks remain intact.');

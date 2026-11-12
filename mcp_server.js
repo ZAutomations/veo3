@@ -289,6 +289,8 @@ function fail(s) { return { content: [{ type: 'text', text: String(s) }], isErro
 function tailOf(s, n = 240) {
     const t = String(s || '').replace(/\s+/g, ' ').trim();
     if (!t) return '(no output)';
+    const terminal=String(s||'').split(/\r?\n/).reverse().find(line=>/(?:THUMBNAIL DOWNLOAD|DOWNLOAD|JOIN|VIDEO EDITING) FAILED:|(?:^|\s)FAILED:/.test(line));
+    if(terminal)return terminal.trim().replace(/\s+/g,' ').slice(0,n);
     const review=t.match(/(?:RECOVERY_REVIEW_REQUIRED:|FLOW_REVIEW_REQUIRED:)/);
     if(review)return t.slice(review.index,review.index+n);
     const m = t.match(/FAILED:.{0,200}/);
@@ -633,6 +635,7 @@ async function doRunAgent(a) {
     if(a.flow_characters)args.push('--flow-characters');
     if (a._expected) pushOpt(args, '--expected', a._expected);
     if (a._required_ready !== undefined) args.push('--require-ready', String(a._required_ready));
+    if (a._duration_verified === true) args.push('--duration-verified');
     if (a._retry_only) args.push('--retry-failed-only');
     pushOpt(args, '--submission-file', a._submission_file);
     pushOpt(args, '--project-url', a.project_url);
@@ -699,6 +702,8 @@ async function doDownloadClips(a) {
         failure = r.out.includes('THUMBNAIL DOWNLOAD FAILED')
             ? '\nTHUMBNAIL DOWNLOAD FAILED: story clips were preserved, but the required preset thumbnail is missing. Retry the thumbnail/reference image download before joining.'
             : `\nDOWNLOAD FAILED: ${ready}/${manifest && manifest.expected || '?'} playable clips saved; ${clips.filter(c => !c.got).length} transfers failed. See logs/agent_download_*/download.log for each source/menu error.`;
+        const actualFailure=(r.out+'\n'+(r.err||'')).split(/\r?\n/).reverse().find(line=>/DOWNLOAD FAILED:/.test(line));
+        if(actualFailure)failure='\n'+actualFailure.trim();
         if (r.killed) failure += ' Downloader exceeded the allotted time.';
     }
     return { ok: r.code === 0, storyJson, text: r.out + (r.err ? '\n[stderr]\n' + r.err : '') + failure };

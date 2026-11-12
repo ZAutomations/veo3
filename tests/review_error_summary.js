@@ -6,3 +6,5 @@ const result=tail('Earlier output. RECOVERY_REVIEW_REQUIRED: CLIP_DURATION_MISMA
 assert(result.startsWith('RECOVERY_REVIEW_REQUIRED: CLIP_DURATION_MISMATCH:'));
 assert(result.length<=240);assert.equal(tail('ordinary output'),'ordinary output');
 console.log('PASS: long duration/review errors retain the review marker so automatic retry cannot lose the stop signal.');
+
+assert(tail('Earlier RECOVERY_REVIEW_REQUIRED: SCENE_NAMING_FAILED: deferred\nDOWNLOAD FAILED: No completed thumbnail appeared').includes('DOWNLOAD FAILED: No completed thumbnail appeared'));

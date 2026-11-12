@@ -111,6 +111,16 @@ async function confirmShortPreviews(page,rows,story,project,seconds,log){
  }
  return rows;
 }
+async function verifyDurationBeforeNaming(rows,seconds,rename,{log=()=>{}}={}){
+ // Source mappings are validated by the caller. A display title is not media duration.
+ assess(rows,seconds);
+ try{return {identities:await rename(),namingReviewRequired:false};}
+ catch(error){
+  if(!/SCENE_NAMING_FAILED|Verified video source is not mounted/.test(error.message))throw error;
+  log('Actual duration/source verified. Display title naming is deferred; no clips regenerated. Download/order verification remains required. '+error.message);
+  return {identities:[],namingReviewRequired:true,namingError:error.message};
+ }
+}
 async function check(browser,{storyFile,project,from=1,to,seconds,report,log=console.log}){
  const story=JSON.parse(fs.readFileSync(storyFile,'utf8'));
  to=Number(to||story.scenes.length);from=Number(from);seconds=Number(seconds||story.scene_seconds||8);
@@ -126,18 +136,25 @@ async function check(browser,{storyFile,project,from=1,to,seconds,report,log=con
    if(!hit?.ready||!hit.assetId)throw Error(`RECOVERY_REVIEW_REQUIRED: Scene ${job.number} has no unique ready source for duration verification. Nothing submitted.`);
    return {scene:job.number,assetId:hit.assetId};
   });
-  const titlePage=(await browser.pages()).find(p=>p!==page&&p.url().split('?')[0]===project.split('?')[0])||page;
-  let identities;
-  try{identities=await require('./agent_video_names').ensure(titlePage,story,targets,inspected.tiles,{log});}
-  catch(error){
-   if(titlePage===page||!/Verified video source is not mounted/.test(error.message))throw error;
-   log('Existing tab has different media URLs; verifying titles in the source-inspection tab.');
-   identities=await require('./agent_video_names').ensure(page,story,targets,inspected.tiles,{log});
-  }
+  // Validate uniqueness/source ownership first, without changing display names.
+  require('./agent_video_names').plan(story,targets,inspected.tiles);
   const rows=await readDurations(page,targets);
   await confirmShortPreviews(page,rows,story,project,seconds,log);
-  const record={project,storyFile:path.resolve(storyFile),expectedSeconds:seconds,from,to,checkedAt:new Date().toISOString(),identities,rows};
-  try{assess(rows,seconds);record.ok=true;}catch(e){record.ok=false;if(report)fs.writeFileSync(report,JSON.stringify(record,null,2));throw e;}
+  assess(rows,seconds);
+  require('./agent_source_receipts').save(storyFile,project,rows);
+  const record={project,storyFile:path.resolve(storyFile),expectedSeconds:seconds,from,to,checkedAt:new Date().toISOString(),rows,sourceVerified:true};
+  try{
+   const naming=await verifyDurationBeforeNaming(rows,seconds,async()=>{
+    const titlePage=(await browser.pages()).find(p=>p!==page&&p.url().split('?')[0]===project.split('?')[0])||page;
+    try{return await require('./agent_video_names').ensure(titlePage,story,targets,inspected.tiles,{log});}
+    catch(error){
+     if(titlePage===page||!/Verified video source is not mounted/.test(error.message))throw error;
+     log('Existing tab has different media URLs; verifying titles in the source-inspection tab.');
+     return require('./agent_video_names').ensure(page,story,targets,inspected.tiles,{log});
+    }
+   },{log});
+   Object.assign(record,naming,{ok:true});
+  }catch(error){record.ok=false;if(report)fs.writeFileSync(report,JSON.stringify(record,null,2));throw error;}
   if(report)fs.writeFileSync(report,JSON.stringify(record,null,2));
   log(`DURATION VERIFIED: scenes ${from}-${to}, expected ${seconds}s; actual ${rows.map(r=>r.duration.toFixed(2)+'s').join(', ')}. Batch may advance.`);
   return record;
@@ -147,4 +164,4 @@ if(require.main===module){
  const val=n=>{const i=process.argv.indexOf(n);return i<0?undefined:process.argv[i+1];};
  (async()=>{const browser=await require('puppeteer').connect({browserURL:`http://127.0.0.1:${val('--cdp')||9222}`,defaultViewport:null});try{await check(browser,{storyFile:val('--story'),project:require('./flow_project').normalizeProjectUrl(val('--project')),from:val('--from')||1,to:val('--to'),seconds:val('--seconds'),report:val('--out')});}finally{await browser.disconnect();}})().catch(e=>{console.error(e.message);process.exitCode=2;});
 }
-module.exports={assess,markTile,readMarkedDuration,readDurations,editorDuration,confirmShortPreviews,check};
+module.exports={verifyDurationBeforeNaming,assess,markTile,readMarkedDuration,readDurations,editorDuration,confirmShortPreviews,check};

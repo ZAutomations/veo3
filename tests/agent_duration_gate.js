@@ -1,11 +1,17 @@
 'use strict';
 const assert=require('assert'),fs=require('fs'),path=require('path'),os=require('os');
-const {assess}=require('../agent_duration_check'),{runAgentBatches}=require('../agent_batches');
+const {assess,verifyDurationBeforeNaming}=require('../agent_duration_check'),{runAgentBatches}=require('../agent_batches');
 (async()=>{
  assert.equal(assess([{scene:1,duration:9.963},{scene:2,duration:10.027}],10).length,2);
  assert.throws(()=>assess([{scene:1,duration:4.02}],10),/CLIP_DURATION_MISMATCH/);
  assert.throws(()=>assess([{scene:1,duration:9.5}],10),/CLIP_DURATION_MISMATCH/);
  assert.throws(()=>assess([{scene:2,duration:null}],10),/unverified/);
+ let namesAttempted=0;
+ await assert.rejects(()=>verifyDurationBeforeNaming([{scene:1,duration:4}],10,async()=>{namesAttempted++;}),/CLIP_DURATION_MISMATCH/);
+ assert.equal(namesAttempted,0,'Short media must stop before naming');
+ const ready=await verifyDurationBeforeNaming([{scene:1,duration:9.963}],10,async()=>{throw Error('RECOVERY_REVIEW_REQUIRED: SCENE_NAMING_FAILED: read back failed');});
+ assert(ready.namingReviewRequired,'Display naming may be deferred only after real duration passes');
+ await assert.rejects(()=>verifyDurationBeforeNaming([{scene:1,duration:9.963}],10,async()=>{throw Error('source identity is unverified');}),/source identity/);
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'duration-checkpoint-'));
  try{
   const story=path.join(dir,'story.json');fs.writeFileSync(story,JSON.stringify({scene_seconds:10,scenes:[{},{},{},{}]}));
@@ -33,8 +39,8 @@ const {assess}=require('../agent_duration_check'),{runAgentBatches}=require('../
    return run(arg,args);
   };
   assert((await runAgentBatches(options,story,successRun,()=>{})).ok);
-  assert.deepEqual(ranges,[[1,1],[2,3],[4,4]]);
-  assert.equal(generated,3);
+  assert.deepEqual(ranges,[[1,1],[2,4]]);
+  assert.equal(generated,2);
   // Existing submitted ranges retain their identities on retry.
   const pendingState=JSON.parse(fs.readFileSync(checkpoint));
   pendingState.completed=0;pendingState.pending={from:1,to:2};
@@ -46,6 +52,18 @@ const {assess}=require('../agent_duration_check'),{runAgentBatches}=require('../
   };
   assert(!(await runAgentBatches(options,story,pendingRun,()=>{})).ok);
   assert.deepEqual(retried,[[1,2,true]],'do not split/replay an already submitted range to create a new duration test');
+  fs.unlinkSync(checkpoint);fs.writeFileSync(story,JSON.stringify({scene_seconds:10,scenes:[{},{},{},{},{},{}]}));
+  const released=[];
+  const sixRun=async(arg,args)=>{
+   if(arg==='agent_duration_check.js')return {code:0,out:'DURATION VERIFIED; display naming pending'};
+   if(typeof arg==='string'){fs.writeFileSync(args[args.indexOf('--out')+1],'prompt');return {code:0};}
+   assert.equal(arg._duration_verified,arg._required_ready>0,'only audited first render releases concurrent submission');released.push([arg._required_ready+1,arg._expected]);return {ok:true,text:'ready'};
+  };
+  assert((await runAgentBatches({...options,clip_batch_size:1},story,sixRun,()=>{})).ok);
+  assert.deepEqual(released,[[1,1],[2,6]],'A verified first 10-second clip releases exactly the remaining five without replaying scene 1');
+  fs.unlinkSync(checkpoint);fs.writeFileSync(story,JSON.stringify({scene_seconds:10,scenes:Array.from({length:13},()=>({}))}));released.length=0;
+  assert((await runAgentBatches({...options,clip_batch_size:2},story,sixRun,()=>{})).ok);
+  assert.deepEqual(released,[[1,1],[2,13]],'all remaining scenes are released together even when saved batch size is smaller');
   console.log('PASS: short/unknown clips cannot advance a checkpoint or release the next batch; old completed checkpoints are audited without regeneration; normal frame rounding accepted.');
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});

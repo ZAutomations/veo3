@@ -874,7 +874,7 @@ async function activateVideoTile(page, tile, needSource = true) {
     if (storyMeta?.scenes?.length && !LIMIT) {
         const sceneIds = require('./agent_scene_ids');
         try {
-            const named = sceneIds.plan(videoTiles, storyMeta);
+            const named = require('./agent_source_receipts').plan(STORY_FILE,homeUrl,videoTiles) || sceneIds.plan(videoTiles, storyMeta);
             if (named) {
                 sceneMapping = named.map(entry => ({
                     tile: videoTiles.find(t => t.assetId === entry.receipt.assetId),

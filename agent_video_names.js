@@ -69,14 +69,21 @@ async function rename(page,assetId,title){
  await page.waitForSelector(selector,{visible:true,timeout:10000});
  const previous=await page.$eval(selector,e=>e.value);
  if(previous!==live.assetTitle)throw Error('RECOVERY_REVIEW_REQUIRED: Rename dialog belongs to a different title; no name changed.');
- await page.focus(selector);await page.keyboard.down('Control');await page.keyboard.press('KeyA');await page.keyboard.up('Control');await page.keyboard.type(title);
- const committed=await page.evaluate(want=>{
+ await page.focus(selector);await page.keyboard.down('Control');await page.keyboard.press('KeyA');await page.keyboard.up('Control');await page.keyboard.type(title,{delay:20});
+ await wait(500); // Let Angular commit the typed model before the save interaction.
+ await page.evaluate(()=>document.querySelector('.rename-tile-overlay button[aria-label="Done"]')?.scrollIntoView({block:'center',inline:'nearest'}));
+ await wait(150);
+ const commitPoint=await page.evaluate(want=>{
   const root=document.querySelector('.rename-tile-overlay'),input=root?.querySelector('input');
   const done=root?.querySelector('button[aria-label="Done"]');
-  if(input?.value!==want||!done||done.disabled)return false;done.click();return true;
+  if(input?.value!==want||!done||done.disabled)return null;
+  const r=done.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2,hit=document.elementFromPoint(x,y);
+  return r.width>0&&r.height>0&&hit&&(hit===done||done.contains(hit))?{x,y}:null;
  },title);
- if(!committed)throw Error('RECOVERY_REVIEW_REQUIRED: Scene title was not entered/committed in its Rename dialog.');
- for(let n=0;n<30;n++){const after=(await media.snapshot(page)).find(t=>t.assetId===assetId||t.assetIds?.includes(assetId));if(after?.assetTitle===title)return;await wait(150);}
+ if(!commitPoint)throw Error('RECOVERY_REVIEW_REQUIRED: Scene title was not entered/committed in its Rename dialog.');
+ // Real pointer input blurs the editor before saving; DOM click can leave its model stale.
+ await page.mouse.click(commitPoint.x,commitPoint.y);
+ for(let n=0;n<60;n++){const after=(await media.snapshot(page)).find(t=>t.assetId===assetId||t.assetIds?.includes(assetId));if(after?.assetTitle===title)return;await wait(150);}
  throw Error('RECOVERY_REVIEW_REQUIRED: Renamed video title could not be read back; no completion claimed.');
 }
 async function ensure(page,story,targets,inventory,{log=()=>{}}={}){

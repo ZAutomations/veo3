@@ -68,7 +68,7 @@ async function completePartialSceneIds(browser,page,project,tiles,story,log){
  const sceneIds=require('./agent_scene_ids'),partial=sceneIds.partialPlan(tiles,story);
  if(!partial.missing.length)return partial.entries;
  log(`Scene-ID download mapping is partial (${partial.entries.length}/${story.scenes.length}); checking source prompts read-only for the remaining ${partial.missing.length} scene(s).`);
- const jobs=partial.missing.map(number=>{const scene=story.scenes[number-1];return {number,scene,prompt:scene.veo3_prompt||scene.script_line||'',silentVisual:require('./silent_scene_identity').isSilent(story)};});
+ const jobs=partial.missing.map(number=>{const scene=story.scenes[number-1];return {number,scene,sceneId:sceneIds.sceneId(story,number),prompt:scene.veo3_prompt||scene.script_line||'',silentVisual:require('./silent_scene_identity').isSilent(story)};});
  const inspected=await require('./single_clip_omni_recovery').inspectProject({browser,page,projectUrl:project},jobs,{}, {log,page,sourceCache:new Map()});
  const used=new Set(partial.entries.map(e=>e.receipt.assetId)),byNumber=new Map();
  for(const job of jobs){
@@ -86,7 +86,13 @@ async function completePartialSceneIds(browser,page,project,tiles,story,log){
  const all=[...partial.entries,...byNumber.values()].sort((a,b)=>a.job.number-b.job.number);
  if(all.length!==story.scenes.length||all.some((entry,i)=>entry.job.number!==i+1))throw Error('RECOVERY_REVIEW_REQUIRED: Mixed scene-ID/source mapping is incomplete.');
  const namingInventory=[...new Map([...tiles,...inspected.tiles].map(t=>[t.assetId,t])).values()];
- await require('./agent_video_names').ensure(page,story,all.map(e=>({scene:e.job.number,assetId:e.receipt.assetId})),namingInventory,{log});
+ try{await require('./agent_video_names').ensure(page,story,all.map(e=>({scene:e.job.number,assetId:e.receipt.assetId})),namingInventory,{log});}
+ catch(error){
+  // Exact source matches already establish this mapping. Only a display-save
+  // failure is optional; ownership/uniqueness validation still stops the run.
+  if(!/SCENE_NAMING_FAILED/.test(error.message))throw error;
+  log('Source mapping verified; optional Flow display rename unavailable. Local scene filenames retain the verified mapping.');
+ }
  for(const entry of all){entry.receipt.sceneId=sceneIds.sceneId(story,entry.job.number);entry.job.sceneId=entry.receipt.sceneId;}
  log(`Verified mixed mapping: ${partial.entries.length} scene IDs plus ${byNumber.size} exact source-prompt matches. Scene filenames are safe to use.`);
  return all;
@@ -96,8 +102,9 @@ async function download(browser,page,{storyFile,outDir,project,tiles,thumbnailTi
  const story=JSON.parse(fs.readFileSync(storyFile,'utf8'));
  const silent=require('./silent_scene_identity').isSilent(story);
  const sceneIds=require('./agent_scene_ids');
- let entries=null,idConflict=null,unresolved=false,partialIds=false;
- try{entries=sceneIds.plan(tiles,story);}catch(error){idConflict=error;}
+ let entries=require('./agent_source_receipts').plan(storyFile,project,tiles),idConflict=null,unresolved=false,partialIds=false;
+ if(entries)log('Verified generation source receipts map every current asset to its story scene; display renaming is optional.');
+ if(!entries)try{entries=sceneIds.plan(tiles,story);}catch(error){idConflict=error;}
  if(idConflict)log(`Scene-ID mapping is ambiguous (${idConflict.message}). Preserving unique assets without assigning scene numbers.`);
  if(entries)log('Verified scene IDs map each completed video asset to its story scene. No transcription or video analysis needed.');
  if(!entries&&!idConflict){

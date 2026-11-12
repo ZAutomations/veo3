@@ -9,8 +9,42 @@ function imageExtension(buf){
  return '';
 }
 
+// Transfer only the exact completed image represented by the verified Thumbnail tile.
+// The authenticated browser handles signed Flow/CDN URLs; no screenshot or new generation.
+async function fetchTileImage(page,tile){
+ return page.evaluate(async id=>{
+  const asset=e=>[e.currentSrc||'',e.getAttribute('src')||''].some(u=>(u.match(/\/(?:image|asb)\/([^=?/#]+)/)||[])[1]===id);
+  const tiles=[...document.querySelectorAll('flow-image-tile')].filter(t=>[...t.querySelectorAll('img')].some(asset));
+  if(tiles.length!==1)throw Error('Exact Thumbnail asset is not uniquely mounted.');
+  const im=[...tiles[0].querySelectorAll('img')].find(asset);
+  if(!im.complete||!im.naturalWidth)throw Error('Thumbnail image is not loaded.');
+  const src=new URL(im.currentSrc||im.src);
+  if(src.origin!==location.origin&&!['flow.google.com','flow-content.google'].includes(src.hostname))throw Error('Unexpected Thumbnail image origin.');
+  const response=await fetch(src.href,{credentials:src.origin===location.origin?'include':'omit',signal:AbortSignal.timeout(15000)});
+  if(!response.ok||!/^image\//i.test(response.headers.get('content-type')||''))throw Error('Thumbnail response is not a successful image.');
+  const blob=await response.blob();if(blob.size<2048||blob.size>50*1024*1024)throw Error('Thumbnail image size failed validation.');
+  const decoded=await createImageBitmap(blob);
+  const width=decoded.width,height=decoded.height;decoded.close();
+  if(width!==im.naturalWidth||height!==im.naturalHeight)throw Error('Thumbnail transfer dimensions differ from the selected image.');
+  const bytes=new Uint8Array(await blob.arrayBuffer());let binary='';
+  for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));
+  return {data:btoa(binary),width,height,assetId:id};
+ },tile.assetId);
+}
+function saveTransferredImage(targetDir,result){
+ const data=Buffer.from(result.data,'base64'),ext=imageExtension(data);
+ if(!ext||data.length<2048)throw Error('Thumbnail transfer is not a valid PNG, JPEG or WebP.');
+ fs.mkdirSync(targetDir,{recursive:true});
+ const target=path.join(targetDir,'thumbnail_downloaded'+ext),temp=target+'.'+process.pid+'.part';
+ fs.writeFileSync(temp,data);fs.renameSync(temp,target);
+ for(const other of ['.png','.jpg','.jpeg','.webp'])if(other!==ext)fs.rmSync(path.join(targetDir,'thumbnail_downloaded'+other),{force:true});
+ return target;
+}
+
 async function downloadThumbnail(page,tile,targetDir,log=()=>{},settleMs=2500){
  if(!tile)throw Error('No Flow image tile named Thumbnail was found.');
+ try{const result=await fetchTileImage(page,tile),saved=saveTransferredImage(targetDir,result);log(`Thumbnail saved from verified asset (${result.width}x${result.height}): ${saved}`);return saved;}
+ catch(error){log('Direct Thumbnail image transfer unavailable; trying the original-size menu: '+error.message);}
  const dlDir=path.join(targetDir,'.thumbnail_browser_downloads');
  fs.mkdirSync(dlDir,{recursive:true});
  const cdp=await page.createCDPSession();
@@ -60,4 +94,4 @@ async function downloadThumbnail(page,tile,targetDir,log=()=>{},settleMs=2500){
  log(`Thumbnail saved: ${saved}`);fs.rmSync(dlDir,{recursive:true,force:true});return saved;
 }finally{await cdp.detach().catch(()=>{});}
 }
-module.exports={imageExtension,downloadThumbnail};
+module.exports={imageExtension,fetchTileImage,saveTransferredImage,downloadThumbnail};

@@ -201,6 +201,7 @@ const PROMPT_TEXT = (PROMPT_BASE && MODEL_HINT)
 // catches a slip. Long prompts still paste, so the text is otherwise untouched.
 const VIDEO_RESOLUTION = String(flag('--video-resolution', 'Flow') || 'Flow');
 let SEND_TEXT = PROMPT_TEXT == null ? null : require('./agent_video_contract').withSettings(W.sanitizeForPolicy(PROMPT_TEXT),{
+    durationVerified:flag('--duration-verified')===true,
     model:VIDEO_MODEL,resolution:VIDEO_RESOLUTION,seconds:Number(flag('--scene-seconds',8))||8,aspect:String(flag('--aspect','Flow')),
 });
 if(SEND_TEXT){const source=flag('--refs');if(typeof source==='string'&&/\.json$/i.test(source)&&fs.existsSync(source))SEND_TEXT=require('./agent_scene_ids').inject(SEND_TEXT,JSON.parse(fs.readFileSync(source,'utf8')));}

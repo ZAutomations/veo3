@@ -31,8 +31,14 @@ function tileSnapshot(){
    ||sources.some(s=>/^https?:/i.test(s)&&! /placeholder|loading|\.svg(?:[?#]|$)/i.test(s)));
   const r=tile.getBoundingClientRect();
   const assetIds=[...new Set(sources.map(s=>(s.match(/\/(?:video|image|asb)\/([^=?/#\s]+)/)||[])[1]).filter(Boolean))];
-  const assetTitle=scope.querySelector('.asset-title,.footer-title,[data-asset-title]')?.textContent?.trim()
-   ||scope.querySelector('flow-tile-hover-footer .footer-left[aria-label]')?.getAttribute('aria-label')||'';
+  // A one-video row may also contain reference images. Prefer metadata owned
+  // by this video before considering a list-layout ancestor's sibling fields.
+  const titleOf=node=>{
+   const own=e=>!e.closest('flow-image-tile')&&(!e.closest('flow-video-tile')||e.closest('flow-video-tile')===tile);
+   return [...node.querySelectorAll('.asset-title,.footer-title,[data-asset-title]')].find(own)?.textContent?.trim()
+    ||[...node.querySelectorAll('flow-tile-hover-footer .footer-left[aria-label]')].find(own)?.getAttribute('aria-label')||'';
+  };
+  const assetTitle=titleOf(tile)||titleOf(scope);
   return {key:store.keys.get(tile),assetId,assetIds,assetTitle,text,failed,busy,ready,x:r.x,y:r.y,width:r.width,height:r.height};
  });
 }

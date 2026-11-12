@@ -103,7 +103,7 @@ async function runAgentBatches(a, storyJson, run, log) {
             size: requestedSize, completed: 0, pending: null, aspect };
     }
     // Keep an interrupted batch intact; subsequent batches use the new size.
-    state.size = requestedSize;
+    state.size = Number(a.scene_seconds||a.seconds||story.scene_seconds||8)===10 ? Math.max(1,total) : requestedSize;
     log(`Agent prompts per batch: ${state.size}.`);
     if(state.pending)log(`Preserving pending scenes ${state.pending.from}-${state.pending.to}; subsequent batches use ${state.size}.`);
     const save = () => {
@@ -167,6 +167,7 @@ async function runAgentBatches(a, storyJson, run, log) {
         const singleArgs = { ...a, _submission_file: submissionFile, _single_batch: true, _prompt_file: prompt,
             aspect,
             watch: Math.max(900, Number(a.watch) || 0),
+            _duration_verified: state.durationVerifiedThrough >= 1 && !state.durationReviewRequired,
             _expected: to, _required_ready: state.completed, _retry_only: recovering,
             no_upload_refs: a.no_upload_refs || state.completed > 0 };
         let result = await run(singleArgs);
