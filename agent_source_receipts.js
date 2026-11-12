@@ -14,13 +14,17 @@ function plan(storyFile,project,tiles){
  let saved;try{saved=JSON.parse(fs.readFileSync(fileFor(storyFile,project),'utf8'));}catch{return null;}
  const story=JSON.parse(fs.readFileSync(storyFile,'utf8'));
  if(saved.storyHash!==hash(storyFile)||saved.project!==projectId(project)||saved.rows?.length!==story.scenes.length)return null;
- const used=new Set();return story.scenes.map((scene,i)=>{
+ let stale=false;const used=new Set();const entries=story.scenes.map((scene,i)=>{
   const matches=saved.rows.filter(r=>r.scene===i+1&&r.sceneId===ids.sceneId(story,i+1));if(matches.length!==1)throw Error('RECOVERY_REVIEW_REQUIRED: Source receipt scene conflict.');
   const r=matches[0],hits=tiles.filter(t=>t.assetId===r.assetId||t.assetIds?.includes(r.assetId));
+  // Flow can rotate its signed /asb/ identity between tabs. Missing cached
+  // URLs invalidate this cache; the caller must reverify current IDs/sources.
+  if(!hits.length){stale=true;return null;}
   if(hits.length!==1||hits[0].failed||hits[0].busy||hits[0].ready===false)throw Error('RECOVERY_REVIEW_REQUIRED: Verified scene asset is absent or not unique; no grid-order substitution.');
   const tile=hits[0],own=ids.tileId(tile);if(used.has(tile.assetId)||own&&own!==r.sceneId)throw Error('RECOVERY_REVIEW_REQUIRED: Source receipt conflicts with current asset identities.');used.add(tile.assetId);
   const nativeResolution=/\b360p\b/i.test(tile.text||'')?360:/\b720p\b/i.test(tile.text||'')?720:null;
   return {job:{number:i+1,scene,prompt:scene.veo3_prompt||scene.script_line||'',sceneId:r.sceneId},receipt:{scene:i+1,assetId:tile.assetId,sceneId:r.sceneId,key:'',...(nativeResolution?{nativeResolution,native720:nativeResolution===720}:{}),match_from:'verified_source_receipt'}};
  });
+ return stale?null:entries;
 }
 module.exports={save,plan,fileFor};

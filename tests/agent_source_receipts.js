@@ -6,7 +6,10 @@ try{
  R.save(file,project,[{scene:1,assetId:'a',duration:10}]);assert.equal(R.plan(file,project,tiles),null,'partial receipt must not complete a story');
  R.save(file,project,[{scene:2,assetId:'b',duration:10}]);const plan=R.plan(file,project,tiles);assert.deepEqual(plan.map(e=>e.receipt.assetId),['a','b'],'receipt mapping must beat reversed grid and mixed names');
  assert.equal(R.plan(file,'https://flow.google.com/project/other',tiles),null);
- assert.throws(()=>R.plan(file,project,tiles.slice(0,1)),/absent or not unique/);
+ assert.equal(R.plan(file,project,tiles.slice(0,1)),null,'missing cached URL requires fresh source verification, not guessed mapping');
+ const rotated=tiles.map((t,i)=>({...t,assetId:'rotated'+i,assetTitle:ids.sceneId(story,i===0?2:1)}));
+ assert.equal(R.plan(file,project,rotated),null);
+ assert.deepEqual(ids.plan(rotated,story).map(e=>e.receipt.assetId),['rotated1','rotated0'],'fresh unique scene titles recover rotated URLs in story order');
  assert.throws(()=>R.plan(file,project,[...tiles,tiles[1]]),/absent or not unique/);
  assert.throws(()=>R.plan(file,project,tiles.map(t=>({...t,assetTitle:ids.sceneId(story,2)}))),/conflicts/);
  assert.throws(()=>R.plan(file,project,tiles.map(t=>({...t,failed:true}))),/absent or not unique/);

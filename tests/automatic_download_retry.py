@@ -20,7 +20,7 @@ class Wait:
         return False
     def set(self):pass
 
-with tempfile.TemporaryDirectory() as tmp,patch.object(app,'ROOT',Path(tmp)):
+with tempfile.TemporaryDirectory() as tmp,patch.object(app,'ROOT',Path(tmp)),patch.object(app,'editing_python',return_value=sys.executable),patch.object(app.Job,'refresh_flow_credits'):
     counts={};runs=[]
     class Proc:
         def __init__(self,spec,**kwargs):
@@ -31,9 +31,9 @@ with tempfile.TemporaryDirectory() as tmp,patch.object(app,'ROOT',Path(tmp)):
     with patch.object(app.subprocess,'Popen',Proc):
         job=app.Job('generate',{'view':'agent','project':'https://flow.google.com/project/same'},'flow',[('cli',['node','already_done.js']),('cli',['node','agent_download.js']),('cli',['node','join_clips.js'])])
         delay=Wait(job);job._stop_event=delay;job.run()
-    assert job.status=='completed' and job.auto_retry_count==2
+    assert job.status=='completed' and job.auto_retry_count==2, list(job.logs)
     assert runs==['already_done.js','agent_download.js','agent_download.js','agent_download.js','join_clips.js'],runs
-    assert delay.calls==[8,8]
+    assert delay.calls==[5,5]
     # A persistent transfer failure keeps retrying until Stop cancels the wait.
     job=app.Job('download',{'view':'agent'},'flow',[('cli',['node','agent_download.js'])])
     delay=Wait(job,stop=True);job._stop_event=delay;counts['agent_download.js']=0
@@ -69,7 +69,7 @@ with tempfile.TemporaryDirectory() as tmp,patch.object(app,'ROOT',Path(tmp)):
     calls.clear();failure_count=0
     job=app.Job('generate_queue',{'view':'agent'},'flow',operations);job._stop_event=Wait(job)
     with patch.object(app,'MCPClient',Client):job.run()
-    assert job.status=='completed' and job.auto_retry_count==2
+    assert job.status=='completed' and job.auto_retry_count==2, list(job.logs)
     assert [title for title,args in calls]==['first','second','second','second','third']
     for title,args in calls[2:4]:
         assert args['project_url'].endswith('/two') and args['generate_refs'] and args['start_phase']=='start'
@@ -81,4 +81,14 @@ with tempfile.TemporaryDirectory() as tmp,patch.object(app,'ROOT',Path(tmp)):
     job.log(ERROR)
     with patch.object(job,'_run_operations',bad):job.run()
     assert job.status=='stopped' and job.auto_retry_count==1
-print('PASS: automatic eight-second transfer recovery, repeated failures, Stop cancellation, completed-step skipping, correct single/batch project resume and any-step retry cancellation; no real browser or generation.')
+    # Persistent failures stop after exactly five automatic continuations.
+    job=app.Job('generate',{'view':'agent'},'flow',[('cli',['node','agent_mode.js'])]);delay=Wait(job);job._stop_event=delay;attempts=[]
+    def transient():
+        attempts.append(1)
+        job.log('Actual duration/source verified. Display title naming is deferred; RECOVERY_REVIEW_REQUIRED: SCENE_NAMING_FAILED: optional title')
+        raise RuntimeError('AGENT RUN FAILED: Missing-scene recovery needs a complete, idle project with identified source prompts. Nothing resubmitted.')
+    with patch.object(job,'_run_operations',transient):job.run()
+    assert job.status=='failed' and job.auto_retry_count==5 and len(attempts)==6
+    assert delay.calls==[5]*5
+    assert any('stopped after 5 retries' in row['text'] for row in job.logs)
+print('PASS: automatic five-second transfer recovery, repeated failures, Stop cancellation, completed-step skipping, correct single/batch project resume and any-step retry cancellation; no real browser or generation.')

@@ -163,7 +163,7 @@ function inventoryFn() {
             // settled from the dump instead of guessed at now.
             aria: t.getAttribute('aria-label'),
             title: t.getAttribute('title'),
-            assetTitle: (()=>{let scope=t;for(let depth=0;scope&&depth<5;depth++,scope=scope.parentElement){if(scope.querySelectorAll('flow-video-tile, flow-image-tile').length>1)break;const title=scope.querySelector('.asset-title, [data-asset-title]');if(title?.textContent?.trim())return title.textContent.trim();const named=[...scope.querySelectorAll('button[aria-label]')].map(b=>b.getAttribute('aria-label')||'').filter(label=>/\bV3_[a-f0-9]{12}_S\d{3}\b/.test(label));if(named.length===1)return named[0];}return '';})(),
+            assetTitle: (()=>{let scope=t;for(let depth=0;scope&&depth<5;depth++,scope=scope.parentElement){if(scope.querySelectorAll('flow-video-tile, flow-image-tile').length>1)break;const title=scope.querySelector('.asset-title, .footer-title, [data-asset-title]');if(title?.textContent?.trim())return title.textContent.trim();const named=[...scope.querySelectorAll('button[aria-label]')].map(b=>b.getAttribute('aria-label')||'').filter(label=>/\bV3_[a-f0-9]{12}_S\d{3}\b/.test(label));if(named.length===1)return named[0];}return '';})(),
             dataAttrs: [...t.attributes].filter(a => /^data-/.test(a.name)).map(a => `${a.name}=${a.value}`).slice(0, 12),
             text: tileText.slice(0, 200),
             failed,

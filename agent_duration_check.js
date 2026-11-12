@@ -117,7 +117,7 @@ async function verifyDurationBeforeNaming(rows,seconds,rename,{log=()=>{}}={}){
  try{return {identities:await rename(),namingReviewRequired:false};}
  catch(error){
   if(!/SCENE_NAMING_FAILED|Verified video source is not mounted/.test(error.message))throw error;
-  log('Actual duration/source verified. Display title naming is deferred; no clips regenerated. Download/order verification remains required. '+error.message);
+  log('Actual duration/source verified. Display title naming is deferred; no clips regenerated. Download/order verification remains required. '+error.message.replace(/(?:RECOVERY|FLOW)_REVIEW_REQUIRED:\s*/g,''));
   return {identities:[],namingReviewRequired:true,namingError:error.message};
  }
 }

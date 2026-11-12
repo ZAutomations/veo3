@@ -9,8 +9,8 @@ class Delay:
 with tempfile.TemporaryDirectory() as tmp,patch.object(app,'ROOT',Path(tmp)):
     for error,failures,expected,delays in [
         ('RECOVERY_REVIEW_REQUIRED: IMPORT_VALIDATION_FAILED\nStory: 141\nLine: 12',99,'failed',[]),
-        ('Temporary file lock',99,'failed',[8,16,32]),
-        ('Temporary file lock',2,'completed',[8,16]),
+        ('Temporary file lock',99,'failed',[5,5,5,5,5]),
+        ('Temporary file lock',2,'completed',[5,5]),
     ]:
         job=app.Job('import_script',{'view':'writer'},'writer',[('cli',['node','import_ready_script.js'])])
         delay=Delay();job._stop_event=delay;calls=[]
@@ -21,4 +21,4 @@ with tempfile.TemporaryDirectory() as tmp,patch.object(app,'ROOT',Path(tmp)):
         assert job.status==expected,list(job.logs)
         assert delay.calls==delays,delay.calls
         assert len(calls)==len(delays)+1
-print('PASS: import validation stops immediately; transient import failures use bounded 8/16/32-second retries and can recover.')
+print('PASS: import validation stops immediately; transient import failures use five bounded five-second retries and can recover.')

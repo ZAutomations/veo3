@@ -640,7 +640,8 @@ def plan_action(action, p):
     return 'flow', [('mcp', ('batch_pipeline', args))]
 
 
-AUTO_RETRY_SECONDS = 8
+AUTO_RETRY_SECONDS = 5
+AUTO_RETRY_LIMIT = 5
 
 
 def automatic_retry_allowed(action, lane):
@@ -1096,15 +1097,19 @@ class Job:
                             self.log('Unusual-activity retry limit reached. Job stopped for Flow review; no new project or account will be used.')
                             self.status = 'failed'
                             break
-                    if (not unusual or re.search(r'policy-blocked|content policy|unresolved scene order|multiple completed video assets', recent, re.I)) and re.search(r'FLOW_REVIEW_REQUIRED:|RECOVERY_REVIEW_REQUIRED:', recent):
+                    # A successful duration audit can defer optional display naming.
+                    # Its diagnostic marker must not veto a later transient failure.
+                    review_recent = '\n'.join(line for line in recent.splitlines()
+                        if not ('Actual duration/source verified.' in line and 'Display title naming is deferred' in line))
+                    if (not unusual or re.search(r'policy-blocked|content policy|unresolved scene order|multiple completed video assets', review_recent, re.I)) and re.search(r'FLOW_REVIEW_REQUIRED:|RECOVERY_REVIEW_REQUIRED:', review_recent):
                         self.log('Automatic retry stopped: this step needs review, so reopening the same project cannot resolve it. Completed clips and downloads are preserved.')
                         self.status = 'failed'
                         break
                     if not automatic_retry_allowed(self.action, self.lane):
                         self.status = 'failed'
                         break
-                    if self.action == 'import_script' and self.auto_retry_count >= 3:
-                        self.log('Automatic import retry limit reached after 3 retries. Correct the input or resolve the local file/runtime error, then retry manually.')
+                    if self.auto_retry_count >= AUTO_RETRY_LIMIT:
+                        self.log(f'Automatic Retry / Continue stopped after {AUTO_RETRY_LIMIT} retries. Completed work and the last checkpoint are preserved; review the latest error before retrying manually.')
                         self.status = 'failed'
                         break
                     # Use the same checkpoint planner as both Retry / Continue
@@ -1125,8 +1130,8 @@ class Job:
                     mode = 'batch' if self.action == 'generate_queue' else 'single video'
                     step = retry_step_name(recent, self.phase)
                     self.phase = 'waiting to retry ' + step
-                    retry_delay = self.payload['_globalWorkflow']['activityCooldownSeconds'] if unusual else min(60, AUTO_RETRY_SECONDS * 2 ** (self.auto_retry_count - 1)) if self.action == 'import_script' else AUTO_RETRY_SECONDS
-                    self.log(f'Automatic Retry / Continue ({mode}) #{self.auto_retry_count}: {step} failed; resuming the saved step in {retry_delay} seconds. Completed clips and downloads are preserved. Press Stop to cancel.')
+                    retry_delay = self.payload['_globalWorkflow']['activityCooldownSeconds'] if unusual else AUTO_RETRY_SECONDS
+                    self.log(f'Automatic Retry / Continue ({mode}) #{self.auto_retry_count}/{AUTO_RETRY_LIMIT}: {step} failed; resuming the saved step in {retry_delay} seconds. Completed clips and downloads are preserved. Press Stop to cancel.')
                     self.save_progress()
                     if self._stop_event.wait(retry_delay):
                         self.status = 'stopped'
