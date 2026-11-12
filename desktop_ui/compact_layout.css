@@ -28,6 +28,19 @@ main.studio-compact{min-width:0;overflow-x:clip}
 .studio-compact .card-body{min-width:0}
 .studio-compact .studio-folder-card .card-body>.form-grid{max-height:360px;overflow-y:auto;overscroll-behavior:contain;padding-right:5px;grid-template-columns:1fr}
 
+/* Writer production choices stay compact and share a single row when space permits. */
+header.generation-header{position:sticky;top:0;z-index:30;height:auto;min-height:74px;padding:12px 18px;gap:12px;flex-wrap:wrap}
+header.generation-header .breadcrumb{white-space:nowrap;flex-shrink:0}
+#generation-top-controls:not(.hidden){display:flex;align-items:center;flex:1;gap:6px;flex-wrap:wrap}
+#generation-top-controls .button{font-size:11px;padding:8px 10px;white-space:nowrap;margin:0;min-height:34px}
+@media(max-width:1250px){#generation-top-controls:not(.hidden){order:3;flex-basis:100%}header.generation-header .header-right{margin-left:auto}}
+
+.studio-compact #writer-production-controls.form-grid{grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;align-items:end}
+.studio-compact #writer-production-controls .field{min-width:0;margin-bottom:0}
+.studio-compact #writer-production-controls input,.studio-compact #writer-production-controls select{width:100%;min-width:0;height:36px;min-height:36px;padding:7px 9px}
+@media(max-width:650px){.studio-compact #writer-production-controls.form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:420px){.studio-compact #writer-production-controls.form-grid{grid-template-columns:1fr}}
+
 /* Unified Generation: engines share presentation, never their checkpoints. */
 .generation-mode-columns{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:stretch}
 .generation-mode-column{display:flex;flex-direction:column;min-width:0;border:1px solid var(--line,#ddd);border-radius:12px;padding:12px;background:var(--bg2,transparent)}

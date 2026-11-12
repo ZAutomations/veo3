@@ -7,6 +7,8 @@ assert(converted.includes('duration 10 seconds'));assert(converted.includes('res
 assert(withSettings(text,{resolution:'Flow',seconds:10}).includes('DURATION PARAMETER CHECK'));
 assert(withSettings(text,{resolution:'Flow',seconds:10}).includes('explicitly set its supported duration parameter to 10 seconds'));
 assert.throws(()=>withSettings(text,{seconds:9}),/Invalid Agent clip duration/);
+assert.throws(()=>withSettings(text,{resolution:'1080p'}),/Invalid Agent video resolution/,'manual-only 1080p must not relax automation settings');
+assert(withSettings(text,{resolution:'1080p',manual:true}).includes('resolution 1080p'));
 const actualBatch='Create exactly 2 clips.\n\nScene 1 — Opening\nUse @Environment.\n\nScene 2 — Result\nUse @Environment.';
 const prepared=withSettings(preparePrompt(actualBatch),{model:'Omni 1.2 Flash',resolution:'360p',seconds:8,aspect:'9:16'});
 assert.equal((prepared.match(/VIDEO GENERATION SETTINGS/g)||[]).length,3,'actual driver preparation retains scene headings for every-clip instructions');

@@ -73,6 +73,8 @@ function run(request){
  const root=path.resolve(request.out||path.join(__dirname,'stories'));fs.mkdirSync(root,{recursive:true});
  return prepared.map(({W,p,cast,story,warnings},i)=>{
   const s=parsed[i],key=semanticKey(s);
+  const manualOptions={aspect,seconds:s.seconds,videoModel:request.videoModel,videoResolution:request.videoResolution};
+  if(s.seconds===10&&manualOptions.videoModel&&!/Omni.*Flash/i.test(manualOptions.videoModel))manualOptions.videoModel='Omni 1.2 Flash';
  if(!story.generic_ready_import&&!p.derived_video_preset&&!['world-politics-map-explain','fern-documentary','3d-zack-style','cats-behavior-3d','intimacy-health-3d','geography-map','3d-motivational-red-green','heartwarming-cat-3d'].includes(s.preset)){delete key.characters;delete key.locations;key.clips.forEach(c=>{if(!c.shots.length)delete c.shots;});}
   const hash=crypto.createHash('sha256').update(JSON.stringify({s:key,aspect})).digest('hex').slice(0,10);
   // Default ready-script imports into a per-preset folder, matching stories
@@ -85,7 +87,7 @@ function run(request){
   const marker=path.join(dir,'READY_IMPORT_COMPLETE.json');
   if(fs.existsSync(file)&&fs.existsSync(marker)&&!request.overwrite){
    const manualExport=require('./manual_agent_batches');
-   if(!fs.existsSync(path.join(dir,'manual_agent_batches',manualExport.FULL_STORY_FILE)))manualExport.writeManualAgentBatches(file,{aspect,seconds:s.seconds});
+   manualExport.writeManualAgentBatches(file,manualOptions);
    reports.write(dir,s,prepared[i],origins.get(s).text);
    console.log(`Already imported; preserved existing package: ${file}\nPreflight: ${path.join(dir,'IMPORT_PREFLIGHT.txt')}`);return file;
   }
@@ -100,7 +102,7 @@ function run(request){
   }
   const result=require('child_process').spawnSync(process.execPath,[path.join(__dirname,'story_to_agent_prompt.js'),file,'--aspect',aspect,'--seconds',String(s.seconds)],{cwd:__dirname,encoding:'utf8'});
   if(result.status!==0)throw Error(result.stderr||result.stdout||'Prompt export failed.');
-  const manualBatches=require('./manual_agent_batches').writeManualAgentBatches(file,{aspect,seconds:s.seconds});
+  const manualBatches=require('./manual_agent_batches').writeManualAgentBatches(file,manualOptions);
   reports.write(dir,s,prepared[i],origins.get(s).text);
   fs.writeFileSync(marker,JSON.stringify({hash,clips:s.clips.length,seconds:s.seconds})+'\n');
   console.log(result.stdout.trim());console.log(`Manual Agent batches: ${manualBatches.count} file(s) in ${manualBatches.folder}`);console.log(`IMPORTED: ${file} (${s.clips.length} clips × ${s.seconds}s = ${s.clips.length*s.seconds}s; no AI writing)`);

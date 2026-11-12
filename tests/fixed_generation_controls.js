@@ -1,0 +1,21 @@
+'use strict';
+const assert=require('assert'),fs=require('fs'),puppeteer=require('puppeteer');
+(async()=>{const browser=await puppeteer.launch({headless:true});try{
+ const page=await browser.newPage();await page.setViewport({width:1600,height:900});
+ const source=fs.readFileSync('desktop_ui/app.js','utf8');
+ const fn=source.slice(source.indexOf('function setupGenerationTopControls('),source.indexOf('function setupCardVisibility('));
+ const payload=source.slice(source.indexOf('function payload(){'),source.indexOf('async function runAction('));
+ const css=['style.css','compact_layout.css'].map(f=>fs.readFileSync('desktop_ui/'+f,'utf8')).join('\n');
+ await page.setContent(`<style>${css}main{min-height:2500px}</style><div class="app-shell"><header><div class="breadcrumb">Workspace / Agent Mode</div><div id="generation-top-controls" class="hidden"></div><div class="header-right">Ready</div></header><main id="main"><form id="view-form"><input id="story" value="selected-story.json"><input type="checkbox" data-queue-story value="queued-story.json" checked><button type="button" data-action="generate_queue">Generate story batch</button><button type="button" data-action="retry">Retry / Continue batch</button><button type="button" data-action="generate">Generate clips</button><button type="button" data-action="retry">Retry / Continue</button><button type="button" data-stop-lane="flow">Stop generation</button><button type="button" data-action="refs">Prepare references only</button></form></main></div>`);
+ await page.addScriptTag({content:`const $=id=>document.getElementById(id);let current='agent';${fn}${payload}setupGenerationTopControls();document.addEventListener('click',e=>{const b=e.target.closest('button');if(b)window.lastAction={action:b.dataset.action||b.dataset.stopLane,payload:payload()};});`});
+ assert.equal(await page.$$eval('#generation-top-controls button',es=>es.length),5);
+ assert.equal(await page.$$eval('#main [data-action="generate"]',es=>es.length),0);
+ await page.evaluate(()=>window.scrollTo(0,1200));await new Promise(r=>setTimeout(r,100));
+ const pinned=await page.$eval('header',e=>({top:e.getBoundingClientRect().top,position:getComputedStyle(e).position}));assert.equal(pinned.position,'sticky');assert(Math.abs(pinned.top)<1);
+ await page.click('#generation-top-controls [data-action="generate_queue"]');
+ const action=await page.evaluate(()=>window.lastAction);assert.equal(action.action,'generate_queue');assert.equal(action.payload.story,'selected-story.json');assert.deepEqual(action.payload.queue,['queued-story.json']);
+ await page.setViewport({width:1000,height:900});
+ assert(await page.$eval('header',e=>e.scrollWidth<=e.clientWidth),'toolbar wraps without horizontal clipping');
+ await page.evaluate(()=>{current='settings';setupGenerationTopControls();});assert(await page.$eval('#generation-top-controls',e=>e.classList.contains('hidden')));
+ console.log('PASS: five generation controls moved into sticky workspace header; remain pinned on scroll; selected story/queue preserved; responsive wrapping and other-tab cleanup.');
+}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

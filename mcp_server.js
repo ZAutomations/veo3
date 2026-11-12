@@ -1452,13 +1452,19 @@ const TOOLS = [
                 if (savedSceneSeconds && savedSceneSeconds !== Number(a.seconds)) {
                     log(`[batch ${i}] saved story duration is ${savedSceneSeconds}s; using it instead of the shared default ${Number(a.seconds) || 8}s.`);
                 }
-                if (sceneSeconds === 10 && !/Omni.*Flash/i.test(String(a.video_model || ''))) {
+                if (a.generate && a.submit && sceneSeconds === 10 && !/Omni.*Flash/i.test(String(a.video_model || ''))) {
                     bad('run_agent', { text: 'This saved story requires 10-second clips, which need Agent Mode with Omni Flash. Select Omni 1.2 Flash before generation; no clips were submitted.' });
                     continue;
                 }
                 const b = await doBuildPrompt({ story: storyArg, aspect: a.aspect, scene_seconds: sceneSeconds });
                 if (!b.ok) { bad('build_prompt', b); continue; }
                 log(`[batch ${i}] prompt built -> ${storyArg}`);
+
+                if(process.env.VEO_MANUAL_RESOLUTION && !a.generate){
+                    const manual=await runNode('manual_agent_batches.js',[storyArg,'--video-resolution',process.env.VEO_MANUAL_RESOLUTION,'--aspect',a.aspect||'9:16','--seconds',String(sceneSeconds)],{timeoutMs:120000});
+                    if(manual.code!==0){bad('manual_export',{text:manual.err||manual.out});continue;}
+                    log(`[batch ${i}] manual batches refreshed at ${process.env.VEO_MANUAL_RESOLUTION}; automation generation settings unchanged.`);
+                }
 
                 if (a.generate && a.submit) {
                     const localCompletion=await require('./local_clip_recovery').reconcile(storyArg,{run:runNode,log});

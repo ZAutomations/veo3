@@ -251,6 +251,12 @@ def global_workflow_payload(payload):
     return result
 
 
+def manual_batch_resolution(p):
+    value=str(p.get('manualResolution') or '360p')
+    if value not in ('360p','720p','1080p'):raise ValueError('Choose manual batch resolution: 360p, 720p or 1080p.')
+    return value
+
+
 def plan_action(action, p):
     if action == 'resume_generations':
         import generation_only
@@ -375,10 +381,13 @@ def plan_action(action, p):
         if aspect not in ('Flow', '9:16', '16:9', '1:1'):
             raise ValueError('Invalid aspect ratio.')
         return 'writer', [('request', ('import_ready_script.js', dict(text=text, preset=p['preset'], aspect=aspect,
+            videoModel=global_workflow_settings(p.get('_globalWorkflow'))['videoModel'],
+            videoResolution=manual_batch_resolution(p),
             overwrite=bool(p.get('duplicateOverride', False)),
             seconds=integer(p.get('seconds', 8), 4, 10, 'Clip duration'),
             strict8x8=bool(p.get('strictZack8x8', False)))))]
     if action in ('write', 'finalize', 'aistudio'):
+        if action!='aistudio':manual_batch_resolution(p)
         if action == 'aistudio':
             return 'writer', [('cli', command('ask_web.js', '--status', '--launch'))]
         if action == 'finalize':
@@ -909,6 +918,10 @@ class Job:
 
     def reference_environment(self):
         env = os.environ.copy()
+        if self.lane=='writer' and self.payload.get('manualResolution'):
+            env['VEO_MANUAL_RESOLUTION']=manual_batch_resolution(self.payload)
+        else:
+            env.pop('VEO_MANUAL_RESOLUTION',None)
         mode = self.payload.get('view', 'agent')
         enabled = self.payload.get('usePresetRefs', reference_library_settings()['modes'].get(mode, True))
         env['VEO_PRESET_REFS'] = '1' if enabled else '0'

@@ -113,7 +113,9 @@ async function runAgentBatches(a, storyJson, run, log) {
         state.durationExpectedSeconds=Number(a.scene_seconds||a.seconds||story.scene_seconds||8);
         if(audit.code===0)state.durationVerifiedThrough=to;
         save();
-        return audit.code===0?null:`RECOVERY_REVIEW_REQUIRED: Actual clip duration verification failed. ${audit.err||audit.out||'No verified duration result.'}`;
+        const detail=audit.err||audit.out||'No verified duration result.';
+        const phase=/SCENE_NAMING_FAILED/.test(detail)?'Scene title verification failed; completed clips were not regenerated.':'Actual clip duration verification failed.';
+        return audit.code===0?null:`RECOVERY_REVIEW_REQUIRED: ${phase} ${detail}`;
     };
     if (!total) return { ok: false, text: 'Story has no scenes.' };
     if(state.completed>0){

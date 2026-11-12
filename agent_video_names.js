@@ -28,16 +28,47 @@ async function locate(page,assetId){
  }
  throw Error('RECOVERY_REVIEW_REQUIRED: Verified video source is not mounted; no other tile renamed.');
 }
+function renameMenuTarget(){
+ const nodes=[...document.querySelectorAll('.cdk-overlay-container [role="menuitem"],.cdk-overlay-container button')].filter(e=>{
+  const r=e.getBoundingClientRect(),s=getComputedStyle(e),text=(e.innerText||e.textContent||'').trim();
+  if(!/\bRename\s*$/i.test(text)||e.disabled||e.getAttribute('aria-disabled')==='true'||!r.width||!r.height||s.visibility==='hidden'||s.display==='none'||s.pointerEvents==='none')return false;
+  const hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return hit&&(hit===e||e.contains(hit));
+ });
+ // Angular can expose both a menuitem wrapper and its inner button. They are
+ // one action, not two competing Rename entries. Distinct active actions stay ambiguous.
+ const leaves=nodes.filter(e=>!nodes.some(child=>child!==e&&e.contains(child)));
+ if(leaves.length!==1)return null;
+ leaves[0].scrollIntoView({block:'nearest',inline:'nearest'});
+ const r=leaves[0].getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2,hit=document.elementFromPoint(x,y);
+ return hit&&(hit===leaves[0]||leaves[0].contains(hit))?{x,y}:null;
+}
+function exposeTile({key,assetId}){
+ const keys=window.__singleOmniTileKeys?.keys;
+ const matches=[...document.querySelectorAll('flow-video-tile')].filter(t=>keys?.get(t)===key||assetId&&[...t.querySelectorAll('video,source,img')].some(e=>(e.currentSrc||e.getAttribute('src')||'').includes('/'+assetId)));
+ if(matches.length!==1)return false;
+ matches[0].scrollIntoView({block:'nearest',inline:'nearest'});return true;
+}
 async function rename(page,assetId,title){
- for(let n=0;n<5;n++){if(!await page.evaluate(bg.closeMenus))break;await wait(100);}
- const live=await locate(page,assetId);if(live.assetTitle===title)return;
- if(!live.ready||live.failed||live.busy)throw Error('RECOVERY_REVIEW_REQUIRED: Video is not ready for naming.');
- const opened=await page.evaluate(bg.openClipMenu,live);if(!opened.ok||opened.direct)throw Error('RECOVERY_REVIEW_REQUIRED: Verified video Rename menu unavailable.');
- let item;
- for(let n=0;n<20&&!item;n++){item=(await page.evaluate(require('./single_clip_omni_upscaled').menuItems)).find(i=>/\bRename\s*$/i.test(i.text)&&!i.disabled);if(!item)await wait(150);}
- if(!item||!await page.evaluate(bg.clickMenuText,item.text))throw Error('RECOVERY_REVIEW_REQUIRED: No unique active Rename item for this video.');
+ let live,clicked=false;
+ for(let attempt=0;attempt<3&&!clicked;attempt++){
+  for(let n=0;n<5;n++){if(!await page.evaluate(bg.closeMenus))break;await wait(100);}
+  live=await locate(page,assetId);if(live.assetTitle===title)return;
+  if(!live.ready||live.failed||live.busy)throw Error('RECOVERY_REVIEW_REQUIRED: Video is not ready for naming.');
+  if(!await page.evaluate(exposeTile,live))throw Error('RECOVERY_REVIEW_REQUIRED: Unique verified video could not be exposed for naming.');
+  await wait(150);
+  const opened=await page.evaluate(bg.openClipMenu,live);if(!opened.ok||opened.direct)continue;
+  let last;
+  for(let n=0;n<20&&!clicked;n++){
+   const point=await page.evaluate(renameMenuTarget);
+   if(point&&last&&Math.abs(point.x-last.x)<1&&Math.abs(point.y-last.y)<1){await page.mouse.click(point.x,point.y);clicked=true;}
+   last=point;if(!clicked)await wait(100);
+  }
+ }
+ if(!clicked)throw Error('RECOVERY_REVIEW_REQUIRED: No unique active Rename item for this verified video after three scoped attempts.');
  const selector='.rename-tile-overlay input.editable-text-input, .rename-tile-overlay input';
  await page.waitForSelector(selector,{visible:true,timeout:10000});
+ const previous=await page.$eval(selector,e=>e.value);
+ if(previous!==live.assetTitle)throw Error('RECOVERY_REVIEW_REQUIRED: Rename dialog belongs to a different title; no name changed.');
  await page.focus(selector);await page.keyboard.down('Control');await page.keyboard.press('KeyA');await page.keyboard.up('Control');await page.keyboard.type(title);
  const committed=await page.evaluate(want=>{
   const root=document.querySelector('.rename-tile-overlay'),input=root?.querySelector('input');
@@ -50,7 +81,10 @@ async function rename(page,assetId,title){
 }
 async function ensure(page,story,targets,inventory,{log=()=>{}}={}){
  const planned=plan(story,targets,inventory),verified=[];
- for(const item of planned){await rename(page,item.assetId,item.sceneId);verified.push({...item,titleVerified:true});log(`Scene ${item.scene}: video title verified as ${item.sceneId}.`);}
+ for(const item of planned){
+  try{await rename(page,item.assetId,item.sceneId);}catch(error){if(/Verified video source is not mounted/.test(error.message))throw error;throw Error(`RECOVERY_REVIEW_REQUIRED: SCENE_NAMING_FAILED: Scene ${item.scene}: ${error.message}. Existing generations preserved.`);}
+  verified.push({...item,titleVerified:true});log(`Scene ${item.scene}: video title verified as ${item.sceneId}.`);
+ }
  return verified;
 }
-module.exports={plan,locate,rename,ensure};
+module.exports={plan,locate,rename,ensure,renameMenuTarget,exposeTile};

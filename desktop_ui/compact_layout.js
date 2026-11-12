@@ -11,6 +11,7 @@
      card.classList.add('studio-span-full');continue;
     }
     if(!card.matches('.panel,details')){card.classList.add('studio-span-full');continue;}
+    if(card.querySelector('#writer-production-controls')){card.classList.add('studio-span-full');continue;}
     if(card.querySelector('.story-queue,.table-wrap,textarea[readonly]')){card.classList.add('studio-span-full');continue;}
     if(card.querySelectorAll('[data-browse="folder"]').length>6)card.classList.add('studio-folder-card');
     if(card.matches('.editing-captions')||card.querySelector('textarea,.editing-preview-stage,#reverse-video-list')){card.classList.add('studio-span-wide');continue;}
