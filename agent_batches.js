@@ -28,7 +28,14 @@ async function prepareAgentBatches(a, storyJson, state, run, log = () => {}) {
         ranges.push({ from, to: Math.min(state.completed, from + state.size - 1) });
     }
     if (state.pending) ranges.push({ ...state.pending });
-    for (let from = state.pending ? state.pending.to + 1 : state.completed + 1;
+    let next = state.pending ? state.pending.to + 1 : state.completed + 1;
+    // Verify one real render before spending credits on a fresh ten-second
+    // batch. Flow Agent acknowledgement is not proof of actual tool duration.
+    // An already-submitted pending range is preserved, never split or replayed.
+    if(next===1 && !state.pending && Number(a.scene_seconds||a.seconds||JSON.parse(fs.readFileSync(storyJson,'utf8')).scene_seconds||8)===10){
+        ranges.push({from:1,to:1});next=2;
+    }
+    for (let from = next;
         from <= state.total; from += state.size) {
         ranges.push({ from, to: Math.min(state.total, from + state.size - 1) });
     }
@@ -138,12 +145,15 @@ async function runAgentBatches(a, storyJson, run, log) {
             && previousSubmission.status === 'preparing';
         const recovering = !!state.pending && !pendingNeverSubmitted;
         const from = state.pending ? state.pending.from : state.completed + 1;
-        const to = state.pending ? state.pending.to : Math.min(total, state.completed + state.size);
-        const batch = batches.find(b => b.from === from && b.to === to);
+        const batch = batches.find(b => b.from === from && (!state.pending || b.to===state.pending.to));
+        const to = batch?.to ?? (state.pending ? state.pending.to : Math.min(total, state.completed + state.size));
         if (!batch || !fs.existsSync(batch.prompt) || digest(fs.readFileSync(batch.prompt)) !== batch.sha256) {
             return { ok: false, storyJson, text: `Saved batch ${from}-${to} is missing or changed. Stopped before submitting it; rerun to prepare the queue again.` };
         }
         const prompt = batch.prompt;
+        if(from===1 && to===1 && total>1 && Number(a.scene_seconds||a.seconds||story.scene_seconds||8)===10){
+            log('10-second duration preflight: generating scene 1 only. Remaining scenes wait for actual output-duration verification; a text promise is not completion.');
+        }
         if (!recovering) {
             state.pending = { from, to, prompt };
             save();

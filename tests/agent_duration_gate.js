@@ -18,11 +18,34 @@ const {assess}=require('../agent_duration_check'),{runAgentBatches}=require('../
   };
   const first=await runAgentBatches(options,story,run,()=>{});assert(!first.ok);assert.equal(generated,1);assert.equal(audits,1);
   const checkpoint=path.join(dir,'agent_batches_duration-test.json');const state=JSON.parse(fs.readFileSync(checkpoint));
-  assert.equal(state.completed,0);assert.deepEqual([state.pending.from,state.pending.to],[1,2]);
+  assert.equal(state.completed,0);assert.deepEqual([state.pending.from,state.pending.to],[1,1]);
   assert.equal(state.durationReviewRequired,true);
   state.completed=4;state.pending=null;fs.writeFileSync(checkpoint,JSON.stringify(state));generated=0;
   const legacy=await runAgentBatches(options,story,run,()=>{});assert(!legacy.ok);assert.equal(generated,0,'legacy completed state must be audited without resubmission');
   fail=false;assert((await runAgentBatches(options,story,run,()=>{})).ok);assert.equal(generated,0);
+  // A fresh ten-second project renders and audits one real scene before the
+  // requested batch size is used for the rest of the story.
+  fs.unlinkSync(checkpoint);generated=0;const ranges=[];
+  const successRun=async(arg,args)=>{
+   if(arg==='agent_duration_check.js'){
+    ranges.push([Number(args[args.indexOf('--from')+1]),Number(args[args.indexOf('--to')+1])]);return {code:0};
+   }
+   return run(arg,args);
+  };
+  assert((await runAgentBatches(options,story,successRun,()=>{})).ok);
+  assert.deepEqual(ranges,[[1,1],[2,3],[4,4]]);
+  assert.equal(generated,3);
+  // Existing submitted ranges retain their identities on retry.
+  const pendingState=JSON.parse(fs.readFileSync(checkpoint));
+  pendingState.completed=0;pendingState.pending={from:1,to:2};
+  fs.writeFileSync(checkpoint,JSON.stringify(pendingState));
+  fail=true;ranges.length=0;const retried=[];
+  const pendingRun=async(arg,args)=>{
+   if(typeof arg==='object')retried.push([arg._required_ready+1,arg._expected,arg._retry_only]);
+   return run(arg,args);
+  };
+  assert(!(await runAgentBatches(options,story,pendingRun,()=>{})).ok);
+  assert.deepEqual(retried,[[1,2,true]],'do not split/replay an already submitted range to create a new duration test');
   console.log('PASS: short/unknown clips cannot advance a checkpoint or release the next batch; old completed checkpoints are audited without regeneration; normal frame rounding accepted.');
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});
