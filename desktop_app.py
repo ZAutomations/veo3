@@ -258,6 +258,24 @@ def manual_batch_resolution(p):
 
 
 def plan_action(action, p):
+    if action == 'manual_jobs':
+        import manual_jobs
+        rows=manual_jobs.entries(p.get('manualJobs'),read_json(ROOT/'accounts.json').get('accounts',[]),story_path)
+        cfg=global_workflow_settings(p.get('_globalWorkflow'))
+        port=cfg['automationCdp']
+        operations=[]
+        for row in rows:
+            inputs=dict(p,story=row['story'],project=row['project'],view='agent',cdp=port,
+                        model=cfg['videoModel'],aspect=cfg['videoAspect'],resolution=cfg['videoResolution'],
+                        downloadVersion=p.get('manualDownloadVersion','upscaled'),generationOnly=False,
+                        newProject=False,genRefs=False,reuseRefs=True,**{'from':1,'to':''})
+            operations.append(('cli',command('queue_account.js','--label',row['label'],'--cdp',port,'--resume-only')))
+            for step in ('download','join'):
+                _,planned=plan_action(step,inputs)
+                operations.extend(planned)
+        p['_manualEntries']=rows
+        p['cdp']=port
+        return 'flow',operations
     if action == 'resume_generations':
         import generation_only
         selected = p.get('queue', [])
@@ -732,6 +750,8 @@ class Job:
             self.payload['_editingSettings'] = video_editing.settings()
         if action=='resume_generations':
             self.payload['_editingSettings']=dict(self.payload.get('_editingSettings',{}),editing_auto_apply=True)
+        if action=='manual_jobs':
+            self.payload['_editingSettings']=dict(self.payload.get('_editingSettings',{}),editing_auto_apply=bool(payload.get('manualApplyEditing',True)))
         self.status = 'running'
         self.created = time.time()
         self.finished = None
@@ -849,7 +869,7 @@ class Job:
 
     def save_progress(self):
         view = self.payload.get('view', 'writer' if self.lane == 'writer' else '')
-        if view in ('writer', 'agent', 'ingredients', 'omni', 'reverse') and self.action in RETRY_ACTIONS:
+        if view in ('writer', 'agent', 'ingredients', 'omni', 'reverse', 'manual') and self.action in RETRY_ACTIONS:
             save_json(ROOT / 'logs' / 'desktop' / f'last_{view}_job.json',
                       dict(id=self.id, action=self.action, payload=self.payload, lane=self.lane,
                            operations=self.operations, operation_index=self.operation_index,
@@ -953,7 +973,7 @@ class Job:
     def _run_operations(self):
         # On resume, restore only the originally assigned account. Never choose
         # another account in response to an error or platform restriction.
-        if self.action in ('generate_queue','resume_generations') and (self.payload.get('rotateQueueAccounts') or self.action=='resume_generations') and self.operation_index:
+        if self.action in ('generate_queue','resume_generations','manual_jobs') and (self.payload.get('rotateQueueAccounts') or self.action in ('resume_generations','manual_jobs')) and self.operation_index:
             assigned = next((spec for kind,spec in reversed(self.operations[:self.operation_index])
                 if kind == 'cli' and len(spec)>1 and str(spec[1]).endswith('queue_account.js')), None)
             if assigned and not self.stopped:
@@ -968,13 +988,18 @@ class Job:
             self.operation_index = index
             self.phase = 'running operation ' + str(index + 1)
             self.save_progress()
-            if self.action in ('generate_queue','resume_generations'):
+            if self.action in ('generate_queue','resume_generations','manual_jobs'):
                 story = self._story_for_operation(index) or (self.current_story if index == 0 else '')
                 if story and story != self.current_story:
                     self.current_story = story
                     self.current_project_url = ''
                     self.project_account_email = ''
                 self.log('STORY QUEUE: starting ' + str(story))
+                if self.action=='manual_jobs':
+                    row=next((r for r in self.payload.get('_manualEntries',[]) if r['story']==self.current_story),None)
+                    if not row:raise RuntimeError('RECOVERY_REVIEW_REQUIRED: Manual project/story binding is missing.')
+                    self.current_project_url=row['project']
+                    self.project_account_email=row['gmail']
                 if self.action=='resume_generations' and self.current_story:
                     import generation_only
                     handoff=generation_only.load(self.current_story)
@@ -1123,7 +1148,7 @@ class Job:
 
 jobs = {}
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
-RETRY_ACTIONS = {'reverse_video', 'write', 'import_script', 'finalize', 'generate', 'generate_queue', 'resume_generations', 'refs', 'download', 'order', 'join', 'fix_join', 'build', 'export_excel', 'retry_failed'}
+RETRY_ACTIONS = {'manual_jobs', 'reverse_video', 'write', 'import_script', 'finalize', 'generate', 'generate_queue', 'resume_generations', 'refs', 'download', 'order', 'join', 'fix_join', 'build', 'export_excel', 'retry_failed'}
 
 
 def retry_plan(record):
@@ -1136,6 +1161,12 @@ def retry_plan(record):
     if not isinstance(cursor, int) or cursor < 0 or cursor >= len(operations):
         raise ValueError('Saved workflow step is unavailable.')
     remaining = json.loads(json.dumps(operations[cursor:]))
+    if record.get('action')=='manual_jobs':
+        assigned=next((spec for kind,spec in reversed(operations[:cursor+1]) if kind=='cli' and len(spec)>1 and Path(spec[1]).name=='queue_account.js'),None)
+        if not assigned:raise ValueError('Manual job account binding is missing; no account guessed.')
+        if not (remaining[0][0]=='cli' and Path(remaining[0][1][1]).name=='queue_account.js'):
+            remaining.insert(0,('cli',assigned))
+        return remaining
     if record.get('action')=='resume_generations':
         import generation_only
         source=record.get('current_story') or next((str(arg) for kind,spec in reversed(operations[:cursor+1]) if kind=='cli' for arg in spec if str(arg).endswith('_story.json')), '')
@@ -1195,7 +1226,7 @@ def retry_plan(record):
 @app.post('/api/retry')
 def retry_workflow(body: dict):
     view = body.get('view')
-    if view not in ('writer', 'agent', 'ingredients', 'omni', 'reverse'):
+    if view not in ('writer', 'agent', 'ingredients', 'omni', 'reverse', 'manual'):
         raise HTTPException(400, 'Choose a workflow tab.')
     record = read_json(ROOT / 'logs' / 'desktop' / f'last_{view}_job.json')
     if not record:
@@ -1643,7 +1674,7 @@ def start_job(body: dict):
     with lock:
         if any(j.status == 'running' and j.lane == lane for j in jobs.values()):
             raise HTTPException(409, f'A {lane} job is running. Stop it or wait for completion.')
-        if action in ('account_use','account_activate','account_signin','resume_generations') and any(j.status == 'running' and j.lane == 'writer' for j in jobs.values()):
+        if action in ('account_use','account_activate','account_signin','resume_generations','manual_jobs') and any(j.status == 'running' and j.lane == 'writer' for j in jobs.values()):
             # The legacy browser switch matches the flow-profiles prefix, which
             # also matches AI Studio's profile. Do not close a writing session.
             raise HTTPException(409, 'Finish or stop writing before switching the account browser.')

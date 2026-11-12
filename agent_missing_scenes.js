@@ -96,4 +96,21 @@ function pendingSubmission(submissionFile,snapshot){
  if(receipt?.status==='submitting'&&confirmObservedSubmission(submissionFile,snapshot))return null;
  return receipt?.status==='submitting'?receipt:null;
 }
-module.exports={planMissing,missingPrompt,prepare,markSubmitting,confirmObservedSubmission,pendingSubmission};
+function recoveryOwnsRetries(submissionFile){
+ if(!submissionFile)return null;
+ let receipt,intent;
+ try{
+  receipt=JSON.parse(fs.readFileSync(submissionFile+'.missing.json','utf8'));
+  intent=JSON.parse(fs.readFileSync(submissionFile,'utf8'));
+ }catch(error){
+  if(error.code==='ENOENT')return null;
+  throw Error('RECOVERY_REVIEW_REQUIRED: Recovery ownership checkpoint is unreadable; no second retry path allowed. '+error.message);
+ }
+ const numbers=receipt?.numbers;
+ if(!['submitting','confirmed'].includes(receipt?.status)||!Array.isArray(numbers)||!numbers.length)return null;
+ if(!Number.isInteger(intent.from)||!Number.isInteger(intent.to)||!numbers.every(n=>Number.isInteger(n)&&n>=intent.from&&n<=intent.to))return null;
+ // Confirmed means accepted/queued, not that every requested scene finished.
+ // Once revised prompts own this batch, never click its old failed tiles too.
+ return receipt;
+}
+module.exports={planMissing,missingPrompt,prepare,markSubmitting,confirmObservedSubmission,pendingSubmission,recoveryOwnsRetries};

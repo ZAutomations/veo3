@@ -77,7 +77,8 @@ function resolveFlowVoice(story) {
 async function voiceOnPromptBox(page, name, opts = {}) {
     const wait = opts.wait || sleep;
     try {
-        for (let i = 0; i < 5; i++) {
+        const checks=opts.immediate ? 1 : 5;
+        for (let i = 0; i < checks; i++) {
             if(opts.agentMode && (await page.evaluate(require('./agent_voice_chip').agentVoiceChipState,{name})).verified) return true;
             const held = await page.evaluate(({want,strict}) => {
                 const visible = el => {const r=el.getBoundingClientRect();return r.width>0&&r.height>0;};
@@ -100,7 +101,7 @@ async function voiceOnPromptBox(page, name, opts = {}) {
             }, {want:name,strict:!!opts.agentMode});
             if (held) return true;
             if (held === null) return false;   // no prompt box on screen at all
-            await wait(700);
+            if(i+1<checks)await wait(700);
         }
     } catch (e) { /* an unanswered poll is not a verdict */ }
     return false;
@@ -118,7 +119,8 @@ async function attachVoice(page, name, opts = {}) {
     const wait = opts.wait || sleep;
     const attempts = Number(opts.attempts) > 0 ? Number(opts.attempts) : 3;
     if (!name) return false;
-    if (opts.agentMode && await voiceOnPromptBox(page,name,{wait,agentMode:true})) return true;
+    // An absence preflight is a read, not a delayed attachment acknowledgement.
+    if (opts.agentMode && await voiceOnPromptBox(page,name,{wait,agentMode:true,immediate:true})) return true;
     if(opts.agentMode) {
         const {agentVoiceChipState}=require('./agent_voice_chip');
         const existing=await page.evaluate(agentVoiceChipState,{name});
@@ -146,8 +148,12 @@ async function attachVoice(page, name, opts = {}) {
         });
         if (!btnBox) { log(`  voice attempt ${attempt}: no ingredients menu button`); await wait(1200); continue; }
         await page.mouse.click(btnBox.x, btnBox.y);
-        await wait(2500);
-        const menuOpen = await page.evaluate(() => !!document.querySelector('input[aria-label="Search assets"]'));
+        let menuOpen = false;
+        for(let poll=0;poll<25;poll++){
+            menuOpen=await page.evaluate(() => !!document.querySelector('input[aria-label="Search assets"]'));
+            if(menuOpen)break;
+            await wait(100);
+        }
         if (!menuOpen) { log(`  voice attempt ${attempt}: ingredients menu did not open`); await wait(800); continue; }
         if (opts.agentMode) {
             try {
@@ -236,25 +242,23 @@ async function attachVoice(page, name, opts = {}) {
         // detail pane, so the "Add to prompt" button never appears.
         await page.mouse.click(item.x, item.y);
         log(`  selected voice: ${item.text}`);
-        await wait(2400);
-        if(opts.agentMode){
-            for(let poll=0;poll<12;poll++){
-                const state=await page.evaluate(require('./agent_voice_chip').agentVoiceChipState,{phase:'mark',name});
-                if(state.verified){
-                    log(`  voice "${name}" attached directly by selection and verified as one audio ingredient.`);
-                    await page.keyboard.press('Escape');
-                    await wait(500);
-                    return true;
-                }
-                await wait(250);
-            }
-        }
+        if(!opts.agentMode)await wait(2400);
         // Flow sometimes renders the footer action as an aria-labelled or
         // role=button control with no innerText. Wait for the selected asset's
         // action panel and inspect all of those forms instead of assuming a
         // button with visible text appears within a fixed 2.4 seconds.
         let addBtn = null;
-        for (let poll = 0; poll < 24 && !addBtn; poll++) {
+        for (let poll = 0; poll < (opts.agentMode ? 40 : 24) && !addBtn; poll++) {
+            // Direct attachment and a footer action are alternative UI states.
+            // Check both together instead of waiting seconds for one to fail.
+            if(opts.agentMode){
+                const state=await page.evaluate(require('./agent_voice_chip').agentVoiceChipState,{phase:'mark',name});
+                if(state.verified){
+                    log(`  voice "${name}" attached directly by selection and verified as one audio ingredient.`);
+                    await page.keyboard.press('Escape');
+                    return true;
+                }
+            }
             addBtn = await page.evaluate(() => {
                 const visible = e => { const r=e.getBoundingClientRect(); return r.width>0&&r.height>0; };
                 const controls=[...document.querySelectorAll('[class*=detail-add-to],button,[role=button],[mat-button]')]
@@ -283,12 +287,12 @@ async function attachVoice(page, name, opts = {}) {
         }
         let added = false;
         if (addBtn) { await page.mouse.click(addBtn.x, addBtn.y); added = true; }
-        await wait(1500);
+        if(!opts.agentMode)await wait(1500);
         await page.keyboard.press('Escape');
-        await wait(800);
+        if(!opts.agentMode)await wait(800);
         log(`  voice "${name}" ${added ? 'added to the prompt' : 'selected, but Add-to-prompt not found'}`);
         if(opts.agentMode && added) {
-            for(let poll=0;poll<10;poll++) {
+            for(let poll=0;poll<20;poll++) {
                 const state=await page.evaluate(require('./agent_voice_chip').agentVoiceChipState,{phase:'mark',name});
                 if(state.verified){log(`  voice "${name}" verified: exact library selection created one audio ingredient chip.`);return true;}
                 await wait(250);

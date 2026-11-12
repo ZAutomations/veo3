@@ -416,14 +416,14 @@ function snapshotFn() {
 let lastProjectScan = '';
 let activityRetryPermit = process.env.VEO_ACTIVITY_COOLDOWN_ELAPSED === '1';
 const monitorProject = require('./agent_project_media').projectMonitor();
-async function readProjectSnapshot(page, full = false) {
+async function readProjectSnapshot(page, full = false, scanMedia = true) {
     let snapshot = await page.evaluate(snapshotFn);
     if (snapshot.unusualActivity && !activityRetryPermit) throw Error('FLOW_UNUSUAL_ACTIVITY: Flow reported unusual activity. Preserve project/checkpoints; use the saved global cooldown before safe retry.');
     // The DOM stops representing the full asset list once Flow virtualizes
     // older rows. Never interpret that viewport count as a missing clip.
     // Even a five/ten-clip batch is virtualized in Flow's single-column list.
     // Resume/completion decisions require the whole project, not viewport tiles.
-    if (EXPECTED_CLIPS > 0 && !snapshot.mediaTiles.agent_busy) {
+    if (scanMedia && EXPECTED_CLIPS > 0 && !snapshot.mediaTiles.agent_busy) {
         const viewportCount = snapshot.mediaTiles.flow_video_tile;
         const project = await monitorProject(page, full);
         snapshot = await page.evaluate(snapshotFn);
@@ -549,7 +549,9 @@ async function nudgeAgent(page) {    const box = await page.evaluate(() => {
 // the same voice to every clip and two copies of this sequence would drift.
 // Kept as a function with this exact name so every call site is unchanged.
 async function attachVoice(page, name) {
-    return attachVoiceShared(page, name, { log, wait, agentMode:true });
+    const started=Date.now();
+    try{return await attachVoiceShared(page, name, { log, wait, agentMode:true });}
+    finally{log(`Voice ${name}: attachment check took ${((Date.now()-started)/1000).toFixed(1)}s.`);}
 }
 
 // A short watch that also auto-approves, used between retry rounds.
@@ -645,7 +647,8 @@ async function retryFailedMediaOnly(page, snap, label = 'retry') {
         if(st.unusualActivity && !activityRetryPermit)throw Error('FLOW_UNUSUAL_ACTIVITY: Flow reported unusual activity; use the saved global cooldown before safe retry.');
 
         const pendingReview=require('./agent_missing_scenes').pendingSubmission(flag('--submission-file',null),cur);
-        if(pendingReview){
+        const ownedReview=require('./agent_missing_scenes').recoveryOwnsRetries(flag('--submission-file',null));
+        if(pendingReview||ownedReview){
             const newRefusal=require('./agent_recovery_control').actionableRefusal(cur,flag('--submission-file',null));
             if(newRefusal)throw Error('FLOW_REVIEW_REQUIRED: The safety-revised scene was refused again. No further submission will be made; inspect the exact scene and references.');
             if(mt.ready_video_tile>=EXPECTED_CLIPS&&!mt.agent_busy&&!mt.generating_video_tile){
@@ -655,7 +658,7 @@ async function retryFailedMediaOnly(page, snap, label = 'retry') {
                 log(`Round ${round}: ${tally}; waiting for the already-submitted scene review/generation; no duplicate prompt will be sent.`);
                 await sweepFor(page,RETRY_WATCH,`${label}-${round}-pending-review`);continue;
             }
-            log(`Round ${round}: ${tally}; prior scene-review submission has no confirmed result. Leaving its failed tile untouched to prevent a duplicate.`);
+            log(`Round ${round}: ${tally}; revised prompts already own this batch. Request acknowledgement does not release original failed-tile retries. Auditing the saved recovery result; no second submission or old-tile retry.`);
             break;
         }
 
@@ -909,7 +912,10 @@ async function uploadRefThroughPicker(page, box, file) {
     }
 
     async function snap(label) {
-        const data = await readProjectSnapshot(page, /^(baseline|final|safe-retry-final|recovery-no-media-confirmed|batch-completed)$/.test(label));
+        // Picker diagnostics inspect the composer, not batch completion. Scanning
+        // and scrolling the project here adds repeated work while the picker is open.
+        const attachmentOnly = /^(mention\d+-(open|filtered|picked)|mentions-final|prompt-final)$/.test(label);
+        const data = await readProjectSnapshot(page, /^(baseline|final|safe-retry-final|recovery-no-media-confirmed|batch-completed)$/.test(label), !attachmentOnly);
         const f = path.join(RUN_DIR, `${String(++snapN).padStart(2, '0')}_${label}.json`);
         fs.writeFileSync(f, JSON.stringify(data, null, 2));
         return data;
@@ -1245,6 +1251,7 @@ async function uploadRefThroughPicker(page, box, file) {
         }
 
         for (let mi = 0; mi < MENTIONS.length; mi++) {
+            const attachmentStarted=Date.now();
             const name = MENTIONS[mi];
             log(`[${mi + 1}/${MENTIONS.length}] attaching @${name}`);
 
@@ -1318,6 +1325,7 @@ async function uploadRefThroughPicker(page, box, file) {
                     return pm ? pm.querySelectorAll('.mention-chip').length : -1;
                 });
                 log(`   chips in the editor now: ${chipsNow} (expected ${mi + 1})`);
+                log(`   Reference ${name}: attachment check took ${((Date.now()-attachmentStarted)/1000).toFixed(1)}s.`);
                 if (chipsNow >= 0 && chipsNow < mi + 1) {
                     if(FLOW_CHARACTERS || MANUAL_ADD_COUNT > 0)throw Error(`Attachment ${name} failed. No generation submitted.`);
                     log('   the click did NOT attach a chip - the mention is missing from the prompt.');

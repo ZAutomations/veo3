@@ -5,7 +5,7 @@ const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const paths = {home:'M3 10l9-7 9 7v10H3z M9 20v-7h6v7',writer:'M4 4h12v16H4z M8 8h4 M8 12h4 M18 5l3 3-7 7-3 1 1-3z',agent:'M6 6h12v12H6z M9 10h.1 M15 10h.1 M9 14h6 M12 2v4 M2 9h4 M18 9h4',ingredients:'M8 3h8v6h5v6h-5v6H8v-6H3V9h5z',omni:'M4 4h16v16H4z M10 8l6 4-6 4z',library:'M3 5h7l2 3h9v12H3z',accounts:'M16 21v-3a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v3 M9 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M18 8a3 3 0 0 1 0 6 M19 17a3 3 0 0 1 3 3',settings:'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M12 2v3 M12 19v3 M2 12h3 M19 12h3 M5 5l2 2 M17 17l2 2 M5 19l2-2 M17 7l2-2',mcp:'M4 5h6v6H4z M14 13h6v6h-6z M10 8h4v8 M8 11v4h6'};
 const icon = name => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${paths[name] || paths.omni}" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-const names = {home:'Overview',writer:'Story Writer',agent:'Agent Mode',ingredients:'Ingredients',omni:'Single Clip Omni',library:'Story Library',editing:'Video Editing',prompts:'Prompts',reverse:'Video Reverse Engineering',mcp:'MCP Integration',accounts:'Accounts',settings:'Settings'};
+const names = {home:'Overview',writer:'Story Writer',agent:'Agent Mode',ingredients:'Ingredients',omni:'Single Clip Omni',manual:'Manual Jobs',library:'Story Library',editing:'Video Editing',prompts:'Prompts',reverse:'Video Reverse Engineering',mcp:'MCP Integration',accounts:'Accounts',settings:'Settings'};
 let bootstrap, library=[], accounts={accounts:[]}, preferences={}, current='home', selectedJob='', cursor=0, logLines=[], knownJobs=[], promptData=[], toastTimer;
 const forms = {};
 const logView=StudioLogView.create($('log'));let logPaused=false;
@@ -32,7 +32,7 @@ function remember(){
 }
 function restore(){const values=forms[current]||{};for(const [id,value] of Object.entries(values)){const el=$(id);if(!el)continue;if(id.startsWith('mode-toggle-'))continue;if(current==='settings'&&id.startsWith('global'))continue;if(['agent','ingredients','omni'].includes(current)&&['model','aspect','resolution','downloadVersion','seconds','cdp','manualBatchSize'].includes(id))continue;if(el.type==='checkbox')el.checked=value;else if(el.id==='seconds'&&el.tagName==='SELECT'&&!Array.from(el.options).some(o=>o.value===String(value)))el.value='8';else el.value=value;}if(current==='mcp'){const selected=new Set(values.mcpStories||[]);document.querySelectorAll('[data-mcp-story]').forEach(el=>el.checked=selected.has(el.value));} if(current==='writer')setSource($('source').value);}
 function navigate(view){if(writerOnly&&!['writer','prompts'].includes(view))view='writer';remember();current=view in names?view:'home';render();preferences.current=current;api('preferences',{...preferences,forms,current}).catch(()=>{});window.scrollTo(0,0);}
-function render(){renderNav();$('breadcrumb').textContent=names[current];if(current==='home')renderHome();else if(current==='writer')renderWriter();else if(['agent','omni','ingredients'].includes(current))renderGeneration();else if(current==='library')renderLibrary();else if(current==='editing')renderVideoEditing();else if(current==='prompts')renderPrompts();else if(current==='reverse')renderReverse();else if(current==='mcp')renderMcp();else if(current==='accounts')renderAccounts();else renderSettings();restore();bindView();setupCardVisibility();setupGenerationTopControls();}
+function render(){renderNav();$('breadcrumb').textContent=names[current];if(current==='home')renderHome();else if(current==='writer')renderWriter();else if(['agent','omni','ingredients'].includes(current))renderGeneration();else if(current==='manual')renderManualJobs();else if(current==='library')renderLibrary();else if(current==='editing')renderVideoEditing();else if(current==='prompts')renderPrompts();else if(current==='reverse')renderReverse();else if(current==='mcp')renderMcp();else if(current==='accounts')renderAccounts();else renderSettings();restore();bindView();setupCardVisibility();setupGenerationTopControls();}
 function setupGenerationTopControls(){
  const host=$('generation-top-controls');if(!host)return;
  host.replaceChildren();
@@ -104,6 +104,28 @@ function renderGeneration(){
 }
 async function updateStoryInfo(path){if(!$('story-info'))return;try{const s=await api('story?path='+encodeURIComponent(path));const defaultSeconds=bootstrap.globalWorkflow?.videoSeconds||8;const mismatch=Number(s.clipSeconds)!==Number(defaultSeconds);$('story-info').innerHTML=`<span class="tag">${s.scenes} clips × ${s.clipSeconds}s = ${s.duration}s</span><span class="caption">${esc(s.title)}${mismatch?` · This saved story’s ${s.clipSeconds}s duration will be used (default setting: ${defaultSeconds}s).`:""}</span>`;}catch(_){$('story-info').textContent='Choose a finalized story package.';}}
 let masterPromptLoad=0;
+function renderManualJobs(){
+ $('main').innerHTML=heading('Manual Jobs','Finish projects you generated manually: upscale, download, join and edit.','EXISTING PROJECTS')+
+ `<form id="view-form">`+panel('Add a manual project','Link each project to its Gmail and saved story','01',
+ `<div class="form-grid three">${field('Flow project URL','manualProject','',{placeholder:'https://flow.google.com/project/…'})}${field('Google account / Gmail','manualGmail','',{items:[{id:'',name:'Select saved account'},...accounts.accounts.filter(a=>a.email).map(a=>({id:a.email,name:a.email+' · '+a.label}))]})}${field('Saved story','manualStory','',{items:[{id:'',name:'Select matching story'},...library.map(s=>({id:s.path,name:s.title}))]})}</div><button type="button" id="manual-add" class="button">Add to queue</button><p class="footer-note">Use the same saved story whose prompts you pasted manually. Clips need scene IDs in their source prompts, or identifiable narration for verified order. Name your project image <b>Thumbnail</b> for thumbnail download. The saved Gmail profile must have access to the project.</p>`)+
+ panel('Finishing queue','Projects run one by one in this order','02',`<textarea id="manualJobs" hidden>${esc(forms.manual?.manualJobs||'[]')}</textarea><div id="manual-list"></div><div class="form-grid">${field('Download version','manualDownloadVersion','upscaled',{items:[{id:'upscaled',name:'Upscaled'},{id:'original',name:'Original'}]})}${toggle('manualApplyEditing','Apply enabled Video Editing settings after Join',true,'Uses the settings saved in Video Editing.')}</div><div class="buttons action-bar"><button type="button" class="button primary" data-action="manual_jobs">Start manual jobs</button><button type="button" class="button" data-action="retry">Retry / Continue</button><button type="button" class="button danger" data-stop-lane="flow">Stop</button></div><p class="footer-note">Uses the automation browser to access the selected accounts. This finishes existing videos; it does not submit generation prompts. Upscaling may use Flow credits. If a job fails, the queue stops and Retry continues the saved step.</p>`)+`</form>`;
+}
+function bindManualJobs(){
+ const rows=()=>{try{return JSON.parse($('manualJobs').value||'[]');}catch{return [];}};
+ const paint=()=>{
+  const queue=rows();
+  $('manual-list').innerHTML=queue.length?queue.map((r,i)=>`<div class="toggle-row"><span><b>${i+1}. ${esc(library.find(s=>s.path===r.story)?.title||r.story)}</b><small>${esc(r.gmail)} · ${esc(r.project)}</small></span><button type="button" class="button small" data-manual-remove="${i}">Remove</button></div>`).join(''):'<p>No projects added yet.</p>';
+  $('manual-list').querySelectorAll('[data-manual-remove]').forEach(b=>b.onclick=()=>{const list=rows();list.splice(Number(b.dataset.manualRemove),1);$('manualJobs').value=JSON.stringify(list);paint();remember();});
+ };
+ $('manual-add').onclick=()=>{
+  const row={project:$('manualProject').value.trim().replace(/\/$/,''),gmail:$('manualGmail').value,story:$('manualStory').value},list=rows();
+  if(!/^https:\/\/flow\.google\.com\/project\/[\w-]+$/.test(row.project)||!row.gmail||!row.story){toast('Select Gmail, matching story and a valid project URL.',true);return;}
+  if(list.some(r=>r.project===row.project||r.story===row.story)){toast('This project or story is already in the queue.',true);return;}
+  if(list.length>=50){toast('Maximum 50 projects per queue.',true);return;}
+  list.push(row);$('manualJobs').value=JSON.stringify(list);$('manualProject').value='';paint();remember();
+ };
+ paint();
+}
 function renderPrompts(){
  $('main').innerHTML=heading('Master prompts','Choose a preset and copy its saved master prompt into ChatGPT.','PROMPT LIBRARY')+
  `<form id="view-form">${panel('Select preset','Choose story writing or channel creation for this preset.','01',field('Preset','masterPreset',forms.prompts?.masterPreset||bootstrap.presets[0]?.id,{items:[...bootstrap.presets,{id:'video-reverse-engineering',name:'Video Reverse Engineering (AI Studio)'}]})+field('Master prompt type','masterPurpose',forms.prompts?.masterPurpose||'story',{items:[{id:'story',name:'Story writing'},{id:'channel',name:'Channel creation — YouTube / TikTok / Facebook'}]}))}
@@ -227,6 +249,7 @@ async function runAction(action,p=payload()){
  }catch(e){toast(e.message,true);}
 }
 function bindView(){
+ if(current==='manual')bindManualJobs();
  if($('heygen-connect'))$('heygen-connect').onclick=async()=>{try{$('heygen-status').textContent='Loading HeyGen voices…';const result=await api('heygen/configure',{key:$('heygen-key').value});$('heygen-key').value='';$('heygen-voice').innerHTML=result.voices.map(v=>`<option value="${esc(v.voice_id)}">${esc(v.name)} · ${esc(v.gender||'')} · ${esc(v.language||'')}</option>`).join('');$('heygen-status').textContent=`${result.voices.length} voices loaded.`;}catch(e){$('heygen-status').textContent=e.message;}};
  if($('heygen-preview'))$('heygen-preview').onclick=async()=>{const button=$('heygen-preview');button.disabled=true;try{$('heygen-status').textContent='Generating narration preview…';const result=await api('heygen/preview',{voice:$('heygen-voice').value,text:$('heygen-text').value});const response=await fetch('/api/heygen/audio/'+result.file,{headers:{'X-Session-Token':token}});if(!response.ok)throw Error('Could not load audio preview.');const player=$('heygen-audio');if(player.dataset.objectUrl)URL.revokeObjectURL(player.dataset.objectUrl);player.src=player.dataset.objectUrl=URL.createObjectURL(await response.blob());player.hidden=false;$('heygen-status').textContent='Preview ready. Listen before selecting this voice for narration.';}catch(e){$('heygen-status').textContent=e.message;}finally{button.disabled=false;}};
  document.querySelectorAll('[data-generation-mode]').forEach(el=>el.onchange=()=>{const mode=el.checked?el.dataset.generationMode:(el.dataset.generationMode==='agent'?'ingredients':'agent');preferences.generationMode=mode;navigate(mode);});

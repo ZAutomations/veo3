@@ -5,7 +5,7 @@ const vm=require('vm');
 const {voiceOnPromptBox,attachVoice}=require('../flow_voice');
 (async()=>{
     let attached=false,category=false,categoryChecks=0;
-    const clicks=[];
+    const clicks=[],waits=[];
     const page={
         keyboard:{press:async()=>{},down:async()=>{},up:async()=>{},type:async()=>{}},
         mouse:{click:async(x,y)=>{clicks.push([x,y]);if(x===30)attached=true;}},
@@ -20,16 +20,19 @@ const {voiceOnPromptBox,attachVoice}=require('../flow_voice');
             if(code.includes('category rails'))return {found:true,selected:false,x:10,y:10};
             if(code.includes('add-menu-icon'))return {x:5,y:5};
             if(code.includes('Search assets')&&!code.includes('detail-add-to')&&!code.includes('const inp'))return true;
-            if(code.includes('const candidates')){assert(category);assert.equal(arg.name,'Alnilam');assert.equal(arg.strict,true);return {x:20,y:20,text:'Alnilam'};}
             if(code.includes('detail-add-to'))return {x:30,y:30};
+            if(code.includes('const candidates')){assert(category);assert.equal(arg.name,'Alnilam');assert.equal(arg.strict,true);return {x:20,y:20,text:'Alnilam'};}
             if(code.includes('button.asset-item').toString())return 1;
             throw Error('Unexpected evaluate: '+code.slice(0,100));
         }
     };
-    assert(await attachVoice(page,'Alnilam',{agentMode:true,wait:async()=>{}}));
+    assert(await attachVoice(page,'Alnilam',{agentMode:true,wait:async ms=>waits.push(ms)}));
+    assert(!waits.includes(2400)&&!waits.includes(2500),'ready picker/footer should not pay fixed open/selection delays');
     assert.equal(categoryChecks,4,'category timeout reopens the picker within the voice operation');
     const before=clicks.length;
-    assert(await attachVoice(page,'Alnilam',{agentMode:true,wait:async()=>{}}));
+    const alreadyWaits=[];
+    assert(await attachVoice(page,'Alnilam',{agentMode:true,wait:async ms=>alreadyWaits.push(ms)}));
+    assert.equal(alreadyWaits.length,0,'verified attachment is an immediate read');
     assert.equal(clicks.length,before,'already attached voice is not added twice');
     // Execute the actual chip readback against an editor containing the name
     // as ordinary text. That must not count as an attached voice.
@@ -46,7 +49,7 @@ const {voiceOnPromptBox,attachVoice}=require('../flow_voice');
     ingredients[0].classList={contains:()=>true};
     assert.equal(await voiceOnPromptBox(readback,'Alnilam',{agentMode:true,wait:async()=>{}}),false,'disabled ingredient is not accepted');
     const source=fs.readFileSync(require.resolve('../agent_mode'),'utf8');
-    assert(source.includes("return ['Alnilam']"));
+    assert.equal(require('../flow_voice').resolveFlowVoice({flow_voice:'Alnilam'}).name,'Alnilam');
     assert(source.includes('if (!await attachVoice(page, v)) throw Error'));
     console.log('PASS: Agent Voices selection, exact Alnilam asset, chip verification, duplicate avoidance and submission gate.');
 })().catch(e=>{console.error(e);process.exitCode=1;});

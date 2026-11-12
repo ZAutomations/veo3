@@ -63,7 +63,7 @@ function locateJob(tiles,job,receipt=null){
  }
  const excluded=new Set(receipt?.excluded||[]);
  const matches=tiles.filter(t=>promptMatches(t,job)&&!excluded.has(t.key)&&!(t.assetId&&excluded.has(t.assetId)));
- if(matches.length>1)throw Error(`Scene ${job.number}: multiple matching video tiles; refusing to guess.`);
+ if(matches.length>1)throw Error(`RECOVERY_REVIEW_REQUIRED: SCENE_ASSET_AMBIGUITY: Scene ${job.number}: multiple matching video tiles (${matches.length}); refusing to guess. Completed versions are preserved; repeating generation/retry cannot select the intended version.`);
  return matches[0]||null;
 }
 function stateFor(tiles,jobs,receipts={}){
