@@ -1,0 +1,52 @@
+Story 1
+Title: The Meeting He Forgot to End
+Preset: relationship-cinematic-quiet-power
+Clip seconds: 8
+Estimated duration: 32 seconds
+Setting: A quiet restaurant booth at dusk, warm table lamp, soft blue city lights through the window, two separate seats across a small table.
+Characters:
+SAM: Original fictional adult man aged 30, short textured dark hair, groomed stubble, black turtleneck and charcoal blazer.
+Sarah: Original fictional adult woman aged 29, dark brown bob, brown eyes, understated black long-sleeve dress and small silver earrings.
+Locations:
+Venue: Empty restaurant booth with a small table, amber lamp, two water glasses and a blue dusk window.
+Continuity: SAM sits left and Sarah right across the table, identical wardrobe and eyelines throughout. SAM's phone remains face-up beside his water glass until he turns it over in the final clip.
+
+Clip 1:
+Start state: Both sit across the table. SAM's phone lies face-up beside his water glass; Sarah's hands rest in her lap.
+Action: Sarah names the interruption calmly while SAM listens without touching his phone.
+Sarah: "You put your phone on silent for work, but somehow dinner with me never gets the same respect."
+Shot 1: 0-4 seconds — Full-frame 9:16 portrait cinematic medium two-shot filling the canvas edge to edge without black bars; Sarah speaks, keeping her eyes on SAM.
+Shot 2: 4-8 seconds — Cut to Sarah's close-up as she completes the line; SAM stays silent beyond the edge of frame.
+End state: Both remain seated; the phone is face-up, and SAM looks from it back to Sarah.
+Effect: None
+Sound: Sarah's clear, composed native dialogue; SAM silent. Soft restaurant room tone and one low, sparse piano motif; no subtitles or popup sounds.
+
+Clip 2:
+Start state: Both remain seated; the phone is face-up, and SAM looks from it back to Sarah.
+Action: SAM acknowledges the criticism instead of arguing.
+SAM: "You're right. I kept calling it a busy season, as if that made your evening any less important."
+Shot 1: 0-4 seconds — Cut to SAM's restrained close-up as he takes responsibility, keeping his hands still.
+Shot 2: 4-8 seconds — Return to the medium two-shot as SAM finishes; Sarah listens with a small change in expression.
+End state: Both remain seated; SAM maintains eye contact, Sarah's shoulders ease, and the phone stays face-up.
+Effect: None
+Sound: SAM's calm native male voice, distinct from Sarah's; no overlap. Continue the same quiet piano motif and restaurant ambience.
+
+Clip 3:
+Start state: Both remain seated; SAM maintains eye contact, Sarah's shoulders ease, and the phone stays face-up.
+Action: Sarah asks for a concrete change rather than another promise.
+Sarah: "I don't need a bigger apology. I need one evening where I don't feel like another meeting."
+Shot 1: 0-4 seconds — A steady Sarah close-up holds her quiet delivery; no exaggerated anger or crying.
+Shot 2: 4-8 seconds — Cut to SAM's silent listening reaction as Sarah's final words finish off-screen in the same voice.
+End state: Both remain seated; Sarah looks at SAM, his right hand rests beside the face-up phone.
+Effect: None
+Sound: Sarah's exact native dialogue, SAM silent with no lip-sync. Same unobtrusive room tone and piano bed.
+
+Clip 4:
+Start state: Both remain seated; Sarah looks at SAM, his right hand rests beside the face-up phone.
+Action: SAM turns his phone face-down and gives Sarah his attention; she answers with a small, cautious smile.
+SAM: "Then let's stop rescheduling us. One hour, no screens, and you get to finish every story I interrupted."
+Shot 1: 0-4 seconds — Medium two-shot shows SAM turning the phone face-down while starting his line, keeping screen direction and prop positions consistent.
+Shot 2: 4-8 seconds — Cut to Sarah's small listening smile as SAM completes his line off-screen, then hold the quiet emotional landing.
+End state: Both remain seated, the phone is face-down beside SAM's water glass, and their attention stays on each other.
+Effect: None
+Sound: SAM's same native voice, Sarah silent; one soft phone-set-down sound, the same low piano motif and restaurant room tone. No narrator or CTA speech.

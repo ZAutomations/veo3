@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const FLOW_ENDCARD_PRESETS = new Set([
+    'relationship-cinematic-quiet-power',
     'reference-wolf-dark-secrets-fable-dialogue',
     'geography-map',
     'world-politics-map-explain',
@@ -50,6 +51,7 @@ function intimacySupportingQuestion(story) {
 }
 
 function thumbnailPrompt(story, ratio = '9:16') {
+    if (story.preset_id === 'relationship-cinematic-quiet-power') return require('./quiet_power_thumbnail').prompt(story,ratio);
     const concept = story.thumbnail || {};
     const headline = headlineFor(story);
     if (story.preset_id === 'cats-behavior-3d') return require('./cats_thumbnail_prompt').prompt(story,ratio,headline);

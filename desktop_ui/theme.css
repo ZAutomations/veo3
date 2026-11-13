@@ -103,3 +103,6 @@ dialog::backdrop{background:#0008}.dialog-icon{background:var(--hot);color:var(-
 .reverse-video-row small{display:block;overflow-wrap:anywhere;opacity:.7;margin-top:5px}
 #reverse-report,#reverse-master,#reverse-preset{width:100%;min-height:340px;resize:vertical;font-family:Consolas,monospace;font-size:12px;line-height:1.6}
 #reverse-runs{min-width:240px;max-width:100%}
+
+/* Errors stay conspicuous in every theme while copied logs remain plain text. */
+#log .log-error{color:#ff6b72;font-weight:600}

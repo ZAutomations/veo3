@@ -172,7 +172,11 @@ async function runAgentBatches(a, storyJson, run, log) {
             no_upload_refs: a.no_upload_refs || state.completed > 0 };
         let result = await run(singleArgs);
         if (recovering && result.retrySubmission === true) {
-            log(`Batch ${from}-${to}: Flow rejected the Agent request before creating media. Resending only this batch.`);
+            if(result.deletedDurationPreflight){
+                if(from!==1||to!==1||state.completed!==0||!state.durationReviewRequired)throw Error('RECOVERY_REVIEW_REQUIRED: Deleted duration-test retry range changed. Nothing resubmitted.');
+                require('./agent_deleted_preflight').archiveAttempts(submissionFile);
+                log('Deleted first duration-test clip confirmed absent. Generating Scene 1 only again in this same project; the remaining scenes stay blocked until its actual duration passes.');
+            }else log(`Batch ${from}-${to}: Flow rejected the Agent request before creating media. Resending only this batch.`);
             prepareSubmission();
             result = await run({ ...singleArgs, _retry_only: false });
         }

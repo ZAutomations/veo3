@@ -74,7 +74,8 @@ function readRefsFile(file) {
         const stories = fs.readdirSync(folder).filter(name => /_story\.json$/i.test(name));
         if (stories.length === 1) story = JSON.parse(fs.readFileSync(path.join(folder, stories[0]), 'utf8'));
     } catch {}
-    return refs.filter(r => r && r.name && String(r.prompt || '').trim())
+    return refs.filter(r=>r&&r.name).map(r=>require('./character_reference_prompt').fill(story,r))
+        .filter(r=>String(r.prompt||'').trim()||r.localFile)
         .map(r => ({
             name: String(r.name).trim(),
             file: r.file ? String(r.file) : '',

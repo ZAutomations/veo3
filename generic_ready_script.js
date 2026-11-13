@@ -29,7 +29,7 @@ function scene(story,index,{seconds=story.scene_seconds,aspect=story.aspect_rati
  `STYLE: ${p.style}. PALETTE: ${p.palette||'the preset palette'}. AVOID: ${p.avoid||''}`,
  `PRESET DIRECTION: ${p.direction||''}. CAMERA: ${p.camera||'Use the supplied shot framing and motivated movement.'}. Explicit selected duration and supplied timeline override older fixed-duration examples in these authoring notes. Preserve locked camera rules.`,
  `IDENTITY REFERENCES: ${names.map(n=>'@'+n+': '+(story.character_descriptions?.[n.toLowerCase()]||story.character_descriptions?.[n]||'match the approved design')).join('\n')||'No human reference required.'}`,
- `LOCATION DESIGN REFERENCES: ${JSON.stringify(story.imported_locations)}. Use the actual location required by this clip; a reference is not a universal backdrop. ${p.setting?'This preset locks the setting: '+p.setting:''}`,
+ `LOCATION DESIGN REFERENCES: @${story.place?.name||story.imported_locations?.[0]?.name||'Environment'}. ${JSON.stringify(story.imported_locations)}. Use the actual location required by this clip; a reference is not a universal backdrop. ${p.setting?'This preset locks the setting: '+p.setting:''}`,
  story.visual_continuity?`CONTINUITY: ${story.visual_continuity}`:'',s.start_state?'START STATE: '+s.start_state:'',
  ...s.shots.map((v,i)=>`SHOT ${i+1} (${v.start_seconds}-${v.end_seconds}s): ${v.visual}`),s.end_state?'END STATE: '+s.end_state:'',
  s.imported_action?'ACTION: '+s.imported_action:'',`EFFECT: ${s.effect||'None'}`,speech,
@@ -43,7 +43,7 @@ function prepare(W,p,source,aspect){
  let entries=source.characters.map(c=>({...c,type:/\b(?:frog|cat|dog|bird|animal|pet|wolf|bear)\b/i.test(c.description)?'animal':'human'}));
  if(!entries.length&&p.fixed_couple_names)entries=Object.entries(p.fixed_couple_names).map(([gender,name])=>({name,gender,type:'human',description:`Original adult ${gender} character in the selected preset's medium.`}));
  if(p.single_speaker_advice&&!entries.length)entries=[{name:'Lilly',type:'human',description:p.cast_idiom},{name:'Pip',type:'animal',description:'Small emerald-green frog with tiny gold crown; silent.'}];
- const cast=W.normaliseCast(p,entries);
+ const cast=W.normaliseCast(p,entries).map(c=>({...c,sheet_prompt:String(c.sheet_prompt||'').trim()||require('./character_reference_prompt').sheet(p,c)}));
  const locations=source.locations.length?source.locations:[{name:p.setting_name||'Environment',description:source.setting}];
  const story=W.buildStory(p,cast,{description:source.story_brief||source.details||source.title,moral:'',place_name:locations[0].name,place_description:locations[0].description,place_prompt:`${p.location_medium||p.style}. Empty design reference of ${locations[0].description}; no characters, text or collage. Other locations keep their own designs.`},source.clips.map(c=>({scene_title:c.title,script_line:c.narration||'',dialogue:c.dialogue,narrative_context:c.shots.map((v,i)=>`SHOT ${i+1} (${v.start_seconds}-${v.end_seconds}s): ${v.visual}`).join('\n'),characters:cast.map(c=>c.name)})));
  Object.assign(story,{generic_ready_import:true,script_import:true,imported_preset:p,scene_seconds:source.seconds,total_scenes:source.clips.length,duration:`${source.clips.length*source.seconds} seconds`,imported_locations:locations,imported_sources:source.sources||'',visual_continuity:source.continuity||'',source_story_number:source.storyNumber});

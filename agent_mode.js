@@ -994,6 +994,14 @@ async function uploadRefThroughPicker(page, box, file) {
     // A permitted safety revision may be requested once before a refusal
     // becomes terminal. Failed Agent tool cards need not exist in the grid.
     const submissionCheckpoint = flag('--submission-file', null);
+    if(RETRY_FAILED_ONLY && await require('./agent_deleted_preflight').confirm({
+        submissionFile:submissionCheckpoint,storyFile:flag('--refs',null),projectUrl:page.url(),
+        read:()=>readProjectSnapshot(page,true),wait,
+    })){
+        log('DELETED_DURATION_PREFLIGHT_CONFIRMED: Two full idle scans confirm the duration-rejected Scene 1 is absent. Re-submit only the saved first scene; all later scenes still wait for duration verification.');
+        await browser.disconnect();
+        process.exit(3);
+    }
     if (RETRY_FAILED_ONLY && require('./agent_recovery_control').actionableRefusal(s,submissionCheckpoint)) {
         if (await reviewFailedBatch(page,s)) {
             await sweepFor(page,RETRY_WATCH,'safety-review-result');

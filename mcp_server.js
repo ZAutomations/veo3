@@ -664,7 +664,8 @@ async function doRunAgent(a) {
     const r = await runNode('agent_mode.js', args, { timeoutMs: (watch + 660) * 1000 });
     return {
         ok: r.code === 0,
-        retrySubmission: r.code === 3 && r.out.includes('BATCH_REQUEST_FAILED_BEFORE_MEDIA:'),
+        retrySubmission: r.code === 3 && /BATCH_REQUEST_FAILED_BEFORE_MEDIA:|DELETED_DURATION_PREFLIGHT_CONFIRMED:/.test(r.out),
+        deletedDurationPreflight: r.code === 3 && r.out.includes('DELETED_DURATION_PREFLIGHT_CONFIRMED:'),
         reconciledTo: r.code === 0 ? Number((r.out.match(/BATCH_RECONCILED_READY:(\d+)/) || [])[1]) || undefined : undefined,
         storyJson,
         text: (a.submit ? '' : 'DRY RUN (no credits spent - pass submit:true to generate).\n\n') +
@@ -1473,12 +1474,13 @@ const TOOLS = [
 
                 if (a.generate && a.submit) {
                     const localCompletion=await require('./local_clip_recovery').reconcile(storyArg,{run:runNode,log});
+                    const repairCharacterRefs=!localCompletion.complete && require('./character_reference_prompt').needsRepair(storyArg);
                     // One project per film: a fresh grid means the downloader can
                     // only find this film's clips, never a mix of two films.
                     let projectUrl = resumeUrl;
                     if (clipStart) {
                         out.push(`  clip generation in existing project -> ${projectUrl}`);
-                        log(`[batch ${i}] opening existing project; reference preparation skipped: ${projectUrl}`);
+                        log(`[batch ${i}] opening existing project; ${repairCharacterRefs?'repairing incomplete character reference prompts before clip attachment':'reference preparation skipped'}: ${projectUrl}`);
                     }
                     if (a.new_project && !localCompletion.complete) {
                         log(`[batch ${i}] creating a new Flow project...`);
@@ -1489,7 +1491,8 @@ const TOOLS = [
                         log(`[batch ${i}] project ${projectUrl}`);
                     }
                     let noUpload = !!a.no_upload_refs;
-                    if (a.generate_refs && !localCompletion.complete) {
+                    if ((a.generate_refs || repairCharacterRefs) && !localCompletion.complete) {
+                        if(repairCharacterRefs)log(`[batch ${i}] Required character reference prompts were blank. Recovering their saved identities and verifying/generating references in this SAME project before any clip prompt.`);
                         log(`[batch ${i}] generating the reference images in Flow...`);
                         const g = await doGenerateRefs({ story: storyArg, project_url: projectUrl, cdp: a.cdp, wait: a.wait, video_model: a.video_model });
                         if (!g.ok) {
