@@ -18,6 +18,7 @@ from typing import List, Optional
 
 # ── ChangeGUI font directory (created on first use) ──────────────────────
 import os
+import re
 _FONTS_DIR = Path(__file__).resolve().parent / "assets" / "fonts"
 
 
@@ -365,6 +366,7 @@ def build_ass(
     underline_flag = -1 if cfg.get("underline") else 0
     strike_flag = -1 if cfg.get("strikethrough") else 0
     spacing = max(0, int(round(float(cfg.get("tracking", 0) or 0) * scale)))
+    caption_encoding = -1 if any(re.search(r'[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]',str(w['word'])) for w in words) else 1
     alignment = {"top": 8, "center": 5, "bottom": 2}.get(cfg.get("position", "bottom"), 2)
     if square_align is not None:
         alignment = square_align
@@ -388,7 +390,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,{cfg['font_family']},{font_size},{style_primary},{style_secondary},{outline_col},{back_col},{bold_flag},0,{underline_flag},{strike_flag},100,100,{spacing},0,{border_style},{outline},{shadow},{alignment},60,60,{margin_v},1
+Style: Default,{cfg['font_family']},{font_size},{style_primary},{style_secondary},{outline_col},{back_col},{bold_flag},0,{underline_flag},{strike_flag},100,100,{spacing},0,{border_style},{outline},{shadow},{alignment},60,60,{margin_v},{caption_encoding}
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text

@@ -52,7 +52,7 @@ def schema():
     rows.append(dict(key='editing_speed',label='Final video speed (×)',default=1.0,min=.15,max=2.0,step=.05,page='finishing',group='Final speed'))
     for key,label,default,choices in [
         ('voiceover_mode','Audio source','native',['native','api','local']),
-        ('voiceover_provider','API provider','elevenlabs',['elevenlabs','heygen','ai33pro']),
+        ('voiceover_provider','API provider','elevenlabs',['elevenlabs','heygen','ai33pro','google']),
         ('voiceover_voice','Voice ID','',None),('voiceover_file','Local voiceover WAV/MP3','',None),
         ('voiceover_timing','Local timing JSON (optional)','',None)]:
         rows.append(dict(key=key,label=label,default=default,choices=choices,page='finishing',group='Voiceover'))
@@ -76,7 +76,7 @@ def settings(values=None):
         raise ValueError('Invalid video editing settings.')
     result.update({k:v for k,v in (values or {}).items() if k in result})
     saved=result['voiceover_saved_voices']
-    if not isinstance(saved,dict) or any(k not in ('heygen','elevenlabs','ai33pro') or not isinstance(v,str) for k,v in saved.items()):
+    if not isinstance(saved,dict) or any(k not in ('heygen','elevenlabs','ai33pro','google') or not isinstance(v,str) for k,v in saved.items()):
         raise ValueError('Invalid saved provider voice selections.')
     for spec in schema():
         key, value = spec['key'], result[spec['key']]
@@ -519,6 +519,7 @@ def transcribe(source,folder,cfg):
 def build_captions(words,path,info,cfg):
     from video_editing_port.clipper_captions import get_preset,build_ass_from_settings
     from video_editing_port import caption_fonts
+    arabic_text=any(re.search(r'[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]',str(w['word'])) for w in words)
     if cfg['clipper_caption_preset'] in FRAMELOOM_PRESETS:
         from video_editing_port import frameloom_captions as fc
         name=cfg['clipper_caption_preset'].removeprefix('frameloom_')
@@ -534,6 +535,7 @@ def build_captions(words,path,info,cfg):
             size_scale=float(cfg['caption_font_size'])/72,words_per_phrase=int(cfg['caption_words_per_line']),
             font_family=cfg.get('clipper_override_font_family') or fc.STYLES[name][1],
             uppercase=cfg['caption_text_case']=='ALL CAPS',y_offset=cfg['caption_y_offset'])
+        if arabic_text:overrides['font_family']='Noto Sans Arabic'
         text=fc.build_ass(None,info['width'],info['height'],dict(enabled=True,style=name,color='green',
             position='middle' if cfg['caption_position']=='center' else cfg['caption_position'],size='medium'),
             word_items=timed,overrides=overrides)
@@ -555,6 +557,7 @@ def build_captions(words,path,info,cfg):
         if value:overrides[dest]=value
     if cfg['clipper_override_bg_enabled']:
         overrides.update(background_enabled=True,background_color=cfg['clipper_override_bg_color'] or '#000000',background_opacity=cfg['clipper_override_bg_opacity'])
+    if arabic_text:overrides.update(font_family='Noto Sans Arabic',tracking=0)
     yoff=float(cfg['caption_y_offset'])
     if yoff:overrides.update(pos_x=50,pos_y={'top':8,'center':50,'bottom':92}[cfg['caption_position']]+yoff/info['height']*100)
     timed=[]
@@ -617,6 +620,17 @@ def sync_video_thumbnail(source, final):
     return None
 
 
+def publish_story_exports(source,final):
+    """Expose Audio First English/localized exports in the normal story folder."""
+    from story_output import publish_audio_first_exports
+    candidates=list(source.parent.glob('*_story.json'))
+    if len(candidates)!=1:return
+    files=[final]
+    if candidates[0].name!='localized_story.json' and re.search(r'(?i)\s+raw$',source.stem):files.append(source)
+    files.extend(final.with_suffix(ext) for ext in ('.jpg','.jpeg','.png','.webp'))
+    for file in publish_audio_first_exports(candidates[0],files):log(f'STORY_EXPORT: {file}')
+
+
 def edit(source,values=None,report=None,output=None):
     source=media_path(source);cfg=settings(values);info=probe(source)
     candidates=list(source.parent.glob('*_story.json'))
@@ -641,12 +655,12 @@ def edit(source,values=None,report=None,output=None):
     if final==source:raise ValueError('Edited output must be a different file from the original.')
     folder=source.parent/'video_editing';folder.mkdir(exist_ok=True)
     import voiceover
-    signature=hashlib.sha256(('preset_cta_finishing_v1'+str(source)+str(source.stat().st_size)+str(source.stat().st_mtime_ns)+json.dumps(cfg,sort_keys=True)+json.dumps(voiceover.signature(cfg,source,report))+json.dumps(preset_cta.signature(cta))).encode()).hexdigest()
+    signature=hashlib.sha256(('preset_cta_finishing_v1'+('arabic_shaping_v1' if cfg.get('clipper_captions_enabled') else '')+str(source)+str(source.stat().st_size)+str(source.stat().st_mtime_ns)+json.dumps(cfg,sort_keys=True)+json.dumps(voiceover.signature(cfg,source,report))+json.dumps(preset_cta.signature(cta))).encode()).hexdigest()
     receipt=folder/'last_edit.json'
     if receipt.is_file():
         saved=json.loads(receipt.read_text(encoding='utf-8'))
         if cfg.get('silence_skip_done',True) and saved.get('signature')==signature and saved.get('output')==str(final) and final.is_file():
-            probe(final);sync_video_thumbnail(source,final);log(f'Existing edited output already matches these settings: {final}');return final
+            probe(final);sync_video_thumbnail(source,final);publish_story_exports(source,final);log(f'Existing edited output already matches these settings: {final}');return final
     work=folder/signature[:16];work.mkdir(exist_ok=True)
     current=source;segments=[(0,info['duration'])]
     boundaries=original_boundaries(source,report)
@@ -697,7 +711,7 @@ def edit(source,values=None,report=None,output=None):
         ass=work/'captions.ass';build_captions(words,ass,final_info,cfg)
         target=work/'captioned.mp4'
         log('Burning captions (ASS) with the selected preset/font/animation engine...')
-        run(['ffmpeg','-v','error','-y','-i',current,'-vf','ass=captions.ass:fontsdir=fonts',
+        run(['ffmpeg','-v','error','-y','-i',current,'-vf','ass=captions.ass:fontsdir=fonts:shaping=complex',
              '-c:v','libx264','-preset','veryfast','-crf','19','-c:a','copy','-movflags','+faststart',target],cwd=work)
         current=target
         shutil.copy2(ass,folder/'captions.ass')
@@ -717,6 +731,7 @@ def edit(source,values=None,report=None,output=None):
     receipt.write_text(json.dumps(dict(signature=signature,input=str(source),output=str(final),settings=cfg,preset_cta=preset_cta.signature(cta),
         keep_intervals=segments,transition_boundaries=[t/float(cfg['editing_speed']) for t in mapped],speed=cfg['editing_speed'],duration=result['duration']),indent=2),encoding='utf-8')
     sync_video_thumbnail(source,final)
+    publish_story_exports(source,final)
     log(f'EDITED_VIDEO: {final}')
     return final
 

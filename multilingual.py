@@ -3,7 +3,10 @@ import copy, hashlib, json, os, re, shutil, sys, subprocess
 from pathlib import Path
 import video_editing as E
 import voiceover as V
+from heygen_audio import HeyGenNetworkError
 class TranslationNetworkError(RuntimeError):pass
+
+MAX_LANGUAGE_SPEED = 1.30  # Additional languages only; English Audio First pacing is independent.
 
 LANGUAGES={'ru':'Russian','ar':'Arabic','hi':'Hindi','ur':'Urdu','es':'Spanish','fr':'French','de':'German','ja':'Japanese'}
 
@@ -19,7 +22,7 @@ def configuration(value):
         if not isinstance(row,dict):raise ValueError('Invalid language voice profile.')
         code=row.get('code');provider=row.get('provider','heygen');voice=str(row.get('voice','')).strip()
         if not isinstance(code,str) or code not in LANGUAGES or code in seen:raise ValueError('Choose distinct supported languages.')
-        if provider not in ('heygen','elevenlabs','ai33pro') or not voice:raise ValueError(f'Choose a provider and voice ID for {LANGUAGES[code]}.')
+        if provider not in ('heygen','elevenlabs','ai33pro','google') or not voice:raise ValueError(f'Choose a provider and voice ID for {LANGUAGES[code]}.')
         seen.add(code);result.append(dict(code=code,provider=provider,voice=voice))
     return {'enabled':True,'languages':result}
 
@@ -85,7 +88,11 @@ def prepare_scripts(story_file,settings):
 
 def fit(audio,target,output):
     duration=V.audio_duration(audio);rate=max(1.,duration/target)
-    if rate>1.10:raise ValueError(f'Narration needs {rate:.2f}x; multilingual limit is 1.10x. Revise translation, not the video.')
+    # A moderately short 10-second narration can fill the desired speaking window
+    # through a small pitch-preserving slowdown, without adding words or silence.
+    if target>=9 and duration<target-.3 and duration>=(target-.15)*.85:
+        rate=duration/(target-.15)
+    if rate>MAX_LANGUAGE_SPEED:raise ValueError(f'Narration needs {rate:.2f}x; multilingual limit is {MAX_LANGUAGE_SPEED:.2f}x. Revise translation, not the video.')
     if rate==1.:return audio,duration
     E.run(['ffmpeg','-v','error','-y','-i',audio,'-af',f'atempo={rate:.8f}','-ar','48000','-ac','1',output])
     if V.audio_duration(output)>target+.03:raise ValueError('Narration timing validation failed; no speech was cut.')
@@ -107,9 +114,12 @@ def prepare_language_audio(story,root,profile,durations):
             if not cached.exists():
                 previous=next((f for f in root.parent.glob('*/'+code+'/'+digest+'.mp3') if f.is_file() and f.stat().st_size),None)
                 if previous:V.audio_duration(previous);shutil.copy2(previous,cached)
-            audio=V.synthesize(profile['provider'],profile['voice'],text,cached)
+            audio=V.synthesize(profile['provider'],profile['voice'],text,cached,language=code) if profile['provider']=='google' else V.synthesize(profile['provider'],profile['voice'],text,cached)
             actual=V.audio_duration(audio)
-            if actual<=limit*1.10:break
+            if profile['provider']=='google' and actual>limit*MAX_LANGUAGE_SPEED:
+                import google_tts
+                audio,actual=google_tts.recover_timing(profile['voice'],text,audio,limit,language=code,max_rate=MAX_LANGUAGE_SPEED)
+            if actual<=limit*MAX_LANGUAGE_SPEED:break
             if story.get('multilingual_translation_mode')=='supplied_only':
                 atomic(work/'TIMING_REPAIR.json',dict(language=code,scene=i+1,actual_seconds=actual,target_seconds=limit,narration=text,english=manifest['source_lines'][i],suggested_max_characters=max(1,int(len(text)*limit/actual*.92)),note='Shorten this supplied line, preserving facts; no Gemini call or speech crop was made.'))
                 raise ValueError(f'{LANGUAGES[code]} scene {i+1} supplied narration is {actual:.2f}s; shorten that line to fit {limit:.2f}s. No translation call or speech cut was made.')
@@ -192,5 +202,5 @@ if __name__=='__main__':
         if body.get('preflight'):
             story=json.loads(Path(body['story']).read_text(encoding='utf-8-sig'));preflight_audio(body['story'],body.get('multilingual') or story.get('multilingual'))
         else:render(body)
-    except TranslationNetworkError as exc:print('MULTILINGUAL TRANSIENT NETWORK FAILURE: '+str(exc),flush=True);sys.exit(1)
+    except (TranslationNetworkError, HeyGenNetworkError) as exc:print('MULTILINGUAL TRANSIENT NETWORK FAILURE: '+str(exc),flush=True);sys.exit(1)
     except Exception as exc:print('RECOVERY_REVIEW_REQUIRED: MULTILINGUAL FAILED: '+str(exc),flush=True);sys.exit(2)

@@ -8,7 +8,7 @@ import audio_first as A
 import video_editing as E
 with tempfile.TemporaryDirectory() as tmp:
  root=Path(tmp);short=root/'short.wav';long=root/'long.wav'
- for file,seconds in [(short,1),(long,12.23)]:E.run(['ffmpeg','-v','error','-y','-f','lavfi','-i',f'sine=duration={seconds}',file])
+ for file,seconds in [(short,1),(long,14.0)]:E.run(['ffmpeg','-v','error','-y','-f','lavfi','-i',f'sine=duration={seconds}',file])
  source=root/'original_story.json';source.write_text(json.dumps(dict(title='Preflight',narrated=True,scene_seconds=10,multilingual_translation_mode='supplied_only',scenes=[dict(script_line='What happens if a nuclear bomb falls into the ocean? A fall alone does not cause nuclear detonation. If it exploded underwater, a powerful pressure wave would spread.',narration_translations={'en':'English','ru':'Too long supplied narration.'})])))
  cfg={'enabled':True,'languages':[dict(code='ru',provider='heygen',voice='ru')]}
  body=dict(story=str(source),multilingual=cfg,editingSettings=dict(voiceover_mode='api',voiceover_provider='heygen',voiceover_voice='english'))

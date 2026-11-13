@@ -1627,8 +1627,8 @@ def configure_voiceover(body: dict):
     import voiceover
     try:
         provider=str(body.get('provider',''))
-        voiceover.configure(provider,body.get('key',''))
-        return {'voices':voiceover.voices(provider)}
+        voiceover.configure(provider,body.get('service_account','') if provider=='google' else body.get('key',''))
+        return {'voices':voiceover.voices(provider), **({'service_account':__import__('google_tts').service_account()} if provider=='google' else {})}
     except (ValueError,KeyError,OSError) as exc:
         raise HTTPException(400,str(exc))
 

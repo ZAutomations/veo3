@@ -89,3 +89,8 @@ video_editing_settings.json
 # Local media inspections can contain temporary signed Flow URLs.
 outputs/scene-recovery/
 outputs/health_review/
+
+# Machine-local Google service-account key; never commit credentials.
+/Setup/cloud-tts-sa.json
+# Service-account keys stay local on each laptop.
+/TTS/*.json

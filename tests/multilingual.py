@@ -46,6 +46,9 @@ with tempfile.TemporaryDirectory() as tmp:
     # Small overruns can use the explicitly requested 9.8s finish window.
     boundary=root/'boundary.wav';E.run(['ffmpeg','-v','error','-y','-f','lavfi','-i','sine=duration=10.481',boundary])
     fitted,duration=M.fit(boundary,9.8,root/'boundary_fitted.wav');assert 9.7<=duration<=9.83
+    # Approved additional-language overrun: 12.36 seconds fits 9.8 at 1.261x.
+    approved=root/'approved.wav';E.run(['ffmpeg','-v','error','-y','-f','lavfi','-i','sine=duration=12.36',approved])
+    fitted,duration=M.fit(approved,9.8,root/'approved_fitted.wav');assert 9.7<=duration<=9.83
     # A long narration cannot be silently accelerated/cropped.
     long=root/'long.wav';E.run(['ffmpeg','-v','error','-y','-f','lavfi','-i','sine=duration=3',long])
     try:M.fit(long,1,root/'bad.wav')

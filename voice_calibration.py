@@ -14,7 +14,7 @@ SAMPLES=[
 ]
 
 def model(provider):
-    return {'heygen':'heygen-voice-1-turbo-free','elevenlabs':'eleven_multilingual_v2','ai33pro':'provider-default-v3'}[provider]
+    return {'heygen':'heygen-voice-1-turbo-free','elevenlabs':'eleven_multilingual_v2','ai33pro':'provider-default-v3','google':'gemini-3.1-flash-tts-preview'}[provider]
 
 def identity(provider,voice,seconds):
     return hashlib.sha256(json.dumps([provider,model(provider),voice,seconds,'samples-v1']).encode()).hexdigest()

@@ -7,3 +7,5 @@ requests>=2.31
 opencv-python>=4.8
 soundfile>=0.12
 openai-whisper>=20240930
+
+google-auth[requests]>=2.29,<3
