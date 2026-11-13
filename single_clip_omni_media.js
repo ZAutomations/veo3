@@ -8,9 +8,15 @@ function tileSnapshot(){
   // neighbour's prompt/status identify this asset.
   let scope=tile;
   for(let node=tile.parentElement,depth=0;node&&depth<12;node=node.parentElement,depth++){
+   // One video in a project does not make the entire page its asset row.
+   // Stop before grid shells/composer/chat; policy instructions in the Agent
+   // conversation must never become this completed video's failure status.
+   if(node.matches?.('body,html,main,mat-sidenav-content,mat-sidenav-container,cdk-virtual-scroll-viewport,.virtual-scroll-container,.cdk-virtual-scroll-content-wrapper,.page-container,.grid-area-wrapper')
+      ||node.querySelector('[contenteditable="true"],.messages-list,flow-base-prompt-box'))break;
    const count=node.querySelectorAll('flow-video-tile').length;
    if(count>1)break;
    if(count===1)scope=node;
+   if(node.matches?.('flow-grid-tile-container'))break;
   }
   const text=scope.textContent||'';
   // Inventory uses raw src; browser currentSrc can select another responsive

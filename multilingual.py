@@ -194,4 +194,3 @@ if __name__=='__main__':
         else:render(body)
     except TranslationNetworkError as exc:print('MULTILINGUAL TRANSIENT NETWORK FAILURE: '+str(exc),flush=True);sys.exit(1)
     except Exception as exc:print('RECOVERY_REVIEW_REQUIRED: MULTILINGUAL FAILED: '+str(exc),flush=True);sys.exit(2)
-

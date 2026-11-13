@@ -7,7 +7,11 @@ function reuseForInspection({key,assetId}){
  const tile=[...document.querySelectorAll('flow-video-tile')].find(t=>store?.keys.get(t)===key||assetId&&[...t.querySelectorAll('img,video,source')].some(e=>(e.currentSrc||e.getAttribute('src')||'').includes('/'+assetId)));
  if(!tile)return null;
  let scope=tile;
- for(let p=tile.parentElement,n=0;p&&n<12;p=p.parentElement,n++){if(p.querySelectorAll('flow-video-tile').length>1)break;scope=p;}
+ for(let p=tile.parentElement,n=0;p&&n<12;p=p.parentElement,n++){
+  if(p.matches?.('body,html,main,mat-sidenav-content,mat-sidenav-container,cdk-virtual-scroll-viewport,.virtual-scroll-container,.cdk-virtual-scroll-content-wrapper,.page-container,.grid-area-wrapper')
+     ||p.querySelector('[contenteditable="true"],.messages-list,flow-base-prompt-box')||p.querySelectorAll('flow-video-tile').length>1)break;
+  scope=p;if(p.matches?.('flow-grid-tile-container'))break;
+ }
  const button=[...scope.querySelectorAll('button')].find(b=>!b.disabled&&/^reuse(?: prompt)?$/i.test((b.getAttribute('aria-label')||b.innerText||b.textContent||'').trim()));
  if(!button)return null;
  const previous=document.querySelector('.ProseMirror')?.innerText||'';

@@ -37,6 +37,7 @@ function missingPrompt(text,numbers){
 }
 async function prepare({engine,storyFile,submissionFile,text,inspect,wait}){
  const source=fs.readFileSync(storyFile,'utf8'),story=JSON.parse(source),intent=JSON.parse(fs.readFileSync(submissionFile,'utf8'));
+ if(!Number.isInteger(intent.from)||!Number.isInteger(intent.to)||intent.from<1||intent.to<intent.from||intent.to>story.scenes.length)throw Error('RECOVERY_REVIEW_REQUIRED: Missing-scene checkpoint range is invalid. Nothing resubmitted.');
  if(crypto.createHash('sha256').update(source).digest('hex')!==intent.fingerprint)throw Error('Story fingerprint changed; missing-scene recovery stopped.');
  const jobs=story.scenes.slice(0,intent.to).map((scene,i)=>({number:i+1,scene,sceneId:require('./agent_scene_ids').sceneId(story,i+1),prompt:scene.veo3_prompt||scene.script_line||''}));
  const first=planMissing(story,intent,await inspect(engine,jobs));
@@ -48,7 +49,7 @@ async function prepare({engine,storyFile,submissionFile,text,inspect,wait}){
  let receipt;try{receipt=JSON.parse(fs.readFileSync(receiptFile,'utf8'));}catch{}
  if(receipt?.status==='submitting'&&receipt.numbers.some(n=>second.missing.includes(n)))throw Error('RECOVERY_REVIEW_REQUIRED: Previous missing-scene submission is unconfirmed. Nothing repeated; inspect the Agent response before retrying.');
  const prompt=missingPrompt(text,second.missing);
- return {...second,prompt,receiptFile};
+ return {...second,from:intent.from,to:intent.to,prompt,receiptFile};
 }
 function markSubmitting(plan,context={}){
  const snapshot=context.snapshot||{};
