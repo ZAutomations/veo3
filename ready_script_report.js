@@ -3,6 +3,7 @@ const {words}=require('./ready_script_parser');
 
 function exportScript(source,index=1){
  const out=[`Story ${source.storyNumber||index}`,`Title: ${source.title}`,`Preset: ${source.preset}`];
+ if(source.languages?.length)out.push('Languages: '+source.languages.map(code=>({en:'English',ru:'Russian',ar:'Arabic',hi:'Hindi',ur:'Urdu',es:'Spanish',fr:'French',de:'German',ja:'Japanese'}[code])).join(', '));
  if(source.production_profile)out.push(`Production profile: ${source.production_profile}`);
  out.push(`Clip seconds: ${source.seconds}`);
  if(source.declaredCount){
@@ -20,7 +21,8 @@ function exportScript(source,index=1){
  if(source.continuity)out.push(`Continuity: ${source.continuity}`);
  for(const clip of source.clips){
   out.push('',`Clip ${clip.number}${clip.title?' — '+clip.title:''}:`);
-  if(clip.narration!==undefined)out.push(`Narration: "${clip.narration}"`);
+  if(clip.narrations){for(const code of source.languages)out.push(`Narration ${{en:'English',ru:'Russian',ar:'Arabic',hi:'Hindi',ur:'Urdu',es:'Spanish',fr:'French',de:'German',ja:'Japanese'}[code]}: "${clip.narrations[code]}"`);}
+  else if(clip.narration!==undefined)out.push(`Narration: "${clip.narration}"`);
   if(clip.start_state)out.push(`Start state: ${clip.start_state}`);
   if(clip.action)out.push(`Action: ${clip.action}`);
   for(const turn of clip.dialogue||[])out.push(`${turn.speaker}: "${turn.line}"`);
@@ -72,6 +74,11 @@ function reportText(report){
 
 function write(folder,source,prepared,originalText){
  const report=preflight(source,prepared,folder);
+ if(source.languages?.length){
+  const dir=path.join(folder,'language_scripts');fs.mkdirSync(dir,{recursive:true});
+  for(const code of source.languages)fs.writeFileSync(path.join(dir,code+'.txt'),source.clips.map(c=>`Clip ${c.number}: ${c.narrations[code]}`).join('\n\n')+'\n','utf8');
+  fs.writeFileSync(path.join(folder,'LANGUAGE_SCRIPTS.json'),JSON.stringify({languages:source.languages,translation_mode:'supplied_only',scenes:source.clips.map(c=>({scene:c.number,narrations:c.narrations}))},null,2),'utf8');
+ }
  const files={
   'IMPORT_PREFLIGHT.json':JSON.stringify(report,null,2)+'\n',
   'IMPORT_PREFLIGHT.txt':reportText(report),

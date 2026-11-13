@@ -304,10 +304,16 @@ def plan_action(action, p):
         if not p.get('_queueAccount'):
             account=active_account_details()
             if '@' not in str(account.get('email','')):raise ValueError('Save the active account Gmail in Accounts before using Generation only.')
+    if action == 'render_multilingual':
+        import multilingual,video_editing
+        path,_=story_path(p.get('story',''))
+        multi=multilingual.from_form(p) if 'multilingualEnabled' in p else multilingual.configuration(read_json(ROOT/'gui_settings.json').get('multilingual'))
+        if not multi['enabled']:raise ValueError('Enable multilingual versions and select languages/voices first.')
+        return 'flow',[('request',('multilingual.py',dict(story=str(path),multilingual=multi,editingSettings=video_editing.settings())))]
     if action == 'prepare_audio_first':
         import video_editing
         path, _ = story_path(p.get('story',''))
-        return 'writer', [('request', ('audio_first.py',{'story':str(path),'from':p.get('from',1),'to':p.get('to',''),'editingSettings':video_editing.settings()}))]
+        return 'writer', [('request', ('audio_first.py',{'story':str(path),'from':p.get('from',1),'to':p.get('to',''),'editingSettings':video_editing.settings(),'multilingual':__import__('multilingual').from_form(p) if 'multilingualEnabled' in p else read_json(ROOT/'gui_settings.json').get('multilingual')}))]
     if action == 'edit_video':
         import video_editing
         source = video_editing.media_path(p.get('video', ''))
@@ -346,7 +352,7 @@ def plan_action(action, p):
                     if not isinstance(item,dict) or not item.get('audio'): raise ValueError(f'Missing local audio mapping for {source.name}.')
                     story_cfg.update(voiceover_file=str((map_file.parent/item['audio']).resolve()),
                                      voiceover_timing=str((map_file.parent/item['timing']).resolve()) if item.get('timing') else '')
-                request=dict(story=str(source),editingSettings=story_cfg,batch=True,**{'from':1,'to':''})
+                request=dict(story=str(source),editingSettings=story_cfg,batch=True,multilingual=read_json(ROOT/'gui_settings.json').get('multilingual'),**{'from':1,'to':''})
                 planned=audio_first.plan_package(request)
                 prepared_paths[str(source)]=str(planned['file'])
                 preparation.append(('request',('audio_first.py',request)))
@@ -1013,7 +1019,7 @@ class Job:
                 filename, request = spec
                 requestfile = ROOT / 'logs' / 'desktop' / (self.id + '.json')
                 save_json(requestfile, request)
-                python = editing_python(require_whisper=True) if filename == 'video_editing.py' else sys.executable
+                python = editing_python(require_whisper=True) if filename in ('video_editing.py','multilingual.py') else sys.executable
                 kind, spec = 'cli', ([python, str(ROOT / filename), str(requestfile)] if filename.endswith('.py') else command(filename, requestfile))
             if kind == 'cli':
                 self.log('Starting ' + Path(spec[1]).name)
@@ -1153,7 +1159,7 @@ class Job:
 
 jobs = {}
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
-RETRY_ACTIONS = {'manual_jobs', 'reverse_video', 'write', 'import_script', 'finalize', 'generate', 'generate_queue', 'resume_generations', 'refs', 'download', 'order', 'join', 'fix_join', 'build', 'export_excel', 'retry_failed'}
+RETRY_ACTIONS = {'render_multilingual', 'manual_jobs', 'reverse_video', 'write', 'import_script', 'finalize', 'generate', 'generate_queue', 'resume_generations', 'refs', 'download', 'order', 'join', 'fix_join', 'build', 'export_excel', 'retry_failed'}
 
 
 def retry_plan(record):
@@ -1302,6 +1308,7 @@ def bootstrap(studio_surface: str = Header(default='studio', alias='X-Studio-Sur
             cdp=legacy.get(f'{prefix}_cdp_port' if prefix else 'cdp_port', 9222))
     return dict(root=str(ROOT), models=MODELS, presets=presets(), defaults=initial, workflowDefaults=workflow_defaults,
                 preferences=surface_preferences(studio_surface), hasApiKeys=bool(legacy.get('gemini_api_keys') or legacy.get('gemini_api_key')),
+                multilingual=legacy.get('multilingual',{'enabled':False,'languages':[]}),
                 referenceLibrary=reference_library_settings(legacy), globalWorkflow=global_workflow_settings(),
                 mcpServer=str((ROOT / 'mcp_server.js').resolve()),
                 savedCouple={k: legacy.get(k, '') for k in ('couple_sarah_file', 'couple_sam_file', 'couple_sarah_description', 'couple_sam_description', 'agent_saved_couple', 'ing_saved_couple', 'omni_saved_couple')})
@@ -1400,9 +1407,16 @@ def story_completion(path, story, manifest):
     import generation_only
     handoff=generation_only.load(path)
     pending=bool(handoff and handoff.get('status') in ('generated','finishing'))
-    return dict(downloaded=len(downloaded), done=bool(complete_clips or completed_final), generationOnlyPending=pending,
+    language_pending=False
+    if completed_final and story.get('audio_first') and story.get('multilingual',{}).get('enabled'):
+        from multilingual import LANGUAGES
+        for row in story['multilingual'].get('languages',[]):
+            language=LANGUAGES.get(row.get('code'))
+            translated=final.with_name(final.stem+' '+str(language)+'.mp4')
+            if not language or not translated.is_file() or translated.stat().st_size==0 or translated.stat().st_mtime<path.stat().st_mtime:language_pending=True
+    return dict(fullyComplete=bool(completed_final and not pending and not language_pending), downloaded=len(downloaded), done=bool(complete_clips or completed_final), generationOnlyPending=pending,
                 generationAccount=handoff.get('account_email','') if pending else '',
-                completion='Generation only · finishing pending' if pending else 'Final video saved' if completed_final else 'All clips downloaded' if complete_clips else 'Available')
+                completion='Generation only · finishing pending' if pending else 'English saved · languages pending' if language_pending else 'Final video saved' if completed_final else 'All clips downloaded' if complete_clips else 'Available')
 
 
 @app.get('/api/reverse-runs')
@@ -1492,6 +1506,7 @@ def library():
     known=presets()
     ids={p['id'] for p in known}
     aliases={p['name'].strip().casefold():p['id'] for p in known}
+    ownership={}
     for path in (ROOT / 'stories').rglob('*_story.json'):
         if any(x in path.parts for x in ('backups', 'clips', 'logs')):
             continue
@@ -1499,11 +1514,21 @@ def library():
         if not story.get('scenes'):
             continue
         manifest = read_json(path.parent / 'clips' / 'manifest.json')
+        narration_hash=hashlib.sha256(json.dumps([sc.get('external_narration') or sc.get('script_line') or sc.get('dialogue') or '' for sc in story['scenes']],ensure_ascii=False).encode()).hexdigest()
+        ownership[str(path)]={'original':str(Path(story['original_story']).resolve()) if story.get('audio_first') and story.get('original_story') else '', 'hash':narration_hash,'modified':path.stat().st_mtime}
         result.append(dict(path=str(path), title=story.get('title', path.stem), scenes=len(story['scenes']),
                           duration=len(story['scenes']) * story.get('scene_seconds', 8),
                           clipSeconds=story.get('scene_seconds', 8),
                           preset=story.get('niche', ''), presetId=story.get('preset_id') if story.get('preset_id') in ids else aliases.get(str(story.get('niche','')).strip().casefold(),story.get('preset_id','')), modified=path.stat().st_mtime,
+                          internalRender=path.name=='localized_story.json' and 'multilingual' in path.relative_to(ROOT/'stories').parts,
                           **story_completion(path, story, manifest)))
+    by_path={str(Path(row['path']).resolve()):row for row in result}
+    for child in result:
+        meta=ownership[child['path']];parent=by_path.get(meta['original'])
+        if parent and child.get('fullyComplete') and not child.get('internalRender'):
+            original_meta=ownership[parent['path']]
+            if child['scenes']==parent['scenes'] and meta['hash']==original_meta['hash'] and child['modified']>=parent['modified']:
+                parent['fullyComplete']=True
     return sorted(result, key=lambda x: x['modified'], reverse=True)
 
 
@@ -1645,6 +1670,10 @@ def settings(data: dict):
         legacy = read_json(ROOT / 'gui_settings.json')
         if 'globalWorkflow' in data:
             try:legacy['workflow_globals']=global_workflow_settings(data['globalWorkflow'])
+            except ValueError as exc:raise HTTPException(400,str(exc))
+        if 'multilingualEnabled' in data:
+            import multilingual
+            try:legacy['multilingual']=multilingual.from_form(data)
             except ValueError as exc:raise HTTPException(400,str(exc))
         allowed = {'couple_sarah_file', 'couple_sam_file', 'couple_sarah_description', 'couple_sam_description',
                    'agent_saved_couple', 'ing_saved_couple', 'omni_saved_couple', 'preset_reference_library', 'preset_reference_modes'}

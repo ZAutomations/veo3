@@ -61,6 +61,11 @@ def plan_package(body):
         counts=[len(re.findall(r"\b[\w’'-]+\b",str(s['script_line']))) for s in selected]
         invalid=[f'scene {start+i}: {n} words' for i,n in enumerate(counts) if not 28<=n<=30]
         if invalid: raise ValueError('10-second narration must contain 28–30 words per scene before HeyGen/API generation: '+', '.join(invalid)+'. No script was rewritten and no audio request was submitted.')
+    import multilingual
+    multi=multilingual.configuration(body.get('multilingual'))
+    if multi['enabled'] and original.get('multilingual_translation_mode')=='supplied_only':
+        for row in multi['languages']:
+            if any(not str(scene.get('narration_translations',{}).get(row['code'],'')).strip() for scene in selected):raise ValueError('Missing supplied '+multilingual.LANGUAGES[row['code']]+' narration. Import it before generating audio; no translation call will be made.')
     cfg=E.settings(body.get('editingSettings'))
     if cfg['voiceover_mode'] not in ('api','local'): raise ValueError('Choose API or Local audio in Video Editing and save those settings first.')
     if cfg['voiceover_mode']=='api' and not cfg['voiceover_voice'].strip(): raise ValueError('Choose an API voice ID first.')
@@ -78,8 +83,9 @@ def plan_package(body):
                 last=b
         elif len(selected)!=1: raise ValueError('Multi-scene local audio needs a per-scene timing JSON.')
     fingerprint=hashlib.sha256(b'actual_story_pace_v2'+source.read_bytes()+json.dumps([start,end,cfg,V.signature(cfg)],sort_keys=True).encode()).hexdigest()[:12]
+    if multi['enabled']:fingerprint=hashlib.sha256((fingerprint+json.dumps(multi,sort_keys=True)).encode()).hexdigest()[:12]
     folder=source.parent/'audio_first'/fingerprint
-    return dict(source=source,original=original,start=start,end=end,seconds=seconds,selected=selected,cfg=cfg,folder=folder,
+    return dict(multilingual=multi,source=source,original=original,start=start,end=end,seconds=seconds,selected=selected,cfg=cfg,folder=folder,
                 file=folder/(source.stem+'_audio_first_story.json'))
 
 def prepare(body):
@@ -127,7 +133,11 @@ def prepare(body):
     story['audio_first_voice_calibration']=profile
     for key in ('zack_ready_import','script_import'): story[key]=False
     file=folder/(source.stem+'_audio_first_story.json')
+    if planned['multilingual']['enabled']:story['multilingual']=planned['multilingual']
     file.write_text(json.dumps(story,ensure_ascii=False,indent=2),encoding='utf-8')
+    if planned['multilingual']['enabled']:
+        import multilingual
+        multilingual.preflight_audio(file,planned['multilingual'])
     for name in ('refs.json','character_sheets.txt'):
         if (source.parent/name).is_file(): shutil.copy2(source.parent/name,folder/name)
     (folder/'AUDIO_FIRST_REVIEW.json').write_text(json.dumps(audit,ensure_ascii=False,indent=2),encoding='utf-8')
@@ -137,5 +147,7 @@ def prepare(body):
     return file
 
 if __name__=='__main__':
+    from multilingual import TranslationNetworkError
     try: prepare(json.loads(Path(sys.argv[1]).read_text(encoding='utf-8-sig')))
+    except TranslationNetworkError as exc: print('AUDIO FIRST TRANSIENT NETWORK FAILURE: '+str(exc)+' Cached narration preserved; Retry / Continue resumes translation.',flush=True);sys.exit(1)
     except Exception as exc: print('RECOVERY_REVIEW_REQUIRED: AUDIO FIRST FAILED: '+str(exc),flush=True);sys.exit(1)

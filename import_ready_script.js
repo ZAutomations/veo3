@@ -6,7 +6,7 @@ function writerFor(s,aspect){
  try{process.argv=[process.execPath,'write_story.js','--title',s.title,'--seconds',String(s.seconds),'--duration',String(s.seconds*s.clips.length),'--aspect',aspect];delete require.cache[require.resolve('./write_story')];return require('./write_story');}
  finally{process.argv=old;}
 }
-function prepare(s,aspect){
+function prepareBase(s,aspect){
  const W=writerFor(s,aspect),p=W.loadPreset(s.preset);
  if(require('./reference_video_preset').applies(p))return require('./reference_video_preset').prepare(W,p,s,aspect);
  if(require('./heartwarming_cat').applies(p))return require('./heartwarming_cat').prepare(W,p,s,aspect);
@@ -25,6 +25,14 @@ function prepare(s,aspect){
  story.scenes.forEach((scene,i)=>{const c=s.clips[i];scene.imported_action=[c.action,...c.shots.map((v,j)=>`SHOT ${j+1} (${v.start_seconds}-${v.end_seconds}s): ${v.visual}`)].filter(Boolean).join('\n');if(c.shots.length)scene.shots=c.shots;if(c.sound)scene.sound_context=c.sound;});
  const warnings=s.clips.flatMap(c=>{const words=c.dialogue.map(t=>t.line).join(' ').split(/\s+/).length;return words>s.seconds*3?[`Clip ${c.number}: ${words} words in ${s.seconds}s may be too long. Shorten the lines or use a longer clip.`]:[];});
  return {W,p,cast,story,warnings};
+}
+function prepare(s,aspect){
+ const result=prepareBase(s,aspect);
+ if(s.languages?.length){
+  result.story.narration_languages=s.languages;result.story.multilingual_translation_mode='supplied_only';
+  result.story.scenes.forEach((scene,i)=>{scene.narration_translations={...s.clips[i].narrations};});
+ }
+ return result;
 }
 function semanticKey(source){
  const key=JSON.parse(JSON.stringify(source));

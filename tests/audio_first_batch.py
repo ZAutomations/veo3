@@ -9,7 +9,8 @@ import desktop_app as app
 import audio_first as A
 import video_editing as E
 
-with tempfile.TemporaryDirectory() as tmp:
+real_read=app.read_json
+with tempfile.TemporaryDirectory() as tmp,patch.object(app,'read_json',side_effect=lambda path,*args,**kwargs: {'multilingual':{'enabled':False}} if Path(path).name=='gui_settings.json' else real_read(path,*args,**kwargs)),patch('voiceover.synthesize',side_effect=AssertionError('Offline fixture must not request speech')),patch('multilingual.translation',side_effect=AssertionError('Offline fixture must not translate')):
     root=Path(tmp);stories=[]
     for n in range(2):
         folder=root/str(n);folder.mkdir();file=folder/f'example_{n}_story.json'

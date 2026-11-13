@@ -49,5 +49,14 @@ function runAfterJoin(video,report){
  console.log('Video Editing Python: '+python);
  execFileSync(python,[path.join(__dirname,'video_editing.py'),video,'--auto','--order-report',report],
   {cwd:__dirname,env:process.env,stdio:'inherit',windowsHide:true,timeout:7200000});
+ const folder=path.dirname(path.resolve(video)),stories=fs.readdirSync(folder).filter(f=>/_story\.json$/i.test(f));
+ if(stories.length===1){
+  const storyFile=path.join(folder,stories[0]),story=JSON.parse(fs.readFileSync(storyFile,'utf8').replace(/^\uFEFF/,''));
+  if(story.audio_first&&story.multilingual?.enabled){
+   const request=path.join(folder,'multilingual_render_request.json');
+   fs.writeFileSync(request,JSON.stringify({story:storyFile,editingSettings:cfg}));
+   execFileSync(python,[path.join(__dirname,'multilingual.py'),request],{cwd:__dirname,env:process.env,stdio:'inherit',windowsHide:true,timeout:7200000});
+  }
+ }
 }
 module.exports={runAfterJoin,editingPython,hasPresetCTA};
