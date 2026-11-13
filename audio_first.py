@@ -27,6 +27,22 @@ def fit_story(audios,seconds,baseline=1.):
         if rate>C.MAX_RATE:break
     raise ValueError('Common story pace could not fit all scenes; review narration before video generation. No speech was cut.')
 
+def fit_google_story(audios,seconds):
+    """Normalize Google English scenes, avoiding longest-scene speed on shorter lines."""
+    target=9.48 if seconds==10 else seconds-.17
+    fitted=[];rates=[]
+    for index,audio in enumerate(audios,1):
+        duration=V.audio_duration(audio);rate=duration/target
+        if not .85<=rate<=1.30:
+            raise ValueError(f'Google English scene {index} needs {rate:.2f}x to fill {target:.2f}s. Review native delivery; no speech was cut.')
+        output=audio.with_name(audio.stem+'.google-scene.wav')
+        E.run(['ffmpeg','-v','error','-y','-i',audio,'-af',f'atempo={rate:.10f}','-ar','48000','-ac','1',output])
+        actual=V.audio_duration(output)
+        if not target-.08<=actual<=target+.03:raise ValueError('Google English scene timing validation failed; no speech was cut.')
+        fitted.append((output,actual));rates.append(rate)
+    return fitted,rates
+
+
 def fit_narration(audio, seconds):
     """Fit small overruns without cropping speech or altering the original audio."""
     duration=V.audio_duration(audio);target=9.5 if seconds==10 else seconds-.15
@@ -61,6 +77,11 @@ def plan_package(body):
         counts=[len(re.findall(r"\b[\w’'-]+\b",str(s['script_line']))) for s in selected]
         invalid=[f'scene {start+i}: {n} words' for i,n in enumerate(counts) if not 28<=n<=30]
         if invalid: raise ValueError('10-second narration must contain 28–30 words per scene before HeyGen/API generation: '+', '.join(invalid)+'. No script was rewritten and no audio request was submitted.')
+    import multilingual
+    multi=multilingual.configuration(body.get('multilingual'))
+    if multi['enabled'] and original.get('multilingual_translation_mode')=='supplied_only':
+        for row in multi['languages']:
+            if any(not str(scene.get('narration_translations',{}).get(row['code'],'')).strip() for scene in selected):raise ValueError('Missing supplied '+multilingual.LANGUAGES[row['code']]+' narration. Import it before generating audio; no translation call will be made.')
     cfg=E.settings(body.get('editingSettings'))
     if cfg['voiceover_mode'] not in ('api','local'): raise ValueError('Choose API or Local audio in Video Editing and save those settings first.')
     if cfg['voiceover_mode']=='api' and not cfg['voiceover_voice'].strip(): raise ValueError('Choose an API voice ID first.')
@@ -78,8 +99,9 @@ def plan_package(body):
                 last=b
         elif len(selected)!=1: raise ValueError('Multi-scene local audio needs a per-scene timing JSON.')
     fingerprint=hashlib.sha256(b'actual_story_pace_v2'+source.read_bytes()+json.dumps([start,end,cfg,V.signature(cfg)],sort_keys=True).encode()).hexdigest()[:12]
+    if multi['enabled']:fingerprint=hashlib.sha256((fingerprint+json.dumps(multi,sort_keys=True)).encode()).hexdigest()[:12]
     folder=source.parent/'audio_first'/fingerprint
-    return dict(source=source,original=original,start=start,end=end,seconds=seconds,selected=selected,cfg=cfg,folder=folder,
+    return dict(multilingual=multi,source=source,original=original,start=start,end=end,seconds=seconds,selected=selected,cfg=cfg,folder=folder,
                 file=folder/(source.stem+'_audio_first_story.json'))
 
 def prepare(body):
@@ -103,6 +125,12 @@ def prepare(body):
         if cfg['voiceover_mode']=='api':
             if not cfg['voiceover_voice']: raise ValueError('Choose an API voice ID first.')
             raw=V.synthesize(cfg['voiceover_provider'],cfg['voiceover_voice'],text,cache/f'scene_{i+1:03}.source.mp3')
+            if cfg['voiceover_provider']=='google':
+                import google_tts
+                google_target=9.48 if seconds==10 else seconds-.17
+                raw,google_duration=google_tts.recover_timing(cfg['voiceover_voice'],text,raw,google_target,language='en',max_rate=1.30)
+                if google_duration>google_target*1.30:
+                    raise ValueError(f'Google scene {i+1} still needs more than 1.30x after two unchanged-text pacing attempts. Review this line; no speech was cut.')
             E.run(['ffmpeg','-v','error','-y','-i',raw,'-ar','48000','-ac','1',audio])
         else:
             row=local_rows[i] if local_rows else {'audio_start':0,'audio_end':V.audio_duration(local)}
@@ -110,8 +138,13 @@ def prepare(body):
             if not 0<=a<b<=V.audio_duration(local)+.01: raise ValueError('Local audio range is invalid.')
             E.run(['ffmpeg','-v','error','-y','-ss',str(a),'-i',local,'-t',str(b-a),'-ar','48000','-ac','1',audio])
         audios.append(audio);original_durations.append(V.audio_duration(audio))
-    fitted,tempo=fit_story(audios,seconds)
-    E.log(f'Common narration pace for all {len(audios)} scenes: {tempo:.3f}x. No individual scene speed overrides.')
+    google_english=cfg['voiceover_mode']=='api' and cfg['voiceover_provider']=='google'
+    if google_english:
+        fitted,scene_paces=fit_google_story(audios,seconds);tempo=None
+        E.log(f'Google English narration: all {len(audios)} scenes fitted independently to {9.48 if seconds==10 else seconds-.17:.2f}s; pitch preserved, no longest-scene acceleration applied to shorter lines.')
+    else:
+        fitted,tempo=fit_story(audios,seconds);scene_paces=[tempo]*len(audios)
+        E.log(f'Common narration pace for all {len(audios)} scenes: {tempo:.3f}x. No individual scene speed overrides.')
     for i,(scene,(audio,duration),original_duration) in enumerate(zip(story['scenes'],fitted,original_durations)):
         text=scene['script_line'].strip()
         scene.update(external_narration=text,script_line='',dialogue=[],audio_first_duration=duration,audio_first_file=str(audio),_scene_number=i+1)
@@ -121,13 +154,33 @@ def prepare(body):
             shot['end_seconds']=round(float(shot['end_seconds'])/seconds*duration,3)
         if scene.get('shots'): scene['shots'][-1]['end_seconds']=seconds
         scene.pop('veo3_prompt',None);scene['sound']='Natural ambience and action-matched SFX only; no speech, vocals or music.'
-        audit.append({'scene':i+1,'original_scene':start+i,'narration':text,'original_audio_seconds':original_duration,'audio_seconds':duration,'tempo':tempo,'video_seconds':seconds,'shots':scene.get('shots',[])})
+        audit.append({'scene':i+1,'original_scene':start+i,'narration':text,'original_audio_seconds':original_duration,'audio_seconds':duration,'tempo':scene_paces[i],'video_seconds':seconds,'shots':scene.get('shots',[])})
     story.update(audio_first=True,narrated=False,narration_scope='none',flow_voice='',flow_voices=[],original_story=str(source),total_scenes=len(selected))
     story['audio_first_common_pace']=tempo
+    if google_english:story['audio_first_scene_paces']=scene_paces
     story['audio_first_voice_calibration']=profile
     for key in ('zack_ready_import','script_import'): story[key]=False
     file=folder/(source.stem+'_audio_first_story.json')
+    if planned['multilingual']['enabled']:story['multilingual']=planned['multilingual']
+    # Voice-only overrides remain valid across audio timing metadata refreshes,
+    # but never across changed English narration or a different source/range.
+    overrides=folder/'multilingual_narration_overrides.json'
+    rebind=None
+    if overrides.is_file() and file.is_file():
+        old_bytes=file.read_bytes();old_story=json.loads(old_bytes.decode('utf-8-sig'))
+        saved=json.loads(overrides.read_text(encoding='utf-8-sig'))
+        if (saved.get('story_sha256')==hashlib.sha256(old_bytes).hexdigest()
+                and old_story.get('original_story')==story.get('original_story')
+                and [(x.get('_scene_number'),x.get('external_narration')) for x in old_story['scenes']]
+                    ==[(x.get('_scene_number'),x.get('external_narration')) for x in story['scenes']]):
+            rebind=saved
     file.write_text(json.dumps(story,ensure_ascii=False,indent=2),encoding='utf-8')
+    if rebind is not None:
+        rebind['story_sha256']=hashlib.sha256(file.read_bytes()).hexdigest()
+        temp=overrides.with_suffix('.tmp');temp.write_text(json.dumps(rebind,ensure_ascii=False,indent=2),encoding='utf-8');temp.replace(overrides)
+    if planned['multilingual']['enabled']:
+        import multilingual
+        multilingual.preflight_audio(file,planned['multilingual'])
     for name in ('refs.json','character_sheets.txt'):
         if (source.parent/name).is_file(): shutil.copy2(source.parent/name,folder/name)
     (folder/'AUDIO_FIRST_REVIEW.json').write_text(json.dumps(audit,ensure_ascii=False,indent=2),encoding='utf-8')
@@ -137,5 +190,8 @@ def prepare(body):
     return file
 
 if __name__=='__main__':
+    from multilingual import TranslationNetworkError
+    from heygen_audio import HeyGenNetworkError
     try: prepare(json.loads(Path(sys.argv[1]).read_text(encoding='utf-8-sig')))
+    except (TranslationNetworkError, HeyGenNetworkError) as exc: print('AUDIO FIRST TRANSIENT NETWORK FAILURE: '+str(exc)+' Cached narration preserved; Retry / Continue resumes the saved request or translation.',flush=True);sys.exit(1)
     except Exception as exc: print('RECOVERY_REVIEW_REQUIRED: AUDIO FIRST FAILED: '+str(exc),flush=True);sys.exit(1)

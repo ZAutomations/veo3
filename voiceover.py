@@ -23,6 +23,10 @@ def audio_duration(file):
     return duration
 
 def configure(provider, key):
+    if provider == 'google':
+        import google_tts
+        google_tts.configure(key)
+        return
     if provider == 'heygen':
         import heygen_audio
         heygen_audio.configure(key)
@@ -47,6 +51,9 @@ def call(provider, route, payload=None):
     except OSError: raise ValueError(f'{provider} connection failed; no automatic generation retry was sent.') from None
 
 def voices(provider):
+    if provider == 'google':
+        import google_tts
+        return google_tts.voices()
     if provider=='heygen':
         import heygen_audio
         return heygen_audio.voices()
@@ -55,9 +62,12 @@ def voices(provider):
     if isinstance(data,dict): data=data.get('voices',[])
     return [{'voice_id':v.get('voice_id',v.get('id','')), 'name':v.get('name','Voice')} for v in data]
 
-def synthesize(provider, voice, text, target):
+def synthesize(provider, voice, text, target, language=None):
     target=Path(target)
     if target.is_file() and target.stat().st_size: return target
+    if provider=='google':
+        import google_tts
+        return google_tts.synthesize(voice,text,target,language)
     if provider=='heygen':
         import heygen_audio
         receipt=target.with_suffix('.heygen.json')
@@ -111,7 +121,10 @@ def synthesize(provider, voice, text, target):
             temp.replace(target);break
         except OSError:
             temp.unlink(missing_ok=True)
-            if attempt==2: raise ValueError(f'{provider} audio download timed out/failed. The generation response is saved; Retry / Continue resumes the download without generating speech again.') from None
+            if attempt==2:
+                from heygen_audio import HeyGenNetworkError
+                error = HeyGenNetworkError if provider == 'heygen' else ValueError
+                raise error(f'{provider} audio download timed out/failed. The generation response is saved; Retry / Continue resumes the download without generating speech again.') from None
             time.sleep(attempt+1)
     return target
 

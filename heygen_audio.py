@@ -8,6 +8,10 @@ import uuid
 
 STORE = Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'Veo3Studio' / 'heygen'
 
+class HeyGenNetworkError(RuntimeError):
+    """Recoverable transport/service failure; retry must retain request identity."""
+
+
 def configure(key):
     key = str(key or '').strip()
     if key:
@@ -39,9 +43,12 @@ def request(route, payload=None, idempotency_key=None):
         if exc.code == 402:
             raise ValueError('HeyGen API credits are insufficient. Check API billing in your HeyGen account; voice preview was not generated.') from None
         message = exc.read().decode(errors='replace').replace(key, '[hidden]')[:600]
-        raise ValueError(f'HeyGen HTTP {exc.code}: {message}') from None
-    except (OSError, ValueError) as exc:
-        raise ValueError('HeyGen request failed: ' + str(exc).replace(key, '[hidden]')) from None
+        error = HeyGenNetworkError if exc.code in (408, 429, 500, 502, 503, 504) else ValueError
+        raise error(f'HeyGen HTTP {exc.code}: {message}') from None
+    except OSError as exc:
+        raise HeyGenNetworkError('HeyGen request failed: ' + str(exc).replace(key, '[hidden]')) from None
+    except ValueError:
+        raise ValueError('HeyGen returned an invalid JSON response; review the provider response.') from None
 
 def voices():
     result = request('/v3/voices?limit=100&language=en')

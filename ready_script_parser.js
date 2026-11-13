@@ -8,7 +8,8 @@ class ImportValidationError extends Error {
   `Section: ${this.section||'Metadata'}`,this.clipNumber?`Clip: ${this.clipNumber}`:'',this.field?`Field: ${this.field}`:'',
   this.line?`Line: ${this.line}`:'',this.message,'No video-generation jobs were started.'].filter(Boolean).join('\n');}
 }
-const TOP=new Set(['title','preset','setting','clip seconds','duration','estimated duration','details','characters','locations',
+const LANGUAGE_CODES={english:'en',russian:'ru',arabic:'ar',hindi:'hi',urdu:'ur',spanish:'es',french:'fr',german:'de',japanese:'ja'};
+const TOP=new Set(['languages','title','preset','setting','clip seconds','duration','estimated duration','details','characters','locations',
  'continuity','story brief','sources','production profile','location name','left label','right label','footer start','footer end']);
 const unquote=value=>String(value).trim().replace(/^(?:"([\s\S]*)"|“([\s\S]*)”)$/,(m,a,b)=>a??b).trim();
 const words=text=>(String(text).match(/[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu)||[]).length;
@@ -62,6 +63,14 @@ function parse(text,defaults={}) {
     assign(clip,key.replace(' ','_'),value,lineNo,label);continue;
    }
    if(key==='action'){clip.action=[clip.action,value].filter(Boolean).join(' ');last={target:clip,key:'action'};continue;}
+   const translated=key.match(/^narration\s+(english|russian|arabic|hindi|urdu|spanish|french|german|japanese)$/);
+   if(translated){
+    const code=LANGUAGE_CODES[translated[1]],text=unquote(value);
+    if(!text)fail('Language narration cannot be empty.',lineNo,label);
+    clip.narrations=clip.narrations||{};seen(clip,'narration_'+code,lineNo,label);clip.narrations[code]=text;
+    if(code==='en')assign(clip,'narration',text,lineNo,label);
+    last={target:clip.narrations,key:code};continue;
+   }
    if(key==='narration'){assign(clip,'narration',value,lineNo,label);continue;}
    if(key==='effect'||key==='sound'||key==='audio'){
     assign(clip,key==='audio'?'sound':key,value,lineNo,label);continue;
@@ -82,6 +91,11 @@ function parse(text,defaults={}) {
   if(section&&!TOP.has(key)){
    if(story[section].some(item=>item.name.toLowerCase()===label.toLowerCase()))fail(`Duplicate ${section} name: ${label}.`,lineNo,label);
    const entry={name:label,description:value};Object.defineProperty(entry,'_sourceLine',{value:lineNo,enumerable:false});story[section].push(entry);last={target:entry,key:'description'};continue;
+  }
+  if(key==='languages'){
+   const names=value.split(',').map(t=>t.trim().toLowerCase());
+   if(!names.length||names.some(n=>!LANGUAGE_CODES[n])||new Set(names).size!==names.length||names[0]!=='english')fail('Languages must start with English and list distinct supported language names.',lineNo,label);
+   assign(story,'languages',names.map(n=>LANGUAGE_CODES[n]),lineNo,label);continue;
   }
   if(key==='continuity'){
    assign(story,'continuity',value,lineNo,label);continue;
@@ -140,8 +154,15 @@ function parse(text,defaults={}) {
    strictNumbers.add(s.storyNumber);
    if(s.clips.length!==8)fail(`Strict Zack production requires exactly 8 clips; received ${s.clips.length}.`,s._source.line,'Clips');
   }
+  const languageSet=s.languages||[...new Set(s.clips.flatMap(c=>Object.keys(c.narrations||{})))];
+  if(languageSet.length){
+   if(!zack||!languageSet.includes('en'))fail('Multilingual narration currently requires a Zack-style narrated preset and English.',s._source.line,'Languages');
+   s.languages=languageSet;
+   for(const c of s.clips)if(languageSet.some(code=>!c.narrations?.[code])||Object.keys(c.narrations||{}).some(code=>!languageSet.includes(code)))fail(`Every clip needs exactly the declared languages (${languageSet.join(', ')}).`,c._source.line,'Languages',{clipNumber:c.number});
+  }
   for(const c of s.clips){
    clip=c;
+   if(c.narrations){for(const code of Object.keys(c.narrations))c.narrations[code]=unquote(c.narrations[code]);c.narration=c.narrations.en;}
    if(c.narration!==undefined)c.narration=unquote(c.narration);
    for(const turn of c.dialogue)turn.line=unquote(turn.line);
   if(zack||fern||geography||(general&&require('./generic_ready_script').mode(generalPreset)==='narrated')){

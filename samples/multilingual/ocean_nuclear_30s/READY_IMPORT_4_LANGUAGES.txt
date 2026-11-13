@@ -1,0 +1,47 @@
+Story 1
+Title: What Happens When You Drop a Nuclear Bomb Into the Ocean?
+Preset: 3d-zack-style
+Production profile: zetomate-flex
+Languages: English, Russian, Arabic, Hindi
+Clip seconds: 10
+Estimated duration: 30 seconds
+Details: Educational hypothetical effects explainer, not a weapons tutorial. Dropping an object does not by itself mean nuclear detonation. Preserve this distinction. Narrations target roughly 9.5 seconds per scene; actual voice delivery must be measured, never guaranteed by word count. Shared visuals must stay language-neutral: symbols instead of written English labels. No weapon construction, triggering, arming, deployment procedures, yield values, damage radii or graphic injuries.
+Sources: https://www.un.org/en/observances/end-nuclear-tests-day/history ; https://www.acq.osd.mil/ncbdp/nm/NMHB2020rev/chapters/chapter13.html
+Characters:
+None
+Locations:
+Ocean Educational Cutaway: A polished dimensional 3D open-ocean cutaway with rich navy water, vivid turquoise surface highlights, warm coral-orange and golden mechanism glows, purple shadows and a neutral deep background. Readable water depth, moving particles, stylized marine silhouettes and a distant generic vessel. No people, real branding, weapon internals or numerical damage overlays.
+Continuity: One coherent stylized-realistic 3D educational ocean world. The first dropped object is an opaque unmarked abstract capsule; do not depict arming or any device mechanism. The explosion visualization is a separate hypothetical explanation, never an automatic consequence of contact with water. Every clip follows visible action, dimensional physical explanation and a concrete consequence with continuous internal camera moves. Small circular icon badges use animated multicolored neon outlines and quiet synchronized pops. No text baked into video, no fake footage, no gore. Keep the same restrained curious synth BGM throughout all three scenes, under narration; no explosive audio peaks.
+
+Clip 1 — The Important Distinction:
+Narration English: "What happens if a nuclear bomb falls into the ocean? A fall alone does not cause nuclear detonation. If it exploded underwater, a powerful pressure wave would spread."
+Narration Russian: "Что будет, если ядерная бомба упадёт в океан? Само падение не вызывает ядерный взрыв. Но при взрыве под водой распространится мощная ударная волна."
+Narration Arabic: "ماذا يحدث إذا سقطت قنبلة نووية في المحيط؟ السقوط وحده لا يسبب انفجارًا نوويًا. لكن انفجارها تحت الماء يطلق موجة ضغط قوية تنتشر في المياه."
+Narration Hindi: "परमाणु बम समुद्र में गिरे तो क्या होगा? सिर्फ गिरने से परमाणु विस्फोट नहीं होता। लेकिन पानी के भीतर विस्फोट होने पर शक्तिशाली दबाव की लहर चारों ओर फैलती है।"
+Shot 1: 0–3.2 seconds — Follow an opaque unmarked abstract capsule descending into a dimensional ocean cutaway, water parting gently around it. There is no impact explosion or visible mechanism; a small question-mark icon pops inside a coral circular badge with a moving gold neon rim.
+Shot 2: 3.2–6.5 seconds — Make a clearly separated explanatory transition behind a foreground water ribbon into a hypothetical underwater-event diagram. A compact abstract warm glow appears in the water; show no weapon parts or triggering action. The camera travels around the water volume rather than holding on a flat diagram.
+Shot 3: 6.5–10 seconds — Track a translucent orange pressure shell expanding through surrounding navy water, visibly pushing suspended particles outward. A small wave icon badge enters with a quiet pop, its neon outer ring tracing once around the circle. Keep all text absent.
+Effect: Quiet question badge pop at 0.5 seconds; wave badge pop at 7 seconds; continuous camera transitions connect the internal views.
+Sound: Restrained curious synth atmosphere, the same musical identity throughout the story. Soft underwater movement and quiet icon pops beneath the narration; no loud blast or added speech.
+
+Clip 2 — Bubble and Contamination:
+Narration English: "Water near the explosion would rapidly become superheated, creating an expanding gas bubble. Near the surface, rising water and spray could spread radioactive contamination across the surrounding area."
+Narration Russian: "Вода рядом со взрывом резко нагреется, образуя расширяющийся газовый пузырь. У поверхности поднимающаяся вода и брызги могут разнести радиоактивное загрязнение по окружающей территории."
+Narration Arabic: "تسخن المياه قرب الانفجار بسرعة شديدة، فتتكون فقاعة غازية تتمدد. وقرب السطح، قد تحمل المياه الصاعدة والرذاذ مواد مشعة، وتنشر التلوث في المنطقة المحيطة."
+Narration Hindi: "विस्फोट के पास पानी बेहद गर्म होकर फैलता गैस का बुलबुला बना सकता है। सतह के पास उठता पानी और फुहार आसपास के इलाके में रेडियोधर्मी दूषण फैला सकते हैं।"
+Shot 1: 0–3.2 seconds — Travel beside the warm glowing region in a stylized 3D water cutaway. Blue water particles separate around a distinct expanding amber gas bubble, making the difference between water and gas readable without labels or numbers.
+Shot 2: 3.2–6.5 seconds — Follow the rounded bubble upward toward the ocean surface in one connected camera move. Near-surface water rises into a compact illustrative spray column; preserve the same navy, turquoise, coral and purple material palette.
+Shot 3: 6.5–10 seconds — Move with droplets falling outward from the spray. Small gold tracer particles within selected droplets symbolize radioactive material rather than visibly glowing real radiation; a standard radiation-symbol icon pops in a circular purple badge with an animated magenta rim. Do not show worldwide contamination or invented distances.
+Effect: Gas-bubble badge pop at 2 seconds; radiation-symbol badge pop at 7.2 seconds; smooth pan along the rising water and droplets.
+Sound: Same restrained curious synth identity as Clip 1, without restarting an intro. Gentle bubbling and spray with quiet badge pops, always below the exact supplied narration.
+
+Clip 3 — The Real Consequences:
+Narration English: "The effects depend on local conditions. Water cannot make a nuclear blast harmless: nearby wildlife and vessels could face serious consequences. Did you expect the ocean to protect them?"
+Narration Russian: "Последствия зависят от местных условий. Вода не сделает ядерный взрыв безопасным: пострадать могут морские животные и суда поблизости. Вы ожидали, что океан их защитит?"
+Narration Arabic: "تختلف الآثار بحسب الظروف المحلية. الماء لا يجعل الانفجار النووي آمنًا؛ فقد تتضرر الكائنات البحرية والسفن القريبة بشدة. هل توقعت أن يحميها المحيط؟"
+Narration Hindi: "असर स्थानीय परिस्थितियों पर निर्भर करते हैं। पानी परमाणु विस्फोट को सुरक्षित नहीं बनाता; पास के समुद्री जीव और जहाज़ गंभीर नुकसान झेल सकते हैं। क्या समुद्र उन्हें बचा सकता है?"
+Shot 1: 0–3.2 seconds — Pull around a small dimensional overview of the same ocean volume, with different water layers and seabed contours visibly present. Icon-only badges representing water conditions appear one at a time in small neon-rimmed circles; do not display yield, depth settings or damage calculations.
+Shot 2: 3.2–6.5 seconds — Follow an illustrative pressure ripple past stylized fish silhouettes and toward a generic vessel silhouette. Wildlife move away naturally; a modest amber warning halo communicates potential harm without dead animals, injuries, sinking spectacle or unsupported outcomes.
+Shot 3: 6.5–10 seconds — Settle into a moving three-quarter view of water, fish and vessel icons together. A small shield outline fades to an open question-mark badge with a colorful animated neon border, visually supporting the closing question. End with a complete composed moving ocean shot, not a blank title card.
+Effect: Quiet water-condition badge pops at 0.7 seconds; warning halo at 4.8 seconds; closing question icon pop at 8 seconds. Keep all overlays compact and language-neutral.
+Sound: Continue the same quiet curious synth bed, soft underwater movement and restrained synchronized icon pops. Gentle musical resolution under the final question, no extra spoken CTA.

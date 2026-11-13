@@ -20,6 +20,7 @@ import re
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 FONTS_DIR = os.path.join(ROOT, "tools", "fonts")
+_ARABIC = re.compile(r"[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]")
 
 STYLES = {
     # id: (label, font for Latin text, words per phrase)
@@ -236,12 +237,12 @@ def build_ass(pid_dir, width, height, setting=None, *, word_items=None, override
         "BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, "
         "BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
     ]
-    for name, font in (("Latin", latin_font), ("Deva", "Nirmala UI")):
+    for name, font in (("Latin", latin_font), ("Deva", "Nirmala UI"), ("Arabic", "Noto Sans Arabic")):
         head.append(
             f"Style: {name},{font},{fs},{_ass_color(primary)},{_ass_color(secondary)},"
             f"{_ass_color('#000000')},{_ass_color('#000000', 0x80)},-1,0,0,0,100,100,"
-            f"{1 if font != 'Nirmala UI' else 0},0,1,{outline},{shadow},{align},"
-            f"{margin_lr},{margin_lr},{margin_v},1")
+            f"{0 if name in ('Deva','Arabic') else 1},0,1,{outline},{shadow},{align},"
+            f"{margin_lr},{margin_lr},{margin_v},{-1 if name == 'Arabic' else 1}")
     head += ["", "[Events]",
              "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text"]
 
@@ -255,7 +256,7 @@ def build_ass(pid_dir, width, height, setting=None, *, word_items=None, override
     per = 1 if style_id == 'one_word' else max(1,min(5,int(overrides.get('words_per_phrase',per))))
     phrases = _phrases(words, per, max_chars)
     for k, ph in enumerate(phrases):
-        style = "Deva" if any(_DEVANAGARI.search(w[0]) for w in ph) else "Latin"
+        style = "Arabic" if any(_ARABIC.search(w[0]) for w in ph) else "Deva" if any(_DEVANAGARI.search(w[0]) for w in ph) else "Latin"
         p_start = ph[0][1]
         nxt_start = phrases[k + 1][0][1] if k + 1 < len(phrases) else ph[-1][2] + 0.6
         # Stay on screen through short pauses so captions do not flicker.

@@ -1,0 +1,15 @@
+const assert=require('assert'),fs=require('fs'),path=require('path'),I=require('../import_ready_script'),R=require('../ready_script_report');
+const text=fs.readFileSync('samples/multilingual/ocean_nuclear_30s/READY_IMPORT_4_LANGUAGES.txt','utf8').replace(/\r\n/g,'\n'),source=I.parse(text)[0];
+assert.deepEqual(source.languages,['en','ru','ar','hi']);assert.equal(source.clips.length,3);
+const prepared=I.prepare(source,'9:16');assert.equal(prepared.story.multilingual_translation_mode,'supplied_only');
+assert.equal(prepared.story.scenes[0].narration_translations.hi,source.clips[0].narrations.hi);
+assert.equal(prepared.story.scenes[0].script_line,source.clips[0].narrations.en);
+assert(!prepared.story.scenes[0].veo3_prompt.includes(source.clips[0].narrations.ru),'translated scripts must not leak into the English visual prompt');
+const roundtrip=I.parse(R.exportScript(source))[0];assert.deepEqual(roundtrip.clips.map(c=>c.narrations),source.clips.map(c=>c.narrations));
+assert.throws(()=>I.parse(text.replace(/^Narration Hindi:.*\n/m,'')),/Every clip needs/);
+assert.throws(()=>I.parse(text.replace(/Narration Russian:/,'Narration Unknown:')),/unknown field/);
+assert.throws(()=>I.parse(text.replace(/(Narration Russian:.*)/,'$1\n$1')),/Duplicate/);
+const legacy=I.parse(text.replace(/^Languages:.*\n/m,'').replace(/^Narration (Russian|Arabic|Hindi):.*\n/gm,'').replace(/Narration English:/g,'Narration:'))[0];assert(!legacy.languages);assert(!I.prepare(legacy,'9:16').story.narration_languages);
+const japanese=text.replace('Languages: English, Russian, Arabic, Hindi','Languages: English, Russian, Arabic, Hindi, Japanese').replace(/(Narration Hindi:[^\n]+)/g,'$1\nNarration Japanese: "海の中では衝撃波が広がります。"');
+const ja=I.parse(japanese)[0];assert(ja.languages.includes('ja'));assert.equal(I.prepare(ja,'9:16').story.scenes[0].narration_translations.ja,'海の中では衝撃波が広がります。');assert.deepEqual(I.parse(R.exportScript(ja))[0].languages,ja.languages);
+console.log('PASS: 3x10s four-language sample, exact translations and round-trip retained, English prompt isolated, duplicate/missing/unknown language rejected; legacy import unchanged.');

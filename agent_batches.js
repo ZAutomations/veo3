@@ -131,6 +131,11 @@ async function runAgentBatches(a, storyJson, run, log) {
     }
     // Do not rebuild a finished project's queue or submit any prompts again.
     if (state.completed >= total) return { ok: true, storyJson, text: `All ${total} clips were previously completed in this project; nothing resubmitted.` };
+    if(story.audio_first&&story.multilingual?.enabled){
+        log('Multilingual audio preflight: every selected voice must fit before any new Flow submission.');
+        const checked=await run('multilingual_preflight.js',[storyJson],{timeoutMs:1800000});
+        if(checked.code!==0)return {ok:false,storyJson,text:checked.out||checked.err||'Multilingual audio preflight failed; no new video submitted.'};
+    }
     state.aspect = aspect;
     let batches;
     try { batches = await prepareAgentBatches(a, storyJson, state, run, log); }
