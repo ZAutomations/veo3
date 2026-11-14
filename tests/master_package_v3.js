@@ -6,7 +6,7 @@ const folder=path.join(__dirname,'../Master prompts');let count=0;
 for(const f of fs.readdirSync(folder).filter(n=>n.endsWith('.txt')&&!['00_START_HERE.txt','video-reverse-engineering.txt'].includes(n))){
  const t=fs.readFileSync(path.join(folder,f),'utf8');assert.equal(t.split(P.START).length,2,f);assert(t.trimEnd().endsWith(P.END),f);
  for(const field of ['| video_id |','| filename |','| title |','| description |','| Tags |','| thumbnail |'])assert(t.includes(field),f+field);
- for(const requirement of ['Combined_Ready_Import_Scripts.txt','Combined_YouTube_SEO.xlsx','PACKAGE_MANIFEST.json','Exactly 15','Exactly 10','exactly 3','Sources:'])assert(new RegExp(requirement,'i').test(t),f+requirement);
+ for(const requirement of ['Combined_Ready_Import_Scripts.txt','{BatchFolderName}.xlsx','01 Batch 1 to 5 Zack','{StoryTitle}.txt','{StoryTitle}.png','PACKAGE_MANIFEST.json','Exactly 15','Exactly 10','exactly 3','Sources:'])assert(new RegExp(requirement,'i').test(t),f+requirement);
  count++;
 }
 assert(P.block('genai-space-cel').includes('NASA, ESA'));

@@ -306,54 +306,49 @@ Every generated Excel workbook must have:
 
 Preserve full source URLs, hashtags, metadata, and tags without truncation.
 
-### 4. INDIVIDUAL STORY PACKAGE STRUCTURE
+### 4. MANDATORY TITLE-BASED BATCH AND STORY NAMES
 
-For EVERY selected story, create a separate story folder containing:
+Apply this naming rule to EVERY preset and every future batch. It overrides all older numbered/sluggified package names, Story_XX folders, BATCH_COMPLETE_PACKAGES and Combined_YouTube_SEO.xlsx naming. Do not change the importer grammar or the actual story numbering inside scripts.
 
-1. `Story_XX_Ready_Import.txt`
-2. `Story_XX_YouTube_SEO.xlsx`
+Batch folder name:
+`{BatchNumber:02d} Batch {FirstStoryNumber} to {LastStoryNumber} {PresetFirstWord}`
 
-The individual script TXT contains only that story's ready-import content.
+- BatchNumber is a separate two-digit batch counter: 01, 02, 03, etc. Use an explicitly supplied batch number; otherwise continue the known counter in this conversation, or default to 01 for a new series. Never invent unseen previous batches or restart a known counter.
+- FirstStoryNumber and LastStoryNumber are the actual first and last story numbers in the finalized selected batch, in their existing order. Do not reset Stories 19–23 to 1–5. For a single story use the same number twice. Preserve any nonconsecutive selected numbers in PACKAGE_MANIFEST.json; the range is a label, not permission to add unselected stories.
+- PresetFirstWord is the FIRST WORD of the preset's user-facing display name, preserving capitalization. Do not use the internal preset ID or the full preset name. Zack Animation → Zack; Health 3D ZackStyle → Health; Map Animation → Map. Derive other names from the active preset's display name, not these examples.
+- Example first batch of Zack Animation, Stories 1–5: `01 Batch 1 to 5 Zack`.
+- Example next batch, Stories 6–10: `02 Batch 6 to 10 Zack`.
 
-The individual Excel workbook contains exactly one story data row using all six required columns.
+Inside the batch folder, create one folder for each story named after its original story title, with no Story_XX, batch-number or slug prefix. Inside each story folder:
 
-Use the exact same metadata in individual Excel files and the combined master Excel workbook.
+1. `{StoryTitle}.txt` — that story's ready-import script only.
+2. `{StoryTitle}.xlsx` — that story's single-row SEO workbook using the six required columns.
+3. `{StoryTitle}.png` — its unique thumbnail, ONLY if an actual image was requested and generated. Never rename text to PNG or claim a missing image exists.
+4. Any requested supplementary thumbnail prompts may use `{StoryTitle} Thumbnail Prompts.txt`; do not replace the title-named script or image.
 
-If thumbnail images are separately requested and generated, save each unique thumbnail inside its matching story folder. Never substitute thumbnail filename text for an actual generated image.
+Keep exact selected titles inside script content and video_id cells. For actual filesystem names only, replace Windows-invalid characters `< > : " / \ | ? *` with a space, collapse repeated whitespace, and strip trailing spaces/periods. Handle reserved device names and collisions deterministically and record every difference in PACKAGE_MANIFEST.json. Use the SAME safe title base for its story folder, script, thumbnail and individual workbook. Never claim question marks or other invalid characters exist in Windows filenames. Metadata retains the exact-title conventions specified above.
 
 ### 5. COMBINED MASTER FILES & ZIP
 
-The final batch package must follow this structure:
+The batch SEO workbook MUST have the exact same base name as its batch folder: `{BatchFolderName}.xlsx`. The ZIP also uses `{BatchFolderName}.zip`. Keep one combined ready-import TXT as `Combined_Ready_Import_Scripts.txt` for the existing importer.
+
+Example structure (actual Windows-safe title bases):
 
 ```text
-BATCH_COMPLETE_PACKAGES/
-│
-├── Story_01/
-│   ├── Story_01_Ready_Import.txt
-│   └── Story_01_YouTube_SEO.xlsx
-│
-├── Story_02/
-│   ├── Story_02_Ready_Import.txt
-│   └── Story_02_YouTube_SEO.xlsx
-│
-├── Story_03/
-│   ├── Story_03_Ready_Import.txt
-│   └── Story_03_YouTube_SEO.xlsx
-│
-├── ... remaining story folders ...
-│
+01 Batch 1 to 5 Zack/
+├── Why Do Cats Purr/
+│   ├── Why Do Cats Purr.txt
+│   ├── Why Do Cats Purr.xlsx
+│   └── Why Do Cats Purr.png  (only if actually generated)
+├── ... remaining selected story-title folders ...
 ├── Combined_Ready_Import_Scripts.txt
-├── Combined_YouTube_SEO.xlsx
+├── 01 Batch 1 to 5 Zack.xlsx
 └── PACKAGE_MANIFEST.json
 ```
 
-Create one ZIP archive containing the complete folder structure.
+The combined workbook has one row per selected story; the same metadata must appear in each individual title-named workbook. Preserve professional formatting and all six columns. Include actual batch number, story numbers, preset display name, exact batch folder name and any filesystem-safe title mappings in PACKAGE_MANIFEST.json.
 
-Also provide separate download links for:
-
-- Complete batch ZIP.
-- Combined scripts TXT.
-- Combined SEO Excel XLSX.
+Create one ZIP archive named `01 Batch 1 to 5 Zack.zip` for this example, containing the complete batch folder structure. Provide separate real download links for the complete ZIP, combined scripts TXT and batch-named master SEO workbook. Use the computed batch name for other batches and presets; never hardcode Zack or the example range.
 
 ### 6. MANDATORY VALIDATION BEFORE DELIVERY
 
@@ -363,6 +358,9 @@ Before providing download links, verify:
 - All story titles match the original selections.
 - Story ordering is preserved.
 - Every story folder exists.
+- Batch folder and ZIP follow `{BatchNumber:02d} Batch {FirstStoryNumber} to {LastStoryNumber} {PresetFirstWord}`.
+- The master SEO workbook base name exactly matches the batch folder name.
+- Every story folder, script, generated thumbnail and individual workbook uses its shared filesystem-safe story title.
 - Every story folder contains its required TXT and XLSX files.
 - Combined TXT contains all stories.
 - Combined Excel contains exactly one row per story.
