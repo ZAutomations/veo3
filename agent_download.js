@@ -651,7 +651,7 @@ async function activateVideoTile(page, tile, needSource = true) {
         const meta=JSON.parse(fs.readFileSync(STORY_FILE,'utf8'));
         const folder=path.dirname(path.resolve(STORY_FILE));
         const needsThumbnail=require('./thumbnail_prompt').isFlowEndcardPreset(meta)&&fs.existsSync(path.join(folder,'thumbnail_prompt.txt'));
-        const hasThumbnail=['.png','.jpg','.jpeg','.webp'].some(ext=>{const f=path.join(folder,'thumbnail_downloaded'+ext);return fs.existsSync(f)&&fs.statSync(f).size>2048;});
+        const hasThumbnail=!!require('./story_thumbnail').local(folder,meta.title);
         if(local.complete&&(!needsThumbnail||hasThumbnail)){
             log('All local story clips are verified. No browser video downloads needed; continuing to the next workflow step.');
             return;
@@ -744,10 +744,7 @@ async function activateVideoTile(page, tile, needSource = true) {
     const thumbnailReceiptPath = path.join(thumbnailOutputDir,'thumbnail_downloaded.json');
     let thumbnailReceipt={};
     try{thumbnailReceipt=JSON.parse(fs.readFileSync(thumbnailReceiptPath,'utf8'));}catch{}
-    const existingThumbnail = thumbnailReceipt.assetId && thumbnailReceipt.assetId===thumbnailTile?.assetId
-        ? ['.png','.jpg','.jpeg','.webp'].map(ext => path.join(thumbnailOutputDir,'thumbnail_downloaded'+ext))
-            .find(file => fs.existsSync(file) && fs.statSync(file).size > 2048)
-        : null;
+    const existingThumbnail=require('./story_thumbnail').local(thumbnailOutputDir,storyMeta?.title);
     const withSrc  = videoTiles.filter(t => (t.videoSrcs[0] || {}).src).length;
     const withMenu = videoTiles.filter(t => t.hasMoreOptions).length;
 

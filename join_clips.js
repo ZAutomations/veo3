@@ -295,8 +295,8 @@ log('');
 log(`Total      : ${total ? total.toFixed(2) + 's (about ' + Math.round(total) + 's)' : 'unknown'}`);
 const storyTitleBase = require('./story_output_name').storyTitleBase;
 const outputTitle = storyTitleBase(path.dirname(path.resolve(DIR)));
-const thumbnailNames = ['thumbnail_downloaded.png','thumbnail_downloaded.jpg','thumbnail_downloaded.jpeg','thumbnail_downloaded.webp',
-    ...['.png','.jpg','.jpeg','.webp'].map(ext => `${outputTitle}${ext}`)];
+const thumbnailNames = [...['',' English'].flatMap(suffix=>['.png','.jpg','.jpeg','.webp'].map(ext => `${outputTitle}${suffix}${ext}`)),
+    'thumbnail_downloaded.png','thumbnail_downloaded.jpg','thumbnail_downloaded.jpeg','thumbnail_downloaded.webp'];
 const thumbnailCandidates = NO_THUMBNAIL ? [] : thumbnailNames
     .map(name => path.join(path.dirname(path.resolve(DIR)), name)).concat(
         NO_THUMBNAIL ? [] : thumbnailNames.map(name => path.join(path.resolve(DIR),name)));

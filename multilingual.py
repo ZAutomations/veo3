@@ -179,7 +179,7 @@ def render(body):
         local_report=work/'JOINED_CLIP_ORDER.txt'
         report_text=re.sub(r'^Completed video:.*$',lambda _: 'Completed video: '+str(local_raw),report.read_text(encoding='utf-8-sig'),count=1,flags=re.M)
         if not local_report.is_file() or local_report.read_text(encoding='utf-8')!=report_text:local_report.write_text(report_text,encoding='utf-8')
-        for image in file.parent.glob('thumbnail_downloaded.*'):
+        for image in [*file.parent.glob('thumbnail_downloaded.*'),*file.parent.glob(story_title_base(file)+'.*')]:
             if image.suffix.lower() in ('.jpg','.jpeg','.png','.webp'):shutil.copy2(image,work/image.name)
         local_cfg=dict(settings,caption_language=LANGUAGES[code].lower() if code in ('ru','ar','hi','ur','ja') else 'auto')
         output=file.parent/(story_title_base(file)+' '+LANGUAGES[code]+'.mp4')

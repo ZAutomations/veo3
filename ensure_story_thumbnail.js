@@ -1,9 +1,6 @@
 'use strict';
 const fs=require('fs'),path=require('path');
-function localThumbnail(folder){
- return ['.png','.jpg','.jpeg','.webp'].map(ext=>path.join(folder,'thumbnail_downloaded'+ext))
-  .find(file=>fs.existsSync(file)&&fs.statSync(file).size>2048)||null;
-}
+function localThumbnail(folder){return require('./story_thumbnail').local(folder);}
 async function ensure(folder,{log=console.log,connect}={}){
  folder=path.resolve(folder);
  const files=fs.readdirSync(folder).filter(n=>n.endsWith('_story.json'));

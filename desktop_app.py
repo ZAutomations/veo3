@@ -410,7 +410,7 @@ def plan_action(action, p):
         aspect = p.get('aspect', '9:16')
         if aspect not in ('Flow', '9:16', '16:9', '1:1'):
             raise ValueError('Invalid aspect ratio.')
-        return 'writer', [('request', ('import_ready_script.js', dict(text=text, preset=p['preset'], aspect=aspect,
+        return 'writer', [('request', ('import_ready_script.js', dict(text=text, sourceFolder=str(p.get('readyThumbnailFolder','')).strip(), preset=p['preset'], aspect=aspect,
             videoModel=global_workflow_settings(p.get('_globalWorkflow'))['videoModel'],
             videoResolution=manual_batch_resolution(p),
             overwrite=bool(p.get('duplicateOverride', False)),
@@ -1868,6 +1868,16 @@ class DesktopBridge:
         target=Path(result[0] if isinstance(result,(list,tuple)) else result)
         shutil.copy2(source,target)
         return str(target)
+
+    def choose_ready_script(self):
+        import webview
+        result=(self._window or webview.windows[0]).create_file_dialog(webview.FileDialog.OPEN,file_types=('Ready scripts (*.txt)',))
+        if not result:return None
+        file=Path(result[0])
+        if file.suffix.lower()!='.txt' or file.stat().st_size>10*1024*1024:raise ValueError('Choose a TXT script smaller than 10 MB.')
+        raw=file.read_bytes()
+        text=raw.decode('utf-16' if raw[:2] in (b'\xff\xfe',b'\xfe\xff') else 'utf-8-sig')
+        return {'text':text,'name':file.name,'folder':str(file.parent)}
 
     def choose_file(self, kind='story'):
         import webview

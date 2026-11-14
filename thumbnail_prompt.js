@@ -119,10 +119,10 @@ function withFlowThumbnail(refs, storyPath) {
     catch { return refs; }
     if (!isFlowEndcardPreset(story)) return refs;
     writeThumbnailPrompts(resolved.folder, story);
-    if ((refs || []).some(ref => ref.kind === 'thumbnail' || String(ref.name).toLowerCase() === 'thumbnail')) return refs;
+    if ((refs || []).some(ref => ref.kind === 'thumbnail' || String(ref.name).toLowerCase() === 'thumbnail')) return refs.map(ref=>ref.kind==='thumbnail'||String(ref.name).toLowerCase()==='thumbnail'?{...ref,localFile:require('./story_thumbnail').local(resolved.folder,story.title)||ref.localFile}:ref);
     const aspect = ['9:16', '16:9', '1:1'].includes(story.aspect_ratio) ? story.aspect_ratio : '9:16';
     return [...(refs || []), { name: 'Thumbnail', file: 'thumbnail_downloaded.png', kind: 'thumbnail',
-        aspect, prompt: fs.readFileSync(path.join(resolved.folder, 'thumbnail_prompt.txt'), 'utf8').trim() }];
+        aspect, localFile:require('./story_thumbnail').local(resolved.folder,story.title)||undefined, prompt: fs.readFileSync(path.join(resolved.folder, 'thumbnail_prompt.txt'), 'utf8').trim() }];
 }
 
 module.exports = { FLOW_ENDCARD_PRESETS, isFlowEndcardPreset, headlineFor, thumbnailPrompt, writeThumbnailPrompts, withFlowThumbnail };

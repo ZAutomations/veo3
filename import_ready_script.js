@@ -93,7 +93,9 @@ function run(request){
   warnings=[...new Set([...(s.warnings||[]),...(warnings||[])])];
   warnings.forEach(w=>console.log(`WARNING: ${s.title}: ${w}`));
   const marker=path.join(dir,'READY_IMPORT_COMPLETE.json');
+  const importImages=()=>{const origin=origins.get(s);const source=request.sourceFolder||(origin.file?path.dirname(origin.file):'');const copied=require('./story_thumbnail').copyImported(dir,s.title,source);if(copied.length)console.log('Local thumbnails ready: '+copied.join(', '));};
   if(fs.existsSync(file)&&fs.existsSync(marker)&&!request.overwrite){
+   importImages();
    const manualExport=require('./manual_agent_batches');
    manualExport.writeManualAgentBatches(file,manualOptions);
    reports.write(dir,s,prepared[i],origins.get(s).text);
@@ -108,6 +110,7 @@ function run(request){
     fs.writeFileSync(path.join(dir,'HOOK_GUIDE.txt'),(p.hook_line||'The opening narration and visible task contrast supply the hook.')+'\n\nDirect import preserves your supplied first line. Ask ChatGPT to improve the hook before importing; this file does not rewrite narration or generate extra clips.\n');
    }
   }
+  importImages();
   const result=require('child_process').spawnSync(process.execPath,[path.join(__dirname,'story_to_agent_prompt.js'),file,'--aspect',aspect,'--seconds',String(s.seconds)],{cwd:__dirname,encoding:'utf8'});
   if(result.status!==0)throw Error(result.stderr||result.stdout||'Prompt export failed.');
   const manualBatches=require('./manual_agent_batches').writeManualAgentBatches(file,manualOptions);

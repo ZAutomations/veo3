@@ -16,7 +16,7 @@ const T=require('../thumbnail_prompt'),Q=require('../quiet_power_thumbnail'),{en
   assert.equal(list[3].kind,'thumbnail');assert.equal(list[3].aspect,'9:16');assert.equal(T.withFlowThumbnail(list,file).length,4);
   assert(fs.readFileSync(path.join(dir,'thumbnail_prompt_vertical.txt'),'utf8').includes(title));
   await assert.rejects(()=>ensure(dir,{connect:async()=>{throw Error('Should not connect without project');}}),/THUMBNAIL_REQUIRED/);
-  const image=path.join(dir,'thumbnail_downloaded.jpg');fs.writeFileSync(image,Buffer.alloc(3000));
+  const image=path.join(dir,'thumbnail_downloaded.jpg');fs.writeFileSync(image,Buffer.concat([Buffer.from([0xff,0xd8]),Buffer.alloc(3000)]));
   assert.equal(await ensure(dir,{connect:async()=>{throw Error('Existing thumbnail should be reused');}}),image);
   const friendship=T.thumbnailPrompt({...story,character_descriptions:{sam:'Adult SAM',noah:'Adult male friend Noah'}});
   assert(friendship.includes('noah: Adult male friend Noah'));

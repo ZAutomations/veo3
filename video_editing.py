@@ -607,10 +607,12 @@ def sync_video_thumbnail(source, final):
     folder=source.parent
     stories=list(folder.glob('*_story.json'))
     local_only=any(json.loads(f.read_text(encoding='utf-8-sig')).get('local_dubbing') for f in stories)
-    if stories and not local_only and not any((folder/('thumbnail_downloaded'+ext)).is_file() for ext in ('.png','.jpg','.jpeg','.webp')):
+    base=re.sub(r'(?i)\s+raw$','',source.stem)
+    if stories and not local_only and not any((folder/(name+ext)).is_file() for name in (base,base+' English','thumbnail_downloaded') for ext in ('.png','.jpg','.jpeg','.webp')):
         subprocess.run(['node',str(ROOT/'ensure_story_thumbnail.js'),str(folder)],check=True,
                        timeout=240,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
-    candidates=[folder/('thumbnail_downloaded'+ext) for ext in ('.png','.jpg','.jpeg','.webp')]
+    candidates=[folder/(base+suffix+ext) for suffix in ('',' English') for ext in ('.png','.jpg','.jpeg','.webp')]
+    candidates += [folder/('thumbnail_downloaded'+ext) for ext in ('.png','.jpg','.jpeg','.webp')]
     base=re.sub(r'(?i)\s+raw$','',source.stem)
     candidates += [folder/(base+ext) for ext in ('.png','.jpg','.jpeg','.webp')]
     image=next((p for p in candidates if p.is_file() and p.stat().st_size>2048),None)

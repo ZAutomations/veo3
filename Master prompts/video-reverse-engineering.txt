@@ -355,6 +355,53 @@ The combined workbook has one row per selected story; the same metadata must app
 
 Create one ZIP archive named `01 Batch 1 to 5 Zack.zip` for this example, containing the complete batch folder structure. Provide separate real download links for the complete ZIP, combined scripts TXT and batch-named master SEO workbook. Use the computed batch name for other batches and presets; never hardcode Zack or the example range.
 
+### 5A. LOCALIZED THUMBNAILS FOR EVERY SELECTED LANGUAGE
+
+This rule applies to EVERY preset and overrides any older instruction to reuse an English-only thumbnail for translated outputs. Use the already selected script/output languages; do not ask again or add unselected languages. English-only keeps the normal one-thumbnail workflow. For multilingual output, provide one separate thumbnail per selected language, including English when selected.
+
+- Preserve this preset's thumbnail visual DNA, the story's recognizable subject, character identities, composition, aspect ratio, colors, icons and factual meaning across the language variants.
+- ALL primary text must be in that thumbnail's selected language: headline, subheading, explanatory labels, badges and callouts. Write natural native phrasing in the correct script, not transliteration. Never leave English labels in Russian/Arabic/Urdu/Japanese thumbnails except proper names or scientific symbols that genuinely require them.
+- At the BOTTOM of every non-English thumbnail, add the exact original English video/story title in a SMALL, readable line so the creator can identify the video. This is the sole intentional English identification line. Keep it visually secondary to the localized headline, on a subtle high-contrast strip if necessary, with safe edge margins. Wrap into at most two small lines for a long title; never crop, silently abbreviate, mistranslate or omit the title. Do not add a second duplicate English title on the English thumbnail.
+- Arabic and Urdu must have correct connected letter shaping, right-to-left reading order and punctuation. Russian uses Cyrillic, Japanese normal kanji/kana and Hindi Devanagari. Check each rendered image at full resolution for exact spelling, missing letters, clipped text, accidental mixed languages and footer legibility.
+- Create a complete, separately specified thumbnail prompt for EACH selected language, stating its exact localized visible text and the exact small English footer text. Translation text/prompt files are not completed images. Generate separate original images when image tools are available; do not pass an English image with a translated filename off as localized artwork. Report missing/failed images honestly.
+- Save ALL language thumbnails directly inside the same title-named story folder, using the original ENGLISH story title plus a space and the English language name: `{SafeEnglishStoryTitle} {LanguageName}.png`. Examples: `Why Do Cats Purr Urdu.png`, `Why Do Cats Purr Russian.png`, `Why Do Cats Purr Arabic.png`. Use canonical names English, Russian, Arabic, Hindi, Urdu, Spanish, French, German and Japanese; use Russian, not Russia. Do not translate the filesystem title or put variants in language subfolders. Apply the existing Windows-safe English-title mapping consistently. In multilingual mode use the language suffix for English too; do not create a duplicate unsuffixed English image. English-only mode retains `{StoryTitle}.png`.
+- Record language code, language name, actual relative image path, localized visible text, English footer and generation/inspection status in PACKAGE_MANIFEST.json. Keep the required six-column master SEO schema unchanged; its English thumbnail field retains the existing convention. Identify localized assets in the manifest rather than adding workbook columns or parser labels.
+- This is an authoring/package requirement. Never claim the local video tool has imported, switched to or appended a localized thumbnail unless that actual workflow was performed and verified. Existing English text burned into videos remains unchanged by voice dubbing alone.
+
+### 5B. ONE SEO WORKBOOK PER SELECTED LANGUAGE — MULTILINGUAL OVERRIDE
+
+For multilingual batches, the number of DISTINCT thumbnail variants PER STORY and master SEO workbooks PER BATCH must each equal the number of SELECTED output languages. Do not generate unselected language files. Use the same language selection as the scripts. English-only delivery keeps the unsuffixed names in Sections 4–5.
+
+- Batch master workbook: `{BatchFolderName} {LanguageName}.xlsx`, one workbook per selected language, directly inside the batch folder. Example: `01 Batch 1 to 5 Zack Russian.xlsx` and `01 Batch 1 to 5 Zack Urdu.xlsx`. The batch folder name remains `01 Batch 1 to 5 Zack`; only the workbook receives the language suffix. In multilingual mode do NOT also create an unsuffixed duplicate master workbook.
+- Individual one-story workbook: `{SafeEnglishStoryTitle} {LanguageName}.xlsx`, inside its title-named story folder, one per selected language. These supplementary one-row workbooks contain exactly the same metadata as that story's row in the matching language's batch master workbook. Do not also produce unsuffixed duplicate one-story workbooks in multilingual mode.
+- Keep EXACTLY these six columns, in the existing order: video_id, filename, title, description, Tags, thumbnail. One row per selected story in each language's master workbook; exactly one row in each individual workbook. Keep filters, frozen headers, readable widths, wrapped descriptions and plain-text cells.
+- video_id: exact original ENGLISH story title, unchanged across languages, preserving identity.
+- filename: `{SafeEnglishStoryTitle} {LanguageName}.mp4`; thumbnail: `{SafeEnglishStoryTitle} {LanguageName}.png`. These multilingual fields override the older exact-video_id-plus-extension convention and must match the actual planned Windows-safe language-specific asset names. Do not translate the filename base.
+- title: the exact original ENGLISH story/video title plus exactly THREE relevant ENGLISH hashtags. Keep this upload-title field in English for EVERY selected language; do not translate it or append the language name to the public title. This preserves the existing three-hashtag title convention. The language suffix belongs only in actual asset filenames. video_id remains the exact English title without added hashtags.
+- description: start with the natural localized version of the story title as the FIRST LINE, then a blank line and approximately 200 words of native, topic-specific SEO copy in THAT workbook's selected language, preserving facts, caveats and intent; for Japanese use a natural comparable-length description, not artificial whitespace to force a word count. Include verified, topic-relevant source URLs with a clearly labelled Sources section (label may be localized), followed by exactly TEN relevant hashtags in that language at the very end. Do not invent sources or unsupported claims.
+- Tags: exactly FIFTEEN comma-separated SEO keyword phrases in that language, no # prefixes; use ordinary proper-name spellings where necessary. Keep the description, its opening localized title, ending hashtags and keywords genuinely localized, not copied English with a translated filename. The upload-title cell and its three hashtags intentionally stay English. Do not replace that English upload title with the localized description heading.
+- Preserve each story's existing multilingual ready-import TXT, with all selected-language fields together. Do not duplicate or rewrite the English source and do not create new parser labels to hold SEO.
+- PACKAGE_MANIFEST.json must list every selected language, actual thumbnail path/status, individual workbook path, batch workbook path, and the corresponding English story identity. Verify language sets match, row counts/order agree, filenames match intended exports, and every advertised image/workbook actually exists. Failed images must be marked incomplete; never create placeholder PNGs to satisfy a file count.
+
+Example with ONLY English and Urdu selected:
+
+```text
+01 Batch 1 to 5 Zack/
+├── Story Title/
+│   ├── Story Title.txt
+│   ├── Story Title English.xlsx
+│   ├── Story Title Urdu.xlsx
+│   ├── Story Title English.png
+│   └── Story Title Urdu.png
+├── ... remaining selected story-title folders ...
+├── Combined_Ready_Import_Scripts.txt
+├── 01 Batch 1 to 5 Zack English.xlsx
+├── 01 Batch 1 to 5 Zack Urdu.xlsx
+└── PACKAGE_MANIFEST.json
+```
+
+This multilingual naming/schema override has priority over conflicting earlier sections, including the unsuffixed master workbook rule, older localized-upload-title instructions and English-only thumbnail field. The upload title stays English; the localized title belongs at the start of the description. It changes package authoring, not the local tool's thumbnail-generation/import capabilities. Do not claim localized thumbnails were automatically used by the video renderer without verifying that workflow.
+
 ### 6. MANDATORY VALIDATION BEFORE DELIVERY
 
 Before providing download links, verify:

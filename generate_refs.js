@@ -799,6 +799,8 @@ async function generateRefs(page, refs, opts = {}) {
         opts.story || STORY || REFS_FILE || '');
     refs = require('./saved_couple').applySavedRefs(refs,
         opts.savedCouple === undefined ? require('./saved_couple').loadSavedCouple('agent', undefined, opts.story || STORY) : opts.savedCouple);
+    // Thumbnails follow all character/environment references, including local uploads.
+    refs.sort((a,b)=>Number(a.kind==='thumbnail')-Number(b.kind==='thumbnail'));
     // Shadowing `log` with the caller's sink; the body's log() calls need no
     // change for it.
     const log = opts.log || moduleLog;
@@ -976,6 +978,16 @@ async function generateRefs(page, refs, opts = {}) {
             log(`  FAILED: ${stopReason}`);
             break;
         }
+    }
+
+    // Cache a newly generated thumbnail once, before video generation starts.
+    const thumbnailStory=opts.story || STORY || REFS_FILE || '';
+    if(!failed && refs.some(r=>r.kind==='thumbnail') && thumbnailStory){
+        const resolved=require('./thumbnail_prompt');
+        const source=String(thumbnailStory);
+        const folder=fs.statSync(source).isDirectory()?source:path.dirname(source);
+        const file=fs.readdirSync(folder).find(n=>n.endsWith('_story.json'));
+        if(file)await require('./flow_thumbnail_project').downloadStoryThumbnail(page,path.join(folder,file),page.url(),log);
     }
 
     // Hand the chip back in the state the film run needs. agent_mode.js turns

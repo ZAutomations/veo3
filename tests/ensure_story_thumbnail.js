@@ -4,7 +4,7 @@ const {ensure}=require('../ensure_story_thumbnail');
  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'ensure-thumbnail-'));
  fs.writeFileSync(path.join(folder,'one_story.json'),JSON.stringify({preset_id:'geography-map'}));
  let connected=0;const connect=async()=>{connected++;throw Error('fixture connection reached');};
- fs.writeFileSync(path.join(folder,'thumbnail_downloaded.jpg'),Buffer.alloc(3000));
+ fs.writeFileSync(path.join(folder,'thumbnail_downloaded.jpg'),Buffer.concat([Buffer.from([0xff,0xd8]),Buffer.alloc(3000)]));
  assert((await ensure(folder,{connect})).endsWith('.jpg'));assert.equal(connected,0);
  fs.unlinkSync(path.join(folder,'thumbnail_downloaded.jpg'));
  await assert.rejects(()=>ensure(folder,{connect}),/No saved Flow project/);assert.equal(connected,0);

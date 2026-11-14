@@ -35,7 +35,7 @@ function saveTransferredImage(targetDir,result){
  const data=Buffer.from(result.data,'base64'),ext=imageExtension(data);
  if(!ext||data.length<2048)throw Error('Thumbnail transfer is not a valid PNG, JPEG or WebP.');
  fs.mkdirSync(targetDir,{recursive:true});
- const target=path.join(targetDir,'thumbnail_downloaded'+ext),temp=target+'.'+process.pid+'.part';
+ const target=require('./story_thumbnail').target(targetDir,ext),temp=target+'.'+process.pid+'.part';
  fs.writeFileSync(temp,data);fs.renameSync(temp,target);
  for(const other of ['.png','.jpg','.jpeg','.webp'])if(other!==ext)fs.rmSync(path.join(targetDir,'thumbnail_downloaded'+other),{force:true});
  return target;
@@ -86,7 +86,7 @@ async function downloadThumbnail(page,tile,targetDir,log=()=>{},settleMs=2500){
    if(!fs.existsSync(file)||fs.statSync(file).size!==size||size<2048)continue;
    const ext=imageExtension(fs.readFileSync(file));if(!ext)continue;
    for(const other of ['.png','.jpg','.jpeg','.webp'])if(other!==ext)fs.rmSync(path.join(targetDir,'thumbnail_downloaded'+other),{force:true});
-   saved=path.join(targetDir,'thumbnail_downloaded'+ext);fs.copyFileSync(file,saved);break;
+   saved=require('./story_thumbnail').target(targetDir,ext);fs.copyFileSync(file,saved);break;
   }
  }
  await page.keyboard.press('Escape').catch(()=>{});

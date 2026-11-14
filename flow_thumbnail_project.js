@@ -68,6 +68,8 @@ async function downloadStoryThumbnail(page, storyFile, projectUrl, log = () => {
     if (!storyFile || !fs.existsSync(storyFile)) throw Error('Cannot locate the story file for its preset thumbnail.');
     const story = JSON.parse(fs.readFileSync(storyFile, 'utf8').replace(/^\uFEFF/, ''));
     if (!require('./thumbnail_prompt').isFlowEndcardPreset(story)) return null;
+    const existing=require('./story_thumbnail').local(path.dirname(path.resolve(storyFile)),story.title);
+    if(existing){log('Using local story thumbnail: '+existing);return existing;}
     const home = normalizeProjectUrl(projectUrl || page.url());
     let current = '';
     try { current = normalizeProjectUrl(page.url()); } catch {}

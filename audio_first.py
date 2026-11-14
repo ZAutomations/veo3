@@ -181,6 +181,12 @@ def prepare(body):
     if planned['multilingual']['enabled']:
         import multilingual
         multilingual.preflight_audio(file,planned['multilingual'])
+    # Carry title-named thumbnails into the isolated package, without copying unrelated references.
+    from story_output import safe_story_title
+    thumbnail_base=safe_story_title(story.get('title'))
+    for image in source.parent.iterdir():
+        if image.suffix.lower() in ('.png','.jpg','.jpeg','.webp') and (image.stem in (thumbnail_base,'thumbnail_downloaded') or image.stem in [thumbnail_base+' '+name for name in ('English','Russian','Arabic','Hindi','Urdu','Spanish','French','German','Japanese')]):
+            shutil.copy2(image,folder/image.name)
     for name in ('refs.json','character_sheets.txt'):
         if (source.parent/name).is_file(): shutil.copy2(source.parent/name,folder/name)
     (folder/'AUDIO_FIRST_REVIEW.json').write_text(json.dumps(audit,ensure_ascii=False,indent=2),encoding='utf-8')
