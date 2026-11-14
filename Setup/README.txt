@@ -51,3 +51,11 @@ in the repository and portable package, so no image generation is needed on a
 new PC. Existing shortcut targets are rebound to the current installed folder.
 To restore just the shortcut/icon after relocating an installation, run:
   powershell -NoProfile -ExecutionPolicy Bypass -File Setup\SET_STUDIO_ICON.ps1 -UpdateTarget
+
+Desktop icon after updates
+START_STUDIO.bat now checks the desktop START_STUDIO shortcut automatically.
+After a clone, git pull, or moving the tool folder, start Studio once to create
+or repair its shortcut using the included desktop_ui/studio.ico. A correct
+shortcut is left unchanged. Manual repair: powershell -NoProfile -ExecutionPolicy
+Bypass -File Setup\SET_STUDIO_ICON.ps1 -UpdateTarget
+Google service-account JSON files remain local and must be copied separately.

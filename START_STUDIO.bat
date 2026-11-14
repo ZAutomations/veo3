@@ -3,6 +3,8 @@ setlocal
 title VEO3 Studio
 cd /d "%~dp0"
 call "%~dp0Setup\environment.bat"
+rem Refresh the per-PC desktop shortcut after a clone, pull or folder move.
+if exist "%~dp0Setup\SET_STUDIO_ICON.ps1" powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%~dp0Setup\SET_STUDIO_ICON.ps1" -UpdateTarget -IfNeeded >nul 2>&1
 if exist "%~dp0.venv\Scripts\python.exe" (
     set "STUDIO_PYTHON=%~dp0.venv\Scripts\python.exe"
 ) else (
