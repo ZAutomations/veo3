@@ -1506,6 +1506,24 @@ def master_prompt(preset: str, kind: str = 'story'):
     return dict(id=preset, name=allowed[preset]['name'], text=source.read_text(encoding='utf-8-sig'))
 
 
+def story_script_languages(story):
+    """List script languages stored with this story, independent of global voice settings."""
+    names={'en':'English','ru':'Russian','ar':'Arabic','hi':'Hindi','ur':'Urdu','es':'Spanish','fr':'French','de':'German','ja':'Japanese'}
+    aliases={name.casefold():code for code,name in names.items()}
+    found={'en'}
+    declared=story.get('narration_languages') or []
+    if isinstance(declared,str):declared=declared.split(',')
+    for value in declared:
+        code=str(value).strip().lower();code=aliases.get(code,code)
+        if code in names:found.add(code)
+    for scene in story.get('scenes',[]):
+        for field in ('narration_translations','dialogue_translations'):
+            for code,value in (scene.get(field) or {}).items():
+                code=aliases.get(str(code).casefold(),str(code).lower())
+                if code in names and value:found.add(code)
+    return [name for code,name in names.items() if code in found]
+
+
 @app.get('/api/library')
 def library():
     result = []
@@ -1522,7 +1540,7 @@ def library():
         manifest = read_json(path.parent / 'clips' / 'manifest.json')
         narration_hash=hashlib.sha256(json.dumps([sc.get('external_narration') or sc.get('script_line') or sc.get('dialogue') or '' for sc in story['scenes']],ensure_ascii=False).encode()).hexdigest()
         ownership[str(path)]={'original':str(Path(story['original_story']).resolve()) if story.get('audio_first') and story.get('original_story') else '', 'hash':narration_hash,'modified':path.stat().st_mtime}
-        result.append(dict(path=str(path), title=story.get('title', path.stem), scenes=len(story['scenes']),
+        result.append(dict(path=str(path), title=story.get('title', path.stem), languages=story_script_languages(story), scenes=len(story['scenes']),
                           duration=len(story['scenes']) * story.get('scene_seconds', 8),
                           clipSeconds=story.get('scene_seconds', 8),
                           preset=story.get('niche', ''), presetId=story.get('preset_id') if story.get('preset_id') in ids else aliases.get(str(story.get('niche','')).strip().casefold(),story.get('preset_id','')), modified=path.stat().st_mtime,
@@ -1549,7 +1567,7 @@ def inspect_story(path: str):
                                 dialogue=scene.get('dialogue', []),
                                 prompt=export.read_text(encoding='utf-8-sig') if export.is_file() else scene.get('veo3_prompt', '')))
         seconds = int(story.get('scene_seconds', 8) or 8)
-        return dict(path=str(source), title=story.get('title', source.stem), scenes=len(prompts),
+        return dict(path=str(source), title=story.get('title', source.stem), languages=story_script_languages(story), scenes=len(prompts),
                     clipSeconds=seconds, duration=len(prompts) * seconds, prompts=prompts)
     except ValueError as exc:
         raise HTTPException(400, str(exc))

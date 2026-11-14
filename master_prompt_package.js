@@ -14,7 +14,9 @@ function apply(text,id){
  const start=text.indexOf(START);
  if(start>=0){const end=text.indexOf(END,start);if(end<0)throw Error('Incomplete V3 package contract; refusing to remove unrelated prompt content.');text=text.slice(0,start)+text.slice(end+END.length);}
  const multi=fs.readFileSync(path.join(__dirname,'multilingual_prompt_contract.txt'),'utf8').trim();
- if(!text.includes('[BEGIN MULTILINGUAL AUTHORING V2]'))text=text.trimEnd()+'\n\n'+multi;
+ const multiStart=text.indexOf('[BEGIN MULTILINGUAL AUTHORING V2]');
+ if(multiStart>=0){const marker='[END MULTILINGUAL AUTHORING V2]',end=text.indexOf(marker,multiStart);if(end<0)throw Error('Incomplete multilingual contract; refusing to remove unrelated prompt content.');text=text.slice(0,multiStart)+multi+text.slice(end+marker.length);}
+ else text=text.trimEnd()+'\n\n'+multi;
  return text.trimEnd()+'\n\n'+block(id)+'\n';
 }
 module.exports={START,END,block,apply,sourceStandard};
