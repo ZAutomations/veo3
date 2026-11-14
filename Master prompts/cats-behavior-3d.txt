@@ -215,12 +215,21 @@ Use the full exact story question or a creator-approved complete headline. This 
 DELIVERY AND FINAL GATE
 Provide ready-import script, per-story thumbnail prompt, SEO metadata and evidence/production notes as separate deliverables. Combined batch TXT contains only scripts. Validate requested story/clip count, runtime, cats-behavior-3d ID, Milo identity, exact narrator words and count, contiguous shot endpoints, action/explanation/result, specific camera routes, supported inner views, one coherent BGM, useful badge/SFX pairing, funny/gentle appropriate hook, complete payoff and one final viewer question. Fix repeated filler such as "Often, sometimes". Finish every Sound line. Never claim importer, rendering or listening checks unless actually performed. Keep existing explicit source material intact unless the user authorizes a revision.
 
+ZACK CAMERA RHYTHM — SHORT FAST MOVES, READABLE HOLDS
+For this Zack-style preset, specify exact short camera travel inside each existing timed shot. Use a 0.20–0.40-second snap zoom-in/dolly-in to the narrated detail, settle and show that detail clearly during the explanation, then a 0.20–0.40-second snap pull-back or 0.30–0.50-second motivated whip-pan when the narration moves to the next subject. Keep the remainder of the beat stable and readable; do not write “gently push”, “slow zoom” or a camera drift that occupies the full shot. Preserve naturally slow subject actions, scene order, actual mechanisms, full clip duration and narration pace. A return zoom is not mandatory if it would crowd a short beat or break visual clarity. Camera paths stay continuous and physically readable; no internal hard cuts, dissolves or morphing. This scoped fast-camera rule supersedes older generic camera-move durations and slow-camera examples in this preset, not any story facts or safety constraints.
+
 [BEGIN COMPLETE STORY PACKAGE DELIVERY V3]
 ## MASTER PROMPT ADDITION — EXCEL SEO METADATA & COMPLETE STORY PACKAGE DELIVERY V3
 
 **HIGHEST PRIORITY — MANDATORY FOR EVERY FUTURE BATCH**
 
 This section overrides all older SEO metadata, filename, Excel formatting, and delivery instructions wherever they conflict. Preserve the preset's existing ready-import script grammar, character identity, narration, visual style, and production settings.
+
+### SHARED CAMERA RHYTHM — ALL COMPATIBLE PRESETS
+
+For Fern, Zack Animation, Health 3D, Map Animation and other presets that permit active camera framing: use a short 0.20–0.40-second snap zoom/dolly-in to explain a named detail, a clear readable hold, then a 0.20–0.40-second rapid pull-back or motivated 0.30–0.50-second whip-pan when moving to the next subject. Specify the departure, path, destination and reveal inside the existing timed Shot field; do not let slow camera drift consume an entire beat. No extra scene, invented event, runtime change or narration speed change. Preserve natural slow physical processes. Keep camera moves continuous, controlled and free from internal hard cuts, morphs, shake or constant zoom oscillation. Omit redundant movement when the visual needs reading time.
+
+On Map Animation, preserve accurate geographic context, cumulative route progress and readable place labels; no random globe spins. On Fern, keep documentary restraint and factual clarity. On animal, health or technical presets, reveal only the topic-relevant behaviour, anatomy or mechanism while retaining the preset's style and character identities. This default overrides older generic slow-camera examples ONLY where active camera framing is permitted. Locked/static compositions, calm/sleep/lofi scenes and dialogue/portrait camera locks remain authoritative; do not force fast zooms onto them. In-camera travel is separate from editor transitions between completed clips.
 
 ### 1. TWO MAIN BATCH DELIVERABLES
 

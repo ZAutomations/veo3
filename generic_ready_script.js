@@ -28,6 +28,7 @@ function scene(story,index,{seconds=story.scene_seconds,aspect=story.aspect_rati
  return [`Generate ONE ${seconds}-second clip for scene ${index+1}, aspect ${aspect}. Timed shots are internal beats, not extra output clips.`,
  `STYLE: ${p.style}. PALETTE: ${p.palette||'the preset palette'}. AVOID: ${p.avoid||''}`,
  `PRESET DIRECTION: ${p.direction||''}. CAMERA: ${p.camera||'Use the supplied shot framing and motivated movement.'}. Explicit selected duration and supplied timeline override older fixed-duration examples in these authoring notes. Preserve locked camera rules.`,
+ require('./fast_camera_rhythm').forPreset(p),
  `IDENTITY REFERENCES: ${names.map(n=>'@'+n+': '+(story.character_descriptions?.[n.toLowerCase()]||story.character_descriptions?.[n]||'match the approved design')).join('\n')||'No human reference required.'}`,
  `LOCATION DESIGN REFERENCES: @${story.place?.name||story.imported_locations?.[0]?.name||'Environment'}. ${JSON.stringify(story.imported_locations)}. Use the actual location required by this clip; a reference is not a universal backdrop. ${p.setting?'This preset locks the setting: '+p.setting:''}`,
  story.visual_continuity?`CONTINUITY: ${story.visual_continuity}`:'',s.start_state?'START STATE: '+s.start_state:'',

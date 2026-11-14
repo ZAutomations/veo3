@@ -181,6 +181,12 @@ Preserve this preset’s identity and use its accepted ready-import template and
 
 This section overrides all older SEO metadata, filename, Excel formatting, and delivery instructions wherever they conflict. Preserve the preset's existing ready-import script grammar, character identity, narration, visual style, and production settings.
 
+### SHARED CAMERA RHYTHM — ALL COMPATIBLE PRESETS
+
+For Fern, Zack Animation, Health 3D, Map Animation and other presets that permit active camera framing: use a short 0.20–0.40-second snap zoom/dolly-in to explain a named detail, a clear readable hold, then a 0.20–0.40-second rapid pull-back or motivated 0.30–0.50-second whip-pan when moving to the next subject. Specify the departure, path, destination and reveal inside the existing timed Shot field; do not let slow camera drift consume an entire beat. No extra scene, invented event, runtime change or narration speed change. Preserve natural slow physical processes. Keep camera moves continuous, controlled and free from internal hard cuts, morphs, shake or constant zoom oscillation. Omit redundant movement when the visual needs reading time.
+
+On Map Animation, preserve accurate geographic context, cumulative route progress and readable place labels; no random globe spins. On Fern, keep documentary restraint and factual clarity. On animal, health or technical presets, reveal only the topic-relevant behaviour, anatomy or mechanism while retaining the preset's style and character identities. This default overrides older generic slow-camera examples ONLY where active camera framing is permitted. Locked/static compositions, calm/sleep/lofi scenes and dialogue/portrait camera locks remain authoritative; do not force fast zooms onto them. In-camera travel is separate from editor transitions between completed clips.
+
 ### 1. TWO MAIN BATCH DELIVERABLES
 
 For every selected batch, generate:
