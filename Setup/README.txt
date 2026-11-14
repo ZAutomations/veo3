@@ -39,3 +39,15 @@ are tied to their installation path. Keep your stories and settings.
 Build another clean copy from the main tool:
   python Setup\build_portable.py
 The builder creates a sibling folder and ZIP; it does not alter your stories.
+
+
+Studio app icon and desktop shortcut
+-----------------------------------
+Successful setup automatically creates/updates START_STUDIO.lnk on the current
+Windows user's Desktop, pointing to this installation's START_STUDIO.bat.
+The bundled desktop_ui/studio.ico is used for the shortcut and Studio window;
+desktop_ui/studio-icon.png is the matching PNG asset. Both assets are included
+in the repository and portable package, so no image generation is needed on a
+new PC. Existing shortcut targets are rebound to the current installed folder.
+To restore just the shortcut/icon after relocating an installation, run:
+  powershell -NoProfile -ExecutionPolicy Bypass -File Setup\SET_STUDIO_ICON.ps1 -UpdateTarget

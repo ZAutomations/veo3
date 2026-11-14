@@ -25,7 +25,8 @@ function exportScript(source,index=1){
   else if(clip.narration!==undefined)out.push(`Narration: "${clip.narration}"`);
   if(clip.start_state)out.push(`Start state: ${clip.start_state}`);
   if(clip.action)out.push(`Action: ${clip.action}`);
-  for(const turn of clip.dialogue||[])out.push(`${turn.speaker}: "${turn.line}"`);
+  if(clip.dialogue_translations){for(const code of source.languages)out.push(`Dialogue ${{en:'English',ru:'Russian',ar:'Arabic',hi:'Hindi',ur:'Urdu',es:'Spanish',fr:'French',de:'German',ja:'Japanese'}[code]}: ${JSON.stringify(clip.dialogue_translations[code])}`);}
+  else for(const turn of clip.dialogue||[])out.push(`${turn.speaker}: "${turn.line}"`);
   for(const [i,shot] of (clip.shots||[]).entries())out.push(`Shot ${i+1}: ${shot.start_seconds}–${shot.end_seconds} seconds — ${shot.visual}`);
   if(clip.end_state)out.push(`End state: ${clip.end_state}`);
   if(clip.effect!==undefined)out.push(`Effect: ${clip.effect}`);
@@ -76,8 +77,8 @@ function write(folder,source,prepared,originalText){
  const report=preflight(source,prepared,folder);
  if(source.languages?.length){
   const dir=path.join(folder,'language_scripts');fs.mkdirSync(dir,{recursive:true});
-  for(const code of source.languages)fs.writeFileSync(path.join(dir,code+'.txt'),source.clips.map(c=>`Clip ${c.number}: ${c.narrations[code]}`).join('\n\n')+'\n','utf8');
-  fs.writeFileSync(path.join(folder,'LANGUAGE_SCRIPTS.json'),JSON.stringify({languages:source.languages,translation_mode:'supplied_only',scenes:source.clips.map(c=>({scene:c.number,narrations:c.narrations}))},null,2),'utf8');
+  for(const code of source.languages)fs.writeFileSync(path.join(dir,code+'.txt'),source.clips.map(c=>`Clip ${c.number}: ${c.dialogue_translations?JSON.stringify(c.dialogue_translations[code]):c.narrations[code]}`).join('\n\n')+'\n','utf8');
+  fs.writeFileSync(path.join(folder,'LANGUAGE_SCRIPTS.json'),JSON.stringify({languages:source.languages,translation_mode:'supplied_only',scenes:source.clips.map(c=>({scene:c.number,...(c.dialogue_translations?{dialogue_translations:c.dialogue_translations}:{narrations:c.narrations})}))},null,2),'utf8');
  }
  const files={
   'IMPORT_PREFLIGHT.json':JSON.stringify(report,null,2)+'\n',

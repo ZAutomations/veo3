@@ -223,6 +223,8 @@ try {
     Run-Checked $node @('--check','agent_mode.js')
     Run-Checked $node @('--check','mcp_server.js')
     Write-Host ''
+    Write-Host 'Creating the Studio desktop shortcut with its bundled app icon...'
+    & (Join-Path $PSScriptRoot 'SET_STUDIO_ICON.ps1') -UpdateTarget
     Write-Host 'SETUP COMPLETE. Use START_STUDIO.bat for the new desktop interface, or START_GUI.bat for classic.' -ForegroundColor Green
     Write-Host 'On the new laptop, use Accounts to open the browser and sign into Flow once for each account.'
 } catch {

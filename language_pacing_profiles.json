@@ -1,0 +1,43 @@
+{
+  "google:gemini-3.1-flash-tts-preview:Alnilam": {
+    "target_seconds": [
+      9.5,
+      9.8
+    ],
+    "ur": {
+      "unit": "whitespace_words",
+      "min": 27,
+      "max": 29,
+      "samples": [
+        {
+          "units": 28,
+          "seconds": 9.84,
+          "fitted_seconds": 9.802063
+        },
+        {
+          "units": 29,
+          "seconds": 10.04,
+          "fitted_seconds": 9.778854
+        }
+      ]
+    },
+    "ja": {
+      "unit": "non_whitespace_characters_including_punctuation",
+      "min": 48,
+      "max": 54,
+      "samples": [
+        {
+          "units": 53,
+          "seconds": 9.4,
+          "fitted_seconds": 9.639375
+        },
+        {
+          "units": 59,
+          "seconds": 12.2,
+          "fitted_seconds": 9.780625
+        }
+      ]
+    },
+    "validation": "duration_measured; pronunciation listening review remains"
+  }
+}

@@ -94,3 +94,10 @@ outputs/health_review/
 /Setup/cloud-tts-sa.json
 # Service-account keys stay local on each laptop.
 /TTS/*.json
+
+# Optional local-only speech separation environment
+.separation-venv/
+
+outputs/separation_smoke/
+
+outputs/language_pacing/

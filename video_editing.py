@@ -605,7 +605,9 @@ def apply_speed(source,output,speed):
 def sync_video_thumbnail(source, final):
     """Ensure the preset image exists, then name its copy exactly as the video."""
     folder=source.parent
-    if list(folder.glob('*_story.json')) and not any((folder/('thumbnail_downloaded'+ext)).is_file() for ext in ('.png','.jpg','.jpeg','.webp')):
+    stories=list(folder.glob('*_story.json'))
+    local_only=any(json.loads(f.read_text(encoding='utf-8-sig')).get('local_dubbing') for f in stories)
+    if stories and not local_only and not any((folder/('thumbnail_downloaded'+ext)).is_file() for ext in ('.png','.jpg','.jpeg','.webp')):
         subprocess.run(['node',str(ROOT/'ensure_story_thumbnail.js'),str(folder)],check=True,
                        timeout=240,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
     candidates=[folder/('thumbnail_downloaded'+ext) for ext in ('.png','.jpg','.jpeg','.webp')]
@@ -639,6 +641,7 @@ def edit(source,values=None,report=None,output=None):
         if package.get('audio_first'):
             cfg['voiceover_mode']='prepared'
             cfg['_audio_first_story']=str(candidates[0])
+            if package.get('local_dubbing',{}).get('keep_background_gain'):cfg['_background_gain']=1.0
     import preset_cta
     cta=preset_cta.find(source,ROOT) if cfg['preset_cta_enabled'] else None
     if not enabled(cfg) and not cta:log('All editing features are disabled; original video retained.');return source

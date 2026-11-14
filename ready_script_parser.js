@@ -56,6 +56,7 @@ function parse(text,defaults={}) {
   if(clip){
    const p=custom(story.preset),speaker=p?.reference_cast?.find(c=>c.name.toLowerCase()===key)||story.characters.find(c=>c.name.toLowerCase()===key)||(preset(story.preset)?.single_speaker_advice&&key==='lilly'?{name:'Lilly'}:null);
    if(speaker||['sarah','sam','george','female','male'].includes(key)){
+    if(clip.dialogue_translations?.en)fail('Do not mix named English turns with Dialogue English arrays.',lineNo,label);
     const speech=unquote(value);if(!speech)fail('Empty dialogue.',lineNo,label);
     const turn={speaker:speaker?.name||(['sarah','female'].includes(key)?'Sarah':'SAM'),line:speech};clip.dialogue.push(turn);last={target:turn,key:'line'};continue;
    }
@@ -63,6 +64,15 @@ function parse(text,defaults={}) {
     assign(clip,key.replace(' ','_'),value,lineNo,label);continue;
    }
    if(key==='action'){clip.action=[clip.action,value].filter(Boolean).join(' ');last={target:clip,key:'action'};continue;}
+   const translatedDialogue=key.match(/^dialogue\s+(english|russian|arabic|hindi|urdu|spanish|french|german|japanese)$/);
+   if(translatedDialogue){
+    const code=LANGUAGE_CODES[translatedDialogue[1]];let turns;
+    try{turns=JSON.parse(value);}catch{fail('Use a JSON array of {speaker,line} turns.',lineNo,label);}
+    if(!Array.isArray(turns)||!turns.length||turns.some(t=>!t||typeof t.speaker!=='string'||!t.speaker.trim()||typeof t.line!=='string'||!t.line.trim()))fail('Every translated dialogue turn needs a speaker and line.',lineNo,label);
+    clip.dialogue_translations=clip.dialogue_translations||{};seen(clip,'dialogue_'+code,lineNo,label);clip.dialogue_translations[code]=turns;
+    if(code==='en'){if(clip.dialogue.length)fail('Use either Dialogue English or named English turns, not both.',lineNo,label);clip.dialogue=turns.map(t=>({...t}));}
+    continue;
+   }
    const translated=key.match(/^narration\s+(english|russian|arabic|hindi|urdu|spanish|french|german|japanese)$/);
    if(translated){
     const code=LANGUAGE_CODES[translated[1]],text=unquote(value);
@@ -154,11 +164,19 @@ function parse(text,defaults={}) {
    strictNumbers.add(s.storyNumber);
    if(s.clips.length!==8)fail(`Strict Zack production requires exactly 8 clips; received ${s.clips.length}.`,s._source.line,'Clips');
   }
-  const languageSet=s.languages||[...new Set(s.clips.flatMap(c=>Object.keys(c.narrations||{})))];
+  const languageSet=s.languages||[...new Set(s.clips.flatMap(c=>Object.keys(c.narrations||c.dialogue_translations||{})))];
   if(languageSet.length){
-   if(!zack||!languageSet.includes('en'))fail('Multilingual narration currently requires a Zack-style narrated preset and English.',s._source.line,'Languages');
+   if(!languageSet.includes('en'))fail('Multilingual scripts require English as the base language.',s._source.line,'Languages');
+   if(['none','intro'].includes(generalPreset.narration_scope))fail('This preset has silent or intro-only scenes; preserve its speech scope and use explicit local dubbing timing metadata.',s._source.line,'Languages');
    s.languages=languageSet;
-   for(const c of s.clips)if(languageSet.some(code=>!c.narrations?.[code])||Object.keys(c.narrations||{}).some(code=>!languageSet.includes(code)))fail(`Every clip needs exactly the declared languages (${languageSet.join(', ')}).`,c._source.line,'Languages',{clipNumber:c.number});
+   for(const c of s.clips){
+    const maps=c.dialogue_translations||c.narrations;
+    if(languageSet.some(code=>!maps?.[code])||Object.keys(maps||{}).some(code=>!languageSet.includes(code)))fail(`Every clip needs exactly the declared languages (${languageSet.join(', ')}).`,c._source.line,'Languages',{clipNumber:c.number});
+    if(c.dialogue_translations){
+     const speakers=c.dialogue_translations.en.map(t=>t.speaker);
+     if(languageSet.some(code=>JSON.stringify(c.dialogue_translations[code].map(t=>t.speaker))!==JSON.stringify(speakers)))fail('Translated dialogue must preserve every speaker in the same order.',c._source.line,'Dialogue');
+    }
+   }
   }
   for(const c of s.clips){
    clip=c;

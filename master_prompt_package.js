@@ -13,6 +13,8 @@ function block(id){return START+'\n'+fs.readFileSync(path.join(__dirname,'master
 function apply(text,id){
  const start=text.indexOf(START);
  if(start>=0){const end=text.indexOf(END,start);if(end<0)throw Error('Incomplete V3 package contract; refusing to remove unrelated prompt content.');text=text.slice(0,start)+text.slice(end+END.length);}
+ const multi=fs.readFileSync(path.join(__dirname,'multilingual_prompt_contract.txt'),'utf8').trim();
+ if(!text.includes('[BEGIN MULTILINGUAL AUTHORING V2]'))text=text.trimEnd()+'\n\n'+multi;
  return text.trimEnd()+'\n\n'+block(id)+'\n';
 }
 module.exports={START,END,block,apply,sourceStandard};

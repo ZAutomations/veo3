@@ -30,7 +30,7 @@ function prepare(s,aspect){
  const result=prepareBase(s,aspect);
  if(s.languages?.length){
   result.story.narration_languages=s.languages;result.story.multilingual_translation_mode='supplied_only';
-  result.story.scenes.forEach((scene,i)=>{scene.narration_translations={...s.clips[i].narrations};});
+  result.story.scenes.forEach((scene,i)=>{if(s.clips[i].dialogue_translations)scene.dialogue_translations=JSON.parse(JSON.stringify(s.clips[i].dialogue_translations));else scene.narration_translations={...s.clips[i].narrations};});
  }
  return result;
 }

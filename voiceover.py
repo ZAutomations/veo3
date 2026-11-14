@@ -195,7 +195,7 @@ def replace_audio(source, output, cfg, work, report=None):
         E.run(args+['-filter_complex',';'.join(filters),'-map','[voice]','-c:a','pcm_s16le',work/'narration_timeline.wav'])
     audio_map='[voice]'
     if mode=='prepared' and info['audio']:
-        filters += ['[voice]asplit=2[narr][duck]','[0:a]volume=0.35[bg]',
+        filters += ['[voice]asplit=2[narr][duck]',f'[0:a]volume={float(cfg.get("_background_gain",.35))}[bg]',
             '[bg][duck]sidechaincompress=threshold=0.02:ratio=6:attack=15:release=250[quietbg]',
             f'[quietbg][narr]amix=inputs=2:normalize=0,apad,atrim=duration={info["duration"]}[mixed]']
         audio_map='[mixed]'

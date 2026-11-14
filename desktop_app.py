@@ -304,6 +304,12 @@ def plan_action(action, p):
         if not p.get('_queueAccount'):
             account=active_account_details()
             if '@' not in str(account.get('email','')):raise ValueError('Save the active account Gmail in Accounts before using Generation only.')
+    if action == 'render_local_multilingual':
+        import multilingual,video_editing,local_dubbing
+        multi=multilingual.from_form(p) if 'multilingualEnabled' in p else multilingual.configuration(read_json(ROOT/'gui_settings.json').get('multilingual'))
+        body=dict(folder=p.get('localDubFolder',''),multilingual=multi,editingSettings=video_editing.settings(),separation_python=p.get('localDubPython',''),speaker_voices=p.get('localDubSpeakerVoices','{}'))
+        local_dubbing.plan(body)
+        return 'flow',[('request',('local_dubbing.py',body))]
     if action == 'render_multilingual':
         import multilingual,video_editing
         path,_=story_path(p.get('story',''))
@@ -1019,7 +1025,7 @@ class Job:
                 filename, request = spec
                 requestfile = ROOT / 'logs' / 'desktop' / (self.id + '.json')
                 save_json(requestfile, request)
-                python = editing_python(require_whisper=True) if filename in ('video_editing.py','multilingual.py') else sys.executable
+                python = editing_python(require_whisper=True) if filename in ('video_editing.py','multilingual.py','local_dubbing.py') else sys.executable
                 kind, spec = 'cli', ([python, str(ROOT / filename), str(requestfile)] if filename.endswith('.py') else command(filename, requestfile))
             if kind == 'cli':
                 self.log('Starting ' + Path(spec[1]).name)
@@ -1159,7 +1165,7 @@ class Job:
 
 jobs = {}
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
-RETRY_ACTIONS = {'render_multilingual', 'manual_jobs', 'reverse_video', 'write', 'import_script', 'finalize', 'generate', 'generate_queue', 'resume_generations', 'refs', 'download', 'order', 'join', 'fix_join', 'build', 'export_excel', 'retry_failed'}
+RETRY_ACTIONS = {'render_local_multilingual', 'render_multilingual', 'manual_jobs', 'reverse_video', 'write', 'import_script', 'finalize', 'generate', 'generate_queue', 'resume_generations', 'refs', 'download', 'order', 'join', 'fix_join', 'build', 'export_excel', 'retry_failed'}
 
 
 def retry_plan(record):
@@ -1622,6 +1628,16 @@ def configure_heygen(body: dict):
         raise HTTPException(400, str(exc))
 
 
+@app.post('/api/local-dubbing/plan')
+def local_dubbing_plan(body: dict):
+    try:
+        import local_dubbing,multilingual
+        multi=multilingual.from_form(body) if 'multilingualEnabled' in body else multilingual.configuration(read_json(ROOT/'gui_settings.json').get('multilingual'))
+        planned=local_dubbing.plan(dict(folder=body.get('localDubFolder',''),multilingual=multi,speaker_voices=body.get('localDubSpeakerVoices','{}')))
+        return {'count':len(planned['jobs']),'languages':[r['code'] for r in multi['languages']], 'jobs':[{k:j[k] for k in ('title','video','clean_background','timeline')} for j in planned['jobs']], 'note':'No video or narration generated. Existing burned-in English text stays in the source visuals.'}
+    except (ValueError,OSError,KeyError) as exc:raise HTTPException(400,str(exc))
+
+
 @app.post('/api/voiceover/configure')
 def configure_voiceover(body: dict):
     import voiceover
@@ -1640,6 +1656,35 @@ def calibrate_voiceover(body: dict):
         return voice_calibration.calibrate(str(body.get('provider','')),str(body.get('voice','')),int(body.get('seconds',10)))
     except (ValueError,KeyError,OSError) as exc:
         raise HTTPException(400,str(exc))
+
+
+@app.post('/api/voiceover/preview')
+def preview_voiceover(body: dict):
+    import voiceover, uuid
+    provider=str(body.get('provider','')); voice=str(body.get('voice','')); text=str(body.get('text','')).strip()
+    if provider not in ('google','heygen','elevenlabs','ai33pro') or not voice or not 1<=len(text)<=500:
+        raise HTTPException(400,'Choose a provider, voice and 1–500 characters of preview text.')
+    folder=voiceover.STORE/'previews';folder.mkdir(parents=True,exist_ok=True)
+    target=folder/(uuid.uuid4().hex+('.mp3' if provider=='elevenlabs' else '.wav'))
+    try:
+        voiceover.synthesize(provider,voice,text,target)
+        return {'file':target.name}
+    except (ValueError,OSError) as exc:raise HTTPException(400,str(exc))
+
+
+def voiceover_preview_path(filename):
+    import voiceover
+    if not re.fullmatch(r'[0-9a-f]{32}\.(?:mp3|wav)',filename):raise ValueError('Invalid preview file.')
+    file=voiceover.STORE/'previews'/filename
+    if not file.is_file():raise ValueError('Preview audio not found.')
+    return file
+
+
+@app.get('/api/voiceover/audio/{filename}')
+def voiceover_preview_audio(filename: str):
+    try:file=voiceover_preview_path(filename)
+    except ValueError as exc:raise HTTPException(404,str(exc))
+    return FileResponse(file,media_type='audio/wav' if file.suffix=='.wav' else 'audio/mpeg')
 
 
 @app.post('/api/heygen/preview')
@@ -1814,6 +1859,16 @@ class DesktopBridge:
         self._window = None
         self._writer_window = None
 
+    def save_voice_preview(self, filename, suggested='voice-preview.wav'):
+        import webview, shutil
+        source=voiceover_preview_path(str(filename))
+        suggested=Path(str(suggested)).name
+        result=(self._window or webview.windows[0]).create_file_dialog(webview.FileDialog.SAVE,save_filename=suggested,file_types=('Audio (*.wav;*.mp3)',))
+        if not result:return ''
+        target=Path(result[0] if isinstance(result,(list,tuple)) else result)
+        shutil.copy2(source,target)
+        return str(target)
+
     def choose_file(self, kind='story'):
         import webview
         if kind == 'folder':
@@ -1876,7 +1931,7 @@ def main():
     bridge._window = webview.create_window('VEO3 Studio', bridge._base_url, js_api=bridge,
                           width=width, height=height, min_size=(980, 620), background_color=background, confirm_close=True)
     try:
-        webview.start(gui='edgechromium')
+        webview.start(gui='edgechromium',icon=str(UI/'studio.ico'))
     finally:
         for job in list(jobs.values()):
             if job.status == 'running':
