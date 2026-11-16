@@ -239,7 +239,7 @@ function probe(fullPath) {
     try {
         const out = execFileSync('ffprobe', [
             '-v', 'error',
-            '-show_entries', 'format=duration:stream=codec_type,codec_name,width,height,sample_rate,channels,time_base,start_time,duration,avg_frame_rate',
+            '-show_entries', 'format=duration:stream=codec_type,codec_name,width,height,sample_rate,channels,time_base,start_time,duration,avg_frame_rate,profile,level,pix_fmt,field_order,sample_aspect_ratio,color_range,color_space,color_primaries,color_transfer,channel_layout:stream_side_data=rotation',
             '-of', 'json',
             fullPath,
         ], { encoding: 'utf8', timeout: 30000, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -262,6 +262,19 @@ function probe(fullPath) {
             fps: v.avg_frame_rate && v.avg_frame_rate !== '0/0' ? v.avg_frame_rate : null,
             videoTimeBase: v.time_base || null,
             audioTimeBase: a.time_base || null,
+            videoProfile: v.profile,
+            videoLevel: v.level,
+            pixelFormat: v.pix_fmt,
+            fieldOrder: v.field_order,
+            sar: !v.sample_aspect_ratio || v.sample_aspect_ratio === 'N/A' ? '1:1' : v.sample_aspect_ratio,
+            colorRange: v.color_range,
+            colorSpace: v.color_space,
+            colorPrimaries: v.color_primaries,
+            colorTransfer: v.color_transfer,
+            rotation: v.side_data_list?.find(item => item.rotation)?.rotation || 0,
+            audioProfile: a.profile,
+            channelLayout: a.channel_layout,
+            tracks: (j.streams || []).length,
         };
     } catch {
         return null;
@@ -339,7 +352,20 @@ if (storyFiles.length === 1) {
     try { dialogueStory = JSON.parse(fs.readFileSync(path.join(storyFolder, storyFiles[0]), 'utf8')).narration_scope === 'dialogue'; } catch {}
 }
 const normalizeAudio = !FORCE_COPY && !flag('--no-normalize-audio', false) && (dialogueStory || !!flag('--normalize-audio', false));
-const mustEncode = REENCODE || normalizeAudio || (MISMATCH && !FORCE_COPY) || !!thumbnailPath;
+let mustEncode = REENCODE || normalizeAudio || (MISMATCH && !FORCE_COPY);
+const cardFields = ['videoProfile','videoLevel','pixelFormat','fieldOrder','sar','colorRange','colorSpace','colorPrimaries','colorTransfer','rotation','audioProfile','channelLayout','tracks'];
+const cardSignature = p => JSON.stringify([sig(p), ...cardFields.map(key => p[key] ?? null)]);
+function copyableCardInput(p) {
+    return p?.vcodec === 'h264' && ['Baseline','Constrained Baseline','Main','High'].includes(p.videoProfile) &&
+        p.acodec === 'aac' && p.audioProfile === 'LC' && p.pixelFormat === 'yuv420p' &&
+        p.fieldOrder === 'progressive' && p.sar === '1:1' && p.rotation === 0 && p.tracks === 2 &&
+        p.videoDuration > 0 && p.audioDuration > 0 &&
+        Math.abs(p.videoStart) <= 0.05 && Math.abs(p.audioStart) <= 0.05 &&
+        Math.abs(p.videoDuration - p.audioDuration) <= 0.05 &&
+        Math.abs(p.videoDuration - p.duration) <= 0.05 &&
+        /^1\/\d+$/.test(p.videoTimeBase) &&
+        (p.channelLayout === 'stereo' || p.channelLayout === 'mono') && !!p.fps && p.videoLevel > 0;
+}
 if (normalizeAudio) log('Dialogue loudness will be balanced per clip to -16 LUFS before joining.');
 if (MISMATCH && FORCE_COPY) log('         --copy given: stream copy forced anyway. Expect a broken file.');
 
@@ -359,18 +385,38 @@ if (thumbnailPath) {
     const first = probes.get(ordered[0]);
     if (!first?.width || !first.height) throw new Error('Cannot size the thumbnail end card without a valid first clip.');
     const fps = first.fps || '24';
-    const segmentArgs = ['-y','-loop','1','-framerate',fps,'-i',thumbnailPath,
-        '-f','lavfi','-i','anullsrc=r=48000:cl=stereo','-t',String(THUMBNAIL_SECONDS),
-        // Fill the video frame while preserving the thumbnail's proportions.
-        // Center-crop any excess so mismatched source ratios never add bars or
-        // cause the end card to be rejected.
-        '-vf',`scale=${first.width}:${first.height}:force_original_aspect_ratio=increase,crop=${first.width}:${first.height},setsar=1,fps=${fps},format=yuv420p`,
-        '-c:v','libx264','-preset','veryfast','-crf','18','-c:a','aac','-ar','48000','-ac','2','-b:a','192k','-shortest',segmentPath];
-    execFileSync('ffmpeg',segmentArgs,{stdio:'ignore',timeout:120000,windowsHide:true});
+    const compatible = !mustEncode && ordered.every(f => {
+        const clip = probes.get(f);
+        return copyableCardInput(clip) && cardSignature(clip) === cardSignature(first);
+    });
+    const geometry = `scale=${first.width}:${first.height}:force_original_aspect_ratio=increase,crop=${first.width}:${first.height},setsar=1,fps=${fps},format=yuv420p`;
+    function encodeCard(match) {
+        const rate = match ? first.sampleRate : '48000';
+        const layout = match ? first.channelLayout : 'stereo';
+        const colors = [['range', {tv:'limited',pc:'full'}[first.colorRange]], ['colorspace',first.colorSpace],
+            ['color_primaries',first.colorPrimaries],['color_trc',first.colorTransfer]]
+            .filter(([,value]) => value && value !== 'unknown').map(([key,value]) => `${key}=${value}`);
+        const filter = match && colors.length ? geometry + ',setparams=' + colors.join(':') : geometry;
+        const args = ['-y','-loop','1','-framerate',fps,'-i',thumbnailPath,
+            '-f','lavfi','-i',`anullsrc=r=${rate}:cl=${layout}`,'-t',String(THUMBNAIL_SECONDS),
+            '-vf',filter,'-c:v','libx264','-preset','veryfast','-crf','18','-c:a','aac','-b:a','192k','-shortest'];
+        if (match) args.push('-profile:v', first.videoProfile.toLowerCase().replace('constrained ', ''),
+            '-level:v', String(first.videoLevel / 10), '-video_track_timescale', first.videoTimeBase.split('/')[1]);
+        execFileSync('ffmpeg',[...args,segmentPath],{stdio:'ignore',timeout:120000,windowsHide:true});
+    }
+    try { encodeCard(compatible); }
+    catch (error) {
+        if (!compatible) throw error;
+        mustEncode = true;
+        encodeCard(false);
+    }
     const p=probe(segmentPath);
     if (!p?.vcodec || !p.acodec || Math.abs((p.duration||0)-THUMBNAIL_SECONDS)>0.25) {
         throw new Error('Thumbnail end card failed media validation; original clips and image were preserved.');
     }
+    mustEncode ||= !compatible || !copyableCardInput(p) || cardSignature(p) !== cardSignature(first);
+    log(mustEncode ? 'Thumbnail join will normalize incompatible or explicitly selected encode inputs.'
+        : 'Thumbnail encoded separately; compatible story clips will be stream-copied.');
     probes.set(thumbnailSegmentName,p);
     ordered.push(thumbnailSegmentName);
 }
@@ -436,10 +482,18 @@ if (mustEncode) {
     result = runFfmpeg(encArgs, 'encode');
 } else {
     result = runFfmpeg(copyArgs, 'stream copy');
+    if (result.ok && thumbnailSegmentName) {
+        const copied = probe(workingPath);
+        if (!copied?.audioDuration || Math.abs(copied.videoDuration - total) > 0.15 ||
+            Math.abs(copied.audioDuration - copied.videoDuration) > 0.15 ||
+            Math.abs(copied.audioStart - copied.videoStart) > 0.05) {
+            result = {ok:false, err:'Copied audio/video failed timeline validation.'};
+        } else {
+            result = runFfmpeg(['-v','error','-xerror','-i',workingPath,'-map','0:v:0','-map','0:a:0','-f','null','-'], 'verify copied audio/video');
+        }
+    }
     if (!result.ok) {
-        // The copy is free and instant, so always try it first; fall back rather
-        // than making the caller guess at why.
-        log('Stream copy refused - falling back to re-encode.');
+        log('Stream copy failed validation; falling back to re-encode.');
         log(`  ffmpeg said: ${String(result.err).split('\n').filter(Boolean).slice(-6).join(' / ').slice(0, 500)}`);
         result = runFfmpeg(encArgs, 'encode');
     }

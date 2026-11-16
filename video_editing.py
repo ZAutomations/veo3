@@ -338,6 +338,10 @@ def render_camera_transitions(source,output,boundaries,cfg,duration=.65):
             previous=cuts[i-1] if i else 0
             following=cuts[i+1] if i+1<len(cuts) else clip.duration
             spans.append((cut,min(duration,(cut-previous)/2,(following-cut)/2),i))
+        # Incoming playback is sequential; use a separate decoder for the
+        # earlier frames so blending does not seek both ways on every frame.
+        outgoing_clip=VideoFileClip(str(source),audio=False)
+        resources.append(outgoing_clip)
         def whip_pan(get_frame,t):
             incoming=get_frame(t)
             for cut,length,index in spans:
@@ -347,7 +351,7 @@ def render_camera_transitions(source,output,boundaries,cfg,duration=.65):
                     progress=linear*linear*(3-2*linear)
                     width=incoming.shape[1]
                     shift=max(0,min(width,round(width*progress)))
-                    outgoing=get_frame(max(0,cut-length+(t-cut)))
+                    outgoing=outgoing_clip.get_frame(max(0,cut-length+(t-cut)))
                     if selected:
                         from local_camera_transitions import transition_frame
                         return transition_frame(outgoing,incoming,progress,selected[index%len(selected)])
@@ -401,7 +405,8 @@ def render_camera_transitions(source,output,boundaries,cfg,duration=.65):
             resources.append(mixed);result=result.with_audio(mixed);resources.append(result)
         if selected:log('Local transition sequence: '+' -> '.join(selected)+'; repeats across verified joins.')
         log(f'Applying camera transitions at {len(spans)} verified clip join(s); transition SFX: {len(sfx)} event(s) (swoosh + click, two per join when enabled); audio timeline preserved.')
-        result.write_videofile(str(output),codec='libx264',audio_codec='aac',fps=clip.fps,preset='veryfast',threads=2,logger=None)
+        result.write_videofile(str(output),codec='libx264',audio_codec='aac',fps=clip.fps,preset='veryfast',threads=2,logger=None,
+                               temp_audiofile_path=str(Path(output).parent))
     finally:
         for item in reversed(resources):
             try:item.close()
@@ -497,13 +502,14 @@ def whisper_python():
     raise RuntimeError('Speech caption preview needs openai-whisper in the Studio Python environment. Run Setup\\INSTALL.bat once, then restart Studio.')
 
 
-def transcribe(source,folder,cfg):
+def transcribe(source,folder,cfg,*,cached_only=False):
     fingerprint=hashlib.sha256((str(source.resolve())+str(source.stat().st_size)+str(source.stat().st_mtime_ns)+cfg['editing_whisper_model']+str(cfg['caption_language'])).encode()).hexdigest()[:16]
     target=folder/f'words_{fingerprint}.json'
     if not target.is_file():
+        if cached_only:return []
         log('Transcribing final edited speech locally for word-level caption timing...')
         command=[whisper_python(),PORT/'_whisper_word_timestamps.py',source,'--output',target,'--model',cfg['editing_whisper_model']]
-        lang={'english':'en','russian':'ru','arabic':'ar','urdu':'ur','japanese':'ja','chinese':'zh','korean':'ko','hindi':'hi','thai':'th'}.get(cfg['caption_language'])
+        lang={'english':'en','russian':'ru','arabic':'ar','urdu':'ur','japanese':'ja','chinese':'zh','korean':'ko','hindi':'hi','thai':'th','spanish':'es','french':'fr','german':'de'}.get(cfg['caption_language'])
         if lang:command+=['--language',lang]
         run(command,timeout=3600)
     rows=json.loads(target.read_text(encoding='utf-8'))
@@ -514,6 +520,50 @@ def transcribe(source,folder,cfg):
         text=str(row.get('word',row.get('text',''))).strip()
         if end>start and text:words.append(dict(word=text,start=start,end=end))
     return words
+
+
+def prepared_caption_words(package,work,cfg,segments,overlap,final_info):
+    if not package.get('full_voiceover_first') or cfg['voiceover_mode']!='prepared':
+        return []
+    if not segments or segments[0][0]!=0 or overlap or not final_info.get('audio'):
+        return []
+    from full_voiceover import timed_sections
+    from multilingual import LANGUAGES
+    code=package.get('full_voiceover_language','en')
+    language='english' if code=='en' else LANGUAGES.get(code,'').lower()
+    if not language or cfg['caption_language'] not in ('auto',language):
+        return []
+    try:
+        [mix]=json.loads((work/'voiceover_sync.json').read_text(encoding='utf-8'))
+        source=Path(package['full_voiceover_file']).resolve()
+        duration=float(package['full_voiceover_seconds'])
+        if (Path(mix['audio']).resolve()!=source or mix['audio_start']!=0 or mix['video_start']!=0
+                or abs(mix['audio_end']-duration)>.02 or mix['audio_end']>mix['video_end']
+                or duration>min(segments[0][1],final_info['duration'])+.02):
+            return []
+        track=package.get('full_voiceover_tracks',{}).get(code)
+        if track and hashlib.sha256(source.read_bytes()).hexdigest()!=track.get('sha256'):
+            return []
+        lines=(track or {}).get('lines')
+        if not lines:
+            if code!='en':return []
+            original=json.loads(Path(package['original_story']).read_text(encoding='utf-8-sig'))
+            lines=[str(scene.get('script_line') or '').strip() for scene in original['scenes']]
+        model=cfg['editing_whisper_model']
+        models=(model,'small') if model in ('tiny','base') else (model,)
+        saved=package['full_voiceover_sections']
+        for model in models:
+            words=transcribe(source,source.parent,dict(cfg,caption_language=language,editing_whisper_model=model),cached_only=True)
+            if not words or any(not 0<=w['start']<w['end']<=duration+.05 for w in words):
+                continue
+            try:measured=timed_sections(lines,words,duration,language=code)
+            except ValueError:continue
+            # The cached transcript must reproduce the beat timing accepted at preparation.
+            if len(measured)==len(saved) and all(abs(a-x)<=.02 and abs(b-y)<=.02 for (a,b),(x,y) in zip(measured,saved)):
+                return words
+    except (OSError,ValueError,TypeError,KeyError,AttributeError):
+        pass
+    return []
 
 
 def build_captions(words,path,info,cfg):
@@ -637,6 +687,7 @@ def publish_story_exports(source,final):
 
 def edit(source,values=None,report=None,output=None):
     source=media_path(source);cfg=settings(values);info=probe(source)
+    package={}
     candidates=list(source.parent.glob('*_story.json'))
     if len(candidates)==1:
         package=json.loads(candidates[0].read_text(encoding='utf-8-sig'))
@@ -644,6 +695,11 @@ def edit(source,values=None,report=None,output=None):
             cfg['voiceover_mode']='prepared'
             cfg['_audio_first_story']=str(candidates[0])
             if package.get('local_dubbing',{}).get('keep_background_gain'):cfg['_background_gain']=1.0
+            if package.get('full_voiceover_first'):
+                cfg['audio_first_trim_gaps']=False
+                cfg['silence_crossfade_enabled']=False
+                cfg['editing_speed']=1.0
+                log('Full Voiceover First: continuous narration at 1.00x; speech gaps and narration pace preserved.')
     import preset_cta
     cta=preset_cta.find(source,ROOT) if cfg['preset_cta_enabled'] else None
     if not enabled(cfg) and not cta:log('All editing features are disabled; original video retained.');return source
@@ -681,9 +737,33 @@ def edit(source,values=None,report=None,output=None):
         else:
             log('Camera transition audit: no JOINED_CLIP_ORDER.txt found; standalone video has no verified clip joins.')
     end_card_start=original_end_card_start(source,report)
+    aligned_speech_end=None
+    if package.get('full_voiceover_visual_sections'):
+        from full_voiceover import retime_visuals
+        current=work/'aligned_visuals.mp4'
+        boundaries,end_card_start=retime_visuals(source,current,info,boundaries,end_card_start,package)
+        info=probe(current)
+        aligned_speech_end=end_card_start if end_card_start is not None else info['duration']
+        segments=[(0,info['duration'])]
     if cfg['voiceover_mode']!='native':
-        current=voiceover.replace_audio(source,work/'voiceover.mp4',cfg,work,report)
+        current=voiceover.replace_audio(current,work/'voiceover.mp4',cfg,work,report,aligned_speech_end=aligned_speech_end)
         log('External narration mixed; any enabled silence cuts will move video and mixed audio together.')
+    if cfg.get('_audio_first_story'):
+        prepared=json.loads(Path(cfg['_audio_first_story']).read_text(encoding='utf-8-sig'))
+        if prepared.get('full_voiceover_first') and aligned_speech_end is None:
+            speech_end=float(prepared['full_voiceover_seconds'])+.30
+            visual_end=end_card_start if end_card_start is not None else info['duration']
+            if speech_end<visual_end-.05:
+                segments=[(0.,speech_end)]
+                if end_card_start is not None:segments.append((end_card_start,info['duration']))
+                graph=[]
+                for i,(a,b) in enumerate(segments):
+                    graph.extend([f'[0:v]trim=start={a}:end={b},setpts=PTS-STARTPTS[v{i}]',f'[0:a]atrim=start={a}:end={b},asetpts=PTS-STARTPTS[a{i}]'])
+                graph.append(''.join(f'[v{i}][a{i}]' for i in range(len(segments)))+f'concat=n={len(segments)}:v=1:a=1[v][a]')
+                target=work/'full_voiceover_tail.mp4'
+                run(['ffmpeg','-v','error','-y','-i',current,'-filter_complex',';'.join(graph),'-map','[v]','-map','[a]','-c:v','libx264','-preset','veryfast','-crf','19','-c:a','aac',target])
+                current=target
+                log('Full Voiceover First: excess visual tail removed after speech; thumbnail preserved, narration unchanged.')
     if end_card_start is not None:
         log(f'Thumbnail end card detected at {end_card_start:.2f}s; its full duration is protected during editing.')
     log(f'Dissolve: {"ON" if cfg["editing_transitions_enabled"] else "OFF"}; {len(boundaries)} verified clip join(s).')
@@ -711,7 +791,10 @@ def edit(source,values=None,report=None,output=None):
     if cfg['editing_transitions_enabled']:
         target=work/'transitions.mp4';render_dissolve(current,target,mapped,float(cfg['editing_transition_duration']));current=target
     if cfg['clipper_captions_enabled']:
-        final_info=probe(current);words=transcribe(current,work,cfg)
+        final_info=probe(current)
+        words=prepared_caption_words(package,work,cfg,segments,overlap,final_info)
+        if words:log('Captions: reusing verified Full Voiceover First word timestamps at the original speech timing.')
+        else:words=transcribe(current,work,cfg)
         if not words:raise ValueError('No spoken words detected. Disable captions or choose a different transcription language/model.')
         ass=work/'captions.ass';build_captions(words,ass,final_info,cfg)
         target=work/'captioned.mp4'

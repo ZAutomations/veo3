@@ -9,6 +9,35 @@ import sys
 import voiceover as V
 import video_editing as E
 import voice_calibration as C
+ENGLISH_MAX_SPEED=1.05
+
+def english_speech_window(seconds):
+    # Prepared audio starts at the scene boundary; reserve the final 0.30s at 10s.
+    return seconds-(.30 if seconds==10 else .17)
+
+def package_file(folder,source):
+    legacy=folder/(source.stem+'_audio_first_story.json')
+    # Leave room for downstream companion files on Windows MAX_PATH systems.
+    return folder/'audio_first_story.json' if len(str(legacy.resolve()))>240 else legacy
+
+def rebind_package_paths(value):
+    """Repair saved legacy paths only when the prepared package proves its lineage."""
+    if isinstance(value,list):return [rebind_package_paths(x) for x in value]
+    if isinstance(value,tuple):return tuple(rebind_package_paths(x) for x in value)
+    if isinstance(value,dict):return {k:rebind_package_paths(v) for k,v in value.items()}
+    if not isinstance(value,str) or not value.endswith('_audio_first_story.json'):return value
+    old=Path(value)
+    if not old.is_absolute() or old.parent.parent.name!='audio_first' or old.is_file():return value
+    candidate=old.parent/'audio_first_story.json'
+    try:
+        story=json.loads(candidate.read_text(encoding='utf-8-sig'))
+        source=Path(story['original_story'])
+        if (story.get('audio_first') is True and source.is_file()
+                and source.parent.resolve()==old.parent.parent.parent.resolve()
+                and old.name==source.stem+'_audio_first_story.json'
+                and package_file(old.parent,source)==candidate):return str(candidate)
+    except (OSError,ValueError,KeyError,TypeError):pass
+    return value
 
 def fit_story(audios,seconds,baseline=1.):
     durations=[V.audio_duration(p) for p in audios]
@@ -29,11 +58,11 @@ def fit_story(audios,seconds,baseline=1.):
 
 def fit_google_story(audios,seconds):
     """Normalize Google English scenes, avoiding longest-scene speed on shorter lines."""
-    target=9.48 if seconds==10 else seconds-.17
+    target=english_speech_window(seconds)
     fitted=[];rates=[]
     for index,audio in enumerate(audios,1):
         duration=V.audio_duration(audio);rate=duration/target
-        if not .85<=rate<=1.30:
+        if not .85<=rate<=ENGLISH_MAX_SPEED:
             raise ValueError(f'Google English scene {index} needs {rate:.2f}x to fill {target:.2f}s. Review native delivery; no speech was cut.')
         output=audio.with_name(audio.stem+'.google-scene.wav')
         E.run(['ffmpeg','-v','error','-y','-i',audio,'-af',f'atempo={rate:.10f}','-ar','48000','-ac','1',output])
@@ -79,6 +108,8 @@ def plan_package(body):
         if invalid: raise ValueError('10-second narration must contain 28–30 words per scene before HeyGen/API generation: '+', '.join(invalid)+'. No script was rewritten and no audio request was submitted.')
     import multilingual
     multi=multilingual.configuration(body.get('multilingual'))
+    deferred=body.get('defer_dubbing') is True
+    if deferred:multi={'enabled':False,'languages':[]}
     if multi['enabled'] and original.get('multilingual_translation_mode')=='supplied_only':
         for row in multi['languages']:
             if any(not str(scene.get('narration_translations',{}).get(row['code'],'')).strip() for scene in selected):raise ValueError('Missing supplied '+multilingual.LANGUAGES[row['code']]+' narration. Import it before generating audio; no translation call will be made.')
@@ -100,9 +131,10 @@ def plan_package(body):
         elif len(selected)!=1: raise ValueError('Multi-scene local audio needs a per-scene timing JSON.')
     fingerprint=hashlib.sha256(b'actual_story_pace_v2'+source.read_bytes()+json.dumps([start,end,cfg,V.signature(cfg)],sort_keys=True).encode()).hexdigest()[:12]
     if multi['enabled']:fingerprint=hashlib.sha256((fingerprint+json.dumps(multi,sort_keys=True)).encode()).hexdigest()[:12]
+    if deferred:fingerprint=hashlib.sha256((fingerprint+':deferred_dubbing_v1').encode()).hexdigest()[:12]
     folder=source.parent/'audio_first'/fingerprint
     return dict(multilingual=multi,source=source,original=original,start=start,end=end,seconds=seconds,selected=selected,cfg=cfg,folder=folder,
-                file=folder/(source.stem+'_audio_first_story.json'))
+                file=package_file(folder,source))
 
 def prepare(body):
     planned=plan_package(body)
@@ -124,13 +156,16 @@ def prepare(body):
         text=scene['script_line'].strip();audio=cache/f'scene_{i+1:03}.wav'
         if cfg['voiceover_mode']=='api':
             if not cfg['voiceover_voice']: raise ValueError('Choose an API voice ID first.')
-            raw=V.synthesize(cfg['voiceover_provider'],cfg['voiceover_voice'],text,cache/f'scene_{i+1:03}.source.mp3')
             if cfg['voiceover_provider']=='google':
                 import google_tts
-                google_target=9.48 if seconds==10 else seconds-.17
-                raw,google_duration=google_tts.recover_timing(cfg['voiceover_voice'],text,raw,google_target,language='en',max_rate=1.30)
-                if google_duration>google_target*1.30:
-                    raise ValueError(f'Google scene {i+1} still needs more than 1.30x after two unchanged-text pacing attempts. Review this line; no speech was cut.')
+                google_target=english_speech_window(seconds)
+                E.log(f'English scene {start+i}: native delivery target {google_target:.2f}s; maximum extra speed {ENGLISH_MAX_SPEED:.2f}x.')
+                raw=google_tts.synthesize(cfg['voiceover_voice'],text,cache/f'scene_{i+1:03}.source.mp3',language='en',target_seconds=google_target)
+                raw,google_duration=google_tts.recover_timing(cfg['voiceover_voice'],text,raw,google_target,language='en',max_rate=ENGLISH_MAX_SPEED)
+                if google_duration>google_target*ENGLISH_MAX_SPEED:
+                    raise ValueError(f'Google English scene {i+1} still exceeds the {ENGLISH_MAX_SPEED:.2f}x natural-pace limit after {google_tts.MAX_PACING_ATTEMPTS} automatic unchanged-text pacing attempts. Review native delivery or this line; no speech was cut.')
+            else:
+                raw=V.synthesize(cfg['voiceover_provider'],cfg['voiceover_voice'],text,cache/f'scene_{i+1:03}.source.mp3')
             E.run(['ffmpeg','-v','error','-y','-i',raw,'-ar','48000','-ac','1',audio])
         else:
             row=local_rows[i] if local_rows else {'audio_start':0,'audio_end':V.audio_duration(local)}
@@ -141,7 +176,7 @@ def prepare(body):
     google_english=cfg['voiceover_mode']=='api' and cfg['voiceover_provider']=='google'
     if google_english:
         fitted,scene_paces=fit_google_story(audios,seconds);tempo=None
-        E.log(f'Google English narration: all {len(audios)} scenes fitted independently to {9.48 if seconds==10 else seconds-.17:.2f}s; pitch preserved, no longest-scene acceleration applied to shorter lines.')
+        E.log(f'Google English narration: all {len(audios)} scenes fitted independently to {english_speech_window(seconds):.2f}s; pitch preserved, maximum extra speed {ENGLISH_MAX_SPEED:.2f}x, no longest-scene acceleration applied to shorter lines.')
     else:
         fitted,tempo=fit_story(audios,seconds);scene_paces=[tempo]*len(audios)
         E.log(f'Common narration pace for all {len(audios)} scenes: {tempo:.3f}x. No individual scene speed overrides.')
@@ -160,8 +195,12 @@ def prepare(body):
     if google_english:story['audio_first_scene_paces']=scene_paces
     story['audio_first_voice_calibration']=profile
     for key in ('zack_ready_import','script_import'): story[key]=False
-    file=folder/(source.stem+'_audio_first_story.json')
+    file=planned['file']
     if planned['multilingual']['enabled']:story['multilingual']=planned['multilingual']
+    if body.get('defer_dubbing') is True:
+        from pending_dubbing import supplied_languages
+        story.pop('multilingual',None)
+        story['deferred_dubbing']=supplied_languages(original)
     # Voice-only overrides remain valid across audio timing metadata refreshes,
     # but never across changed English narration or a different source/range.
     overrides=folder/'multilingual_narration_overrides.json'

@@ -77,6 +77,7 @@ Setup/setup.log
 # New desktop interface personal preferences
 desktop_settings.json
 desktop_writer_settings.json
+desktop_dubbing_settings.json
 
 # Personal preset image library (keep the empty preset folders).
 /Preset References/**/*

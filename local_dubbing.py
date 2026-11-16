@@ -6,7 +6,7 @@ import video_editing as E
 import voiceover as V
 from story_output import safe_story_title,publish_audio_first_exports
 
-SKIP={'audio_first','multilingual','local_dubbing','clips','video_editing','backups','.git','.venv'}
+SKIP={'audio_first','full_voiceover','multilingual','local_dubbing','clips','video_editing','backups','.git','.venv'}
 
 def read(file):return json.loads(Path(file).read_text(encoding='utf-8-sig'))
 def english(scene):
@@ -27,7 +27,9 @@ def documents(folder):
     result=[]
     for file in sorted(Path(folder).rglob('*')):
         if not file.is_file() or file.stat().st_size>10*1024*1024 or any(p in SKIP for p in file.relative_to(folder).parts[:-1]):continue
-        if file.name=='local_dubbing_jobs.json':continue
+        # This provenance archive can contain the entire original import batch,
+        # including unrelated stories. It is not this folder's active script.
+        if file.name in {'local_dubbing_jobs.json','READY_SCRIPT_ORIGINAL.txt'}:continue
         if file.suffix.lower()=='.json':
             try:data=read(file)
             except (OSError,ValueError):continue
@@ -44,16 +46,23 @@ def documents(folder):
         if key not in unique:unique[key]=(file,data)
     return list(unique.values())
 
-def media_for(original,story):
+def media_for(original,story,native_only=False):
     title=safe_story_title(story.get('title'),original.parent.name)
     # A completed Audio First package offers a truly clean background and verified timeline.
-    for package in sorted(original.parent.glob('audio_first/*/*_story.json'),key=lambda p:p.stat().st_mtime_ns,reverse=True):
+    packages=[] if native_only else original.parent.glob('audio_first/*/*_story.json')
+    for package in sorted(packages,key=lambda p:p.stat().st_mtime_ns,reverse=True):
         data=read(package)
         if data.get('audio_first') and identity(data)[2]==identity(story)[2]:
-            raw=package.parent/(title+' raw.mp4');final=package.parent/(title+'.mp4');report=package.parent/'JOINED_CLIP_ORDER.txt'
-            if raw.is_file() and final.is_file() and report.is_file():return raw,final,report,True
+            raw=package.parent/(title+' raw.mp4');report=package.parent/'JOINED_CLIP_ORDER.txt'
+            if raw.is_file() and report.is_file():return raw,raw,report,True
     final=original.parent/(title+'.mp4');raw=original.parent/(title+' raw.mp4');report=original.parent/'JOINED_CLIP_ORDER.txt'
-    if final.is_file():return (raw if raw.is_file() else final),final,report,False
+    # Joining may have finished while editing/final export has not. The joined
+    # English raw video is a valid dubbing source, but require its own successful
+    # join report rather than treating any similarly named MP4 as completed.
+    if raw.is_file() and report.is_file():
+        recorded=re.search(r'^Completed video:\s*(.+?)\s*$',report.read_text(encoding='utf-8-sig'),re.M)
+        if recorded and Path(recorded.group(1)).resolve()==raw.resolve():
+            return raw,raw,report,False
     return None
 
 def timeline(video,report,count,explicit=None):
@@ -70,7 +79,10 @@ def timeline(video,report,count,explicit=None):
     if len(starts)!=count:raise ValueError('Verified scene boundaries unavailable for '+str(video)+'. Supply explicit scene timings in local_dubbing_jobs.json; scene order/duration will not be guessed.')
     return [[a,b] for a,b in zip(starts,starts[1:]+[end])],info
 
-def plan(body):
+def plan(body, source_override=None):
+    if body.get('pending_only'):
+        from pending_dubbing import plan_pending
+        return plan_pending(body)
     folder=Path(body.get('folder','')).expanduser().resolve()
     if not str(body.get('folder','')).strip() or not folder.is_dir():raise ValueError('Choose an existing folder of translated story scripts.')
     cfg=M.configuration(body.get('multilingual'))
@@ -78,12 +90,12 @@ def plan(body):
     maps=body.get('speaker_voices') or {}
     if isinstance(maps,str):maps=json.loads(maps or '{}')
     if not isinstance(maps,dict) or any(not isinstance(rows,dict) or any(not isinstance(v,str) or not v.strip() for v in rows.values()) for rows in maps.values()):raise ValueError('Speaker voices must be a JSON object of language → speaker → voice ID/name.')
-    docs=documents(folder)
+    docs=[(source_override,read(source_override))] if source_override else documents(folder)
     if not docs:raise ValueError('No translated story JSON or ready-import TXT found in the selected folder.')
-    jobfile=folder/'local_dubbing_jobs.json';bindings=read(jobfile).get('jobs',[]) if jobfile.is_file() else []
+    jobfile=folder/'local_dubbing_jobs.json';bindings=read(jobfile).get('jobs',[]) if not source_override and jobfile.is_file() else []
     originals=[]
-    for p in (E.ROOT/'stories').rglob('*_story.json'):
-        if any(x in SKIP for x in p.relative_to(E.ROOT/'stories').parts[:-1]):continue
+    for p in ([source_override] if source_override else (E.ROOT/'stories').rglob('*_story.json')):
+        if not source_override and any(x in SKIP for x in p.relative_to(E.ROOT/'stories').parts[:-1]):continue
         try:data=read(p)
         except (OSError,ValueError):continue
         if isinstance(data,dict) and data.get('scenes'):originals.append((p,data))
@@ -112,7 +124,7 @@ def plan(body):
             matches=[]
             for original,data in originals:
                 if identity(data)==identity(supplied):
-                    media=media_for(original,data)
+                    media=media_for(original,data,native_only=bool(source_override))
                     if media:matches.append((original,media))
             if len(matches)!=1:raise ValueError(f'{supplied["title"]}: found {len(matches)} matching completed English projects. Keep the English text/title/preset unchanged, or bind a video explicitly in local_dubbing_jobs.json.')
             original,(video,final,report,clean)=matches[0]
@@ -122,7 +134,7 @@ def plan(body):
         digest=hashlib.sha256(key.encode()).hexdigest()[:16]
         if digest in seen:continue
         seen.add(digest)
-        jobs.append(dict(title=supplied['title'],script=str(script),supplied=supplied,original_story=str(original.resolve()),video=str(video.resolve()),english_video=str(final.resolve()),timeline=rows,duration=info['duration'],clean_background=clean,key=digest,speaker_voices=maps))
+        jobs.append(dict(title=supplied['title'],script=str(script),supplied=supplied,original_story=str(original.resolve()),video=str(video.resolve()),english_video=str(final.resolve()),source_is_raw=True,timeline=rows,duration=info['duration'],clean_background=clean,key=digest,speaker_voices=maps))
     if not jobs:raise ValueError('No matching local dubbing jobs.')
     return dict(folder=str(folder),multilingual=cfg,jobs=jobs)
 
@@ -158,8 +170,37 @@ def scene_audio(scene,profile,code,work,limit,speaker_voices):
     return audio,actual,text
 
 
-def run(body):
-    planned=plan(body);outputs=[];failures=[]
+def run_pending(body,planned):
+    from pending_dubbing import playable, render_prepared
+    outputs=[];failures=[];blocked=[]
+    for job in planned['jobs']:
+        if job['missing_voices']:
+            blocked.append(dict(title=job['title'],languages=job['missing_voices']))
+            print('LOCAL DUBBING PENDING: '+job['title']+' · choose voices for '+', '.join(M.LANGUAGES[code] for code in job['missing_voices']),flush=True)
+        for profile in job['profiles']:
+            source=Path(job['original_story']);code=profile['code']
+            output=source.parent/(safe_story_title(job['title'])+' '+M.LANGUAGES[code]+'.mp4')
+            if playable(output):continue
+            try:
+                print('LOCAL DUBBING: '+job['title']+' · '+M.LANGUAGES[code],flush=True)
+                if job['package']:outputs.extend(render_prepared(job,profile,body))
+                else:
+                    request=dict(body, pending_only=False, folder=str(source.parent), multilingual=dict(enabled=True,languages=[profile]))
+                    outputs.extend(run(request,plan(request,source_override=source)))
+            except Exception as exc:
+                failures.append(dict(title=job['title'],language=code,error=str(exc),transient=isinstance(exc,M.HeyGenNetworkError)))
+                print('LOCAL DUBBING LANGUAGE FAILED: '+job['title']+' · '+M.LANGUAGES[code]+': '+str(exc),flush=True)
+    M.atomic(Path(planned['folder'])/'LOCAL_DUBBING_RESULTS.json',dict(outputs=outputs,failed=failures,pending_missing_voices=blocked))
+    if failures and all(row['transient'] for row in failures):raise M.HeyGenNetworkError('Pending dubbing hit a temporary provider connection error. Completed exports will be skipped on retry.')
+    if failures:raise ValueError(f'{len(failures)} pending language export(s) failed. Completed outputs retained. See LOCAL_DUBBING_RESULTS.json.')
+    print('LOCAL DUBBING_OUTPUTS: '+json.dumps(outputs,ensure_ascii=False),flush=True)
+    return outputs
+
+
+def run(body,planned=None):
+    planned=planned if planned is not None else plan(body)
+    if body.get('pending_only'):return run_pending(body,planned)
+    outputs=[];failures=[]
     # Validate all jobs and missing supplied scripts before generating any narration.
     for job in planned['jobs']:
       try:
@@ -190,8 +231,10 @@ def run(body):
             for image in original.parent.glob(title+'.*'):
                 if image.suffix.lower() in ('.jpg','.jpeg','.png','.webp'):shutil.copy2(image,lang/('thumbnail_downloaded'+image.suffix))
             cfg=E.settings(body.get('editingSettings'));cfg.update(silence_removal_enabled=False,audio_first_trim_gaps=False,preset_cta_enabled=False,caption_language=M.LANGUAGES[code].lower() if code in ('ru','ar','hi','ur','ja') else 'auto')
-            # Raw source gets finishing once; explicit/final sources already contain effects.
-            if Path(job['video']).resolve()==Path(job['english_video']).resolve():
+            # Raw footage receives the selected finishing once, even when no
+            # separate English final export exists. Path equality is not proof
+            # that effects have already been applied.
+            if not job.get('source_is_raw',False):
                 cfg.update(editing_camera_enabled=False,editing_transitions_enabled=False,transition_sfx_enabled=False,editing_speed=1.)
                 for key in cfg:
                     if key.startswith('camera_effect_') and isinstance(cfg[key],bool):cfg[key]=False

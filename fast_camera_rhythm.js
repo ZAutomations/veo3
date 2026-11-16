@@ -5,4 +5,9 @@ function forPreset(p={}){
  if(p.single_speaker_advice||p.narration_scope==='dialogue'||/lofi|fall-asleep/.test(p.id||'')||/locked|static camera|fixed camera|peaceful framing|relaxed framing|no (?:further )?(?:zoom|pan)/i.test(camera))return '';
  return DIRECTION;
 }
-module.exports={DIRECTION,forPreset};
+const DETAIL_PRESETS=new Set(['fern-documentary','3d-zack-style','intimacy-health-3d','cats-behavior-3d']);
+function detailBeat(story){
+ if(!DETAIL_PRESETS.has(story.preset_id))return '';
+ return 'FEATURE REVEAL — SNAP IN / HOLD / SNAP OUT: Pick the clearest named detail that this clip explains. Start with enough wider context to recognize the subject. At the supplied detail beat, take 0.20–0.35s to snap in so the exact feature appears roughly twice as large, then stop camera travel and hold the readable close-up for about 0.7–1.2s while the action continues. As the explanation beat ends, snap back out in 0.20–0.35s to reveal the surrounding subject. If the next shot changes subject, pull back first and continue directly into its in-camera pan or occlusion. Fit all three phases inside the existing timed shots; the hold may be shorter in a tight beat. Use this once on the main feature reveal when present. This instruction takes priority over generic slow pushes and boundary pans for the same feature. Preserve supplied targets, action, aspect and runtime; no shake, hard cut, freeze frame or extra shot.';
+}
+module.exports={DIRECTION,forPreset,detailBeat};

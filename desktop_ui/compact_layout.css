@@ -67,3 +67,106 @@ header.generation-header .breadcrumb{white-space:nowrap;flex-shrink:0}
 .studio-compact .generation-finishing .options-grid{grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch}
 @media(max-width:1050px){.studio-compact .generation-finishing .options-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.studio-compact .generation-finishing .options-grid{grid-template-columns:1fr}}
+/* Keep navigation scrollable independently, with standalone tools always reachable. */
+:root{--workspace-width:212px}
+.sidebar{width:var(--workspace-width);height:100dvh;min-height:0;padding:18px 12px;overflow:hidden}
+.sidebar .brand{flex-shrink:0;font-size:15px;letter-spacing:.5px;gap:9px;margin:0 4px 18px}
+.sidebar .brand>div{min-width:0;white-space:nowrap}.sidebar .brand small{white-space:normal}
+.sidebar .brand-mark{flex-shrink:0}
+.sidebar .nav-label{flex-shrink:0;margin:0 12px 8px}
+.sidebar #navigation{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;padding:2px 3px 6px}
+.sidebar .nav-item{padding:9px 11px;margin:2px 0;gap:10px;font-size:13px;line-height:1.3}
+.sidebar .nav-item svg{flex-shrink:0;width:18px;height:18px}
+.sidebar .nav-item span{min-width:0;overflow-wrap:break-word}
+.sidebar-bottom{flex-shrink:0;margin-top:8px}
+.sidebar .local-card{padding:9px 8px}
+.sidebar .legacy{padding:9px 8px;line-height:1.35}
+.sidebar .sidebar-version{margin:8px 8px 0}
+.app-shell{margin-left:var(--workspace-width)}
+.activity{left:var(--workspace-width)}
+@media(max-width:1100px){:root{--workspace-width:190px}}
+@media(max-height:720px){.sidebar{padding-top:12px;padding-bottom:10px}.sidebar .brand{margin-bottom:12px}.sidebar .local-card,.sidebar .sidebar-version{display:none}.sidebar .nav-item{padding-top:7px;padding-bottom:7px}}
+@media(max-width:700px){
+ :root{--workspace-width:0px}
+ .sidebar{position:relative;inset:auto;width:100%;height:auto;padding:8px 10px;border-right:0;border-bottom:1px solid var(--line)}
+ .sidebar .brand{margin:0 0 6px;font-size:14px}.sidebar .brand-mark{width:30px;height:32px;font-size:20px}.sidebar .brand-mark span{margin-bottom:5px}.sidebar .brand small,.sidebar .nav-label,.sidebar .local-card,.sidebar .sidebar-version{display:none}
+ .sidebar #navigation{display:flex;flex:none;gap:3px;overflow-x:auto;overflow-y:hidden;padding:2px 2px 7px}
+ .sidebar .nav-item{flex:0 0 auto;width:auto;white-space:nowrap;margin:0;padding:8px 10px}
+ .sidebar-bottom{display:flex;gap:6px;margin-top:3px}.sidebar .legacy{flex:1;min-width:0;width:auto;padding:7px;font-size:11px}.sidebar .legacy span{float:none}
+ .app-shell{margin-left:0}.activity{left:0}
+}
+/* Distinct workspace accents, shared by the label, icon and selected marker. */
+.sidebar .nav-item[data-view="home"]{--nav-colour:#86b9ff}
+.sidebar .nav-item[data-view="writer"]{--nav-colour:#c4a0ff}
+.sidebar .nav-item[data-view="agent"],.sidebar .nav-item[data-view="ingredients"]{--nav-colour:#7de2aa}
+.sidebar .nav-item[data-view="omni"]{--nav-colour:#a6df71}
+.sidebar .nav-item[data-view="manual"]{--nav-colour:#ffbf75}
+.sidebar .nav-item[data-view="library"]{--nav-colour:#7edce8}
+.sidebar .nav-item[data-view="editing"]{--nav-colour:#ff9fb5}
+.sidebar .nav-item[data-view="audio"]{--nav-colour:#f7a4ec}
+.sidebar .nav-item[data-view="prompts"]{--nav-colour:#f2d66d}
+.sidebar .nav-item[data-view="reverse"]{--nav-colour:#8ce0cb}
+.sidebar .nav-item[data-view="mcp"]{--nav-colour:#b7c9ff}
+.sidebar .nav-item[data-view="accounts"]{--nav-colour:#ffa48d}
+.sidebar .nav-item[data-view="settings"]{--nav-colour:#d7e58e}
+.sidebar .nav-item{color:var(--nav-colour,var(--muted));font-weight:550}
+.sidebar .nav-item:hover{color:var(--nav-colour,var(--text));background:color-mix(in srgb,var(--nav-colour,var(--accent)) 10%,transparent)}
+.sidebar .nav-item.active{color:var(--nav-colour,var(--text));background:color-mix(in srgb,var(--nav-colour,var(--accent)) 16%,transparent);box-shadow:inset 3px 0 var(--nav-colour,var(--accent));font-weight:700}
+
+/* Reuse the workspace palette for action buttons across all Studio windows. */
+button:is(.button,.icon-button,.legacy,.card-toggle,[data-source],[data-queue-filter],[data-edit-position],[data-edit-size]){
+ --button-colour:#86b9ff;
+ --button-ink:var(--button-colour);
+ color:var(--button-ink);
+ background:color-mix(in srgb,var(--button-colour) 9%,var(--bg2));
+ border-color:color-mix(in srgb,var(--button-colour) 38%,var(--bg2));
+}
+[data-theme="matte"] button:where(.button,.icon-button,.legacy,.card-toggle,[data-source],[data-queue-filter],[data-edit-position],[data-edit-size]){
+ --button-ink:color-mix(in srgb,var(--button-colour) 34%,#141420);
+}
+
+/* Violet for writing and opening a workspace, green for generation and rendering. */
+button:is([data-action="write"],[data-action="build"],[data-view="writer"],[data-open-writer],#open-writer-window,[data-source]){
+ --button-colour:#c4a0ff;
+}
+button:is([data-action^="generate"],[data-action^="render_"],[data-action="manual_jobs"],[data-action="account_add"],[data-account="activate"],#voice-preview-generate,#render-video-editing,#confirm-yes){
+ --button-colour:#7de2aa;
+}
+/* Amber for retry and recovery, cyan for files, pink for voice and editing. */
+button:is([data-action^="retry"],[data-action^="resume"],[data-action="fix_join"],#resume-incomplete,#pause-log,[data-edit-reset]){
+ --button-colour:#ffbf75;
+}
+button:is([data-browse],[data-story],[data-prompt],[data-action^="import"],[data-action^="export"],[data-action="download"],[id*="copy-"],[id*="-copy"],[id*="-export"],#open-folder,#attach-ready-txt,#legacy){
+ --button-colour:#7edce8;
+}
+button:is([data-open-dubbing],#open-dubbing-window,[id^="voiceover-"],[id^="voice-preview-"],[data-edit-position],[data-edit-size],#choose-editing-video,#load-editing-story,#play-editing-preview){
+ --button-colour:#f7a4ec;
+}
+button:is([id^="save-"],[id$="-save"],[data-email-save],[data-action="finalize"],[data-action="join"]){
+ --button-colour:#d7e58e;
+}
+button:is([data-action="refs"],[data-action="preflight_script"],[data-action="order"],#reverse-analyze,#local-dub-scan,#mcp-inspect,#mcp-diagnose){
+ --button-colour:#8ce0cb;
+}
+button:is(.danger,[data-stop-lane],[data-account="remove"],[data-manual-remove],[data-remove-reference]){
+ --button-colour:#ff8291;
+}
+
+button:is(.button,.icon-button,.legacy,.card-toggle,[data-source],[data-queue-filter],[data-edit-position],[data-edit-size]):hover:not(:disabled){
+ color:var(--button-ink);
+ background:color-mix(in srgb,var(--button-colour) 19%,var(--bg2));
+ border-color:var(--button-colour);
+}
+button.button.primary,
+button.button.primary:hover,
+button.button.active-account-button,
+.segmented button.selected,
+.segmented button.selected:hover{
+ color:#13141a;
+ background:var(--button-colour);
+ border-color:var(--button-colour);
+ box-shadow:none;
+}
+button.button.primary:hover:not(:disabled){
+ filter:brightness(1.1);
+}

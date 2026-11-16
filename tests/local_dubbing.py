@@ -26,7 +26,7 @@ with tempfile.TemporaryDirectory() as tmp:
  with patch.object(E,'ROOT',root),patch.object(V,'synthesize',side_effect=synth),patch.object(M,'translation',side_effect=AssertionError('No translation call')),patch.object(S,'prepare_background',side_effect=separate):
   planned=L.plan(body);assert len(planned['jobs'])==1 and not planned['jobs'][0]['clean_background']
   outputs=L.run(body);assert len(outputs)==2 and len(calls)==4 and set(c[1] for c in calls)=={'ur','ja'}
-  assert len(separations)==1 and all(Path(x).parent==project for x in outputs)
+  assert len(separations)==1 and all(Path(x).parent.resolve()==project.resolve() for x in outputs)
   assert all(abs(E.probe(x)['duration']-10)<.2 for x in outputs)
   import numpy as np,subprocess
   pcm=subprocess.run(['ffmpeg','-v','error','-i',outputs[0],'-t','0.8','-f','f32le','-ac','1','-ar','48000','-'],capture_output=True,check=True).stdout

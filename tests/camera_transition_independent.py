@@ -11,8 +11,24 @@ with tempfile.TemporaryDirectory() as tmp:
         '-c:v','libx264','-preset','ultrafast','-c:a','aac',source])
     original=source.read_bytes();report=folder/'JOINED_CLIP_ORDER.txt'
     report.write_text(f'Completed video: {source}\n01 | 0.00s | one.mp4\n02 | 1.00s | two.mp4\n')
-    with patch.object(e,'render_dissolve',side_effect=AssertionError('Dissolve must stay OFF')):
+    reads=[]
+    def tracked_clip(*args,**kwargs):
+        clip=VideoFileClip(*args,**kwargs)
+        read=clip.reader.get_frame
+        times=[]
+        reads.append((kwargs.get('audio',True),times))
+        def tracked_frame(time):
+            times.append(time)
+            return read(time)
+        clip.reader.get_frame=tracked_frame
+        return clip
+    with patch.object(e,'render_dissolve',side_effect=AssertionError('Dissolve must stay OFF')), patch('moviepy.VideoFileClip',side_effect=tracked_clip):
         output=e.edit(source,dict(editing_camera_enabled=True,editing_transitions_enabled=False),report=report)
+    assert len(reads)==2 and reads[0][0] and not reads[1][0]
+    incoming,outgoing=reads[0][1],reads[1][1]
+    assert len(incoming)>len(outgoing)>0
+    assert all(a<=b for a,b in zip(incoming,incoming[1:]))
+    assert max(outgoing)<1
     info=e.probe(output);assert info['audio'] and abs(info['duration']-2)<.08
     with VideoFileClip(str(output)) as clip:
         frame=clip.get_frame(1.16)

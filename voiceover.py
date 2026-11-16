@@ -135,7 +135,7 @@ def signature(cfg, source=None, report=None):
         paths.append(Path(report) if report else source.parent/'JOINED_CLIP_ORDER.txt')
     return [(str(p),Path(p).stat().st_size,Path(p).stat().st_mtime_ns) for p in paths if p and Path(p).is_file()]
 
-def replace_audio(source, output, cfg, work, report=None):
+def replace_audio(source, output, cfg, work, report=None, aligned_speech_end=None):
     import video_editing as E
     mode=cfg['voiceover_mode'];info=E.probe(source)
     end=E.original_end_card_start(source,report) or info['duration']
@@ -143,10 +143,22 @@ def replace_audio(source, output, cfg, work, report=None):
     if mode=='prepared':
         story=json.loads(Path(cfg['_audio_first_story']).read_text(encoding='utf-8-sig'))
         starts=[0.]+[t for t in E.original_boundaries(source,report) if t<end-.01]
-        if len(starts)!=len(story['scenes']): raise ValueError('Audio First needs verified scene boundaries before mixing.')
-        for scene,start,stop in zip(story['scenes'],starts,starts[1:]+[end]):
-            audio=Path(scene['audio_first_file'])
-            plans.append((audio,0.,audio_duration(audio),start,stop))
+        if aligned_speech_end is None and len(starts)!=len(story['scenes']): raise ValueError('Audio First needs verified scene boundaries before mixing.')
+        if story.get('full_voiceover_first'):
+            audio=Path(story['full_voiceover_file']);duration=audio_duration(audio)
+            if aligned_speech_end is not None:
+                end=aligned_speech_end
+            else:
+                expected=float(story['scene_seconds'])
+                if any(abs((b-a)-expected)>.12 for a,b in zip(starts,starts[1:]+[end])):
+                    raise ValueError('Full Voiceover First requires verified full-length visual clips; regenerate short clips before mixing.')
+            if duration>end or duration>info['duration']:
+                raise ValueError('Full narration exceeds verified visual coverage; no speech was sped up or cut.')
+            plans.append((audio,0.,duration,0.,end))
+        else:
+            for scene,start,stop in zip(story['scenes'],starts,starts[1:]+[end]):
+                audio=Path(scene['audio_first_file'])
+                plans.append((audio,0.,audio_duration(audio),start,stop))
     elif mode=='api':
         stories=list(source.parent.glob('*_story.json'))
         if len(stories)!=1: raise ValueError('API narration needs exactly one story JSON beside the raw joined video.')
