@@ -276,8 +276,8 @@ The Excel workbook MUST use exactly these six columns in this precise order:
 | video_id | Exact original selected video title |
 | filename | Exact video_id + `.mp4` |
 | title | Exact video_id + 3 relevant viral-style hashtags |
-| description | Approximately 200 words of topic-specific SEO description, including sources and ending with 10 relevant hashtags |
-| Tags | Exactly 15 relevant SEO tags, separated by commas |
+| description | Approximately 200 words of topic-specific SEO copy; additional-language workbooks include both English and native-language sections, sources and 10 mixed-language ending hashtags |
+| Tags | English-only: exactly 15 relevant tags; additional-language workbooks: 4–5 English tags plus at most 10 native-language tags; entire cell maximum 500 characters |
 | thumbnail | Exact video_id + `.png` |
 
 Do not add, delete, rename, or reorder these six columns.
@@ -331,7 +331,7 @@ Required description structure:
 4. Naturally incorporated topic-specific search keywords.
 5. A short audience-engagement question when appropriate.
 6. A clearly labelled `Sources:` section containing relevant, checkable source URLs.
-7. Exactly 10 topic-relevant hashtags at the very end of the description.
+7. Exactly 10 topic-relevant hashtags at the very end: English-only uses English hashtags; additional-language workbooks use five English plus five native-language hashtags.
 
 **SOURCE REQUIREMENTS**
 
@@ -347,7 +347,8 @@ Required description structure:
 
 **COLUMN 5 — Tags**
 
-- Write exactly 15 relevant SEO tags.
+- English-only workbook: write exactly 15 relevant SEO tags. Additional-language workbooks follow the bilingual tag rules below: 4–5 English tags plus at most 10 native-language tags, never a forced total of 15.
+- EVERY Tags cell has a HARD MAXIMUM OF 500 CHARACTERS, counting the COMPLETE comma-separated cell, including commas, spaces, punctuation and all English/native-language characters. Shorten or remove lower-value tags and recount; never truncate a tag mid-word, invent abbreviations, add irrelevant filler or exceed the ceiling to reach a tag count.
 - Separate all tags using commas.
 - Use ordinary keyword phrases without `#`.
 - Include a sensible mixture of broad keywords, topic-specific long-tail keywords, and relevant channel-niche keywords.
@@ -463,8 +464,8 @@ For multilingual batches, the number of DISTINCT thumbnail variants PER STORY an
 - video_id: exact original ENGLISH story title, unchanged across languages, preserving identity.
 - filename: `{SafeEnglishStoryTitle} {LanguageName}.mp4`; thumbnail: `{SafeEnglishStoryTitle} {LanguageName}.png`. These multilingual fields override the older exact-video_id-plus-extension convention and must match the actual planned Windows-safe language-specific asset names. Do not translate the filename base.
 - title: the exact original ENGLISH story/video title plus exactly THREE relevant ENGLISH hashtags. Keep this upload-title field in English for EVERY selected language; do not translate it or append the language name to the public title. This preserves the existing three-hashtag title convention. The language suffix belongs only in actual asset filenames. video_id remains the exact English title without added hashtags.
-- description: start with a naturally written, audience-appropriate localized story title as the FIRST LINE (adapt the phrasing, not a word-for-word translation), then a blank line and approximately 200 words of native, topic-specific SEO copy in THAT workbook's selected language, preserving facts, caveats and intent; for Japanese use a natural comparable-length description, not artificial whitespace to force a word count. Include verified, topic-relevant source URLs with a clearly labelled Sources section (label may be localized), followed by exactly TEN relevant hashtags in that language at the very end. Do not invent sources or unsupported claims.
-- Tags: exactly FIFTEEN comma-separated SEO keyword phrases in that language, no # prefixes; use ordinary proper-name spellings where necessary. Keep the description, its opening localized title, ending hashtags and keywords genuinely localized, not copied English with a translated filename. The upload-title cell and its three hashtags intentionally stay English. Do not replace that English upload title with the localized description heading.
+- description: BILINGUAL DESCRIPTION — ENGLISH + SELECTED LANGUAGE. In EACH additional-language workbook, start with the naturally adapted local title as the FIRST LINE, followed by a concise native-language description; then a clearly separated English section with the original English title and an English description. Both sections must convey the same accurate topic, qualifications and viewer takeaway naturally, not contain mismatched claims or dictionary-like copy. Aim for approximately 200 words TOTAL across both sections, balanced for readability; Japanese uses comparable natural length, not artificial word spacing. Include one shared verified Sources: section with direct relevant URLs after BOTH language sections, then exactly TEN unique topic-relevant hashtags at the very end: FIVE English and FIVE in that selected language. Do not duplicate the same hashtag twice or scatter hashtags through the copy. An English workbook stays English-only and does not repeat the same description twice. Never invent sources or claims.
+- Tags: BILINGUAL TAG BUDGET — 4–5 ENGLISH + MAXIMUM 10 LOCAL TAGS. In each additional-language workbook, put 4 or 5 relevant English keyword phrases and at most 10 relevant native-language keyword phrases in ONE comma-separated Tags cell, with no # prefixes. Include useful native-language tags, but do not pad to ten or force exactly fifteen total tags. Prefer 4–5 concise native tags over irrelevant filler when appropriate. The ENTIRE final joined Tags cell MUST be <= 500 characters, INCLUDING commas, spaces, punctuation and both languages. Count the actual final exported cell after formatting; shorten long phrases or remove lower-priority local tags until it passes, keeping 4–5 English tags and useful native coverage. Do not split an otherwise over-limit list across extra cells or columns. English-only workbooks retain their 15-English-tag convention with the same 500-character hard ceiling. Keep the upload-title cell and its three hashtags English under the existing rule.
 - Preserve each story's existing multilingual ready-import TXT, with all selected-language fields together. Do not duplicate or rewrite the English source and do not create new parser labels to hold SEO.
 - PACKAGE_MANIFEST.json must list every selected language, actual thumbnail path/status, individual workbook path, batch workbook path, and the corresponding English story identity. Verify language sets match, row counts/order agree, filenames match intended exports, and every advertised image/workbook actually exists. Failed images must be marked incomplete; never create placeholder PNGs to satisfy a file count.
 
@@ -505,8 +506,8 @@ Before providing download links, verify:
 - Every filename equals video_id + `.mp4`.
 - Every thumbnail field equals video_id + `.png`.
 - Every SEO title includes exactly 3 relevant hashtags.
-- Every description contains approximately 200 words, a relevant Sources section, and exactly 10 ending hashtags.
-- Every Tags cell contains exactly 15 comma-separated tags.
+- Every description contains approximately 200 words total, a relevant Sources section, and exactly 10 ending hashtags. Each additional-language row contains BOTH native and English description sections and five English plus five native ending hashtags; English-only rows do not duplicate English text.
+- Every additional-language Tags cell contains 4–5 English tags plus no more than 10 native-language tags. English-only rows retain exactly 15 relevant English tags. EVERY final cell is at most 500 characters INCLUDING separators; audit the actual exported cell, not only individual tag lengths. A row exceeding the tag-language counts or length ceiling fails delivery validation.
 - No duplicate story IDs or missing metadata.
 - ZIP archive passes an integrity check.
 - Every delivered download link refers to an actual generated file.
