@@ -10,7 +10,8 @@ assert len(items)==len(app.presets())
 for preset in ['3d-zack-style','fern-documentary','3d-motivational-red-green']:
     result=app.master_prompt(preset)
     expected=(app.ROOT/'Master prompts'/(preset+'.txt')).read_text(encoding='utf-8-sig')
-    assert result['text']==expected and expected.strip()
+    contract=(app.ROOT/'full_voiceover_prompt_contract.txt').read_text(encoding='utf-8')
+    assert result['text']==expected+'\n\n'+contract and expected.strip()
 try:app.master_prompt('../../gui_settings')
 except HTTPException as e:assert e.status_code==400
 else:raise AssertionError('Unknown paths must be rejected')

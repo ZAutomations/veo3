@@ -6,7 +6,12 @@ import hashlib,json,os,subprocess,sys
 import video_editing as E
 
 def resolve_python(configured=''):
-    candidates=[configured,os.environ.get('VEO_SEPARATION_PYTHON',''),sys.executable,str(E.ROOT/'.separation-venv/Scripts/python.exe'),str(Path(os.environ.get('LOCALAPPDATA',''))/'Programs/Python/Python311/python.exe')]
+    candidates=[configured,os.environ.get('VEO_SEPARATION_PYTHON',''),sys.executable,
+        str(E.ROOT/'.separation-venv/Scripts/python.exe'),
+        str(E.ROOT/'setup/python311/python.exe'),str(E.ROOT/'setup/dub_venv/Scripts/python.exe'),
+        str(E.ROOT.parent/'VideoAuotmation/setup/python311/python.exe'),
+        str(E.ROOT.parent/'VideoAuotmation/setup/dub_venv/Scripts/python.exe'),
+        str(Path(os.environ.get('LOCALAPPDATA',''))/'Programs/Python/Python311/python.exe')]
     for p in dict.fromkeys(x for x in candidates if x):
         if not Path(p).is_file() and p!=sys.executable:continue
         try:
@@ -33,6 +38,7 @@ def prepare_background(video,folder,python=''):
         E.run(['ffmpeg','-v','error','-y','-i',video,'-f','lavfi','-i','anullsrc=r=44100:cl=stereo','-map','0:v:0','-map','1:a:0','-c:v','copy','-c:a','aac','-t',str(info['duration']),output])
     else:
         py=resolve_python(python);original=work/'original.wav'
+        print('LOCAL DUBBING: speech separation Python: '+py,flush=True)
         E.run(['ffmpeg','-v','error','-y','-i',video,'-vn','-ar','44100','-ac','2',original])
         env=dict(os.environ);private=Path(py).parent.parent/'torch_cache'
         if private.is_dir():env['TORCH_HOME']=str(private)

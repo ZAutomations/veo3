@@ -29,13 +29,18 @@ const assert=require('assert'),fs=require('fs'),path=require('path'),puppeteer=r
   assert((await page.$eval('#confirm-text',e=>e.textContent)).includes('external narration first'));
   await page.click('#confirm-yes');await page.waitForFunction(()=>document.querySelector('#log').textContent.includes('Starting'));
   assert(submitted&&submitted.action==='generate_queue'&&submitted.payload.queueAudioMode==='audio_first');
+  await page.click('#fullVoiceoverFirstEnabled');
+  assert.equal(await page.$eval('#audioFirstEnabled',e=>e.checked),false);
+  assert.equal(await page.evaluate(()=>payload().queueAudioMode),'full_voiceover');
+  await page.click('#audioFirstEnabled');
+  assert.equal(await page.$eval('#fullVoiceoverFirstEnabled',e=>e.checked),false);
+  assert.equal(await page.evaluate(()=>payload().queueAudioMode),'audio_first');
   assert.equal(submitted.payload.queue.length,2);assert.equal(submitted.payload.view,'agent');
   assert((await page.$eval('#audioFirstEnabled',e=>e.closest('section').querySelector('h2').textContent))==='References & finishing');
   assert.equal(await page.$$('button[data-action="prepare_audio_first"]').then(els=>els.length),0);
-  await page.evaluate(()=>navigate('settings'));
-  await page.waitForSelector('#audioFirstStory');
-  assert.equal(await page.$$eval('#view-form > section.panel',els=>els[els.length-1].querySelector('h2').textContent),'Audio First — Single Story / Scene Test');
+  await page.click('#audioFirstEnabled');
+  assert.equal(await page.evaluate(()=>payload().queueAudioMode),'native');
   assert.deepEqual(errors,[]);
-  console.log('PASS: actual Studio batch UI defaults Native and submits two selected Audio First stories through the normal queue confirmation; no live APIs.');
+  console.log('PASS: Studio defaults Native, submits existing Audio First batches, selects Full Voiceover First exclusively, and returns to Native; no live APIs.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

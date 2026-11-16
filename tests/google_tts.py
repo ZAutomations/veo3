@@ -7,6 +7,7 @@ import voiceover as V
 import video_editing as E
 import multilingual as M
 import voice_calibration as C
+import full_voiceover as F
 assert len(G.voices())==30 and any(v['voice_id']=='Alnilam' for v in G.voices())
 assert E.settings({'voiceover_provider':'google','voiceover_saved_voices':{'google':'Alnilam'}})['voiceover_provider']=='google'
 assert C.model('google')==G.MODEL
@@ -28,4 +29,18 @@ with tempfile.TemporaryDirectory() as tmp:
     payload=json.loads(calls[-1].data);assert payload['voice']['languageCode']==locale and payload['voice']['name']=='Alnilam' and payload['voice']['modelName']==G.MODEL
     before=len(calls);V.synthesize('google','Alnilam','Test text',file,language=code);assert len(calls)==before
    assert calls[0].full_url=='https://texttospeech.googleapis.com/v1/text:synthesize'
+   def rejected(message):
+    body=json.dumps({'error':{'code':400,'message':message,'status':'INVALID_ARGUMENT'}}).encode()
+    return G.urllib.error.HTTPError(calls[0].full_url,400,'Bad Request',None,io.BytesIO(body))
+   japanese=dict(provider='google',voice='Alnilam')
+   success=io.BytesIO(json.dumps({'audioContent':base64.b64encode(b'RIFFmock').decode()}).encode())
+   with patch.object(G.urllib.request,'urlopen',side_effect=[rejected('Request contains an invalid argument.'),success]) as endpoint:
+    target=root/'full-ja.mp3'
+    assert F.synthesize_full_track(japanese,['同じ原稿を読みます。'],target,'ja','Japanese')==target
+    assert endpoint.call_count==2 and endpoint.call_args_list[0].args[0].data==endpoint.call_args_list[1].args[0].data
+   with patch.object(G.urllib.request,'urlopen',side_effect=rejected('Unknown voice name.')) as endpoint:
+    try:F.synthesize_full_track(japanese,['同じ原稿を読みます。'],root/'bad-ja.mp3','ja','Japanese')
+    except ValueError:pass
+    else:raise AssertionError('Specific invalid settings must still surface an error')
+    assert endpoint.call_count==1
 print('PASS: 30 Google voices, service-account-only config, explicit language routing, model, conversion, provider settings, cached retries; no real API requests.')

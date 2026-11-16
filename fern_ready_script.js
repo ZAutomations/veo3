@@ -23,6 +23,7 @@ function scene(story,index,options={}){
  'CAMERA: Keep all timed framings within one continuous take. At every shot change, name the departure, visible pan/whip-pan path, destination and reveal, then settle briefly. Even a location/time change uses a motivated in-camera sweep or foreground occlusion, never a hard edit cut. Honor supplied subjects/actions/order; invent no events or geography.',
  require('./within_clip_camera_contract').DIRECTION,
  require('./clip_join_camera_contract').DIRECTION,
+ require('./fast_camera_rhythm').detailBeat(story),
  visual(s),`SHOT-LINKED GRAPHIC ANIMATION: ${callout(s)}`,
  require('./narration_pace').lock(seconds),
  `NATIVE AUDIO: One consistent off-screen narrator: ${story.narrator_voice}. Read the complete line exactly: ${JSON.stringify(s.script_line)}. All mannequins silent, mouths absent, no dialogue or lip-sync. Sound: ${s.sound||'Quiet scene ambience and restrained situation-matched instrumental BGM'}; add a quiet synchronized pop/click for required place/entity callouts and soft typewriter ticks only during exact numeric reveals. Narration stays clear above music, SFX and ambience. No lyrics or competing voices.`,

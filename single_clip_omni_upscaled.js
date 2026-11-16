@@ -4,6 +4,7 @@ const {playableVideo}=require('./download_media_validation');
 const media=require('./single_clip_omni_media');
 const {installGridScroller}=require('./flow_grid_scroll');
 const bg=require('./single_clip_omni_background');
+const MAX_PARALLEL_UPSCALES=3;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function chooseUpscaled(items,target=720,{versionOnly=false}={}){
  if(![720,1080].includes(target))throw Error('Unsupported upscale target.');
@@ -72,6 +73,8 @@ class UpscaledDownloader{
   if(this.ledger.storyHash!==storyHash)throw Error('This Omni download project belongs to a different story version. Use a new project.');
   this.page=null;this.cdp=null;this.activeDownload=null;
   this.sourcePrompts=new Map();
+  this.downloadFrames=new Map();
+  this.downloadGuids=new Map();
  }
  async open(){
   if(this.page)return;
@@ -83,11 +86,24 @@ class UpscaledDownloader{
   this.temp=path.join(this.folder,'logs',`omni_upscaled_download_${Date.now()}`);fs.mkdirSync(this.temp,{recursive:true});
   this.cdp=await this.engine.browser.target().createCDPSession();
   await this.cdp.send('Browser.setDownloadBehavior',{behavior:'allowAndName',downloadPath:this.temp,eventsEnabled:true});
-  this.cdp.on('Browser.downloadWillBegin',e=>{if(this.activeDownload){
-   if(this.activeDownload.guid&&this.activeDownload.guid!==e.guid)this.activeDownload.error='Multiple browser downloads started; refusing to choose a file.';
-   else this.activeDownload.guid=e.guid;
-  }});
-  this.cdp.on('Browser.downloadProgress',e=>{if(this.activeDownload?.guid===e.guid)this.activeDownload.status=e.state;});
+  this.cdp.on('Browser.downloadWillBegin',e=>{
+   const owner=this.downloadFrames.size?this.downloadFrames.get(e.frameId):this;
+   const pending=owner?.activeDownload;
+   if(!pending)return;
+   if(pending.guid&&pending.guid!==e.guid)pending.error='Multiple browser downloads started for one clip; refusing to choose a file.';
+   else {
+    pending.guid=e.guid;pending.startedAt=Date.now();
+    this.downloadGuids.set(e.guid,pending);
+   }
+  });
+  this.cdp.on('Browser.downloadProgress',e=>{
+   const pending=this.downloadGuids.get(e.guid);
+   if(!pending)return;
+   pending.status=e.state;
+   if(e.state==='completed'||e.state==='canceled'){
+    pending.finishedAt=Date.now();this.downloadGuids.delete(e.guid);
+   }
+  });
  }
  save(){
   fs.mkdirSync(this.out,{recursive:true});
@@ -188,7 +204,17 @@ class UpscaledDownloader{
    ||(old?.sourceAttemptedAt&&receipt?.attemptedAt&&old.sourceAttemptedAt!==receipt.attemptedAt);
   if(verifiedExisting(old,job,this.out,this.project,this.allowNative720,target,this.downloadVersion)&&!differentStableSource){this.log(`Scene ${job.number}: verified ${target}p already saved; skipped.`);return old;}
   await this.open();
-  const hit=await this.find(job,receipt);
+  const tabAsset=this.parallelAssets?.get(receipt?.sceneId);
+  let hit;
+  try{hit=await this.find(job,tabAsset?{...receipt,assetId:tabAsset}:receipt);}
+  catch(error){
+   if(!this.parallelWorker||!/completed tile not found/.test(error.message))throw error;
+   error.code='PARALLEL_ASSET_UNAVAILABLE';throw error;
+  }
+  if(this.parallelWorker&&hit.assetId!==(tabAsset||receipt.assetId)&&!hit.assetIds?.includes(tabAsset||receipt.assetId)){
+   const error=Error(`Scene ${job.number}: parallel tab could not verify the same source asset.`);
+   error.code='PARALLEL_ASSET_UNAVAILABLE';throw error;
+  }
   const opened=await this.page.evaluate(bg.openClipMenu,hit);
   if(!opened?.ok)throw Error(`Scene ${job.number}: ${opened?.why||'clip menu could not be opened'}.`);
   let download;
@@ -223,9 +249,13 @@ class UpscaledDownloader{
    }else await sleep(250);
   }
   if(!upscaled)throw Error(`Scene ${job.number}: Upscaled submenu did not open.`);
-  this.activeDownload={};
-  this.log(`Scene ${job.number}: Download > ${upscaled.text.replace(/\s+/g,' ')}.`);
-  await require('./download_menu_click').clickDownloadOption(this.page,upscaled.text);
+  const submit=async()=>{
+   this.activeDownload={clickedAt:Date.now()};
+   this.log(`Scene ${job.number}: Download > ${upscaled.text.replace(/\s+/g,' ')}.`);
+   await require('./download_menu_click').clickDownloadOption(this.page,upscaled.text);
+  };
+  if(this.withClickLock)await this.withClickLock(submit);
+  else await submit();
   this.log(`Scene ${job.number}: trusted click sent; waiting for Flow to start the transfer.`);
   const deadline=Date.now()+6*60*1000;
   const startDeadline=Date.now()+90000;
@@ -239,6 +269,7 @@ class UpscaledDownloader{
   }
   const d=this.activeDownload;
   if(d.status!=='completed'||!d.guid){const error=Error(`Scene ${job.number}: upscaled download did not finish within 6 minutes.`);error.code='DOWNLOAD_TIMEOUT';throw error;}
+  const verifyStarted=Date.now();
   const source=path.join(this.temp,d.guid),info=videoInfo(source,target);
   if(target===null){target=Math.min(info.width,info.height);route=`upscaled-${target}p`;this.targets.set(job.number,target);}
   const file=this.orderMode==='unresolved-assets'?`asset-${crypto.createHash('sha256').update(String(receipt?.assetId||hit.assetId)).digest('hex').slice(0,16)}.mp4`:`scene-${String(job.number).padStart(2,'0')}.mp4`,dest=path.join(this.out,file);
@@ -249,9 +280,12 @@ class UpscaledDownloader{
   }
   fs.copyFileSync(source,dest);
   const entry={scene:job.number,file,project:this.project,promptHash:crypto.createHash('sha256').update(job.prompt).digest('hex'),
-   assetId:hit.assetId,sceneId:receipt?.sceneId||null,match_from:receipt?.match_from||(receipt?.sceneId?'scene_id':'verified_source_prompt'),sourceAttemptedAt:receipt?.attemptedAt||null,route,width:info.width,height:info.height,sha256:info.sha256};
+   assetId:this.parallelWorker?receipt.assetId:hit.assetId,sceneId:receipt?.sceneId||null,match_from:receipt?.match_from||(receipt?.sceneId?'scene_id':'verified_source_prompt'),sourceAttemptedAt:receipt?.attemptedAt||null,route,width:info.width,height:info.height,sha256:info.sha256};
   this.ledger.clips=this.ledger.clips.filter(c=>c.scene!==job.number);this.ledger.clips.push(entry);this.save();this.activeDownload=null;
-  this.log(`Scene ${job.number}: saved and decoded ${info.width}x${info.height} ${this.downloadVersion} clip.`);return entry;
+  this.log(`Scene ${job.number}: saved and decoded ${info.width}x${info.height} ${this.downloadVersion} clip.`);
+  const elapsed=ms=>(ms/1000).toFixed(1)+'s';
+  if(d.startedAt&&d.finishedAt)this.log(`Scene ${job.number}: click to transfer ${elapsed(d.startedAt-d.clickedAt)}, transfer ${elapsed(d.finishedAt-d.startedAt)}, verification and save ${elapsed(Date.now()-verifyStarted)}.`);
+  return entry;
  }
  async group(jobs,receipts){
   const unavailable=[];
@@ -269,7 +303,7 @@ class UpscaledDownloader{
       if(this.page){await this.page.keyboard.press('Escape');await this.page.evaluate(bg.closeMenus);}
       break;
      }
-     if(attempt||!['DOWNLOAD_NOT_STARTED','DOWNLOAD_TIMEOUT'].includes(error.code))throw error;
+     if(this.parallelWorker||attempt||!['DOWNLOAD_NOT_STARTED','DOWNLOAD_TIMEOUT'].includes(error.code))throw error;
      this.log(`Scene ${job.number}: retrying this download once; completed clips are preserved and no generation prompt is submitted.`);
      this.activeDownload=null;
      await this.page.keyboard.press('Escape');await sleep(1000);
@@ -280,7 +314,89 @@ class UpscaledDownloader{
    const error=Error(`RECOVERY_REVIEW_REQUIRED: ${unavailable.length} clip(s) have no selected Upscaled version. Other available clips were collected; completed downloads are preserved. ${unavailable.join(' | ')}`);
    error.code='DOWNLOAD_VERSION_UNAVAILABLE';throw error;
   }
-  }finally{try{if(!this.engine.page.isClosed?.())await this.engine.page.bringToFront();}catch{}}
+  }finally{try{if(!this.parallelWorker&&!this.engine.page.isClosed?.())await this.engine.page.bringToFront();}catch{}}
+ }
+ async parallelGroup(jobs,receipts){
+  if(jobs.length<2||this.downloadVersion!=='upscaled'||this.orderMode!=='scene'||!jobs.every(job=>receipts[job.number]?.assetId))return this.group(jobs,receipts);
+  const workers=[],tabs=[],queue=jobs.slice(),serial=[];
+  let clickTail=Promise.resolve();
+  const withClickLock=async fn=>{
+   const before=clickTail;
+   let release;
+   clickTail=new Promise(resolve=>{release=resolve;});
+   await before;
+   try{await fn();}finally{release();}
+  };
+  try{
+   await this.open();
+   try{
+    for(let i=0;i<Math.min(jobs.length,MAX_PARALLEL_UPSCALES);i++){
+     const page=await this.engine.browser.newPage();tabs.push(page);
+     await page.goto(this.project,{waitUntil:'domcontentloaded',timeout:30000});
+     await page.waitForSelector('flow-video-tile',{timeout:30000});
+     const session=await page.target().createCDPSession();
+     let frameId;
+     try{frameId=(await session.send('Page.getFrameTree')).frameTree.frame.id;}
+     finally{await session.detach();}
+     if(!frameId||this.downloadFrames.has(frameId))throw Error('Unique browser frame IDs could not be confirmed.');
+     // Flow can rotate signed preview URLs across tabs. Only use an exact
+     // asset-owned scene title when the entire verified scene set is mounted.
+     const parallelAssets=new Map(), expected=jobs.map(job=>receipts[job.number].sceneId);
+     if(expected.length===this.total&&expected.every(Boolean)&&new Set(expected).size===this.total){
+      const tiles=await media.snapshot(page);
+      const matches=expected.map(id=>tiles.filter(tile=>tile.assetTitle===id));
+      if(matches.every(group=>group.length===1&&group[0].ready&&group[0].assetId)&&
+         new Set(matches.map(group=>group[0].assetId)).size===this.total){
+       expected.forEach((id,index)=>{
+        const original=receipts[jobs[index].number].assetId, current=matches[index][0].assetId;
+        const signed=id=>/^[\w-]{64,}$/.test(id);
+        if(current===original||(signed(original)&&signed(current)))parallelAssets.set(id,current);
+       });
+      }
+     }
+     const worker=Object.assign(Object.create(this),{page,activeDownload:null,parallelWorker:true,parallelAssets,withClickLock});
+     this.downloadFrames.set(frameId,worker);workers.push(worker);
+    }
+   }catch(error){
+    await Promise.allSettled(tabs.map(page=>page.close()));
+    this.downloadFrames.clear();
+    this.log(`Parallel download setup unavailable; using serial downloads: ${error.message}`);
+    return await this.group(jobs,receipts);
+   }
+   this.log(`Upscaled downloads: up to ${workers.length} verified scene transfers in parallel.`);
+   let stopped=false;
+   const results=await Promise.allSettled(workers.map(async worker=>{
+    while(!stopped&&queue.length){
+     const job=queue.shift();
+     try{await worker.group([job],receipts);}
+     catch(error){
+      if(error.code==='PARALLEL_ASSET_UNAVAILABLE'){serial.push(job);continue;}
+      if(error.code==='DOWNLOAD_VERSION_UNAVAILABLE'){
+       worker.unavailable=(worker.unavailable||[]).concat(error);
+       continue;
+      }
+      stopped=true;throw error;
+     }
+    }
+   }));
+   const rejected=results.find(result=>result.status==='rejected');
+   if(rejected)throw rejected.reason;
+   await Promise.allSettled(tabs.splice(0).map(page=>page.close()));
+   this.downloadFrames.clear();
+   if(serial.length){
+    this.log(`Parallel tabs could not verify ${serial.length} source(s); retrying those from the original project tab.`);
+    await this.group(serial,receipts);
+   }
+   const unavailable=workers.flatMap(worker=>worker.unavailable||[]);
+   if(unavailable.length){
+    const error=Error(unavailable.map(item=>item.message).join(' | '));
+    error.code='DOWNLOAD_VERSION_UNAVAILABLE';throw error;
+   }
+  }finally{
+   this.downloadFrames.clear();
+   await Promise.allSettled(tabs.map(page=>page.close()));
+   try{await this.engine.page.bringToFront();}catch{}
+  }
  }
  async close(){if(this.cdp){await this.cdp.send('Browser.setDownloadBehavior',{behavior:'default',eventsEnabled:false}).catch(()=>{});await this.cdp.detach().catch(()=>{});}if(this.page&&!this.useExistingPage)await this.page.close();}
 }

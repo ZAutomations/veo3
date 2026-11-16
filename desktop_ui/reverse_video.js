@@ -12,6 +12,7 @@ function renderReverse(){
 }
 async function loadReverseRun(){
  const id=$('reverse-runs')?.value,version=++reverseLoadVersion;if(!id)return;
+ $('reverse-save').disabled=true;
  try{const result=await api('reverse-run?id='+encodeURIComponent(id));if(current!=='reverse'||version!==reverseLoadVersion)return;reverseLoaded=result;const files=Object.keys(result.files);$('reverse-artifact').innerHTML=files.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('');$('reverse-report').value=result.files[files[0]]||'No completed report yet. Stop/retry retains completed analysis stages.';$('reverse-preset').value=result.files['preset.json']||'';$('reverse-master').value=result.files['MASTER_PROMPT.txt']||'';$('reverse-save').disabled=!result.complete;$('reverse-status').textContent=(result.complete?'Complete · ':'Partial · ')+result.folder;
  }catch(e){toast(e.message,true);}
 }

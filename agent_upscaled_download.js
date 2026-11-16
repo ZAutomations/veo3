@@ -159,7 +159,7 @@ async function download(browser,page,{storyFile,outDir,project,tiles,thumbnailTi
  }
  try{
   if(!unresolved)d.localRecovery=require('./local_clip_recovery').verified(path.resolve(storyFile),outDir);
-  await d.group(jobs,receipts);
+  await d.parallelGroup(jobs,receipts);
   d.save();
   if(thumbnailRequired){
    const target=thumbnailOutputDir||folder;

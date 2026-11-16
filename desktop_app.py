@@ -59,6 +59,7 @@ ROOT = Path(__file__).resolve().parent
 UI = ROOT / 'desktop_ui'
 STATE = ROOT / 'desktop_settings.json'
 WRITER_STATE = ROOT / 'desktop_writer_settings.json'
+STANDALONE_STATES = {'writer': WRITER_STATE, 'dubbing': ROOT / 'desktop_dubbing_settings.json'}
 TOKEN = secrets.token_urlsafe(32)
 MODELS = ['Flow', 'Omni 1.1 Flash', 'Omni 1.2 Flash', 'Veo 3.1 - Lite', 'Veo 3.1 - Fast', 'Veo 3.1 - Quality', 'Veo 3.1 - Lite [Lower Priority]']
 lock = threading.RLock()
@@ -307,15 +308,17 @@ def plan_action(action, p):
     if action == 'render_local_multilingual':
         import multilingual,video_editing,local_dubbing
         multi=multilingual.from_form(p) if 'multilingualEnabled' in p else multilingual.configuration(read_json(ROOT/'gui_settings.json').get('multilingual'))
-        body=dict(folder=p.get('localDubFolder',''),multilingual=multi,editingSettings=video_editing.settings(),separation_python=p.get('localDubPython',''),speaker_voices=p.get('localDubSpeakerVoices','{}'))
-        local_dubbing.plan(body)
-        return 'flow',[('request',('local_dubbing.py',body))]
+        body=dict(folder=p.get('localDubFolder',''),multilingual=multi,editingSettings=video_editing.settings(),separation_python=p.get('localDubPython',''),speaker_voices=p.get('localDubSpeakerVoices','{}'),pending_only=p.get('localDubPendingOnly') is True)
+        planned=local_dubbing.plan(body)
+        if body['pending_only'] and not any(j['profiles'] for j in planned['jobs']):
+            raise ValueError('No pending exports have selected voices. Scan for pending stories and select their language voices in Audio Settings.')
+        return 'dubbing',[('request',('local_dubbing.py',body))]
     if action == 'render_multilingual':
         import multilingual,video_editing
         path,_=story_path(p.get('story',''))
         multi=multilingual.from_form(p) if 'multilingualEnabled' in p else multilingual.configuration(read_json(ROOT/'gui_settings.json').get('multilingual'))
         if not multi['enabled']:raise ValueError('Enable multilingual versions and select languages/voices first.')
-        return 'flow',[('request',('multilingual.py',dict(story=str(path),multilingual=multi,editingSettings=video_editing.settings())))]
+        return 'dubbing',[('request',('multilingual.py',dict(story=str(path),multilingual=multi,editingSettings=video_editing.settings())))]
     if action == 'prepare_audio_first':
         import video_editing
         path, _ = story_path(p.get('story',''))
@@ -337,11 +340,18 @@ def plan_action(action, p):
             raise ValueError('Select one to fifty saved stories for the batch.')
         resolved = [story_path(item) for item in selected]
         audio_mode=p.get('queueAudioMode','native')
-        if audio_mode not in ('native','audio_first'): raise ValueError('Choose Native or Audio First batch audio.')
+        deferred=p.get('deferDubbing') is True
+        if deferred:
+            if audio_mode=='native':raise ValueError('English now, dub later requires Audio First or Full Voiceover First.')
+            if p.get('generationOnly'):raise ValueError('English now, dub later creates the completed English video. Turn off Generation only for this batch.')
+            p=dict(p,download=True,join=True)
+        if audio_mode not in ('native','audio_first','full_voiceover'): raise ValueError('Choose Native, Audio First or Full Voiceover First batch audio.')
         preparation=[];prepared_paths={}
-        if audio_mode=='audio_first':
+        if audio_mode in ('audio_first','full_voiceover'):
             if p.get('view')!='agent': raise ValueError('Audio First batch generation uses Agent Mode.')
             import audio_first, video_editing
+            if audio_mode=='full_voiceover':import full_voiceover
+            preparation_worker=full_voiceover if audio_mode=='full_voiceover' else audio_first
             cfg=video_editing.settings(p.get('_editingSettings'))
             local_map={};map_file=None
             if cfg['voiceover_mode']=='local':
@@ -359,9 +369,13 @@ def plan_action(action, p):
                     story_cfg.update(voiceover_file=str((map_file.parent/item['audio']).resolve()),
                                      voiceover_timing=str((map_file.parent/item['timing']).resolve()) if item.get('timing') else '')
                 request=dict(story=str(source),editingSettings=story_cfg,batch=True,multilingual=read_json(ROOT/'gui_settings.json').get('multilingual'),**{'from':1,'to':''})
-                planned=audio_first.plan_package(request)
+                if deferred:
+                    request['defer_dubbing']=True
+                if audio_mode=='full_voiceover':
+                    request['english_pace']='source_duration_v1'
+                planned=preparation_worker.plan_package(request)
                 prepared_paths[str(source)]=str(planned['file'])
-                preparation.append(('request',('audio_first.py',request)))
+                preparation.append(('request',(preparation_worker.__name__+'.py',request)))
         if p.get('view')!='agent' and any(item[1].get('audio_first') for item in resolved):
             raise ValueError('Audio First packages currently generate through Agent Mode only.')
         paths = [str(item[0]) for item in resolved]
@@ -394,7 +408,7 @@ def plan_action(action, p):
             inputs = dict(p, story=path, seconds=clip_seconds, _queueAccount=allocations[index] if allocations else '', project='', newProject=True, reuseRefs=False,
                           genRefs=bool(p.get('batchGenRefs', True) or p.get('genRefs')), **{'from':1, 'to':''})
             _, steps = plan_action('generate', inputs)
-            if audio_mode=='audio_first':
+            if audio_mode in ('audio_first','full_voiceover'):
                 for kind,spec in steps:
                     if kind!='mcp' or spec[0]!='batch_pipeline': raise ValueError('Audio First batch requires the new-project Agent pipeline.')
                     spec[1]['stories']=[prepared_paths[path]]
@@ -765,6 +779,8 @@ class Job:
             self.payload['_editingSettings']=dict(self.payload.get('_editingSettings',{}),editing_auto_apply=True)
         if action=='manual_jobs':
             self.payload['_editingSettings']=dict(self.payload.get('_editingSettings',{}),editing_auto_apply=bool(payload.get('manualApplyEditing',True)))
+        if action=='generate_queue' and payload.get('deferDubbing') is True:
+            self.payload['_editingSettings']=dict(self.payload.get('_editingSettings',{}),editing_auto_apply=True)
         self.status = 'running'
         self.created = time.time()
         self.finished = None
@@ -881,8 +897,8 @@ class Job:
         raise ValueError('Several Flow project tabs are open and this story has no matching project checkpoint. Leave only the intended project open, then press again.')
 
     def save_progress(self):
-        view = self.payload.get('view', 'writer' if self.lane == 'writer' else '')
-        if view in ('writer', 'agent', 'ingredients', 'omni', 'reverse', 'manual') and self.action in RETRY_ACTIONS:
+        view = 'dubbing' if self.lane == 'dubbing' else self.payload.get('view', 'writer' if self.lane == 'writer' else '')
+        if view in ('writer', 'agent', 'ingredients', 'omni', 'reverse', 'manual', 'dubbing') and self.action in RETRY_ACTIONS:
             save_json(ROOT / 'logs' / 'desktop' / f'last_{view}_job.json',
                       dict(id=self.id, action=self.action, payload=self.payload, lane=self.lane,
                            operations=self.operations, operation_index=self.operation_index,
@@ -995,6 +1011,8 @@ class Job:
                 for line in (checked.stdout+checked.stderr).splitlines():self.log(line)
                 if checked.returncode:raise RuntimeError('FLOW_REVIEW_REQUIRED: Could not restore the assigned queue account. No alternate account selected.')
         for index in range(self.operation_index, len(self.operations)):
+            import audio_first
+            self.operations[index]=audio_first.rebind_package_paths(self.operations[index])
             kind, spec = self.operations[index]
             check_credits_after_merge = operation_finishes_video(kind, spec)
             generation_handoff = self.payload.get('generationOnly') and self.action in ('generate','generate_queue') and operation_finishes_generation(kind,spec)
@@ -1161,11 +1179,52 @@ class Job:
             self.log({'completed': 'Workflow completed successfully.', 'failed': 'Workflow stopped with an error.', 'stopped': 'Workflow stopped by user.'}.get(self.status, self.status))
             save_json(ROOT / 'logs' / 'desktop' / (self.id + '.result.json'), self.summary())
             self.save_progress()
+            if self.status == 'failed' and repair_settings()['enabled']:
+                threading.Thread(target=run_workspace_repair, args=(self,), daemon=True).start()
 
 
 jobs = {}
+repair_active = False
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 RETRY_ACTIONS = {'render_local_multilingual', 'render_multilingual', 'manual_jobs', 'reverse_video', 'write', 'import_script', 'finalize', 'generate', 'generate_queue', 'resume_generations', 'refs', 'download', 'order', 'join', 'fix_join', 'build', 'export_excel', 'retry_failed'}
+
+
+def repair_settings():
+    saved = read_json(ROOT / 'logs' / 'desktop' / 'auto_repair_settings.json')
+    if not isinstance(saved, dict):
+        saved = {}
+    return dict(enabled=saved.get('enabled') is True, model=saved.get('model', ''), provider=saved.get('provider', 'codex'))
+
+
+def run_workspace_repair(job):
+    global repair_active
+    job.log('Auto Repair queued. It will inspect the failed job when Studio is idle.')
+    while True:
+        with lock:
+            settings = repair_settings()
+            if not settings['enabled']:
+                job.log('Auto Repair cancelled because it was turned off.')
+                return
+            if not repair_active and not any(item.status == 'running' for item in jobs.values()):
+                repair_active = True
+                break
+        time.sleep(1)
+    try:
+        from workspace_auto_repair import repair_job
+        repair_job(ROOT, job.id, settings['model'], job.log, provider=settings['provider'])
+    except subprocess.TimeoutExpired:
+        job.log('Auto Repair timed out. Review the repair trace and workspace before retrying.')
+    except Exception as exc:
+        job.log('Auto Repair needs attention: ' + str(exc))
+    finally:
+        with lock:
+            repair_active = False
+        save_json(ROOT / 'logs' / 'desktop' / (job.id + '.result.json'), job.summary())
+
+
+def ensure_no_workspace_repair():
+    if repair_active:
+        raise HTTPException(409, 'Auto Repair is working on this workspace. See the failed job log for progress.')
 
 
 def retry_plan(record):
@@ -1177,7 +1236,8 @@ def retry_plan(record):
     cursor = record.get('operation_index', 0)
     if not isinstance(cursor, int) or cursor < 0 or cursor >= len(operations):
         raise ValueError('Saved workflow step is unavailable.')
-    remaining = json.loads(json.dumps(operations[cursor:]))
+    import audio_first
+    remaining = audio_first.rebind_package_paths(json.loads(json.dumps(operations[cursor:])))
     if record.get('action')=='manual_jobs':
         assigned=next((spec for kind,spec in reversed(operations[:cursor+1]) if kind=='cli' and len(spec)>1 and Path(spec[1]).name=='queue_account.js'),None)
         if not assigned:raise ValueError('Manual job account binding is missing; no account guessed.')
@@ -1243,13 +1303,14 @@ def retry_plan(record):
 @app.post('/api/retry')
 def retry_workflow(body: dict):
     view = body.get('view')
-    if view not in ('writer', 'agent', 'ingredients', 'omni', 'reverse', 'manual'):
+    if view not in ('writer', 'agent', 'ingredients', 'omni', 'reverse', 'manual', 'dubbing'):
         raise HTTPException(400, 'Choose a workflow tab.')
     record = read_json(ROOT / 'logs' / 'desktop' / f'last_{view}_job.json')
     if not record:
         # Runs made before retry progress existed still have the original inputs.
-        old = read_json(ROOT / 'logs' / 'desktop' / f"last_{'writer' if view == 'writer' else 'flow'}_request.json")
-        if old.get('payload', {}).get('view') != view or old.get('action') not in RETRY_ACTIONS:
+        request_lane = view if view in STANDALONE_STATES else 'flow'
+        old = read_json(ROOT / 'logs' / 'desktop' / f'last_{request_lane}_request.json')
+        if old.get('action') not in RETRY_ACTIONS or (view != 'dubbing' and old.get('payload', {}).get('view') != view):
             raise HTTPException(400, 'No saved retry checkpoint for this tab yet. Start a run first.')
         try:
             lane, operations = plan_action(old['action'], old['payload'])
@@ -1262,6 +1323,7 @@ def retry_workflow(body: dict):
     except ValueError as exc:
         raise HTTPException(400, str(exc))
     with lock:
+        ensure_no_workspace_repair()
         if any(j.status == 'running' and j.lane == record['lane'] for j in jobs.values()):
             raise HTTPException(409, 'Stop the current job first, then Retry / Continue.')
         job = Job(record['action'], record['payload'], record['lane'], operations)
@@ -1316,13 +1378,30 @@ def bootstrap(studio_surface: str = Header(default='studio', alias='X-Studio-Sur
                 preferences=surface_preferences(studio_surface), hasApiKeys=bool(legacy.get('gemini_api_keys') or legacy.get('gemini_api_key')),
                 multilingual=legacy.get('multilingual',{'enabled':False,'languages':[]}),
                 referenceLibrary=reference_library_settings(legacy), globalWorkflow=global_workflow_settings(),
-                mcpServer=str((ROOT / 'mcp_server.js').resolve()),
+                mcpServer=str((ROOT / 'mcp_server.js').resolve()), autoRepair=repair_settings(),
                 savedCouple={k: legacy.get(k, '') for k in ('couple_sarah_file', 'couple_sam_file', 'couple_sarah_description', 'couple_sam_description', 'agent_saved_couple', 'ing_saved_couple', 'omni_saved_couple')})
+
+
+@app.post('/api/mcp/auto-repair')
+def set_auto_repair(body: dict):
+    from workspace_auto_repair import PROVIDERS, provider_command
+    enabled, model = body.get('enabled'), body.get('model', '')
+    provider = body.get('provider', 'codex')
+    if type(enabled) is not bool or not isinstance(model, str) or not re.fullmatch(r'[a-zA-Z0-9._-]{0,80}', model):
+        raise HTTPException(400, 'Choose a valid repair setting and optional model name.')
+    if not isinstance(provider, str) or provider not in PROVIDERS:
+        raise HTTPException(400, 'Choose Codex, Gemini CLI or Claude Code.')
+    if enabled and not provider_command(provider):
+        raise HTTPException(400, f'{PROVIDERS[provider]} was not found. Install its CLI and sign in before enabling Auto Repair.')
+    settings = dict(enabled=enabled, model=model, provider=provider)
+    with lock:
+        save_json(ROOT / 'logs' / 'desktop' / 'auto_repair_settings.json', settings)
+    return settings
 
 
 @app.post('/api/mcp/connect')
 def mcp_connect(body: dict):
-    """Start the local stdio server, list its live tools, and optionally inspect one saved story."""
+    """Start the local stdio server and optionally inspect a story or saved job."""
     server = ROOT / 'mcp_server.js'
     if not server.is_file():
         raise HTTPException(500, f'Local MCP server was not found: {server}')
@@ -1344,6 +1423,8 @@ def mcp_connect(body: dict):
         inspection = None
         if story_path_value:
             inspection = client.call_tool('pipeline_status', {'story': story_path_value}, timeout=60)
+        elif body.get('diagnose') is True:
+            inspection = client.call_tool('diagnose_workspace_job', {}, timeout=60)
         return {'connected': True, 'count': len(catalog), 'tools': catalog, 'inspection': inspection}
     except Exception as exc:
         raise HTTPException(502, f'Could not connect to the local MCP server: {exc}')
@@ -1503,7 +1584,10 @@ def master_prompt(preset: str, kind: str = 'story'):
     source = (folder / (preset + '.txt')).resolve()
     if source.parent != folder or not source.is_file():
         raise HTTPException(404, 'No saved master prompt is available for this preset.')
-    return dict(id=preset, name=allowed[preset]['name'], text=source.read_text(encoding='utf-8-sig'))
+    text=source.read_text(encoding='utf-8-sig')
+    if preset!='video-reverse-engineering' and 'ENGLISH WRITING PACE — RETAIN THE APPROVED RULE' not in text:
+        text+='\n\n'+(ROOT/'full_voiceover_prompt_contract.txt').read_text(encoding='utf-8')
+    return dict(id=preset, name=allowed[preset]['name'], text=text)
 
 
 def story_script_languages(story):
@@ -1620,19 +1704,20 @@ def save_account_email(body: dict):
 
 def surface_preferences(surface):
     base = read_json(STATE)
-    if surface != 'writer':
+    if surface not in STANDALONE_STATES:
         return base
-    saved = read_json(WRITER_STATE)
+    view = 'writer' if surface == 'writer' else 'audio'
+    saved = read_json(STANDALONE_STATES[surface])
     saved.setdefault('theme', base.get('theme', 'crimson'))
-    saved.setdefault('forms', {'writer': base.get('forms', {}).get('writer', {})})
-    saved.setdefault('current', 'writer')
+    saved.setdefault('forms', {view: base.get('forms', {}).get(view, {})})
+    saved.setdefault('current', view)
     return saved
 
 
 @app.post('/api/preferences')
 def preferences(data: dict, studio_surface: str = Header(default='studio', alias='X-Studio-Surface')):
     with lock:
-        save_json(WRITER_STATE if studio_surface == 'writer' else STATE, data)
+        save_json(STANDALONE_STATES.get(studio_surface, STATE), data)
     return {'ok': True}
 
 
@@ -1651,8 +1736,8 @@ def local_dubbing_plan(body: dict):
     try:
         import local_dubbing,multilingual
         multi=multilingual.from_form(body) if 'multilingualEnabled' in body else multilingual.configuration(read_json(ROOT/'gui_settings.json').get('multilingual'))
-        planned=local_dubbing.plan(dict(folder=body.get('localDubFolder',''),multilingual=multi,speaker_voices=body.get('localDubSpeakerVoices','{}')))
-        return {'count':len(planned['jobs']),'languages':[r['code'] for r in multi['languages']], 'jobs':[{k:j[k] for k in ('title','video','clean_background','timeline')} for j in planned['jobs']], 'note':'No video or narration generated. Existing burned-in English text stays in the source visuals.'}
+        planned=local_dubbing.plan(dict(folder=body.get('localDubFolder',''),multilingual=multi,speaker_voices=body.get('localDubSpeakerVoices','{}'),pending_only=body.get('localDubPendingOnly') is True))
+        return {'count':len(planned['jobs']),'languages':[r['code'] for r in multi['languages']], 'jobs':[{k:j[k] for k in ('title','video','clean_background','timeline','pending','missing_voices') if k in j} for j in planned['jobs']], 'note':'No video or narration generated. Existing burned-in English text stays in the source visuals.'}
     except (ValueError,OSError,KeyError) as exc:raise HTTPException(400,str(exc))
 
 
@@ -1769,6 +1854,7 @@ def start_job(body: dict):
     except (ValueError, TypeError, OSError) as exc:
         raise HTTPException(400, str(exc))
     with lock:
+        ensure_no_workspace_repair()
         if any(j.status == 'running' and j.lane == lane for j in jobs.values()):
             raise HTTPException(409, f'A {lane} job is running. Stop it or wait for completion.')
         if action in ('account_use','account_activate','account_signin','resume_generations','manual_jobs') and any(j.status == 'running' and j.lane == 'writer' for j in jobs.values()):
@@ -1851,6 +1937,7 @@ def resume_incomplete_project(body: dict):
     except (ValueError, TypeError, OSError) as exc:
         raise HTTPException(400, str(exc))
     with lock:
+        ensure_no_workspace_repair()
         if any(j.status == 'running' and j.lane == lane for j in jobs.values()):
             raise HTTPException(409, f'A {lane} job is already running. Stop it or wait for it to finish.')
         job = Job(action, payload, lane, operations)
@@ -1875,7 +1962,7 @@ class DesktopBridge:
     def __init__(self, base_url=None):
         self._base_url = base_url
         self._window = None
-        self._writer_window = None
+        self._standalone_windows = {}
 
     def save_voice_preview(self, filename, suggested='voice-preview.wav'):
         import webview, shutil
@@ -1917,22 +2004,28 @@ class DesktopBridge:
         return True
 
     def open_story_writer(self):
-        """A dedicated window shares the server's separate writer/Flow job lanes."""
+        return self._open_standalone('writer', 'VEO3 Story Writer')
+
+    def open_dubbing(self):
+        return self._open_standalone('dubbing', 'VEO3 Dubbing')
+
+    def _open_standalone(self, surface, title):
         import webview
         if not self._base_url:
             raise RuntimeError('The Studio server URL is not available.')
-        if self._writer_window is not None:
-            self._writer_window.show()
-            self._writer_window.restore()
+        existing = self._standalone_windows.get(surface)
+        if existing is not None:
+            existing.show()
+            existing.restore()
             return True
         bridge = DesktopBridge(self._base_url)
-        theme = surface_preferences('writer').get('theme', 'crimson')
+        theme = surface_preferences(surface).get('theme', 'crimson')
         background = {'crimson': '#09090b', 'ember': '#0b0806', 'matte': '#e6e7eb', 'lime': '#0f1113'}.get(theme, '#09090b')
-        window = webview.create_window('VEO3 Story Writer', self._base_url + '/?writer=1', js_api=bridge,
+        window = webview.create_window(title, f'{self._base_url}/?{surface}=1', js_api=bridge,
             width=1120, height=850, min_size=(980, 620), background_color=background, confirm_close=True)
         bridge._window = window
-        self._writer_window = window
-        window.events.closed += lambda: setattr(self, '_writer_window', None)
+        self._standalone_windows[surface] = window
+        window.events.closed += lambda: self._standalone_windows.pop(surface, None)
         return True
 
 

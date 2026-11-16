@@ -52,8 +52,8 @@ def translation(lines,code,seconds,out,feedback=None):
     if not isinstance(data,list) or len(data)!=len(lines) or any(not isinstance(t,str) or not t.strip() for t in data):raise ValueError('Translation must preserve every numbered scene.')
     return data
 
-def prepare_scripts(story_file,settings):
-    file=Path(story_file).resolve();story=json.loads(file.read_text(encoding='utf-8-sig'));cfg=configuration(settings)
+def prepare_scripts(story_file,settings,prepared_story=None):
+    file=Path(story_file).resolve();story=prepared_story if prepared_story is not None else json.loads(file.read_text(encoding='utf-8-sig'));cfg=configuration(settings)
     if not cfg['enabled']:return None
     if not story.get('audio_first'):raise ValueError('Multilingual versions require narration-free Audio First visuals.')
     lines=[str(s.get('external_narration') or '').strip() for s in story['scenes']]
@@ -137,6 +137,11 @@ def prepare_language_audio(story,root,profile,durations):
 def preflight_audio(story_file,settings):
     file=Path(story_file).resolve();story=json.loads(file.read_text(encoding='utf-8-sig'));cfg=configuration(settings)
     if not cfg['enabled']:return None
+    if story.get('full_voiceover_first'):
+        from full_voiceover import validate_tracks
+        validate_tracks(story,cfg)
+        print('MULTILINGUAL PREFLIGHT PASSED: selected full recordings verified; visuals follow measured timing.',flush=True)
+        return file.parent
     root=prepare_scripts(file,cfg)
     (root/'AUDIO_PREFLIGHT_READY.json').unlink(missing_ok=True)
     print('MULTILINGUAL PREFLIGHT: checking all selected language audio before Flow video generation.',flush=True)
@@ -149,8 +154,9 @@ def preflight_audio(story_file,settings):
     return root
 
 
-def render(body):
+def render(body, prepared_story=None):
     file=Path(body['story']).resolve();story=json.loads(file.read_text(encoding='utf-8-sig'))
+    if prepared_story is not None:story=prepared_story
     cfg=configuration(body.get('multilingual') or story.get('multilingual'))
     if not cfg['enabled']:return []
     from story_output import story_title_base,story_video_path
@@ -160,11 +166,27 @@ def render(body):
     info=E.probe(raw);end=E.original_end_card_start(raw,report) or info['duration']
     starts=[0.]+[t for t in E.original_boundaries(raw,report) if t<end-.01]
     if len(starts)!=len(story['scenes']):raise ValueError('Multilingual rendering needs verified scene boundaries; no grid-order guessing.')
-    root=prepare_scripts(file,cfg);manifest=json.loads((root/'manifest.json').read_text(encoding='utf-8'));outputs=[]
+    full=story.get('full_voiceover_first')
+    if full:
+        from full_voiceover import validate_tracks
+        tracks=validate_tracks(story,cfg)
+        root=file.parent/'localized';root.mkdir(exist_ok=True)
+    else:root=prepare_scripts(file,cfg,prepared_story=prepared_story)
+    outputs=[]
     settings=E.settings(body.get('editingSettings'));settings.update(silence_removal_enabled=False,audio_first_trim_gaps=False,preset_cta_enabled=False)
     for profile in cfg['languages']:
         code=profile['code']
-        work,package,audit=prepare_language_audio(story,root,profile,[b-a for a,b in zip(starts,starts[1:]+[end])])
+        if full:
+            work=root/code;work.mkdir(exist_ok=True)
+            track=tracks[code];package=copy.deepcopy(story);package.pop('multilingual',None)
+            package.update(full_voiceover_file=track['file'],full_voiceover_seconds=track['seconds'],
+                           full_voiceover_sections=track['sections'],full_voiceover_language=code)
+            atomic(work/'localized_story.json',package)
+        else:
+            work,package,audit=prepare_language_audio(story,root,profile,[b-a for a,b in zip(starts,starts[1:]+[end])])
+        if prepared_story is not None:
+            package['local_dubbing'] = {'source':str(raw),'no_english_generation':True}
+            atomic(work/'localized_story.json',package)
         local_raw=work/raw.name
         if local_raw.exists() and not os.path.samefile(raw,local_raw):
             def media_hash(p):

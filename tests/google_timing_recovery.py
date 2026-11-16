@@ -15,8 +15,29 @@ with tempfile.TemporaryDirectory() as tmp:
  calls.clear()
  with patch.object(G,'synthesize',side_effect=synth),patch.object(V,'audio_duration',return_value=20):
   audio,seconds=G.recover_timing('Alnilam','Unchanged.',p,9.8,language='ar')
-  assert len(calls)==2 and seconds==20
-print('PASS: Google timing recovery preserves every word and original recording; stops after success or two attempts; correct language; no actual API calls.')
+  assert len(calls)==G.MAX_PACING_ATTEMPTS and seconds==20
+ calls.clear()
+ stale=p.with_name(p.stem+'.paced-v1-2'+p.suffix);stale.write_bytes(b'old slow retry')
+ def adaptive_duration(file):
+  name=Path(file).name
+  return 16.8 if Path(file)==p else (13.36 if '.paced-v1-1' in name else 11.5)
+ with patch.object(G,'synthesize',side_effect=synth),patch.object(V,'audio_duration',side_effect=adaptive_duration):
+  audio,seconds=G.recover_timing('Orus','Every original word stays.',p,9.48,language='en')
+  assert seconds==11.5 and len(calls)==2
+  assert calls[1][2]['target_seconds']<calls[0][2]['target_seconds']
+  assert '.paced-v2-2-' in audio.name and audio!=stale
+  assert all(c[1]=='Every original word stays.' for c in calls)
+  assert stale.read_bytes()==b'old slow retry'
+ calls.clear()
+ def third_attempt(file):
+  name=Path(file).name
+  return 16.8 if Path(file)==p else (11.5 if '.paced-v2-3-' in name else 13.2)
+ with patch.object(G,'synthesize',side_effect=synth),patch.object(V,'audio_duration',side_effect=third_attempt):
+  audio,seconds=G.recover_timing('Orus','Keep the exact sentence.',p,9.48,language='en')
+  assert seconds==11.5 and len(calls)==3
+  assert calls[2][2]['target_seconds']<=calls[1][2]['target_seconds']
+  assert all(c[1]=='Keep the exact sentence.' for c in calls)
+print('PASS: automatic progressive timing retries stop on success or four attempts; exact words, original recording and language retained; no actual API calls.')
 
 import multilingual as M,video_editing as E
 with tempfile.TemporaryDirectory() as tmp:
