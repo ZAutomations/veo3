@@ -50,6 +50,8 @@ def schema():
     rows.append(dict(key='preset_cta_enabled',label='Append preset CTA video when present',default=True,page='finishing',group='Preset CTA'))
     rows.append(dict(key='full_voiceover_trim_tail',label='Full Voiceover First: trim up to 2 seconds of overflowing speech',default=False,page='finishing',group='Voiceover'))
     rows.append(dict(key='full_voiceover_keep_source_audio',label='Full Voiceover First: keep Veo audio (only for speech-free clips)',default=False,page='finishing',group='Voiceover'))
+    rows.append(dict(key='voiceover_background_volume',label='Original SFX / BGM volume (%)',default=65,min=0,max=100,step=5,page='finishing',group='Voiceover'))
+    rows.append(dict(key='voiceover_background_floor',label='Background retained during narration (%)',default=75,min=0,max=100,step=5,page='finishing',group='Voiceover'))
     rows.append(dict(key='audio_first_trim_gaps',label='Audio First: trim narration gaps (shortens video)',default=False,page='finishing',group='Voiceover'))
     rows.append(dict(key='editing_speed',label='Final video speed (×)',default=1.0,min=.15,max=2.0,step=.05,page='finishing',group='Final speed'))
     for key,label,default,choices in [

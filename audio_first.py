@@ -131,7 +131,7 @@ def plan_package(body):
                 if not __import__('math').isfinite(a+b) or not 0<=last<=a<b<=duration+.01: raise ValueError('Local audio ranges must be ordered, non-overlapping and within the recording.')
                 last=b
         elif len(selected)!=1: raise ValueError('Multi-scene local audio needs a per-scene timing JSON.')
-    fingerprint=hashlib.sha256(b'actual_story_pace_v2'+source.read_bytes()+json.dumps([start,end,cfg,V.signature(cfg)],sort_keys=True).encode()).hexdigest()[:12]
+    fingerprint=hashlib.sha256(b'actual_story_pace_v2'+source.read_bytes()+json.dumps([start,end,V.preparation_settings(cfg),V.signature(cfg)],sort_keys=True).encode()).hexdigest()[:12]
     if multi['enabled']:fingerprint=hashlib.sha256((fingerprint+json.dumps(multi,sort_keys=True)).encode()).hexdigest()[:12]
     if deferred:fingerprint=hashlib.sha256((fingerprint+':deferred_dubbing_v1').encode()).hexdigest()[:12]
     folder=source.parent/'audio_first'/fingerprint

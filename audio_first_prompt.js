@@ -1,5 +1,6 @@
 function scene(story,index,{seconds=story.scene_seconds,aspect=story.aspect_ratio}={}){
  const s=story.scenes[index];
+ if(require('./geography_scene_direction').applies(story))return require('./geography_background_prompt').scene(story,index,{seconds,aspect});
  const names=[...(s.characters||[]),story.place?.name].filter(Boolean);
  return [`AUDIO FIRST: Generate ONE ${seconds}-second background-only video for scene ${index+1}. Format ${aspect}.`,
  require('./cats_behavior_contract').forStory(story),

@@ -1,6 +1,6 @@
 """Offline full-track planning, identity alignment, continuous mixing and tail trimming."""
 from pathlib import Path
-import importlib.util,json,sys,tempfile
+import importlib.util,json,sys,tempfile,wave
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 spec=importlib.util.spec_from_file_location('full_voiceover_worker',Path(__file__).resolve().parents[1]/'full_voiceover.py')
@@ -8,17 +8,47 @@ F=importlib.util.module_from_spec(spec);spec.loader.exec_module(F)
 import video_editing as E,voiceover as V,desktop_app as app
 import voiceover_alignment_repair as recovery
 
+with tempfile.TemporaryDirectory() as work:
+    folder=Path(work)
+    source=folder/'full_narration.source.mp3'
+    speech=b'\x00\x10'*(48000*69)+b'\x00\x00'*48000
+    padding=b'\x00\x00'*7680
+    for tail in (padding,b'\x01\x00'+padding[2:]):
+        with wave.open(str(source),'wb') as recording:
+            recording.setparams((1,2,48000,0,'NONE','not compressed'))
+            recording.writeframes(speech+tail)
+        with patch.object(F,'synthesize_full_track',side_effect=[source,Path('paced.mp3')]) as synth:
+            if tail==padding:
+                fitted=F.paced_google_english(dict(voice='Orus'),['Approved narration.'],folder,60,10)
+                assert V.audio_duration(fitted)==70 and synth.call_count==1
+                with wave.open(str(fitted),'rb') as recording:
+                    assert recording.readframes(recording.getnframes())==speech
+                with wave.open(str(source),'rb') as recording:
+                    assert recording.readframes(recording.getnframes())==speech+padding
+            else:
+                with patch.object(V,'audio_duration',side_effect=[70.16,64.0]):
+                    assert F.paced_google_english(dict(voice='Orus'),['Approved narration.'],folder,60,10)==Path('paced.mp3')
+                assert synth.call_count==2
+
 with patch.object(F,'synthesize_full_track',side_effect=[Path('slow.mp3'),Path('paced.mp3')]) as synth, \
         patch.object(V,'audio_duration',side_effect=[82.2,65.0]):
     assert F.paced_google_english(dict(voice='Orus'),['Approved narration.'],Path('.'),60,10)==Path('paced.mp3')
     assert synth.call_args_list[0].args[5]==60 and synth.call_args_list[1].args[5]<60
     assert all(call.args[1]==['Approved narration.'] for call in synth.call_args_list)
+with patch.object(F,'synthesize_full_track',side_effect=lambda *args:args[2]) as synth, \
+        patch.object(V,'audio_duration',side_effect=[70.16,73.56,69.9]):
+    lines=['Approved narration.']
+    assert F.paced_google_english(dict(voice='Orus'),lines,Path('.'),60,10)==Path('native_pace_recovery.mp3')
+    first, retry, recovered=[call.args for call in synth.call_args_list]
+    assert len({call[2] for call in (first,retry,recovered)})==3
+    assert recovered[5]<retry[5]<first[5] and recovered[6]==70.16
+    assert all(call[0]==dict(voice='Orus') and call[1]==lines for call in (first,retry,recovered))
 with patch.object(F,'synthesize_full_track',return_value=Path('slow.mp3')) as synth, \
-        patch.object(V,'audio_duration',side_effect=[82.2,74.0]):
+        patch.object(V,'audio_duration',side_effect=[70.16,73.56,70.01]):
     try:F.paced_google_english(dict(voice='Orus'),['Approved narration.'],Path('.'),60,10)
-    except ValueError as error:assert '7 visual clips' in str(error)
+    except ValueError as error:assert '70.01s after pacing attempts' in str(error) and '7 visual clips' in str(error)
     else:raise AssertionError('Overlong English delivery must stop before Veo')
-    assert synth.call_count==2
+    assert synth.call_count==3
 
 alignment_line = 'one two three four five six seven eight nine ten eleven twelve'
 decoded = [dict(word=word, start=i, end=i+.5) for i,word in enumerate(alignment_line.split())]

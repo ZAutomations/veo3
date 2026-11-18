@@ -1,6 +1,6 @@
 """Isolated full-track-first workflow. Never speeds narration to fit visual clips."""
 from pathlib import Path
-import copy,difflib,hashlib,json,math,re,shutil,sys,unicodedata,wave
+import copy,difflib,hashlib,json,math,re,shutil,sys,tempfile,unicodedata,wave
 import video_editing as E
 import voiceover as V
 
@@ -30,7 +30,7 @@ def plan_package(body):
     text='\n\n'.join(lines)
     if cfg['voiceover_mode']=='api' and cfg['voiceover_provider']=='google' and len(text.encode('utf-8'))>4000:
         raise ValueError('Full Google narration exceeds 4000 UTF-8 bytes. Use one full local recording or a shorter story; nothing was submitted.')
-    identity=[cfg,V.signature(cfg),'full_track_v1']
+    identity=[V.preparation_settings(cfg),V.signature(cfg),'full_track_v1']
     if multi['enabled']:identity+=['full_multilingual_v1',multi]
     key=hashlib.sha256(source.read_bytes()+json.dumps(identity,sort_keys=True).encode()).hexdigest()[:12]
     language_folder=source.parent/'full_voiceover'/key
@@ -230,6 +230,52 @@ def synthesize_full_track(profile,lines,target,code,label,target_seconds=None,pr
             raise google_tts.GoogleTTSGenericInvalidArgument(f'{label} narration was rejected twice by Google TTS. {error}') from error
 
 
+def fit_verified_silent_tail(audio,duration,maximum):
+    """Remove at most two seconds of verified quiet padding, never ending speech."""
+    source=Path(audio)
+    if not source.is_file() or not 0<duration-maximum<=2.000001:return None
+    import subprocess
+    start=max(0.,maximum-.5)
+    result=subprocess.run(['ffmpeg','-hide_banner','-ss',str(start),'-i',str(source),
+        '-af','silencedetect=noise=-55dB:d=0.08','-f','null','-'],capture_output=True,text=True,timeout=30,
+        creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
+    if result.returncode:return None
+    active=None;last_end=None
+    for line in result.stderr.splitlines():
+        begin=re.search(r'silence_start: ([0-9.]+)',line)
+        end=re.search(r'silence_end: ([0-9.]+)',line)
+        if begin:active=start+float(begin[1]);last_end=None
+        if end:last_end=start+float(end[1])
+    # Require a quiet tail through EOF plus 120ms of quiet BEFORE the cap.
+    # Padding within encoded MP3 duration is not evidence of quiet by itself.
+    if active is None or last_end is None or last_end<duration-.03 or active>maximum-.12:return None
+    # A quiet threshold locates the tail, but only zero PCM samples may be removed.
+    target=source.with_name(source.stem+f'.silence-fit-exact-{maximum:g}.wav')
+    with tempfile.TemporaryDirectory(dir=source.parent) as work:
+        decoded=Path(work)/'decoded.wav'
+        E.run(['ffmpeg','-v','error','-i',source,'-ar','48000','-ac','1','-c:a','pcm_s16le',decoded])
+        with wave.open(str(decoded),'rb') as recording:
+            limit=min(recording.getnframes(),math.floor(maximum*recording.getframerate()))
+            recording.setpos(limit)
+            if any(recording.readframes(recording.getnframes()-limit)):
+                return None
+            recording.rewind()
+            staging=Path(work)/'fit.wav'
+            with wave.open(str(staging),'wb') as fitted:
+                fitted.setparams(recording.getparams())
+                fitted.writeframes(recording.readframes(limit))
+        retained=V.audio_duration(staging)
+        if retained>maximum or maximum-retained>.02:
+            return None
+        if not target.is_file() or staging.read_bytes()!=target.read_bytes():
+            staging.replace(target)
+    target.with_suffix('.json').write_text(json.dumps(dict(original=str(source),original_seconds=duration,
+        retained_seconds=retained,removed_silent_seconds=duration-retained,quiet_tail_start=active,
+        noise_threshold_db=-55,speech_cut=False,speed=1.0),indent=2),encoding='utf-8')
+    E.log(f'FULL VOICEOVER FIRST: removed {duration-retained:.2f}s of verified trailing silence; {retained:.2f}s retained at 1.00x, no speech cut or extra visual clip.')
+    return target
+
+
 def paced_google_english(profile,lines,folder,target_seconds,clip_seconds):
     maximum=target_seconds+clip_seconds
     if not (folder/'full_narration.source.mp3').is_file():
@@ -237,6 +283,8 @@ def paced_google_english(profile,lines,folder,target_seconds,clip_seconds):
     first=synthesize_full_track(profile,lines,folder/'full_narration.source.mp3','en','English',target_seconds)
     duration=V.audio_duration(first)
     E.log(f'FULL VOICEOVER FIRST: English pace target {target_seconds}s, measured {duration:.2f}s, limit {maximum}s.')
+    fitted=fit_verified_silent_tail(first,duration,maximum)
+    if fitted:return fitted
     if duration<=target_seconds+clip_seconds/2:
         return first
     faster_target=max(target_seconds*.80,target_seconds*target_seconds/duration)
@@ -250,11 +298,25 @@ def paced_google_english(profile,lines,folder,target_seconds,clip_seconds):
             return first
         raise
     E.log(f'FULL VOICEOVER FIRST: English native pace retry measured {measured:.2f}s.')
+    fitted=fit_verified_silent_tail(second,measured,maximum)
+    if fitted:return fitted
     if duration<=maximum and abs(target_seconds-duration)<=abs(target_seconds-measured):
         return first
     if measured<=maximum:
         return second
-    raise ValueError(f'English narration is {min(duration,measured):.2f}s after pacing attempts. Maximum is {maximum}s ({int(maximum/clip_seconds)} visual clips). Review voice delivery before generation.')
+    best_duration=min(duration,measured)
+    recovery_target=max(target_seconds*.75,faster_target*target_seconds/best_duration)
+    # A separate cache path lets Studio Retry keep both prior recordings and
+    # request this stronger native delivery only once per prepared package.
+    recovery=synthesize_full_track(profile,lines,folder/'native_pace_recovery.mp3',
+                                   'en','English',recovery_target,best_duration)
+    recovered_duration=V.audio_duration(recovery)
+    E.log(f'FULL VOICEOVER FIRST: English native pace recovery measured {recovered_duration:.2f}s.')
+    fitted=fit_verified_silent_tail(recovery,recovered_duration,maximum)
+    if fitted:return fitted
+    if recovered_duration<=maximum:
+        return recovery
+    raise ValueError(f'English narration is {min(best_duration,recovered_duration):.2f}s after pacing attempts. Maximum is {maximum}s ({int(maximum/clip_seconds)} visual clips). Review voice delivery before generation.')
 
 
 def record_localized_beats(folder,code,label,profile,lines):
@@ -327,6 +389,8 @@ def _record_language_once(folder,cfg,code,profile,lines,local=None,english_targe
                 raise
             M.atomic(folder/'USE_TIMED_BEATS.json',dict(language=code))
             return record_localized_beats(folder,code,label,profile,lines)
+    if english_target is not None and raw.suffix=='.wav' and not local:
+        audio=raw
     if not audio.is_file():E.run(['ffmpeg','-v','error','-y','-i',raw,'-ar','48000','-ac','1',audio])
     duration=V.audio_duration(audio)
     if not math.isfinite(duration) or duration<=0:raise ValueError('Invalid '+code+' full narration duration.')

@@ -3,6 +3,8 @@ const RI = require('./reference_image_step');
 const grid = require('./flow_grid_scroll');
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const key = value => String(value || '').trim().toLowerCase();
+const promptKey = value => String(value || '').normalize('NFKC').replace(/\s+/g,' ').trim().toLowerCase();
+const sourceCache = new WeakMap();
 // Signed expiry/signature and thumbnail-size parameters are not asset identities.
 // Normalize only known Flow image routes; never collapse arbitrary query-based URLs.
 function imageIdentity(value) {
@@ -42,7 +44,8 @@ function chooseImage(images, refs, refIndex, pending) {
         && (ref.kind === 'thumbnail' || !thumbnailName(im)));
     const recorded = candidates.filter(im => pending?.imageKey && imageIdentity(im.key) === imageIdentity(pending.imageKey));
     if (recorded.length) return unique(recorded, 'saved project asset') || { ambiguous: recorded };
-    const promptMatches = candidates.filter(im => im.prompt && key(im.prompt) === key(ref.prompt));
+    const promptMatches = candidates.filter(im => im.prompt && promptKey(im.prompt) === promptKey(ref.prompt));
+    if(promptMatches.length && refs.filter(r=>promptKey(r.prompt)===promptKey(ref.prompt)).length!==1)return {ambiguous:promptMatches};
     if (promptMatches.length) return unique(promptMatches, 'exact source prompt') || { ambiguous: promptMatches };
     if (ref.kind === 'thumbnail') {
         const named = candidates.filter(thumbnailName);
@@ -135,8 +138,43 @@ async function reconcile(page, refs, refIndex, receipt, inventory, readName, ren
     log(`  Verified existing completed image "${ref.name}"; stale failed request skipped.`);
     return { ok: true, imageKey: live.key, tileIndex: live.tileIndex, alreadyNamed: true };
 }
+async function enrichSourcePrompts(page,inventory,refs,readName,log=()=>{},opts={}) {
+    const unclaimed=inventory.images.filter(im=>!refs.some(r=>key(im.name)===key(r.name))&&!im.prompt);
+    if(!unclaimed.length)return;
+    if(typeof page.browser!=='function'&&!opts.readPrompt)return;
+    let cache=sourceCache.get(page);
+    const url=typeof page.url==='function'?page.url().split('?')[0]:'fixture';
+    if(!cache||cache.url!==url){cache={url,prompts:new Map()};sourceCache.set(page,cache);}
+    const missing=unclaimed.filter(im=>!cache.prompts.has(imageIdentity(im.key)));
+    let probe=null;
+    try{
+        if(missing.length){
+            const reader=opts.readPrompt||require('./reference_source_prompt').read;
+            if(opts.readPrompt){
+                for(const im of missing){const prompt=await reader(page,im);if(prompt)cache.prompts.set(imageIdentity(im.key),prompt);}
+            }else{
+                probe=await page.browser().newPage();
+                await probe.goto(url,{waitUntil:'networkidle2',timeout:60000});
+                await probe.waitForSelector('flow-image-tile',{timeout:15000});
+                const inspected=await scanImages(probe,readName,()=>{},opts);
+                const wanted=new Set(missing.map(im=>imageIdentity(im.key)));
+                for(const im of inspected.images){
+                    if(!wanted.has(imageIdentity(im.key)))continue;
+                    await probe.evaluate(grid.scrollGrid,im.scrollTop||0);
+                    const prompt=await reader(probe,im);
+                    if(prompt)cache.prompts.set(imageIdentity(im.key),prompt);
+                }
+            }
+        }
+        let count=0;
+        for(const im of inventory.images){const prompt=cache.prompts.get(imageIdentity(im.key));if(prompt&&!im.prompt){im.prompt=prompt;count++;}}
+        if(count)log(`Reference identity audit: ${missing.length?'inspected':'reused cached'} original source metadata for ${count} existing image(s); no image generated.`);
+    }finally{if(probe)await probe.close().catch(()=>{});}
+}
 async function auditExisting(page, refs, refIndex, receipt, readName, rename, log, opts = {}) {
     const inventory = await scanImages(page, readName, log, opts);
+    const decision=chooseImage(inventory.images,refs,refIndex,receipt?.read());
+    if(!decision||decision.ambiguous)await enrichSourcePrompts(page,inventory,refs,readName,log,opts);
     return reconcile(page, refs, refIndex, receipt, inventory, readName, rename, log, opts);
 }
-module.exports = { imageIdentity, matchesName, chooseImage, scanImages, reconcile, auditExisting };
+module.exports = { imageIdentity, matchesName, chooseImage, scanImages, reconcile, enrichSourcePrompts, auditExisting };

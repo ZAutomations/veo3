@@ -40,7 +40,7 @@ async function prepareAgentBatches(a, storyJson, state, run, log = () => {}) {
         'agent_scene_ids.js', 'audio_first_prompt.js', 'silent_scene_identity.js',
         'narration_delivery.js', 'narration_tones.json', 'geography_scene_direction.js',
         'geography_overlay_contract.js', 'geography_visual_contract.js', 'geography_map_theme.js', 'fast_camera_rhythm.js',
-        'external_visual_contract.js', 'styles.json', 'genai_styles.json', 'zack_badge_contract.js', 'fern_topic_visuals.js']
+        'external_visual_contract.js', 'geography_background_prompt.js', 'styles.json', 'genai_styles.json', 'zack_badge_contract.js', 'fern_topic_visuals.js']
         .map(name => fs.readFileSync(path.join(__dirname, name), 'utf8')).join('\n'));
     const context = { fingerprint: state.fingerprint, aspect: state.aspect,
         flow_characters: !!a.flow_characters, generator };

@@ -8,8 +8,8 @@ for(const p of C.catalog()){
  const story={preset_id:p.id,audio_first:true,full_voiceover_first:true,style:p.style,palette:p.palette,scene_seconds:10,aspect_ratio:'9:16',place:{name:'Environment'},scenes:[{script_line:'',external_narration:speech,narrative_context:'A visible story-specific subject changes state.',characters:[],start_state:'The marker rests beside the object.',end_state:'The marker indicates the result.',effect:'A cyan outline pulses on the visible object.',sound:'SFX: glass click and quiet footstep; BGM: loud music; Mix: narration foreground.',shots:[{start_seconds:0,end_seconds:5,visual:'[MAP] Establish the real coastline and vessel.'},{start_seconds:5,end_seconds:10,visual:'[EXPLAINER] A visible line connects the two supplied objects.'}]}]};
  if(p.derived_video_preset)story.reference_preset=p;
  const prompt=A.scene(story,0,{seconds:10,aspect:'9:16'});
- assert(prompt.includes('PRESET VISUAL DELIVERY'),p.id);
- assert(prompt.includes('PRESET CAMERA:'),p.id);
+ assert(prompt.includes(p.id==='geography-map'?'TOOL CALL COPY REQUIREMENT':'PRESET VISUAL DELIVERY'),p.id);
+ assert(prompt.includes(p.id==='geography-map'?'CAMERA PHASES':'PRESET CAMERA:'),p.id);
  assert(prompt.includes('cyan outline pulses'),p.id);
  assert(prompt.includes('glass click and quiet footstep'),p.id);
  assert(!prompt.includes(speech),p.id+' leaked external narration');

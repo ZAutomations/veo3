@@ -128,6 +128,11 @@ def synthesize(provider, voice, text, target, language=None,delivery=None):
             time.sleep(attempt+1)
     return target
 
+def preparation_settings(cfg):
+    # Mix-only controls must not invalidate an existing paid narration cache.
+    return {k:v for k,v in cfg.items() if k not in ('voiceover_background_volume','voiceover_background_floor')}
+
+
 def signature(cfg, source=None, report=None):
     paths=[cfg.get('voiceover_file'),cfg.get('voiceover_timing')]
     if source and cfg.get('voiceover_mode')!='native':
@@ -212,12 +217,16 @@ def replace_audio(source, output, cfg, work, report=None, aligned_speech_end=Non
         E.run(args+['-filter_complex',';'.join(filters),'-map','[voice]','-c:a','pcm_s16le',work/'narration_timeline.wav'])
     audio_map='[voice]'
     if keep_background and info['audio']:
-        filters += ['[voice]asplit=2[narr][duck]',f'[0:a]volume={float(cfg.get("_background_gain",.35))}[bg]',
-            '[bg][duck]sidechaincompress=threshold=0.02:ratio=6:attack=15:release=250[quietbg]',
-            f'[quietbg][narr]amix=inputs=2:normalize=0,apad,atrim=duration={info["duration"]}[mixed]']
+        gain=float(cfg.get('_background_gain',float(cfg.get('voiceover_background_volume',65))/100))
+        floor=max(0.,min(1.,float(cfg.get('voiceover_background_floor',75))/100))
+        filters += ['[voice]asplit=2[narr][duck]',f'[0:a]volume={gain},asplit=2[bed][flex]',
+            f'[bed]volume={floor}[floorbg]',f'[flex]volume={1-floor}[flexbg]',
+            '[flexbg][duck]sidechaincompress=threshold=0.06:ratio=2:attack=25:release=180[duckbg]',
+            f'[floorbg][duckbg][narr]amix=inputs=3:normalize=0,alimiter=limit=0.95:level=false:latency=true,apad,atrim=duration={info["duration"]}[mixed]']
+        E.log(f'Background mix: source level {gain*100:.0f}%; at least {floor*100:.0f}% of that level remains under narration; gentle ducking and peak limiting.')
         audio_map='[mixed]'
     args+=['-filter_complex',';'.join(filters),'-map','0:v:0','-map',audio_map,'-c:v','copy','-c:a','aac','-t',str(info['duration']),output]
     E.run(args)
     (work/'voiceover_sync.json').write_text(json.dumps([{'audio':str(p),'audio_start':a,'audio_end':b,'video_start':s,'video_end':e} for p,a,b,s,e in plans],indent=2))
-    E.log(f'External narration aligned: {len(plans)} segment(s). '+('Audio First background retained with narration ducking.' if keep_background and info['audio'] else 'Original mixed audio replaced; thumbnail region stays silent.'))
+    E.log(f'External narration aligned: {len(plans)} segment(s). '+('Audio First background retained with a protected audible floor and gentle ducking.' if keep_background and info['audio'] else 'Original mixed audio replaced; thumbnail region stays silent.'))
     return output
