@@ -2,6 +2,10 @@
 const crypto=require('crypto');
 function prefix(story){return 'V3_'+crypto.createHash('sha256').update(JSON.stringify({title:story.title,preset:story.preset_id,scenes:(story.scenes||[]).map(s=>({script:s.script_line||'',dialogue:s.dialogue||[],shots:s.shots||[],action:s.narrative_context||'',start:s.start_state||'',end:s.end_state||''}))})).digest('hex').slice(0,12);}
 const sceneId=(story,n)=>`${prefix(story)}_S${String(n).padStart(3,'0')}`;
+function sourceJob(story,number,silentVisual=require('./silent_scene_identity').isSilent(story)){
+ const scene=story.scenes[number-1];
+ return {number,scene,sceneId:sceneId(story,number),prompt:scene.veo3_prompt||scene.script_line||'',silentVisual};
+}
 const ids=text=>[...new Set(String(text||'').match(/\bV3_[a-f0-9]{12}_S\d{3}\b/g)||[])];
 function inject(text,story){
  if(!text||!story?.scenes?.length)return text;
@@ -14,7 +18,7 @@ function inject(text,story){
  if(!names.length)return text;
  // Idempotence is important for regenerated batch exports and saved retries.
  if(names.every(id=>String(text).includes('SCENE ASSET ID: '+id)))return text;
- return `SCENE ID TRACKING: Generate one separate video asset for each requested scene. The asset ID labels below are METADATA ONLY: never render them into frames, subtitles, dialogue or audio. Keep each ID with only its own scene's video tool call. Name/rename each successful VIDEO asset to its exact SCENE ASSET ID using available asset-title tools. Never rename reference images or assign an ID to an unrelated video. Retain the same ID when retrying that scene; do not regenerate successful scenes. Verify each completed asset's title; if naming is unavailable, explicitly report this rather than claiming the IDs were saved. Never claim an asset-ID mapping without inspecting actual generated assets.\n\n`+body;
+ return `SCENE ID TRACKING: Generate one separate video asset for each requested scene. The asset ID labels below are METADATA ONLY: never render them into frames, subtitles, dialogue or audio. Keep each ID with only its own scene's video tool call. COPY each SCENE ASSET ID verbatim into the prompt sent to the video-generation tool, even when simplifying visual wording. Do not omit, paraphrase, change or combine these IDs. For silent/external-voiceover scenes, preserve the ID exactly as metadata while keeping speech disabled. Name/rename each successful VIDEO asset to its exact SCENE ASSET ID using available asset-title tools. Never rename reference images or assign an ID to an unrelated video. Retain the same ID when retrying that scene; do not regenerate successful scenes. Verify each completed asset's title; if naming is unavailable, explicitly report this rather than claiming the IDs were saved. Never claim an asset-ID mapping without inspecting actual generated assets.\n\n`+body;
 }
 function tileId(tile){
  // Prefer asset-owned metadata; a parent batch prompt can contain every ID.
@@ -39,4 +43,4 @@ function partialPlan(tiles,story){
  return {entries:Array.from(mapped.values()).sort((a,b)=>a.job.number-b.job.number),missing:Array.from({length:total},(_,i)=>i+1).filter(n=>!mapped.has(n))};
 }
 function plan(tiles,story){const partial=partialPlan(tiles,story);return partial.missing.length?null:Array.from({length:story.scenes.length},(_,i)=>partial.entries.find(e=>e.job.number===i+1));}
-module.exports={prefix,sceneId,ids,inject,tileId,partialPlan,plan};
+module.exports={prefix,sceneId,sourceJob,ids,inject,tileId,partialPlan,plan};

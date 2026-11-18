@@ -29,7 +29,7 @@ const prompt=S.promptForScene(story,0,{seconds:10});
 for(const t of ['CATS BEHAVIOR EXPLAINER','ZACK ANIMATED ROUND PICTOGRAM BADGES','orbiting arc','popup/plop','swoosh','Natural non-speaking animals','FUNNY HOOK + VIEWER QUESTION','exactly one short topic-specific viewer question'])assert(prompt.includes(t),t);
 assert(!prompt.includes('Silent on-screen cast, mouths closed'));
 const audioStory={...story,audio_first:true,scenes:story.scenes.map(s=>({...s,script_line:'',external_narration:s.script_line,audio_first_duration:9.4}))};
-const audio=A.scene(audioStory,0);assert(audio.includes('CATS BEHAVIOR EXPLAINER')&&audio.includes('ZACK ANIMATED ROUND')&&audio.includes('NO narration'));
+const audio=A.scene(audioStory,0);assert(audio.includes('CATS BEHAVIOR EXPLAINER')&&audio.includes('ZACK ANIMATED ROUND')&&audio.includes('NO narration'));assert(!audio.includes(story.scenes[0].script_line));
 assert.throws(()=>I.parse(text.replace('28','31').replace('situation around your cat.','situation around your cat every single day in every home.')));
 const master=fs.readFileSync('Master prompts/cats-behavior-3d.txt','utf8');
 for(const t of ['LOVE, TRUST & BONDING','BODY LANGUAGE, MOOD & BOUNDARIES','INSTINCTS, PLAY & FUNNY HABITS','SENSES, ANATOMY & HOW THE BODY WORKS','cats-behavior-3d','28–30','cats channel'])assert(master.includes(t),t);

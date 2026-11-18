@@ -18,6 +18,31 @@ with tempfile.TemporaryDirectory() as tmp:
  assert rows[finished.name]['fullyComplete'];assert not rows[downloaded.name]['fullyComplete'] and rows[downloaded.name]['done']
  assert not rows[pending.name]['fullyComplete'] and 'languages pending' in rows[pending.name]['completion']
  assert rows[parent.name]['fullyComplete'],'fully finished matching Audio First package completes its original story'
+ for name in ('localized','multilingual'):
+  localized=folder/name/'ru'/'localized_story.json'
+  localized.parent.mkdir(parents=True)
+  localized.write_bytes(child.read_bytes())
+ story_video_path(parent).write_bytes(b'published English')
+ separate=story('separate')
+ data=json.loads(separate.read_text());data['title']='original';separate.write_text(json.dumps(data))
+ with patch.object(app,'ROOT',root):
+  visible={Path(row['path']) for row in app.library()}
+ assert parent in visible and separate in visible
+ assert child not in visible and not any(p.name=='localized_story.json' for p in visible)
+ mirrored=story('imported',narration_languages=['en','ru'])
+ (mirrored.parent/'READY_IMPORT_COMPLETE.json').write_text('{}')
+ misplaced=base/'wrong_preset'/mirrored.parent.name/mirrored.name
+ misplaced.parent.mkdir(parents=True)
+ misplaced.write_bytes(mirrored.read_bytes())
+ (misplaced.parent/'READY_IMPORT_COMPLETE.json').write_text('{}')
+ moved=mirrored.parent/'full_voiceover'/'check'/'full_voiceover_story.json'
+ moved.parent.mkdir(parents=True)
+ stale=dict(json.loads(mirrored.read_text()),audio_first=True,original_story=str(root/'missing'/mirrored.name))
+ moved.write_text(json.dumps(stale))
+ with patch.object(app,'ROOT',root):
+  visible={Path(row['path']):row for row in app.library()}
+ assert visible[mirrored]['languages']==['English','Russian']
+ assert misplaced not in visible and moved not in visible
  ru=story_video_path(pending).with_name('pending Russian.mp4');ru.write_bytes(b'russian')
  with patch.object(app,'ROOT',root):assert next(row for row in app.library() if row['path']==str(pending))['fullyComplete']
 print('PASS: completed videos hidden, downloaded-only and unfinished-language projects retained, matching completed Audio First originals recognized.')

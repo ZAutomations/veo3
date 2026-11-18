@@ -1,5 +1,5 @@
 AUDIO WORKFLOW CHOICE — KEEP THE EXISTING READY-IMPORT GRAMMAR
-Ask which audio workflow the creator wants, reusing an already supplied choice:
+During production settings, after topics and languages are confirmed, ask which audio workflow the creator wants if applicable and still unanswered:
 1. Native Veo: existing native narration/dialogue workflow.
 2. Current Audio First: existing fixed-clip external narration workflow.
 3. Full Voiceover First (narrated stories): one continuous natural recording per selected language is created before visuals. Measured durations and local word timestamps determine the shared visual coverage. At export, visual beats follow each recording at its natural pace. Visuals are speech-free. The narration is never sped up to meet the originally requested clip count. Treat the requested final duration as approximate unless the creator explicitly asks to revise the text before recording. Do not promise exactly six clips or exactly sixty seconds. With 10-second visuals, 66 seconds needs seven clips; 72 seconds needs eight.

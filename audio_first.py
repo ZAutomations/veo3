@@ -114,6 +114,8 @@ def plan_package(body):
         for row in multi['languages']:
             if any(not str(scene.get('narration_translations',{}).get(row['code'],'')).strip() for scene in selected):raise ValueError('Missing supplied '+multilingual.LANGUAGES[row['code']]+' narration. Import it before generating audio; no translation call will be made.')
     cfg=E.settings(body.get('editingSettings'))
+    import narration_delivery
+    cfg['_narration_delivery']=narration_delivery.profile(original)
     if cfg['voiceover_mode'] not in ('api','local'): raise ValueError('Choose API or Local audio in Video Editing and save those settings first.')
     if cfg['voiceover_mode']=='api' and not cfg['voiceover_voice'].strip(): raise ValueError('Choose an API voice ID first.')
     if cfg['voiceover_mode']=='local':
@@ -159,9 +161,11 @@ def prepare(body):
             if cfg['voiceover_provider']=='google':
                 import google_tts
                 google_target=english_speech_window(seconds)
+                from narration_delivery import scene_profile
+                delivery=scene_profile(original,start+i-1)
                 E.log(f'English scene {start+i}: native delivery target {google_target:.2f}s; maximum extra speed {ENGLISH_MAX_SPEED:.2f}x.')
-                raw=google_tts.synthesize(cfg['voiceover_voice'],text,cache/f'scene_{i+1:03}.source.mp3',language='en',target_seconds=google_target)
-                raw,google_duration=google_tts.recover_timing(cfg['voiceover_voice'],text,raw,google_target,language='en',max_rate=ENGLISH_MAX_SPEED)
+                raw=google_tts.synthesize(cfg['voiceover_voice'],text,cache/f'scene_{i+1:03}.source.mp3',language='en',target_seconds=google_target,delivery=delivery)
+                raw,google_duration=google_tts.recover_timing(cfg['voiceover_voice'],text,raw,google_target,language='en',max_rate=ENGLISH_MAX_SPEED,delivery=delivery)
                 if google_duration>google_target*ENGLISH_MAX_SPEED:
                     raise ValueError(f'Google English scene {i+1} still exceeds the {ENGLISH_MAX_SPEED:.2f}x natural-pace limit after {google_tts.MAX_PACING_ATTEMPTS} automatic unchanged-text pacing attempts. Review native delivery or this line; no speech was cut.')
             else:

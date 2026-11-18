@@ -62,9 +62,13 @@ def source_package(source, original):
                 lines = [english(scene) for scene in data['scenes']]
             if lines != english_lines:
                 continue
-            final = story_video_path(file)
-            raw = final.with_name(final.stem + ' raw.mp4')
-            report = file.parent / 'JOINED_CLIP_ORDER.txt'
+            from story_output import full_voiceover_media_folder, prepared_story_for_media
+            media_folder=full_voiceover_media_folder(file)
+            final=media_folder/story_video_path(file).name
+            raw=final.with_name(final.stem+' raw.mp4')
+            report=media_folder/'JOINED_CLIP_ORDER.txt'
+            if media_folder!=file.parent and prepared_story_for_media(raw)!=file.resolve():
+                continue
             if matched_report(raw, report) and playable(final):
                 return file, raw, report, data
         except (ValueError, OSError, KeyError, TypeError):

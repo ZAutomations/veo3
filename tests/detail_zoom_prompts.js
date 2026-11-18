@@ -18,18 +18,20 @@ for (const preset_id of ['fern-documentary','3d-zack-style','intimacy-health-3d'
   fern_ready_import:isFern, zack_ready_import:!isFern,
  };
  const background = {...story,audio_first:true,full_voiceover_first:true};
- for (const prompt of [
+ const prompts=[
   single.promptForScene(story,0),
   (isFern ? fern : zack).agent(story,{seconds:6}),
   single.promptForScene(background,0),
   audio.agent(background),
- ]) {
+ ];
+ for (const [index,prompt] of prompts.entries()) {
   assert.equal(prompt.split(heading).length,2,preset_id);
   assert.match(prompt, /0\.20–0\.35s to snap in/);
   assert.match(prompt, /0\.7–1\.2s/);
   assert.match(prompt, /back out in 0\.20–0\.35s/);
   assert(prompt.includes(shots[1].visual));
-  assert(prompt.includes(narration));
+  assert.equal(prompt.includes(narration),index<2);
+  if(index>=2)assert.match(prompt,/NO narration, dialogue, speech/);
   assert.match(prompt, /3-6s/);
  }
 }

@@ -35,7 +35,7 @@ with tempfile.TemporaryDirectory() as temp:
     story=json.loads(prepared.read_text());assert story['audio_first'] and story['scenes'][0]['script_line']==''
     assert source.read_bytes()==before and prepared.parent!=source.parent
     prompt=(prepared.parent/'agent_prompt.txt').read_text(encoding='utf-8')
-    assert 'ONLY natural environmental ambience' in prompt and 'Read exactly:' not in prompt and 'NATIVE AUDIO: Narrator read exactly' not in prompt
+    assert 'Only non-vocal environmental ambience' in prompt and 'Read exactly:' not in prompt and 'NATIVE AUDIO: Narrator read exactly' not in prompt
     raw=prepared.parent/'raw.mp4'
     E.run(['ffmpeg','-v','error','-y','-f','lavfi','-i','color=s=160x90:r=24:d=4','-f','lavfi','-i','sine=frequency=440:duration=4','-c:v','libx264','-c:a','aac',raw])
     (prepared.parent/'JOINED_CLIP_ORDER.txt').write_text(f'Completed video: {raw}\n01 | 0.00s | scene1.mp4\n')

@@ -141,7 +141,7 @@ def repair_job(root, job_id, model, log, provider='codex'):
     if audio_outcome is not None:
         report.write_text(json.dumps(audio_outcome, ensure_ascii=False), encoding='utf-8')
         log(f'Auto Repair [{audio_outcome["outcome"]}]: {audio_outcome["summary"]}')
-        return
+        return audio_outcome
     prefix = provider_command(provider)
     label = PROVIDERS[provider]
     if not prefix:
@@ -177,3 +177,4 @@ def repair_job(root, job_id, model, log, provider='codex'):
                 (folder / 'verification.log').write_bytes(check.stdout + check.stderr)
                 raise ValueError('Repair did not pass Studio regression checks. See ' + str(folder / 'verification.log'))
     log(f'Auto Repair [{outcome["outcome"]}]: {outcome["summary"][:1200]}')
+    return outcome

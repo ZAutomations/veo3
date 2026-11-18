@@ -10,8 +10,8 @@ const assert=require('assert'),fs=require('fs'),path=require('path'),puppeteer=r
    if(url.pathname.startsWith('/assets/'))return req.respond({status:200,contentType:url.pathname.endsWith('.js')?'text/javascript':'text/css',body:fs.readFileSync(path.join(__dirname,'../desktop_ui',path.basename(url.pathname)))});
    if(url.pathname==='/')return req.respond({status:200,contentType:'text/html',body:fs.readFileSync(path.join(__dirname,'../desktop_ui/index.html'),'utf8').replace('__SESSION_TOKEN__','test')});
    let data={};
-   if(url.pathname==='/api/bootstrap')data={defaults:{story:'D:/one_story.json',project:'',aspect:'9:16',cdp:9222},globalWorkflow:{videoModel:'Omni 1.2 Flash',videoAspect:'9:16',videoResolution:'360p',videoDownloadVersion:'upscaled',videoSeconds:10,automationCdp:9222,agentPromptsPerBatch:5,rotateQueueAccounts:false},referenceLibrary:{root:'references',folders:{},modes:{agent:true,ingredients:true,omni:true}},presets:[{id:'3d-zack-style',name:'Zack Animation'}],models:['Omni 1.2 Flash'],preferences:{current:'agent',forms:{}},workflowDefaults:{agent:{},ingredients:{},omni:{}}};
-   if(url.pathname==='/api/library')data=['one','two'].map(n=>({title:n,path:`D:/${n}_story.json`,presetId:'3d-zack-style',scenes:2,clipSeconds:10,duration:20,done:false}));
+   if(url.pathname==='/api/bootstrap')data={defaults:{story:'D:/one_story.json',project:'',aspect:'9:16',cdp:9222},globalWorkflow:{videoModel:'Omni 1.2 Flash',videoAspect:'9:16',videoResolution:'360p',videoDownloadVersion:'upscaled',videoSeconds:10,automationCdp:9222,agentPromptsPerBatch:5,rotateQueueAccounts:false},referenceLibrary:{root:'references',folders:{},modes:{agent:true,ingredients:true,omni:true}},presets:[{id:'3d-zack-style',name:'Zack Animation'}],models:['Omni 1.2 Flash'],preferences:{current:'agent',forms:{agent:{audioFirstLocalMap:'D:/legacy-map.json'}}},workflowDefaults:{agent:{},ingredients:{},omni:{}}};
+   if(url.pathname==='/api/library')data=['one','two'].map(n=>({title:n==='one'?'One two':'Two',path:`D:/${n}_story.json`,presetId:'3d-zack-style',scenes:2,clipSeconds:10,duration:20,done:false}));
    if(url.pathname==='/api/accounts')data={accounts:[]};
    if(url.pathname==='/api/story')data={title:'Test',scenes:2,clipSeconds:10,duration:20};
    if(url.pathname==='/api/jobs'){
@@ -25,10 +25,21 @@ const assert=require('assert'),fs=require('fs'),path=require('path'),puppeteer=r
   assert.equal(await page.$eval('#audioFirstEnabled',e=>e.checked),false);
   await page.click('#audioFirstEnabled');
   await page.$$eval('[data-queue-story]',els=>els.forEach(e=>e.click()));
+  await page.type('#queueSearch','TWO');
+  assert.deepEqual(await page.$$eval('[data-queue-row]',rows=>rows.map(row=>row.style.order)),['2','0']);
+  await page.$eval('#queueSearch',input=>{input.value='one';input.dispatchEvent(new Event('input'));});
+  assert.equal(await page.$$eval('[data-queue-row]:not(.hidden)',rows=>rows.length),1);
+  assert.match(await page.$eval('#queue-count',el=>el.textContent),/2 stories selected.*1 hidden by search/);
+  await page.$eval('#queueSearch',input=>{input.value='no match';input.dispatchEvent(new Event('input'));});
+  assert.equal(await page.$eval('#queue-empty',el=>el.classList.contains('hidden')),false);
+  await page.$eval('#queueSearch',input=>{input.value='';input.dispatchEvent(new Event('input'));});
+  assert.equal(await page.$$eval('[data-queue-row]:not(.hidden)',rows=>rows.length),2);
   await page.click('[data-action="generate_queue"]');await page.waitForSelector('#confirm-dialog[open]');
   assert((await page.$eval('#confirm-text',e=>e.textContent)).includes('external narration first'));
   await page.click('#confirm-yes');await page.waitForFunction(()=>document.querySelector('#log').textContent.includes('Starting'));
   assert(submitted&&submitted.action==='generate_queue'&&submitted.payload.queueAudioMode==='audio_first');
+  assert.equal(await page.$('#audioFirstLocalMap'),null);
+  assert.equal(submitted.payload.audioFirstLocalMap,'D:/legacy-map.json');
   await page.click('#fullVoiceoverFirstEnabled');
   assert.equal(await page.$eval('#audioFirstEnabled',e=>e.checked),false);
   assert.equal(await page.evaluate(()=>payload().queueAudioMode),'full_voiceover');

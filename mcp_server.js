@@ -281,6 +281,7 @@ function resolveStoryJson(p) {
     return null;
 }
 function storyDirOf(storyJson) { return path.dirname(storyJson); }
+const mediaDirOf = require('./story_output_name').fullVoiceoverMediaFolder;
 function text(s) { return { content: [{ type: 'text', text: String(s) }] }; }
 function fail(s) { return { content: [{ type: 'text', text: String(s) }], isError: true }; }
 
@@ -677,7 +678,7 @@ async function doRunAgent(a) {
 async function doDownloadClips(a) {
     const storyJson = resolveStoryJson(a.story);
     let out = a.out;
-    if (!out && storyJson) out = path.join(storyDirOf(storyJson), 'clips');
+    if (!out && storyJson) out = path.join(mediaDirOf(storyJson), 'clips');
     if (!out) return { ok: false, text: 'Give either story (folder or JSON) or an explicit out folder.' };
     const args = ['--out', path.resolve(HERE, String(out)), '--cdp', String(a.cdp || 9222)];
     if(a.download_version==='original')args.push('--original');
@@ -695,6 +696,16 @@ async function doDownloadClips(a) {
     if (a.probe) args.push('--probe');
     if (a.no_sheet) args.push('--no-sheet');
     const r = await runNode('agent_download.js', args, { timeoutMs: 20 * 60 * 1000 });
+    if (r.code === 0 && storyJson && mediaDirOf(storyJson)!==storyDirOf(storyJson) &&
+        path.resolve(HERE,String(out))===path.join(mediaDirOf(storyJson),'clips')) {
+        const manifestFile=path.join(path.resolve(HERE,String(out)),'manifest.json');
+        const manifest=readJson(manifestFile,null);
+        if (manifest?.complete || manifest?.downloadComplete) {
+            manifest.preparedStory=path.relative(mediaDirOf(storyJson),storyJson);
+            fs.writeFileSync(manifestFile+'.prepared.tmp',JSON.stringify(manifest,null,2));
+            fs.renameSync(manifestFile+'.prepared.tmp',manifestFile);
+        }
+    }
     let failure = '';
     if (r.code !== 0) {
         const manifest = readJson(path.join(path.resolve(HERE, String(out)), 'manifest.json'), null);
@@ -713,7 +724,7 @@ async function doDownloadClips(a) {
 async function doJoin(a) {
     const clipsDir = a.clips_dir || (() => {
         const s = resolveStoryJson(a.story);
-        return s ? path.join(storyDirOf(s), 'clips') : null;
+        return s ? path.join(mediaDirOf(s), 'clips') : null;
     })();
     if (!clipsDir) return { ok: false, text: 'Give clips_dir, or a story whose clips/ folder exists.' };
     const abs = path.resolve(HERE, String(clipsDir));
@@ -743,7 +754,13 @@ async function doJoin(a) {
 async function doOrderClips(a) {
     const storyJson = resolveStoryJson(a.story);
     if (!storyJson) return { ok: false, text: 'Give a story (folder or JSON).' };
-    const args = [storyJson, '--write'];
+    const folder=mediaDirOf(storyJson);
+    const manifest=readJson(path.join(folder,'clips','manifest.json'),{});
+    const prepared=manifest.preparedStory?path.resolve(folder,manifest.preparedStory):null;
+    if(prepared&&(path.basename(prepared)!=='full_voiceover_story.json'||path.dirname(path.dirname(prepared))!==path.join(folder,'full_voiceover')||mediaDirOf(prepared)!==folder)){
+        return {ok:false,text:'RECOVERY_REVIEW_REQUIRED: Prepared audio binding does not match this clips folder.'};
+    }
+    const args = [prepared||storyJson, '--clips', path.join(folder,'clips'), '--write'];
     pushOpt(args, '--model', a.model);
     // Transcription is CPU-bound: allow well past a normal stage.
     const r = await runNode('order_clips_by_dialogue.js', args, { timeoutMs: 45 * 60 * 1000 });
@@ -801,7 +818,7 @@ async function verifyClipDurations(clipsDir, expectedSeconds, tolerance = 0.8) {
 
 function statusOf(storyJson) {
     const dir = storyDirOf(storyJson);
-    const clipsDir = path.join(dir, 'clips');
+    const clipsDir = path.join(mediaDirOf(storyJson), 'clips');
     const clips = downloadedClipCount(clipsDir);
     const finalFiles = fs.existsSync(dir)
         ? fs.readdirSync(dir).filter((f) => /_final\.mp4$/i.test(f)) : [];
@@ -1532,7 +1549,7 @@ const TOOLS = [
                         // The authoritative completion check: clips on disk. A
                         // project full of "usage limit"/failed tiles downloads
                         // nothing, and we must not join a partial or stale set.
-                        const cDir = path.join(storyDirOf(storyArg), 'clips');
+                        const cDir = path.join(mediaDirOf(storyArg), 'clips');
                         const got = downloadedClipCount(cDir);
                         if (!got) {
                             bad('download_clips', { text: 'no verified story clip files downloaded - not joining an empty or stale set.' });

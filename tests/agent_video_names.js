@@ -11,10 +11,10 @@ const assert=require('assert'),puppeteer=require('puppeteer'),N=require('../agen
  await page.evaluate(()=>{const tile=document.querySelector('flow-video-tile');const row=document.createElement('div');tile.before(row);const image=document.createElement('flow-image-tile');image.innerHTML='<span class="footer-title">Thumbnail</span>';row.append(image,tile);});
  const mixed=await M.snapshot(page);assert.equal(mixed[0].assetTitle,'Generic 1','an image sibling must never supply a video title');
  const mounted=await M.snapshot(page);const proof=mounted.map(t=>({...t,sourcePrompt:inventory.find(x=>x.assetId===t.assetId).sourcePrompt}));
- const result=await N.ensure(page,story,[{scene:1,assetId:'asset1'},{scene:2,assetId:'asset2'}],proof);
+ const result=await N.ensure(page,story,[{scene:1,assetId:'asset1'},{scene:2,assetId:'asset2'}],proof,{verify:async()=>{},sleep:async()=>{}});
  assert(result.every(t=>t.titleVerified));assert.deepEqual(await page.evaluate(()=>window.renames),[S.sceneId(story,1),S.sceneId(story,2)]);
  const after=await M.snapshot(page);assert.equal(after[0].assetTitle,S.sceneId(story,1));assert.equal(await page.$eval('flow-image-tile .footer-title',e=>e.textContent),'Environment');assert.equal(await page.evaluate(()=>window.generated),0);
- await N.ensure(page,story,[{scene:1,assetId:'asset1'},{scene:2,assetId:'asset2'}],after);assert.equal((await page.evaluate(()=>window.renames)).length,2,'resume must not rename already verified titles');
+ await N.ensure(page,story,[{scene:1,assetId:'asset1'},{scene:2,assetId:'asset2'}],after,{verify:async()=>{},sleep:async()=>{}});assert.equal((await page.evaluate(()=>window.renames)).length,2,'resume must not rename already verified titles');
  await page.setContent('<div class="cdk-overlay-container"><button role="menuitem">edit Rename</button><button role="menuitem">edit Rename</button></div>');
  assert.equal(await page.evaluate(N.renameMenuTarget),null,'two distinct active Rename actions must remain ambiguous');
  console.log('PASS: unique source IDs become exact visible video titles with read-back verification; generic/duplicate proof rejected; references and generation untouched; naming idempotent.');

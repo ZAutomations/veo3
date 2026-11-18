@@ -62,12 +62,12 @@ def voices(provider):
     if isinstance(data,dict): data=data.get('voices',[])
     return [{'voice_id':v.get('voice_id',v.get('id','')), 'name':v.get('name','Voice')} for v in data]
 
-def synthesize(provider, voice, text, target, language=None):
+def synthesize(provider, voice, text, target, language=None,delivery=None):
     target=Path(target)
     if target.is_file() and target.stat().st_size: return target
     if provider=='google':
         import google_tts
-        return google_tts.synthesize(voice,text,target,language)
+        return google_tts.synthesize(voice,text,target,language,**({"delivery":delivery} if delivery else {}))
     if provider=='heygen':
         import heygen_audio
         receipt=target.with_suffix('.heygen.json')
@@ -140,11 +140,14 @@ def replace_audio(source, output, cfg, work, report=None, aligned_speech_end=Non
     mode=cfg['voiceover_mode'];info=E.probe(source)
     end=E.original_end_card_start(source,report) or info['duration']
     plans=[]
+    keep_background=mode=='prepared'
     if mode=='prepared':
         story=json.loads(Path(cfg['_audio_first_story']).read_text(encoding='utf-8-sig'))
         starts=[0.]+[t for t in E.original_boundaries(source,report) if t<end-.01]
         if aligned_speech_end is None and len(starts)!=len(story['scenes']): raise ValueError('Audio First needs verified scene boundaries before mixing.')
         if story.get('full_voiceover_first'):
+            keep_background=cfg.get('full_voiceover_keep_source_audio',False) or story.get('local_dubbing',{}).get('keep_background_gain') is True
+            if not keep_background:E.log('Full Voiceover First: source Veo audio muted to prevent duplicate speech.')
             audio=Path(story['full_voiceover_file']);duration=audio_duration(audio)
             if aligned_speech_end is not None:
                 end=aligned_speech_end
@@ -176,8 +179,10 @@ def replace_audio(source, output, cfg, work, report=None, aligned_speech_end=Non
         for i,(scene,start,stop) in enumerate(zip(scenes,starts,starts[1:]+[end])):
             text=str(scene.get('script_line') or '').strip()
             if not text: raise ValueError(f'Scene {i+1} has no narration text.')
-            digest=hashlib.sha256(json.dumps([cfg['voiceover_provider'],voice,text]).encode()).hexdigest()
-            audio=synthesize(cfg['voiceover_provider'],voice,text,cache/(digest+'.mp3'))
+            from narration_delivery import scene_profile
+            delivery=scene_profile(story,i)
+            digest=hashlib.sha256(json.dumps([cfg['voiceover_provider'],voice,text,delivery]).encode()).hexdigest()
+            audio=synthesize(cfg['voiceover_provider'],voice,text,cache/(digest+'.mp3'),**({'delivery':delivery} if cfg['voiceover_provider']=='google' else {}))
             plans.append((audio,0.,audio_duration(audio),start,stop))
     else:
         audio=Path(cfg['voiceover_file']).expanduser().resolve()
@@ -206,7 +211,7 @@ def replace_audio(source, output, cfg, work, report=None, aligned_speech_end=Non
     if mode=='prepared':
         E.run(args+['-filter_complex',';'.join(filters),'-map','[voice]','-c:a','pcm_s16le',work/'narration_timeline.wav'])
     audio_map='[voice]'
-    if mode=='prepared' and info['audio']:
+    if keep_background and info['audio']:
         filters += ['[voice]asplit=2[narr][duck]',f'[0:a]volume={float(cfg.get("_background_gain",.35))}[bg]',
             '[bg][duck]sidechaincompress=threshold=0.02:ratio=6:attack=15:release=250[quietbg]',
             f'[quietbg][narr]amix=inputs=2:normalize=0,apad,atrim=duration={info["duration"]}[mixed]']
@@ -214,5 +219,5 @@ def replace_audio(source, output, cfg, work, report=None, aligned_speech_end=Non
     args+=['-filter_complex',';'.join(filters),'-map','0:v:0','-map',audio_map,'-c:v','copy','-c:a','aac','-t',str(info['duration']),output]
     E.run(args)
     (work/'voiceover_sync.json').write_text(json.dumps([{'audio':str(p),'audio_start':a,'audio_end':b,'video_start':s,'video_end':e} for p,a,b,s,e in plans],indent=2))
-    E.log(f'External narration aligned: {len(plans)} segment(s). '+('Audio First background retained with narration ducking.' if mode=='prepared' else 'Original mixed audio replaced; thumbnail region stays silent.'))
+    E.log(f'External narration aligned: {len(plans)} segment(s). '+('Audio First background retained with narration ducking.' if keep_background and info['audio'] else 'Original mixed audio replaced; thumbnail region stays silent.'))
     return output

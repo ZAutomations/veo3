@@ -109,16 +109,18 @@ def prepare_language_audio(story,root,profile,durations):
     for i,(scene,text,start,stop) in enumerate(zip(package['scenes'],texts,starts,starts[1:]+[end])):
         limit=min(9.8 if story.get('scene_seconds')==10 else stop-start-.15,stop-start-.15)
         for attempt in range(3):
-            digest=hashlib.sha256(json.dumps([profile,text]).encode()).hexdigest()[:20]
+            from narration_delivery import scene_profile
+            delivery=scene_profile(story,i)
+            digest=hashlib.sha256(json.dumps([profile,text,delivery]).encode()).hexdigest()[:20]
             cached=work/(digest+'.mp3')
             if not cached.exists():
                 previous=next((f for f in root.parent.glob('*/'+code+'/'+digest+'.mp3') if f.is_file() and f.stat().st_size),None)
                 if previous:V.audio_duration(previous);shutil.copy2(previous,cached)
-            audio=V.synthesize(profile['provider'],profile['voice'],text,cached,language=code) if profile['provider']=='google' else V.synthesize(profile['provider'],profile['voice'],text,cached)
+            audio=V.synthesize(profile['provider'],profile['voice'],text,cached,language=code,delivery=delivery) if profile['provider']=='google' else V.synthesize(profile['provider'],profile['voice'],text,cached)
             actual=V.audio_duration(audio)
             if profile['provider']=='google' and actual>limit*MAX_LANGUAGE_SPEED:
                 import google_tts
-                audio,actual=google_tts.recover_timing(profile['voice'],text,audio,limit,language=code,max_rate=MAX_LANGUAGE_SPEED)
+                audio,actual=google_tts.recover_timing(profile['voice'],text,audio,limit,language=code,max_rate=MAX_LANGUAGE_SPEED,delivery=delivery)
             if actual<=limit*MAX_LANGUAGE_SPEED:break
             if story.get('multilingual_translation_mode')=='supplied_only':
                 atomic(work/'TIMING_REPAIR.json',dict(language=code,scene=i+1,actual_seconds=actual,target_seconds=limit,narration=text,english=manifest['source_lines'][i],suggested_max_characters=max(1,int(len(text)*limit/actual*.92)),note='Shorten this supplied line, preserving facts; no Gemini call or speech crop was made.'))
@@ -159,10 +161,13 @@ def render(body, prepared_story=None):
     if prepared_story is not None:story=prepared_story
     cfg=configuration(body.get('multilingual') or story.get('multilingual'))
     if not cfg['enabled']:return []
-    from story_output import story_title_base,story_video_path
+    from story_output import story_title_base,story_video_path,full_voiceover_media_folder,prepared_story_for_media
     if not story.get('audio_first'):raise ValueError('Choose a prepared Audio First story, not a native narrated video.')
-    raw=file.parent/(story_title_base(file)+' raw.mp4');report=file.parent/'JOINED_CLIP_ORDER.txt'
-    if not raw.is_file() or not story_video_path(file).is_file():raise ValueError('Complete the English Audio First join/edit before rendering additional languages.')
+    media_folder=full_voiceover_media_folder(file)
+    raw=media_folder/(story_title_base(file)+' raw.mp4');report=media_folder/'JOINED_CLIP_ORDER.txt'
+    if media_folder!=file.parent and prepared_story_for_media(raw)!=file:
+        raise ValueError('The joined media is bound to a different Full Voiceover First package.')
+    if not raw.is_file() or not (media_folder/story_video_path(file).name).is_file():raise ValueError('Complete the English Audio First join/edit before rendering additional languages.')
     info=E.probe(raw);end=E.original_end_card_start(raw,report) or info['duration']
     starts=[0.]+[t for t in E.original_boundaries(raw,report) if t<end-.01]
     if len(starts)!=len(story['scenes']):raise ValueError('Multilingual rendering needs verified scene boundaries; no grid-order guessing.')
@@ -170,7 +175,8 @@ def render(body, prepared_story=None):
     if full:
         from full_voiceover import validate_tracks
         tracks=validate_tracks(story,cfg)
-        root=file.parent/'localized';root.mkdir(exist_ok=True)
+        root=(media_folder/'video_editing'/'full_voiceover_languages'/file.parent.name if media_folder!=file.parent else file.parent/'localized')
+        root.mkdir(parents=True,exist_ok=True)
     else:root=prepare_scripts(file,cfg,prepared_story=prepared_story)
     outputs=[]
     settings=E.settings(body.get('editingSettings'));settings.update(silence_removal_enabled=False,audio_first_trim_gaps=False,preset_cta_enabled=False)
@@ -187,6 +193,13 @@ def render(body, prepared_story=None):
         if prepared_story is not None:
             package['local_dubbing'] = {'source':str(raw),'no_english_generation':True}
             atomic(work/'localized_story.json',package)
+        local_cfg=dict(settings,caption_language=LANGUAGES[code].lower() if code in ('ru','ar','hi','ur','ja') else 'auto')
+        output=media_folder/(story_title_base(file)+' '+LANGUAGES[code]+'.mp4')
+        print('MULTILINGUAL: Rendering '+LANGUAGES[code],flush=True)
+        if media_folder!=file.parent:
+            final=E.edit(raw,local_cfg,report,output,story_file=work/'localized_story.json')
+            outputs.append(str(final));atomic(work/'completed.json',dict(output=str(final),profile=profile))
+            continue
         local_raw=work/raw.name
         if local_raw.exists() and not os.path.samefile(raw,local_raw):
             def media_hash(p):
@@ -203,9 +216,6 @@ def render(body, prepared_story=None):
         if not local_report.is_file() or local_report.read_text(encoding='utf-8')!=report_text:local_report.write_text(report_text,encoding='utf-8')
         for image in [*file.parent.glob('thumbnail_downloaded.*'),*file.parent.glob(story_title_base(file)+'.*')]:
             if image.suffix.lower() in ('.jpg','.jpeg','.png','.webp'):shutil.copy2(image,work/image.name)
-        local_cfg=dict(settings,caption_language=LANGUAGES[code].lower() if code in ('ru','ar','hi','ur','ja') else 'auto')
-        output=file.parent/(story_title_base(file)+' '+LANGUAGES[code]+'.mp4')
-        print('MULTILINGUAL: Rendering '+LANGUAGES[code],flush=True)
         final=E.edit(local_raw,local_cfg,local_report,output)
         outputs.append(str(final));atomic(work/'completed.json',dict(output=str(final),profile=profile))
     print('MULTILINGUAL_OUTPUTS: '+json.dumps(outputs,ensure_ascii=False),flush=True)

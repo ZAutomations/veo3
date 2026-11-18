@@ -1,8 +1,14 @@
 const fs=require('fs'),crypto=require('crypto');
 const media=require('./single_clip_omni_media');
+const {sourceJob}=require('./agent_scene_ids');
+const {isSilent}=require('./silent_scene_identity');
+function sourceJobs(story,to){
+ const silentVisual=isSilent(story);
+ return story.scenes.slice(0,to).map((_,i)=>sourceJob(story,i+1,silentVisual));
+}
 function planMissing(story,intent,result){
  if((!result.exhaustive&&!result.targetsVerified)||result.generatingSeen||result.unidentifiedSources)throw Error('Missing-scene recovery needs a complete, idle project with identified source prompts. Nothing resubmitted.');
- const jobs=story.scenes.slice(0,intent.to).map((scene,i)=>({number:i+1,scene,sceneId:require('./agent_scene_ids').sceneId(story,i+1),prompt:scene.veo3_prompt||scene.script_line||''}));
+ const jobs=sourceJobs(story,intent.to);
  const completed=[],missing=[],byScene=new Map();
  for(const tile of result.tiles){
   // A refused generation has no playable asset URL. Its exact scene/source
@@ -39,7 +45,7 @@ async function prepare({engine,storyFile,submissionFile,text,inspect,wait}){
  const source=fs.readFileSync(storyFile,'utf8'),story=JSON.parse(source),intent=JSON.parse(fs.readFileSync(submissionFile,'utf8'));
  if(!Number.isInteger(intent.from)||!Number.isInteger(intent.to)||intent.from<1||intent.to<intent.from||intent.to>story.scenes.length)throw Error('RECOVERY_REVIEW_REQUIRED: Missing-scene checkpoint range is invalid. Nothing resubmitted.');
  if(crypto.createHash('sha256').update(source).digest('hex')!==intent.fingerprint)throw Error('Story fingerprint changed; missing-scene recovery stopped.');
- const jobs=story.scenes.slice(0,intent.to).map((scene,i)=>({number:i+1,scene,sceneId:require('./agent_scene_ids').sceneId(story,i+1),prompt:scene.veo3_prompt||scene.script_line||''}));
+ const jobs=sourceJobs(story,intent.to);
  const first=planMissing(story,intent,await inspect(engine,jobs));
  if(!first.missing.length)return null;
  await wait(8000);
@@ -114,4 +120,4 @@ function recoveryOwnsRetries(submissionFile){
  // Once revised prompts own this batch, never click its old failed tiles too.
  return receipt;
 }
-module.exports={planMissing,missingPrompt,prepare,markSubmitting,confirmObservedSubmission,pendingSubmission,recoveryOwnsRetries};
+module.exports={sourceJobs,planMissing,missingPrompt,prepare,markSubmitting,confirmObservedSubmission,pendingSubmission,recoveryOwnsRetries};

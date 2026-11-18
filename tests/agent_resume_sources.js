@@ -18,6 +18,28 @@ const {reconcileSources}=require('../agent_batch_reconcile');
   assert.equal(await reconcileSources({}, {...snapshot,mediaTiles:{...snapshot.mediaTiles,generating_video_tile:1}},manifest,5,file,{inspect}),null);
   assert.equal(await reconcileSources({},snapshot,{...manifest,context:{fingerprint:'changed'}},5,file,{inspect}),null);
   assert.equal(calls,1,'unsafe counts/state/story must not start inspection');
+  const silent={narrated:false,audio_first:true,scenes:[{shots:[
+   {visual:'Follow the blue marker as it crosses the river and stops beside the northern bridge.'},
+   {visual:'Pan to the foothills while the amber marker traces the road to the mountain pass.'}
+  ]}]};
+  const silentSource=JSON.stringify(silent);
+  fs.writeFileSync(file,silentSource);
+  const silentManifest={context:{fingerprint:crypto.createHash('sha256').update(silentSource).digest('hex')},total:1,batches:[{from:1,to:1}]};
+  const silentSnapshot={...snapshot,mediaTiles:{...snapshot.mediaTiles,ready_video_tile:1,flow_video_tile:1}};
+  const media=require('../single_clip_omni_media');
+  const naming=require('../agent_video_names');
+  const tile={ready:true,assetId:'video-1',text:'Map animation',sourcePrompt:silent.scenes[0].shots.map(s=>s.visual).join('\n')};
+  const inspectTiles=tiles=>async(_,jobs)=>({found:{1:media.locateJob(tiles,jobs[0])}});
+  const tiles=[{...tile,text:tile.text+'\n'+tile.sourcePrompt}];
+  assert.deepEqual(await reconcileSources({},silentSnapshot,silentManifest,0,file,{inspect:inspectTiles(tiles)}),
+   {completed:1,verified:[{from:1,to:1}]});
+  const targets=[{scene:1,assetId:tile.assetId}];
+  assert.equal(naming.plan(silent,targets,[tile])[0].assetId,tile.assetId);
+  const captionOnly={...tile,sourcePrompt:''};
+  assert.equal(await reconcileSources({},silentSnapshot,silentManifest,0,file,{inspect:inspectTiles([captionOnly])}),null);
+  assert.throws(()=>naming.plan(silent,targets,[captionOnly]),/source identity is unverified/);
+  await assert.rejects(reconcileSources({},silentSnapshot,silentManifest,0,file,{inspect:inspectTiles([...tiles,{...tiles[0],assetId:'duplicate'}])}),
+   /SCENE_ASSET_AMBIGUITY/);
   console.log('PASS: stale 5/7 checkpoint reconciled by exact existing sources; wrong sources, extra clips, pending media and changed stories rejected.');
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -14,11 +14,11 @@ assert(I.plan(footerTiles,story).every(e=>e.receipt.nativeResolution===360&&!e.r
 assert.equal(I.plan(tiles.slice(0,7),story),null,'incomplete IDs cannot authorize full mapping');
 assert.equal(I.plan(tiles.map(t=>({...t,caption:'',prompt:injected})),story),null,'a shared batch prompt is not individual identity');
 assert.throws(()=>I.plan([...tiles,{...tiles[0],assetId:'duplicate'}],story),/multiple completed/);
-assert.equal(I.plan(tiles.map(t=>({...t,caption:t.caption.replace(I.prefix(story),'V3_aaaaaaaaaaaa'),prompt:''})),story),null);
+assert.throws(()=>I.plan(tiles.map(t=>({...t,caption:t.caption.replace(I.prefix(story),'V3_aaaaaaaaaaaa'),prompt:''})),story),/unexpected scene ID/);
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'scene-ids-'));
 (async()=>{try{
  const file=path.join(temp,'story.json');fs.writeFileSync(file,JSON.stringify(story));let captured;
- const Fake=class{constructor(engine,options){captured=this;this.options=options;}async group(jobs,receipts){this.jobs=jobs;this.receipts=receipts;}async close(){}};
+ const Fake=class{constructor(engine,options){captured=this;this.options=options;}async group(jobs,receipts){this.jobs=jobs;this.receipts=receipts;}async parallelGroup(jobs,receipts){return this.group(jobs,receipts);}save(){}async close(){}};
  const moduleStub={exports:{}};
  const requireMock=n=>n==='./single_clip_omni_upscaled'?{UpscaledDownloader:Fake}:n==='./single_clip_omni_recovery'?{inspectProject:async()=>{throw Error('ID mapping must not inspect source prompts');}}:n.startsWith('./')?require(path.join(__dirname,'..',n)):require(n);
  vm.runInNewContext(fs.readFileSync(require.resolve('../agent_upscaled_download'),'utf8'),{module:moduleStub,exports:moduleStub.exports,require:requireMock,console});

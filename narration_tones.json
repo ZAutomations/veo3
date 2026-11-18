@@ -1,0 +1,138 @@
+{
+  "version": 1,
+  "profiles": {
+    "geography-map": "Brisk, curious cartographic storyteller. Clear place names and dates; measured urgency for campaigns, respectful gravity for disasters; no sensational shouting.",
+    "fern-documentary": "Investigative documentary narrator: intimate curiosity, controlled suspense, precise facts, restrained gravity; confident reveals without a trailer voice.",
+    "3d-zack-style": "Energetic conversational science explainer: playful curiosity, punchy emphasis on mechanisms, friendly surprise and a crisp satisfying reveal.",
+    "intimacy-health-3d": "Warm, confident, lightly witty adult health educator. Playful myth hooks, reassuring factual explanations, empathetic sensitivity; never seductive, mocking or clinical monotone.",
+    "cats-behavior-3d": "Playful affectionate animal-science storyteller: mischievous curiosity, warm empathy, delighted discoveries and clear factual explanations.",
+    "world-politics-map-explain": "Clear analytical civic explainer: alert curiosity, neutral factual authority, restrained urgency; distinguish claims and uncertainty without partisan triumph or alarmism.",
+    "health-wellness": "Reassuring evidence-led educator with warm confidence, gentle curiosity and clear factual emphasis.",
+    "ww2-history": "Engaging historical narrator: strategic curiosity, controlled intensity, sober respect for suffering and a clear factual resolution.",
+    "default": "Engaging conversational storyteller with curious hooks, clear explanations, natural emotional nuance and a satisfying conclusion. Preserve the established niche and narrator identity.",
+    "3d-explainer": "Engaging 3d explainer storyteller: natural curiosity, clear emphasis and confident delivery suited to the established niche; subtle emotion without a flat monotone.",
+    "3d-map": "Engaged historical storyteller; clear geographical detail, controlled strategic urgency and respectful gravity.",
+    "3d-moral-story": "Emotionally present conversational delivery; sincere tension, thoughtful emphasis and restrained warmth. Preserve the established speakers; never add a narrator to dialogue-only scenes.",
+    "3d-motivational-red-green": "Emotionally present conversational delivery; sincere tension, thoughtful emphasis and restrained warmth. Preserve the established speakers; never add a narrator to dialogue-only scenes.",
+    "animal-kindness": "Affectionate playful animal storyteller with curious discoveries and empathetic factual explanations.",
+    "anime-cinematic": "Expressive warm cinematic storyteller; wonder, playful reactions and sincere emotional nuance suited to the established animation style.",
+    "avatar-korra": "Expressive warm cinematic storyteller; wonder, playful reactions and sincere emotional nuance suited to the established animation style.",
+    "cartoon-network": "Expressive warm cinematic storyteller; wonder, playful reactions and sincere emotional nuance suited to the established animation style.",
+    "chibi-cute": "Expressive warm cinematic storyteller; wonder, playful reactions and sincere emotional nuance suited to the established animation style.",
+    "cooking": "Lively, appetizing practical guide; friendly enthusiasm, crisp steps and satisfying reveals.",
+    "disney-classic": "Expressive warm cinematic storyteller; wonder, playful reactions and sincere emotional nuance suited to the established animation style.",
+    "fall-asleep": "Gentle intimate storyteller; soft stable delivery and subtle wonder, without abrupt dramatic shifts.",
+    "fantasy-princess-relationship-advice": "Emotionally present conversational delivery; sincere tension, thoughtful emphasis and restrained warmth. Preserve the established speakers; never add a narrator to dialogue-only scenes.",
+    "gaming-esports": "Engaging gaming esports storyteller: natural curiosity, clear emphasis and confident delivery suited to the established niche; subtle emotion without a flat monotone.",
+    "genai-3d-render": "Engaging genai 3d render storyteller: natural curiosity, clear emphasis and confident delivery suited to the established niche; subtle emotion without a flat monotone.",
+    "genai-anime-recap": "Expressive warm cinematic storyteller; wonder, playful reactions and sincere emotional nuance suited to the established animation style.",
+    "genai-crime-2d": "Controlled suspense, quiet intrigue and restrained dramatic reveals without speed jumps.",
+    "genai-dark-conspiracy": "Controlled suspense, quiet intrigue and restrained dramatic reveals without speed jumps.",
+    "genai-history-cel": "Engaged historical storyteller; clear geographical detail, controlled strategic urgency and respectful gravity.",
+    "genai-history-graphic": "Engaged historical storyteller; clear geographical detail, controlled strategic urgency and respectful gravity.",
+    "genai-history-painterly": "Engaged historical storyteller; clear geographical detail, controlled strategic urgency and respectful gravity.",
+    "genai-horror-2d": "Controlled suspense, quiet intrigue and restrained dramatic reveals without speed jumps.",
+    "genai-oil-finance": "Confident, measured financial explainer; curious hooks and clear numerical emphasis without hype.",
+    "genai-papercut-finance": "Confident, measured financial explainer; curious hooks and clear numerical emphasis without hype.",
+    "genai-papercut-history": "Engaged historical storyteller; clear geographical detail, controlled strategic urgency and respectful gravity.",
+    "genai-space-cel": "Wonder-filled clear science explainer; lively curiosity and confident precise explanations.",
+    "genai-stick-battle": "Engaged historical storyteller; clear geographical detail, controlled strategic urgency and respectful gravity.",
+    "genai-stick-flat": "Engaging genai stick flat storyteller: natural curiosity, clear emphasis and confident delivery suited to the established niche; subtle emotion without a flat monotone.",
+    "genai-stick-realface": "Engaging genai stick realface storyteller: natural curiosity, clear emphasis and confident delivery suited to the established niche; subtle emotion without a flat monotone.",
+    "genai-stick-whiteface": "Engaging genai stick whiteface storyteller: natural curiosity, clear emphasis and confident delivery suited to the established niche; subtle emotion without a flat monotone.",
+    "genai-stone-age": "Engaging genai stone age storyteller: natural curiosity, clear emphasis and confident delivery suited to the established niche; subtle emotion without a flat monotone.",
+    "genai-vector-health": "Engaging genai vector health storyteller: natural curiosity, clear emphasis and confident delivery suited to the established niche; subtle emotion without a flat monotone.",
+    "genai-vox-collage-business": "Confident, measured financial explainer; curious hooks and clear numerical emphasis without hype.",
+    "genai-vox-collage-crime": "Controlled suspense, quiet intrigue and restrained dramatic reveals without speed jumps.",
+    "genai-vox-collage-history": "Engaged historical storyteller; clear geographical detail, controlled strategic urgency and respectful gravity.",
+    "ghibli": "Expressive warm cinematic storyteller; wonder, playful reactions and sincere emotional nuance suited to the established animation style.",
+    "heartwarming-cat-3d": "Affectionate playful animal storyteller with curious discoveries and empathetic factual explanations.",
+    "lofi-anime": "Gentle intimate storyteller; soft stable delivery and subtle wonder, without abrupt dramatic shifts.",
+    "mafia": "Controlled suspense, quiet intrigue and restrained dramatic reveals without speed jumps.",
+    "personal-finance": "Confident, measured financial explainer; curious hooks and clear numerical emphasis without hype.",
+    "pixar-3d": "Expressive warm cinematic storyteller; wonder, playful reactions and sincere emotional nuance suited to the established animation style.",
+    "realistic-cgi": "Engaging realistic cgi storyteller: natural curiosity, clear emphasis and confident delivery suited to the established niche; subtle emotion without a flat monotone.",
+    "reference-babyandghost-relationship": "Emotionally present conversational delivery; sincere tension, thoughtful emphasis and restrained warmth. Preserve the established speakers; never add a narrator to dialogue-only scenes.",
+    "reference-cinematic-sarah-sam": "Engaging reference cinematic sarah sam storyteller: natural curiosity, clear emphasis and confident delivery suited to the established niche; subtle emotion without a flat monotone.",
+    "reference-wisdom-decoded": "Engaging reference wisdom decoded storyteller: natural curiosity, clear emphasis and confident delivery suited to the established niche; subtle emotion without a flat monotone.",
+    "reference-wolf-dark-secrets-fable-dialogue": "Controlled suspense, quiet intrigue and restrained dramatic reveals without speed jumps.",
+    "relationship-cinematic-quiet-power": "Emotionally present conversational delivery; sincere tension, thoughtful emphasis and restrained warmth. Preserve the established speakers; never add a narrator to dialogue-only scenes.",
+    "relationship-dialogue-3d": "Emotionally present conversational delivery; sincere tension, thoughtful emphasis and restrained warmth. Preserve the established speakers; never add a narrator to dialogue-only scenes.",
+    "relationship-dialogue-colorful-cartoon": "Expressive warm cinematic storyteller; wonder, playful reactions and sincere emotional nuance suited to the established animation style.",
+    "relationship-dialogue-dog-couple": "Emotionally present conversational delivery; sincere tension, thoughtful emphasis and restrained warmth. Preserve the established speakers; never add a narrator to dialogue-only scenes.",
+    "relationship-dialogue-ghibli": "Expressive warm cinematic storyteller; wonder, playful reactions and sincere emotional nuance suited to the established animation style.",
+    "relationship-dialogue-real": "Emotionally present conversational delivery; sincere tension, thoughtful emphasis and restrained warmth. Preserve the established speakers; never add a narrator to dialogue-only scenes.",
+    "relationship-dialogue": "Emotionally present conversational delivery; sincere tension, thoughtful emphasis and restrained warmth. Preserve the established speakers; never add a narrator to dialogue-only scenes.",
+    "relationship-narration-colorful-cartoon": "Expressive warm cinematic storyteller; wonder, playful reactions and sincere emotional nuance suited to the established animation style.",
+    "relationship": "Emotionally present conversational delivery; sincere tension, thoughtful emphasis and restrained warmth. Preserve the established speakers; never add a narrator to dialogue-only scenes.",
+    "science-what-if": "Wonder-filled clear science explainer; lively curiosity and confident precise explanations.",
+    "shinkai": "Expressive warm cinematic storyteller; wonder, playful reactions and sincere emotional nuance suited to the established animation style.",
+    "technology-ai": "Wonder-filled clear science explainer; lively curiosity and confident precise explanations.",
+    "travel-adventure": "Inviting adventurous storyteller; warm discovery, local detail and a clear sense of movement.",
+    "true-crime": "Controlled suspense, quiet intrigue and restrained dramatic reveals without speed jumps.",
+    "vintage-anime-90s": "Expressive warm cinematic storyteller; wonder, playful reactions and sincere emotional nuance suited to the established animation style."
+  },
+  "situation_rules": [
+    {
+      "words": [
+        "killed",
+        "deaths",
+        "died",
+        "casualties",
+        "devastated",
+        "tragedy",
+        "suffering",
+        "disaster",
+        "earthquake"
+      ],
+      "tone": "Respectful gravity and empathy; clear steady delivery, no cheerful punchline or sensational emphasis."
+    },
+    {
+      "words": [
+        "attack",
+        "battle",
+        "war",
+        "missile",
+        "invasion",
+        "strikes",
+        "military",
+        "army",
+        "campaign"
+      ],
+      "tone": "Engaged strategic storytelling with controlled urgency and crisp emphasis; never shout or accelerate."
+    },
+    {
+      "words": [
+        "myth",
+        "debunk",
+        "actually",
+        "surprisingly",
+        "secret",
+        "unexpected"
+      ],
+      "tone": "Curious setup followed by a confident, lightly surprised factual reveal."
+    },
+    {
+      "words": [
+        "recovery",
+        "recover",
+        "healing",
+        "comfort",
+        "anxiety",
+        "nervous"
+      ],
+      "tone": "Warm reassurance and empathy; confident clear explanations without slowing into a solemn lecture."
+    },
+    {
+      "words": [
+        "collapsed",
+        "failed",
+        "blocked",
+        "trapped",
+        "danger",
+        "risk"
+      ],
+      "tone": "Controlled suspense and concern; precise emphasis while retaining the established baseline pace."
+    }
+  ]
+}

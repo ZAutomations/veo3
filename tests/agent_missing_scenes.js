@@ -56,6 +56,27 @@ const driver=fs.readFileSync(require.resolve('../agent_mode'),'utf8');assert(dri
   assert(r.pendingSubmission(submissionFile,baseline),'legacy receipt must not mistake existing clips for new activity');
   const changed={...result,tiles:[...tiles,{text:story.scenes[1].script_line,ready:true,assetId:'new'}]};let n=0;
   await assert.rejects(r.prepare({...opts,inspect:async()=>++n===1?result:changed}),/changed/);
+  const silent={narrated:false,audio_first:true,scenes:[{shots:[
+   {visual:'Follow the blue marker as it crosses the river and stops beside the northern bridge.'},
+   {visual:'Pan to the foothills while the amber marker traces the road to the mountain pass.'},
+  ]}]};
+  const silentSource=JSON.stringify(silent);
+  fs.writeFileSync(storyFile,silentSource);
+  fs.writeFileSync(submissionFile,JSON.stringify({from:1,to:1,fingerprint:crypto.createHash('sha256').update(silentSource).digest('hex')}));
+  const visual=silent.scenes[0].shots.map(shot=>shot.visual).join('\n');
+  const silentTile={assetId:'background-1',ready:true,sourcePrompt:visual,text:'Map animation\n'+visual};
+  let silentReads=0;
+  assert.equal(await r.prepare({...opts,inspect:async(_,jobs)=>{
+   silentReads++;
+   assert.equal(media.locateJob([silentTile],jobs[0]),silentTile);
+   return {...result,tiles:[silentTile]};
+  }}),null,'verified silent clip completes preflight without resubmission');
+  assert.equal(silentReads,1);
+  for(const tile of [
+   {...silentTile,text:'Map animation',sourcePrompt:''},
+   {...silentTile,assetTitle:identity.sceneId(silent,2)},
+   {...silentTile,text:silentTile.text+' '+identity.sceneId(silent,1)+' '+identity.sceneId(silent,2)},
+  ])assert.throws(()=>r.planMissing(silent,{from:1,to:1},{...result,tiles:[tile]}),/does not map uniquely/);
  }finally{fs.rmSync(folder,{recursive:true,force:true});}
  console.log('PASS: preserves two successes, selects only three missing scenes; refuses partial scans, ambiguity, active jobs and uncertain duplicate submissions; confirms inventory twice.');
 })().catch(e=>{console.error(e);process.exitCode=1;});

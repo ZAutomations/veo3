@@ -17,7 +17,9 @@ async function prepareAgentBatches(a, storyJson, state, run, log = () => {}) {
     let old;
     try { old = JSON.parse(fs.readFileSync(manifestFile, 'utf8')); } catch (_) {}
     const generator = digest(['story_to_agent_prompt.js', 'simple_dialogue_prompt.js',
-        'dialogue_shot_plan.js', 'dialogue_speakers.js', 'location_style.js']
+        'dialogue_shot_plan.js', 'dialogue_speakers.js', 'location_style.js',
+        'agent_scene_ids.js', 'audio_first_prompt.js', 'silent_scene_identity.js',
+        'narration_delivery.js', 'narration_tones.json']
         .map(name => fs.readFileSync(path.join(__dirname, name), 'utf8')).join('\n'));
     const context = { fingerprint: state.fingerprint, aspect: state.aspect,
         flow_characters: !!a.flow_characters, generator };

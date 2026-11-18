@@ -7,6 +7,13 @@ import desktop_app as app
 from fastapi import HTTPException
 items=app.master_prompt_list()
 assert len(items)==len(app.presets())
+intake=(app.ROOT/'story_intake_contract.txt').read_text(encoding='utf-8-sig').strip()
+for item in items:
+    if item['available']:
+        text=app.master_prompt(item['id'])['text']
+        assert text.startswith(intake+'\n\n'),item['id']
+        assert text.count('[BEGIN REQUIRED STORY INTAKE')==1,item['id']
+assert not app.master_prompt('video-reverse-engineering')['text'].startswith(intake)
 for preset in ['3d-zack-style','fern-documentary','3d-motivational-red-green']:
     result=app.master_prompt(preset)
     expected=(app.ROOT/'Master prompts'/(preset+'.txt')).read_text(encoding='utf-8-sig')

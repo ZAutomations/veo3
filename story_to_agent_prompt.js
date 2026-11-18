@@ -528,6 +528,7 @@ if (NARRATED && !DIALOGUE) {
 }
 if(story.audio_first)body=require('./audio_first_prompt').agent(story,{from:rangeFrom,to:rangeTo,seconds:SECONDS,aspect:aspectRaw});
 body = require('./reference_identity').forAgent(body, storyPath, [...charNames, placeName].filter(Boolean));
+if(!story.audio_first)body+='\n\nVOICE DELIVERY DIRECTION (do not speak these instructions): '+require('./narration_delivery').direction(story);
 body = require('./agent_scene_ids').inject(body,story);
 const outPath = OUT || path.join(path.dirname(storyPath), 'agent_prompt.txt');
 
@@ -615,6 +616,8 @@ if (INTRO) {
         console.log(`               WARNING: ${scenes.length - withSound} scene(s) have no sound brief.`);
         console.log('               The agent will invent the audio for those clips. Add sound_context.');
     }
+} else if (story.audio_first) {
+    console.log('               External voiceover is prepared separately; silent visual scenes are intentional.');
 } else if (!DIALOGUE && !require('./reference_video_preset').applies(story) && !require('./heartwarming_cat').applies(story) && withNarration < scenes.length) {
     console.log(`               WARNING: ${scenes.length - withNarration} scene(s) have no narration text.`);
     console.log('               The agent will INVENT those scenes. Add script_line to the story JSON.');

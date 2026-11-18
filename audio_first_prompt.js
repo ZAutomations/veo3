@@ -11,10 +11,9 @@ function scene(story,index,{seconds=story.scene_seconds,aspect=story.aspect_rati
  require('./fast_camera_rhythm').detailBeat(story),
  `VISUAL PLAN: ${s.narrative_context||''}`,
  ...(s.shots||[]).map((shot,i)=>`SHOT ${i+1}: ${shot.start_seconds}-${shot.end_seconds}s: ${shot.visual}`),
- `EXTERNAL NARRATION CONTEXT — NEVER SPEAK OR DISPLAY THIS TEXT: ${s.external_narration||''}`,
- `Narration audio lasts ${s.audio_first_duration}s and is added later. Show each supplied action during its timed shot, without inventing events.`,
- ...(story.full_voiceover_first?['FULL VOICEOVER FIRST: narration is one continuous external track. This visual clip covers '+s.full_voiceover_start+'–'+s.full_voiceover_end+' seconds of that track. Words may continue across clip boundaries; do not add a pause, title card or ending. Keep all remaining visual time active with relevant movement, never a frozen hold.']:[]),
- 'NATIVE AUDIO: ONLY natural environmental ambience and action-matched SFX. NO narration, dialogue, speech, whispering, singing, vocals or music. All visible characters remain non-speaking; animals may move their mouths only for the supplied natural behavior, never lip-sync narration. Do not read any prompt text aloud. No captions or subtitles. Preserve quiet space for a separately mixed narration track.',
+ 'Show each supplied action during its timed shot. Use the visual plan and its timed actions as the complete scene brief.',
+ ...(story.full_voiceover_first?['Keep the full visual runtime active with relevant movement. Finish the supplied action without an extra pause, frozen frame, title card or ending.']:[]),
+ 'AUDIO REQUIREMENT FOR THIS VIDEO: Only non-vocal environmental ambience and action-matched sound effects such as contact, movement, room tone or marker strokes. NO narration, dialogue, speech, whispering, singing, vocals or music. Keep everyone silent with no lip-sync. If non-vocal audio is unavailable, leave the clip silent. Any lettering specified in the shots is a visual graphic only. No spoken or captioned reading of lettering or prompt text.',
  'No additional clips. Keep the end composition readable. Preserve the selected visual style throughout.'
  ].filter(Boolean).join('\n\n');
 }

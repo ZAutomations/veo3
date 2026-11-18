@@ -68,7 +68,7 @@ async function completePartialSceneIds(browser,page,project,tiles,story,log){
  const sceneIds=require('./agent_scene_ids'),partial=sceneIds.partialPlan(tiles,story);
  if(!partial.missing.length)return partial.entries;
  log(`Scene-ID download mapping is partial (${partial.entries.length}/${story.scenes.length}); checking source prompts read-only for the remaining ${partial.missing.length} scene(s).`);
- const jobs=partial.missing.map(number=>{const scene=story.scenes[number-1];return {number,scene,sceneId:sceneIds.sceneId(story,number),prompt:scene.veo3_prompt||scene.script_line||'',silentVisual:require('./silent_scene_identity').isSilent(story)};});
+ const jobs=partial.missing.map(number=>sceneIds.sourceJob(story,number));
  const inspected=await require('./single_clip_omni_recovery').inspectProject({browser,page,projectUrl:project},jobs,{}, {log,page,sourceCache:new Map()});
  const used=new Set(partial.entries.map(e=>e.receipt.assetId)),byNumber=new Map();
  for(const job of jobs){
@@ -97,6 +97,17 @@ async function completePartialSceneIds(browser,page,project,tiles,story,log){
  log(`Verified mixed mapping: ${partial.entries.length} scene IDs plus ${byNumber.size} exact source-prompt matches. Scene filenames are safe to use.`);
  return all;
 }
+function needsInventoryRefresh(storyFile,project,tiles,story){
+ const ids=require('./agent_scene_ids');
+ try{
+  const partial=ids.partialPlan(tiles,story);
+  return tiles.length>0&&!tiles.some(t=>t.busy)&&partial.missing.length>0
+   &&!require('./agent_source_receipts').plan(storyFile,project,tiles);
+ }catch{
+  // Leave conflicts to the normal review path.
+  return false;
+ }
+}
 async function download(browser,page,{storyFile,outDir,project,tiles,thumbnailTile=null,thumbnailRequired=false,thumbnailOutputDir=null,downloadVersion='upscaled',log=()=>{}}){
  if(!storyFile||!fs.existsSync(storyFile))throw Error('Upscaled Agent download needs the story JSON to map scenes safely.');
  const story=JSON.parse(fs.readFileSync(storyFile,'utf8'));
@@ -116,7 +127,7 @@ async function download(browser,page,{storyFile,outDir,project,tiles,thumbnailTi
  if(!entries&&silent){
   try{entries=plan(tiles,story);}catch(error){
    log('Silent story: matching timed visual actions, not narration. Reading original source prompts without generating clips.');
-   const jobs=story.scenes.map((scene,i)=>({number:i+1,scene,prompt:scene.veo3_prompt||'',silentVisual:true}));
+   const jobs=story.scenes.map((_,i)=>sceneIds.sourceJob(story,i+1,true));
    try{
     const result=await require('./single_clip_omni_recovery').inspectProject({browser,page,projectUrl:project},jobs,{}, {log,page,sourceCache:new Map()});
     entries=plan(result.tiles.map((t,index)=>({...t,index,prompt:t.sourcePrompt||t.text})),story);
@@ -136,7 +147,7 @@ async function download(browser,page,{storyFile,outDir,project,tiles,thumbnailTi
    log('Completed Agent batch checkpoint and full asset inventory verified. Downloading each unique video asset once; scene order will be resolved from its narration, not the shared batch prompt.');
   }else{
   log('Grid captions omit the source prompts; reading original prompts in an inspection tab to map downloads.');
-  const jobs=story.scenes.map((scene,i)=>({number:i+1,scene,prompt:scene.veo3_prompt||scene.script_line||''}));
+  const jobs=story.scenes.map((_,i)=>sceneIds.sourceJob(story,i+1));
   const result=await require('./single_clip_omni_recovery').inspectProject({browser,page,projectUrl:project},jobs,{}, {log});
   if(!jobs.every(job=>result.found[job.number]?.ready))throw Error('Not every story scene has a verified completed source. No unrelated clip substituted.');
   const ids=jobs.map(job=>result.found[job.number].assetId);
@@ -172,4 +183,4 @@ async function download(browser,page,{storyFile,outDir,project,tiles,thumbnailTi
   log(unresolved?`Agent ${downloadVersion} assets downloaded and verified. Scene order is pending ${silent?'visual/source review':'narration matching'} before joining.`:`Agent ${downloadVersion} clips saved in verified story order.`);
  }finally{await d.close();}
 }
-module.exports={plan,assetPlan,adoptVerified,completePartialSceneIds,download};
+module.exports={plan,assetPlan,adoptVerified,completePartialSceneIds,needsInventoryRefresh,download};

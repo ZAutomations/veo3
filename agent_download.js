@@ -690,7 +690,17 @@ async function activateVideoTile(page, tile, needSource = true) {
     // ---- inventory ---------------------------------------------------------
     // Hover first: without it the captions are blank and the scene mapping is
     // unrecoverable from the grid alone.
-    const inv = await scanVirtualGrid(page, log);
+    const storyMeta = STORY_FILE && fs.existsSync(STORY_FILE) ? JSON.parse(fs.readFileSync(STORY_FILE, 'utf8')) : null;
+    let inv = await scanVirtualGrid(page, log);
+    if (storyMeta?.scenes?.length && !PROBE && (flag('--upscaled') || flag('--original'))) {
+        const completed = inv.tiles.filter(t => isVideoRecord(t) && !isFailedRecord(t));
+        if (require('./agent_upscaled_download').needsInventoryRefresh(STORY_FILE, homeUrl, completed, storyMeta)) {
+            log('Saved scene metadata is stale and no current source receipt matches. Reloading once before download mapping; no generation submitted.');
+            await page.reload({ waitUntil: 'networkidle2', timeout: 120000 });
+            await page.waitForSelector('flow-video-tile', { timeout: 30000 });
+            inv = await scanVirtualGrid(page, log);
+        }
+    }
     fs.writeFileSync(path.join(RUN_DIR, 'tiles.json'), JSON.stringify(inv, null, 2));
     banner('PROJECT GRID');
     log(`Tiles found: ${inv.tileCount}   (dump: ${path.join(RUN_DIR, 'tiles.json')})`);
@@ -737,10 +747,9 @@ async function activateVideoTile(page, tile, needSource = true) {
     })
         .sort((a,b) => a.gridY - b.gridY || a.gridX - b.gridX);
     const thumbnailTile = thumbnailTiles[0] || null;
-    const storyMeta = STORY_FILE && fs.existsSync(STORY_FILE) ? JSON.parse(fs.readFileSync(STORY_FILE, 'utf8')) : null;
     const thumbnailRequired = require('./thumbnail_prompt').isFlowEndcardPreset(storyMeta)
         && fs.existsSync(path.join(path.dirname(path.resolve(STORY_FILE)), 'thumbnail_prompt.txt'));
-    const thumbnailOutputDir = STORY_FILE ? path.dirname(path.resolve(STORY_FILE)) : OUT_DIR;
+    const thumbnailOutputDir = STORY_FILE ? require('./story_output_name').fullVoiceoverMediaFolder(STORY_FILE) : OUT_DIR;
     const thumbnailReceiptPath = path.join(thumbnailOutputDir,'thumbnail_downloaded.json');
     let thumbnailReceipt={};
     try{thumbnailReceipt=JSON.parse(fs.readFileSync(thumbnailReceiptPath,'utf8'));}catch{}

@@ -12,6 +12,9 @@ def plan_package(body):
     lines=[str(s.get('script_line') or '').strip() for s in original.get('scenes',[])]
     if not lines or not all(lines):raise ValueError('Every source visual beat needs English narration.')
     cfg=E.settings(body.get('editingSettings'))
+    import narration_delivery
+    cfg['_narration_delivery']=narration_delivery.profile(original)
+    cfg['_narration_pace_policy']='paragraph_v1'
     if cfg['voiceover_mode'] not in ('api','local'):raise ValueError('Choose API narration or a full local recording in Audio settings.')
     if cfg['voiceover_mode']=='api' and not cfg['voiceover_voice']:raise ValueError('Choose a narration voice first.')
     if cfg['voiceover_mode']=='local' and not Path(cfg['voiceover_file']).is_file():raise ValueError('Choose an existing full narration WAV/MP3.')
@@ -210,8 +213,8 @@ def synthesize_full_track(profile,lines,target,code,label,target_seconds=None,pr
     text='\n\n'.join(lines)
     def request():
         if target_seconds is not None:
-            return google_tts.synthesize(profile['voice'],text,target,language=code,target_seconds=target_seconds,previous_duration=previous_duration)
-        return V.synthesize(profile['provider'],profile['voice'],text,target,language=code)
+            return google_tts.synthesize(profile['voice'],text,target,language=code,target_seconds=target_seconds,previous_duration=previous_duration,**({'delivery':profile['delivery']} if profile.get('delivery') else {}))
+        return V.synthesize(profile['provider'],profile['voice'],text,target,language=code,**({'delivery':profile['delivery']} if profile.get('delivery') else {}))
     try:
         return request()
     except google_tts.GoogleTTSGenericInvalidArgument:
@@ -224,6 +227,8 @@ def synthesize_full_track(profile,lines,target,code,label,target_seconds=None,pr
 
 def paced_google_english(profile,lines,folder,target_seconds,clip_seconds):
     maximum=target_seconds+clip_seconds
+    if not (folder/'full_narration.source.mp3').is_file():
+        E.log(f'FULL VOICEOVER FIRST: Requesting English narration with Google at a {target_seconds}s target.')
     first=synthesize_full_track(profile,lines,folder/'full_narration.source.mp3','en','English',target_seconds)
     duration=V.audio_duration(first)
     E.log(f'FULL VOICEOVER FIRST: English pace target {target_seconds}s, measured {duration:.2f}s, limit {maximum}s.')
@@ -289,7 +294,7 @@ def record_localized_beats(folder,code,label,profile,lines):
     return track,[]
 
 
-def record_language(folder,cfg,code,profile,lines,local=None,english_target=None,clip_seconds=None):
+def _record_language_once(folder,cfg,code,profile,lines,local=None,english_target=None,clip_seconds=None):
     folder.mkdir(parents=True,exist_ok=True);audio=folder/'narration.wav'
     import multilingual as M
     label='English' if code=='en' else M.LANGUAGES[code]
@@ -342,11 +347,31 @@ def record_language(folder,cfg,code,profile,lines,local=None,english_target=None
     return dict(file=str(audio),seconds=duration,sections=sections,lines=lines,profile=profile,
                 sha256=hashlib.sha256(audio.read_bytes()).hexdigest()),words
 
+def record_language(folder,cfg,code,profile,lines,local=None,english_target=None,clip_seconds=None):
+    from narration_delivery import pace_audit
+    # Cache each candidate independently. Retry never edits the approved text,
+    # never accelerates speech, and does not spend video-generation credits.
+    for attempt in range(3):
+        candidate=folder if attempt==0 else folder/f'consistent_pace_{attempt}'
+        directed=dict(profile)
+        if attempt:
+            directed['delivery']=str(profile.get('delivery',''))+' Maintain approximately 2.9 English words per second in EVERY paragraph. Uniform brisk delivery throughout; no slow opening and no rushed later paragraphs. Preserve all words and the selected voice.'
+        track,words=_record_language_once(candidate,cfg,code,directed,lines,local,english_target,clip_seconds)
+        audit=pace_audit(lines,track['sections'],code)
+        candidate.mkdir(parents=True,exist_ok=True)
+        (candidate/'PACE_AUDIT.json').write_text(json.dumps(audit,indent=2),encoding='utf-8')
+        track['pace_audit']=audit
+        if audit['ok'] or local or profile.get('provider')!='google':
+            return track,words
+        E.log(f'FULL VOICEOVER FIRST: {code} paragraph pace varies beyond the shared limit; unchanged-text consistent-delivery attempt {attempt+1}/3. No speech speed adjustment.')
+    raise ValueError(f'Full narration ({code}) still has uneven paragraph pacing after 3 recordings. See PACE_AUDIT.json. Original text/audio preserved; no visuals submitted.')
+
+
 def validate_tracks(story,settings):
     tracks=story.get('full_voiceover_tracks',{})
     for profile in [{'code':'en'},*settings['languages']]:
         code=profile['code'];track=tracks.get(code)
-        if not track or (code!='en' and profile!=track['profile']):
+        if not track or (code!='en' and profile!={k:v for k,v in track['profile'].items() if k!='delivery'}):
             raise ValueError(f'{code} full narration was not prepared with the selected voice. Prepare Full Voiceover First with these languages before generating clips.')
         audio=Path(track['file'])
         if not audio.is_file() or hashlib.sha256(audio.read_bytes()).hexdigest()!=track['sha256']:
@@ -395,6 +420,29 @@ def retime_visuals(source,output,info,boundaries,end_card,story):
                 break
     return sorted(set(mapped)),card_start
 
+def trim_short_overflow(track,seconds):
+    duration=float(track['seconds'])
+    end=math.floor(duration/seconds)*seconds
+    overflow=duration-end
+    if end<=0 or not .001<overflow<=2.000001 or end<=track['sections'][-1][0]:
+        return track
+    # This opt-in intentionally removes the overflowing speech at the end.
+    source=Path(track['file'])
+    target=source.with_name(source.stem+f'.trimmed-{end}s.wav')
+    if not target.is_file():
+        staging=target.with_suffix('.pending.wav')
+        E.run(['ffmpeg','-v','error','-y','-i',source,'-t',str(end),'-ar','48000','-ac','1','-c:a','pcm_s16le',staging])
+        if abs(V.audio_duration(staging)-end)>.02:
+            raise ValueError('Trimmed narration failed duration validation.')
+        staging.replace(target)
+    result=dict(track,file=str(target),seconds=end,
+                sections=[(a,min(b,end)) for a,b in track['sections'] if a<end],
+                sha256=hashlib.sha256(target.read_bytes()).hexdigest(),
+                trimmed_speech_seconds=overflow,untrimmed_file=str(source))
+    E.log(f'FULL VOICEOVER FIRST: selected overflow trim removed {overflow:.2f}s of ending speech; {end:.2f}s retained.')
+    return result
+
+
 def prepare(body):
     p=plan_package(body);folder=p['folder'];folder.mkdir(parents=True,exist_ok=True)
     cfg=p['cfg'];translated=prepare_translations(p)
@@ -402,10 +450,15 @@ def prepare(body):
     previous=p['previous_english_folder']
     if p['deferred'] and (previous/'narration.wav').is_file() and (previous/'full_narration.source.mp3').is_file():
         english_folder=previous
-    english,words=record_language(english_folder,cfg,'en',dict(provider=cfg['voiceover_provider'],voice=cfg['voiceover_voice']),p['lines'],cfg['voiceover_file'] if cfg['voiceover_mode']=='local' else None,
+    english,words=record_language(english_folder,cfg,'en',dict(provider=cfg['voiceover_provider'],voice=cfg['voiceover_voice'],delivery=cfg.get('_narration_delivery','')),p['lines'],cfg['voiceover_file'] if cfg['voiceover_mode']=='local' else None,
                                  english_target=p['english_target'],clip_seconds=p['seconds'])
     tracks={'en':english}
-    for code,(profile,lines) in translated.items():tracks[code],_=record_language(p['language_folder']/'languages'/code,cfg,code,profile,lines)
+    for code,(profile,lines) in translated.items():tracks[code],_=record_language(p['language_folder']/'languages'/code,cfg,code,dict(profile,delivery=cfg.get('_narration_delivery','')),lines)
+    if cfg.get('full_voiceover_trim_tail'):
+        tracks={code:trim_short_overflow(track,p['seconds']) for code,track in tracks.items()}
+        english=tracks['en']
+        words=[dict(row,end=min(row['end'],english['seconds']))
+               for row in words if row['start']<english['seconds']]
     sections=english['sections'];duration=english['seconds']
     if translated and p['english_target'] is None:
         position=0.;sections=[]
@@ -428,7 +481,7 @@ def prepare(body):
     p['file'].write_text(json.dumps(story,ensure_ascii=False,indent=2),encoding='utf-8')
     (folder/'FULL_VOICEOVER_REVIEW.json').write_text(json.dumps(dict(audio=english['file'],seconds=english['seconds'],speed=1.,source_beats=len(sections),visual_clips=len(scenes),clip_seconds=p['seconds'],sections=sections,languages=tracks),indent=2),encoding='utf-8')
     for image in p['source'].parent.iterdir():
-        if image.suffix.lower() in ('.jpg','.jpeg','.png','.webp') or image.name in ('refs.json','character_sheets.txt'):shutil.copy2(image,folder/image.name)
+        if image.name in ('refs.json','character_sheets.txt'):shutil.copy2(image,folder/image.name)
     E.run(['node',str(E.ROOT/'story_to_agent_prompt.js'),p['file']])
     print(f"FULL_VOICEOVER_STORY: {p['file']}\nFULL VOICEOVER FIRST: {len(scenes)} visual clips; original story untouched; narration has no speed adjustment.",flush=True)
     return p['file']

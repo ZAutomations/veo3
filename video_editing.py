@@ -48,6 +48,8 @@ def schema():
         rows.append(dict(key='camera_effect_'+effect,label=label+' (local)',default=False,page='finishing',group='Transition selection'))
     rows.append(dict(key='camera_effect_duration',label='Selected transition duration (seconds)',default=1.0,min=.1,max=1.5,step=.05,page='finishing',group='Transition selection'))
     rows.append(dict(key='preset_cta_enabled',label='Append preset CTA video when present',default=True,page='finishing',group='Preset CTA'))
+    rows.append(dict(key='full_voiceover_trim_tail',label='Full Voiceover First: trim up to 2 seconds of overflowing speech',default=False,page='finishing',group='Voiceover'))
+    rows.append(dict(key='full_voiceover_keep_source_audio',label='Full Voiceover First: keep Veo audio (only for speech-free clips)',default=False,page='finishing',group='Voiceover'))
     rows.append(dict(key='audio_first_trim_gaps',label='Audio First: trim narration gaps (shortens video)',default=False,page='finishing',group='Voiceover'))
     rows.append(dict(key='editing_speed',label='Final video speed (×)',default=1.0,min=.15,max=2.0,step=.05,page='finishing',group='Final speed'))
     for key,label,default,choices in [
@@ -661,7 +663,8 @@ def sync_video_thumbnail(source, final):
     if stories and not local_only and not any((folder/(name+ext)).is_file() for name in (base,base+' English','thumbnail_downloaded') for ext in ('.png','.jpg','.jpeg','.webp')):
         subprocess.run(['node',str(ROOT/'ensure_story_thumbnail.js'),str(folder)],check=True,
                        timeout=240,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
-    candidates=[folder/(base+suffix+ext) for suffix in ('',' English') for ext in ('.png','.jpg','.jpeg','.webp')]
+    candidates=[folder/(final.stem+ext) for ext in ('.png','.jpg','.jpeg','.webp')] if final.stem.startswith(base+' ') else []
+    candidates.extend(folder/(base+suffix+ext) for suffix in ('',' English') for ext in ('.png','.jpg','.jpeg','.webp'))
     candidates += [folder/('thumbnail_downloaded'+ext) for ext in ('.png','.jpg','.jpeg','.webp')]
     base=re.sub(r'(?i)\s+raw$','',source.stem)
     candidates += [folder/(base+ext) for ext in ('.png','.jpg','.jpeg','.webp')]
@@ -685,10 +688,12 @@ def publish_story_exports(source,final):
     for file in publish_audio_first_exports(candidates[0],files):log(f'STORY_EXPORT: {file}')
 
 
-def edit(source,values=None,report=None,output=None):
+def edit(source,values=None,report=None,output=None,story_file=None):
     source=media_path(source);cfg=settings(values);info=probe(source)
     package={}
-    candidates=list(source.parent.glob('*_story.json'))
+    from story_output import prepared_story_for_media
+    binding=Path(story_file).resolve() if story_file else prepared_story_for_media(source)
+    candidates=[binding] if binding else list(source.parent.glob('*_story.json'))
     if len(candidates)==1:
         package=json.loads(candidates[0].read_text(encoding='utf-8-sig'))
         if package.get('audio_first'):
@@ -747,7 +752,7 @@ def edit(source,values=None,report=None,output=None):
         segments=[(0,info['duration'])]
     if cfg['voiceover_mode']!='native':
         current=voiceover.replace_audio(current,work/'voiceover.mp4',cfg,work,report,aligned_speech_end=aligned_speech_end)
-        log('External narration mixed; any enabled silence cuts will move video and mixed audio together.')
+        log('External narration applied; any enabled silence cuts will move video and audio together.')
     if cfg.get('_audio_first_story'):
         prepared=json.loads(Path(cfg['_audio_first_story']).read_text(encoding='utf-8-sig'))
         if prepared.get('full_voiceover_first') and aligned_speech_end is None:
@@ -827,7 +832,7 @@ def edit(source,values=None,report=None,output=None):
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('video');parser.add_argument('--auto',action='store_true');parser.add_argument('--order-report')
-    parser.add_argument('--request');parser.add_argument('--out')
+    parser.add_argument('--request');parser.add_argument('--out');parser.add_argument('--story-json')
     args=parser.parse_args()
     if Path(args.video).suffix.lower()=='.json' and not args.request:
         request=json.loads(Path(args.video).read_text(encoding='utf-8'))
@@ -835,7 +840,7 @@ def main():
     values=json.loads(Path(args.request).read_text(encoding='utf-8')) if args.request else json.loads(os.environ['VEO_EDITING_SETTINGS']) if args.auto and os.environ.get('VEO_EDITING_SETTINGS') else None
     cfg=settings(values)
     if args.auto and not cfg['editing_auto_apply']:return
-    edit(args.video,cfg,args.order_report,args.out)
+    edit(args.video,cfg,args.order_report,args.out,story_file=args.story_json)
 
 
 if __name__=='__main__':

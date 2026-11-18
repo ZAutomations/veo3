@@ -1389,7 +1389,7 @@ async function uploadRefThroughPicker(page, box, file) {
         const pm = window.__veoAgentEditor?.();
         return pm ? pm.querySelectorAll('.mention-chip').length : -1;
     });
-    log(`Final attachment audit: references=${finalReferenceCount}/${MENTIONS.length}; voice=${VOICES.length ? VOICES.join(', ') : 'native/no asset'}.`);
+    log(`Final attachment audit: references=${finalReferenceCount}/${MENTIONS.length}; voice=${VOICES.length ? VOICES.join(', ') : STORY_AUDIO?.audio_first ? 'none (speech-free background requested)' : 'native/no asset'}.`);
     if (finalReferenceCount !== MENTIONS.length) {
         throw Error(`Reference images changed while attaching the voice (${finalReferenceCount}/${MENTIONS.length} remain). No batch submitted; references must be restored before retry.`);
     }
@@ -1616,10 +1616,11 @@ async function uploadRefThroughPicker(page, box, file) {
             const storyFile=flag('--refs'),submissionFile=flag('--submission-file');
             const story=JSON.parse(fs.readFileSync(storyFile,'utf8'));
             const intent=JSON.parse(fs.readFileSync(submissionFile,'utf8'));
-            const jobs=story.scenes.slice(0,intent.to).map((scene,i)=>({number:i+1,scene,prompt:scene.veo3_prompt||scene.script_line||''}));
+            const recovery=require('./agent_missing_scenes');
+            const jobs=recovery.sourceJobs(story,intent.to);
             const inspected=await require('./single_clip_omni_recovery').inspectProject(
                 {browser,page,projectUrl:page.url()},jobs,{}, {log,page,sourceCache:new Map()});
-            const mapped=require('./agent_missing_scenes').planMissing(story,intent,inspected);
+            const mapped=recovery.planMissing(story,intent,inspected);
             if(!mapped.missing.length&&!inspected.generatingSeen){
                 incomplete=false;
                 log(`Scene-level recovery verification: all ${intent.to} requested scenes have a completed source. Extra retry assets do not trigger a duplicate generation.`);

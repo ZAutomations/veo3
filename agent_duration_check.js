@@ -129,7 +129,8 @@ async function check(browser,{storyFile,project,from=1,to,seconds,report,log=con
  const page=await browser.newPage();
  try{
   await page.goto(project,{waitUntil:'domcontentloaded',timeout:120000});
-  const jobs=story.scenes.slice(from-1,to).map((scene,i)=>({number:from+i,scene,sceneId:require('./agent_scene_ids').sceneId(story,from+i),prompt:scene.veo3_prompt||scene.script_line||''}));
+  const silentVisual=require('./silent_scene_identity').isSilent(story);
+  const jobs=story.scenes.slice(from-1,to).map((_,i)=>require('./agent_scene_ids').sourceJob(story,from+i,silentVisual));
   const inspected=await require('./single_clip_omni_recovery').inspectProject({browser,page,projectUrl:project},jobs,{}, {page,log});
   const targets=jobs.map(job=>{
    const hit=inspected.found[job.number];

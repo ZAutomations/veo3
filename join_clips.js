@@ -96,6 +96,12 @@ if (fs.existsSync(MANIFEST_PATH)) {
     try { savedManifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8')); }
     catch { /* the existing fallback below reports an unreadable manifest */ }
 }
+const mediaFolder=path.dirname(path.resolve(DIR));
+const preparedStory=savedManifest?.preparedStory ? path.resolve(mediaFolder,savedManifest.preparedStory) : null;
+if (preparedStory && (path.basename(preparedStory)!=='full_voiceover_story.json' || path.dirname(path.dirname(preparedStory))!==path.join(mediaFolder,'full_voiceover') || require('./story_output_name').fullVoiceoverMediaFolder(preparedStory)!==mediaFolder)) {
+    console.error('RECOVERY_REVIEW_REQUIRED: Prepared story binding does not match this clips folder.');
+    process.exit(2);
+}
 const expectedClips = Number(savedManifest && savedManifest.expected) || 0;
 // Explicit ordering is a deliberate selection by the caller. It must be
 // checked before consulting an obsolete complete:false flag; otherwise even
@@ -149,7 +155,7 @@ if (savedManifest && expectedClips) {
 // locally before joining an asset download; never infer order from filenames.
 if (savedManifest && savedManifest.complete === false && !manualOrder && !DRY_RUN
     && !ALLOW_PARTIAL) {
-    const storyFile = require('./order_clips_by_dialogue').resolveStoryJson(path.dirname(path.resolve(DIR)));
+    const storyFile = preparedStory || require('./order_clips_by_dialogue').resolveStoryJson(mediaFolder);
     if (storyFile) {
         log('Checking story order from clip narration before joining (local transcription).');
         try {
@@ -552,4 +558,4 @@ if (total && finalDur != null && Math.abs(finalDur - total) > 1.5) {
 log(`Clips   : ${ordered.length} joined, in this order:`);
 ordered.forEach((f, i) => log(`          ${String(i + 1).padStart(2, '0')}. ${f}`));
 
-require('./video_editing_hook').runAfterJoin(outPath, path.join(path.dirname(outPath), 'JOINED_CLIP_ORDER.txt'));
+require('./video_editing_hook').runAfterJoin(outPath, path.join(path.dirname(outPath), 'JOINED_CLIP_ORDER.txt'), preparedStory);

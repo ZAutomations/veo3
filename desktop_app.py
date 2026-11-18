@@ -913,6 +913,9 @@ class Job:
                 line = line.replace(key, '[API key hidden]')
         match = re.search(r'https://flow\.google\.com/project/([\w-]+)', line)
         changed = False
+        prepared=re.match(r'^(?:FULL_VOICEOVER_STORY|AUDIO_FIRST_STORY):\s*(.+)$',line)
+        if prepared and bind_prepared_output(self.operations,self.operation_index,prepared[1].strip()):
+            changed=True
         if re.search(r'generating the reference images|FAILED at generate_refs', line, re.I):
             self.operation_phases[str(self.operation_index)] = 'refs'
             changed = True
@@ -1013,6 +1016,9 @@ class Job:
         for index in range(self.operation_index, len(self.operations)):
             import audio_first
             self.operations[index]=audio_first.rebind_package_paths(self.operations[index])
+            if self.action == 'generate_queue':
+                rebind_missing_full_voiceover(self.operations[index], self.operations[:index],
+                    self.operation_projects.get(str(index)) or self.operation_phases.get(str(index)))
             kind, spec = self.operations[index]
             check_credits_after_merge = operation_finishes_video(kind, spec)
             generation_handoff = self.payload.get('generationOnly') and self.action in ('generate','generate_queue') and operation_finishes_generation(kind,spec)
@@ -1061,6 +1067,11 @@ class Job:
                     raise RuntimeError(f'Driver exited with code {code}. See the log above.')
             else:
                 name, args = spec
+                if name=='batch_pipeline' and self.action=='generate_queue':
+                    for file in args.get('stories',[]):
+                        saved=Path(file)
+                        if saved.parent.parent.name in ('audio_first','full_voiceover') and not saved.is_file():
+                            raise RuntimeError('Prepared audio story JSON is missing. Retry will restore audio preparation before Flow.')
                 with lock:
                     if self.stopped:
                         break
@@ -1209,9 +1220,11 @@ def run_workspace_repair(job):
                 repair_active = True
                 break
         time.sleep(1)
+    outcome = None
+    runtime_before = Path(__file__).read_bytes()
     try:
         from workspace_auto_repair import repair_job
-        repair_job(ROOT, job.id, settings['model'], job.log, provider=settings['provider'])
+        outcome = repair_job(ROOT, job.id, settings['model'], job.log, provider=settings['provider'])
     except subprocess.TimeoutExpired:
         job.log('Auto Repair timed out. Review the repair trace and workspace before retrying.')
     except Exception as exc:
@@ -1220,11 +1233,132 @@ def run_workspace_repair(job):
         with lock:
             repair_active = False
         save_json(ROOT / 'logs' / 'desktop' / (job.id + '.result.json'), job.summary())
+    if isinstance(outcome, dict) and outcome.get('outcome') == 'fixed':
+        if Path(__file__).read_bytes() != runtime_before:
+            job.log('Auto Repair fixed the issue. Restart Studio before Retry / Continue because its running server code changed.')
+            return
+        try:
+            retry_workflow({'view': job.payload.get('view'), '_repair_job_id': job.id})
+            job.log('Auto Repair: automatically resumed the saved failed step after the verified fix.')
+        except Exception as exc:
+            job.log('Auto Repair automatic retry paused: ' + str(getattr(exc, 'detail', exc)))
 
 
 def ensure_no_workspace_repair():
     if repair_active:
         raise HTTPException(409, 'Auto Repair is working on this workspace. See the failed job log for progress.')
+
+
+def rebind_missing_full_voiceover(operation, previous, checkpoint):
+    kind, spec = operation
+    if kind != 'mcp' or spec[0] != 'batch_pipeline' or checkpoint:
+        return
+    args = spec[1]
+    stories = args.get('stories', [])
+    if len(stories) != 1 or args.get('project_url') or not args.get('new_project'):
+        return
+    saved = Path(stories[0])
+    if (saved.name != 'full_voiceover_story.json' or saved.parent.parent.name != 'full_voiceover'
+            or not saved.is_absolute() or saved.is_file()):
+        return
+    source_folder = saved.parent.parent.parent.resolve()
+    requests = []
+    for step_kind, step_spec in previous:
+        if step_kind == 'request' and step_spec[0] == 'full_voiceover.py':
+            request = step_spec[1]
+            if Path(request['story']).resolve().parent == source_folder and request not in requests:
+                requests.append(request)
+    if len(requests) != 1:
+        return
+
+    import full_voiceover
+    try:
+        plan = full_voiceover.plan_package(requests[0])
+        candidate = plan['file']
+        story = read_json(candidate)
+        if (isinstance(story, dict) and story.get('full_voiceover_first') is True
+                and story.get('audio_first') is True
+                and story.get('original_story') == str(plan['source'])
+                and isinstance(story.get('scenes'), list) and story['scenes']
+                and isinstance(story.get('full_voiceover_file'), str)
+                and Path(story['full_voiceover_file']).is_file()):
+            args['stories'] = [str(candidate)]
+    except (OSError, ValueError):
+        return
+
+
+def bind_prepared_output(operations,index,reported):
+    kind,spec=operations[index]
+    if kind!='request' or spec[0] not in ('full_voiceover.py','audio_first.py'):
+        return False
+    source=Path(spec[1]['story']).resolve()
+    output=Path(reported).resolve()
+    family='full_voiceover' if spec[0]=='full_voiceover.py' else 'audio_first'
+    data=read_json(output)
+    if (not output.is_file() or output.parent.parent!=source.parent/family
+            or not data.get('audio_first') or Path(data.get('original_story','')).resolve()!=source
+            or not data.get('scenes')):
+        raise ValueError('Prepared audio worker reported an invalid story output.')
+    changed=False
+    for later in range(index+1,len(operations)):
+        kind,step=operations[later]
+        if kind!='mcp' or step[0]!='batch_pipeline':continue
+        paths=step[1].get('stories',[])
+        for position,path in enumerate(paths):
+            previous=Path(path).resolve()
+            if previous.parent.parent==source.parent/family and previous.name.endswith('_story.json'):
+                paths[position]=str(output);changed=True
+    return changed
+
+
+def restore_missing_queue_audio(record, remaining):
+    payload=record.get('payload',{})
+    if record.get('action')!='generate_queue' or payload.get('queueAudioMode') not in ('audio_first','full_voiceover'):
+        return remaining
+    cursor=record.get('operation_index',0)
+    if payload.get('queueAudioMode') == 'full_voiceover':
+        previous=record.get('operations',[])[:cursor]
+        for offset, operation in enumerate(remaining):
+            index=str(cursor+offset)
+            rebind_missing_full_voiceover(operation, previous,
+                record.get('operation_projects',{}).get(index) or record.get('operation_phases',{}).get(index))
+    missing={str(Path(file).resolve()) for kind,spec in remaining
+             if kind=='mcp' and spec[0]=='batch_pipeline'
+             for file in spec[1].get('stories',[])
+             if Path(file).parent.parent.name in ('audio_first','full_voiceover') and not Path(file).is_file()}
+    if not missing:
+        return remaining
+    import audio_first, full_voiceover
+    workers={'audio_first.py':audio_first,'full_voiceover.py':full_voiceover}
+    def preparations(operations):
+        found={}
+        for kind,spec in operations:
+            if kind=='request' and spec[0] in workers:
+                package=str(workers[spec[0]].plan_package(spec[1])['file'].resolve())
+                found[package]=(kind,spec)
+        return found
+    pending=preparations(remaining)
+    missing-=pending.keys()
+    if not missing:
+        return remaining
+    candidates=preparations(record.get('operations',[]))
+    if missing-candidates.keys():
+        # A prior Retry may have saved only the downstream Flow operations.
+        # Rebuild the original plan solely to recover its audio requests.
+        # Exact planned paths must match before any request can be restored.
+        _, rebuilt=plan_action('generate_queue',payload)
+        candidates.update(preparations(rebuilt))
+    if missing-candidates.keys():
+        raise ValueError('Prepared audio story is missing and the saved inputs no longer reproduce its path. Start from the original story with its audio settings; no Flow project was opened.')
+    restored=[operation for path,operation in candidates.items() if path in missing]
+    for key in ('operation_projects','operation_phases'):
+        checkpoints=record.get(key)
+        if checkpoints:
+            shifted={str(int(index)+len(restored)) if index.isdecimal() and int(index)>=cursor else index:value
+                     for index,value in checkpoints.items()}
+            checkpoints.clear()
+            checkpoints.update(shifted)
+    return restored+remaining
 
 
 def retry_plan(record):
@@ -1297,7 +1431,7 @@ def retry_plan(record):
                 if flag in spec:
                     spec.remove(flag)
             spec.append('--resume-auto')
-    return remaining
+    return restore_missing_queue_audio(record,remaining)
 
 
 @app.post('/api/retry')
@@ -1324,6 +1458,16 @@ def retry_workflow(body: dict):
         raise HTTPException(400, str(exc))
     with lock:
         ensure_no_workspace_repair()
+        if body.get('_repair_job_id'):
+            latest = read_json(ROOT / 'logs' / 'desktop' / f'last_{view}_job.json')
+            if latest.get('id') != body['_repair_job_id'] or latest.get('status') != 'failed':
+                raise HTTPException(409, 'The saved job changed or was stopped; automatic repair retry was skipped.')
+            attempts = int(record.get('payload', {}).get('_repairRetryCount', 0))
+            if attempts >= 3:
+                raise HTTPException(409, 'Three repair retries reached. Review the job before continuing manually.')
+            record['payload'] = dict(record['payload'], _repairRetryCount=attempts + 1)
+        else:
+            record['payload'].pop('_repairRetryCount', None)
         if any(j.status == 'running' and j.lane == record['lane'] for j in jobs.values()):
             raise HTTPException(409, 'Stop the current job first, then Retry / Continue.')
         job = Job(record['action'], record['payload'], record['lane'], operations)
@@ -1585,6 +1729,9 @@ def master_prompt(preset: str, kind: str = 'story'):
     if source.parent != folder or not source.is_file():
         raise HTTPException(404, 'No saved master prompt is available for this preset.')
     text=source.read_text(encoding='utf-8-sig')
+    if preset!='video-reverse-engineering' and not text.startswith('[BEGIN REQUIRED STORY INTAKE'):
+        intake=(ROOT/'story_intake_contract.txt').read_text(encoding='utf-8-sig').strip()
+        text=intake+'\n\n'+text
     if preset!='video-reverse-engineering' and 'ENGLISH WRITING PACE — RETAIN THE APPROVED RULE' not in text:
         text+='\n\n'+(ROOT/'full_voiceover_prompt_contract.txt').read_text(encoding='utf-8')
     return dict(id=preset, name=allowed[preset]['name'], text=text)
@@ -1615,8 +1762,12 @@ def library():
     ids={p['id'] for p in known}
     aliases={p['name'].strip().casefold():p['id'] for p in known}
     ownership={}
-    for path in (ROOT / 'stories').rglob('*_story.json'):
+    original_imports={}
+    stories_root=ROOT/'stories'
+    for path in stories_root.rglob('*_story.json'):
         if any(x in path.parts for x in ('backups', 'clips', 'logs')):
+            continue
+        if path.name=='localized_story.json' and {'localized','multilingual'}.intersection(path.relative_to(stories_root).parts[:-1]):
             continue
         story = read_json(path)
         if not story.get('scenes'):
@@ -1624,20 +1775,53 @@ def library():
         manifest = read_json(path.parent / 'clips' / 'manifest.json')
         narration_hash=hashlib.sha256(json.dumps([sc.get('external_narration') or sc.get('script_line') or sc.get('dialogue') or '' for sc in story['scenes']],ensure_ascii=False).encode()).hexdigest()
         ownership[str(path)]={'original':str(Path(story['original_story']).resolve()) if story.get('audio_first') and story.get('original_story') else '', 'hash':narration_hash,'modified':path.stat().st_mtime}
+        if not story.get('audio_first') and (path.parent/'READY_IMPORT_COMPLETE.json').is_file():
+            digest=hashlib.sha256(path.read_bytes()).hexdigest()
+            original_imports.setdefault(digest,[]).append(str(path))
         result.append(dict(path=str(path), title=story.get('title', path.stem), languages=story_script_languages(story), scenes=len(story['scenes']),
                           duration=len(story['scenes']) * story.get('scene_seconds', 8),
                           clipSeconds=story.get('scene_seconds', 8),
                           preset=story.get('niche', ''), presetId=story.get('preset_id') if story.get('preset_id') in ids else aliases.get(str(story.get('niche','')).strip().casefold(),story.get('preset_id','')), modified=path.stat().st_mtime,
-                          internalRender=path.name=='localized_story.json' and 'multilingual' in path.relative_to(ROOT/'stories').parts,
+                          internalRender=False,
                           **story_completion(path, story, manifest)))
     by_path={str(Path(row['path']).resolve()):row for row in result}
+    redundant=set()
     for child in result:
         meta=ownership[child['path']];parent=by_path.get(meta['original'])
-        if parent and child.get('fullyComplete') and not child.get('internalRender'):
+        child_path=Path(child['path'])
+        if not parent and meta['original'] and child_path.parent.parent.name in ('audio_first','full_voiceover'):
+            # Imported projects can be moved between PCs with their original
+            # absolute path still recorded inside the prepared package.
+            local=child_path.parent.parent.parent/Path(meta['original']).name
+            parent=by_path.get(str(local.resolve()))
+        if parent and parent['done'] and not child['generationOnlyPending'] and child_path.name=='full_voiceover_story.json':
+            parent_folder=Path(parent['path']).parent
+            binding=read_json(parent_folder/'clips'/'manifest.json').get('preparedStory')
+            if binding and (parent_folder/binding).resolve()==child_path.resolve():
+                redundant.add(child['path'])
+        if parent and not child['done'] and not child['generationOnlyPending'] and not Path(meta['original']).is_file():
+            redundant.add(child['path'])
+        if parent and child.get('fullyComplete'):
+            if parent['completion']=='Final video saved' and child['modified']>=parent['modified']:
+                redundant.add(child['path'])
             original_meta=ownership[parent['path']]
             if child['scenes']==parent['scenes'] and meta['hash']==original_meta['hash'] and child['modified']>=parent['modified']:
                 parent['fullyComplete']=True
-    return sorted(result, key=lambda x: x['modified'], reverse=True)
+    for paths in original_imports.values():
+        if len(paths)<2:continue
+        # Keep separate copies that have usable output or a resumable job.
+        rows=[by_path[str(Path(path).resolve())] for path in paths]
+        active=[row for row in rows if row['done'] or row['generationOnlyPending']]
+        if active:
+            redundant.update(row['path'] for row in rows if row not in active)
+            continue
+        def import_preference(row):
+            parts=Path(row['path']).relative_to(stories_root).parts
+            expected=str(row['presetId'] or '').replace('-','_')
+            return (len(parts)>2 and parts[0]==expected,len(parts)==2,row['modified'])
+        keep=max(rows,key=import_preference)
+        redundant.update(row['path'] for row in rows if row is not keep)
+    return sorted((row for row in result if row['path'] not in redundant),key=lambda row:row['modified'],reverse=True)
 
 
 @app.get('/api/story')

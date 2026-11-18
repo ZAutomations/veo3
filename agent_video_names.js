@@ -3,12 +3,13 @@ const media=require('./single_clip_omni_media'),ids=require('./agent_scene_ids')
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 function plan(story,targets,inventory){
  const scenes=new Set(),assets=new Set();
+ const silentVisual=require('./silent_scene_identity').isSilent(story);
  return targets.map(t=>{
   if(!Number.isInteger(t.scene)||t.scene<1||t.scene>story.scenes.length||!t.assetId||scenes.has(t.scene)||assets.has(t.assetId))throw Error('RECOVERY_REVIEW_REQUIRED: Scene naming requires unique verified source mappings; no grid-order naming.');
   scenes.add(t.scene);assets.add(t.assetId);const sceneId=ids.sceneId(story,t.scene);
   const own=inventory.find(x=>x.assetId===t.assetId||x.assetIds?.includes(t.assetId));
   if(!own?.ready||own.failed||own.busy)throw Error(`RECOVERY_REVIEW_REQUIRED: Scene ${t.scene} source is not a ready video; no rename.`);
-  const job={number:t.scene,scene:story.scenes[t.scene-1],sceneId,prompt:story.scenes[t.scene-1].veo3_prompt||story.scenes[t.scene-1].script_line||''};
+  const job=ids.sourceJob(story,t.scene,silentVisual);
   if(!media.promptMatches({...own,text:[own.text,own.sourcePrompt].filter(Boolean).join('\n')},job))throw Error(`RECOVERY_REVIEW_REQUIRED: Scene ${t.scene} source identity is unverified; no title assigned from grid order.`);
   const titleIDs=ids.ids(own.assetTitle||own.assetName||'');
   if(titleIDs.some(id=>id!==sceneId))throw Error(`RECOVERY_REVIEW_REQUIRED: Scene ${t.scene} video already has another scene identity; no rename.`);
@@ -52,7 +53,7 @@ async function rename(page,assetId,title){
  let live,clicked=false;
  for(let attempt=0;attempt<3&&!clicked;attempt++){
   for(let n=0;n<5;n++){if(!await page.evaluate(bg.closeMenus))break;await wait(100);}
-  live=await locate(page,assetId);if(live.assetTitle===title)return;
+  live=await locate(page,assetId);if(live.assetTitle===title)return false;
   if(!live.ready||live.failed||live.busy)throw Error('RECOVERY_REVIEW_REQUIRED: Video is not ready for naming.');
   if(!await page.evaluate(exposeTile,live))throw Error('RECOVERY_REVIEW_REQUIRED: Unique verified video could not be exposed for naming.');
   await wait(150);
@@ -83,15 +84,51 @@ async function rename(page,assetId,title){
  if(!commitPoint)throw Error('RECOVERY_REVIEW_REQUIRED: Scene title was not entered/committed in its Rename dialog.');
  // Real pointer input blurs the editor before saving; DOM click can leave its model stale.
  await page.mouse.click(commitPoint.x,commitPoint.y);
- for(let n=0;n<60;n++){const after=(await media.snapshot(page)).find(t=>t.assetId===assetId||t.assetIds?.includes(assetId));if(after?.assetTitle===title)return;await wait(150);}
+ for(let n=0;n<60;n++){const after=(await media.snapshot(page)).find(t=>t.assetId===assetId||t.assetIds?.includes(assetId));if(after?.assetTitle===title)return true;await wait(150);}
  throw Error('RECOVERY_REVIEW_REQUIRED: Renamed video title could not be read back; no completion claimed.');
 }
-async function ensure(page,story,targets,inventory,{log=()=>{}}={}){
- const planned=plan(story,targets,inventory),verified=[];
+function persistedTitles(tiles,planned){
+ return planned.every(item=>{
+  const hits=tiles.filter(t=>t.assetTitle===item.sceneId);
+  return hits.length===1&&hits[0].ready&&!hits[0].failed&&!hits[0].busy;
+ });
+}
+async function verifyPersisted(page,planned,{sleep=wait,snapshot=media.snapshot,attempts=4}={}){
+ // Angular changes the local title before the remote save finishes. Keep that
+ // tab alive; an independently loaded project must return every unique title.
+ const url=page.url();
+ if(!/^https:\/\/[^/]+\/project\//.test(url))throw Error('SCENE_NAMING_FAILED: Persistence verification needs a Flow project.');
+ const probe=await page.browser().newPage();
+ try{
+  for(let attempt=0;attempt<attempts;attempt++){
+   await probe.goto(url,{waitUntil:'networkidle2',timeout:45000});
+   await probe.waitForSelector('flow-video-tile',{timeout:15000});
+   await probe.evaluate(require('./flow_grid_scroll').installGridScroller);
+   const found=new Map();
+   await probe.evaluate(bg.scrollToPosition,0);
+   for(let round=0;round<100;round++){
+    for(const tile of await snapshot(probe))found.set(tile.assetId||tile.key,tile);
+    if(persistedTitles([...found.values()],planned))return;
+    const m=await probe.evaluate(bg.metrics);
+    if(m.top>=m.scroll-m.client-2)break;
+    await probe.evaluate(bg.scrollToPosition,m.top+Math.max(120,Math.floor(m.client*0.7)));
+    await sleep(250);
+    const after=await probe.evaluate(bg.metrics);if(after.top<=m.top+2)break;
+   }
+   await sleep(1000);
+  }
+  throw Error('SCENE_NAMING_FAILED: Scene titles did not persist in an independently loaded project. Existing clips preserved; no generation repeated.');
+ }finally{await probe.close().catch(()=>{});}
+}
+async function ensure(page,story,targets,inventory,{log=()=>{},verify=verifyPersisted,sleep=wait}={}){
+ const planned=plan(story,targets,inventory),verified=[];let changed=false;
  for(const item of planned){
-  try{await rename(page,item.assetId,item.sceneId);}catch(error){if(/Verified video source is not mounted/.test(error.message))throw error;throw Error(`RECOVERY_REVIEW_REQUIRED: SCENE_NAMING_FAILED: Scene ${item.scene}: ${error.message}. Existing generations preserved.`);}
-  verified.push({...item,titleVerified:true});log(`Scene ${item.scene}: video title verified as ${item.sceneId}.`);
+  try{changed=await rename(page,item.assetId,item.sceneId)||changed;}catch(error){if(/Verified video source is not mounted/.test(error.message))throw error;throw Error(`RECOVERY_REVIEW_REQUIRED: SCENE_NAMING_FAILED: Scene ${item.scene}: ${error.message}. Existing generations preserved.`);}
+  verified.push({...item,titleVerified:true});
  }
+ if(changed)await sleep(5000);
+ await verify(page,planned);
+ for(const item of planned)log(`Scene ${item.scene}: saved video title independently verified as ${item.sceneId}.`);
  return verified;
 }
-module.exports={plan,locate,rename,ensure,renameMenuTarget,exposeTile};
+module.exports={plan,locate,rename,ensure,verifyPersisted,persistedTitles,renameMenuTarget,exposeTile};

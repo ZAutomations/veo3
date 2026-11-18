@@ -1,6 +1,7 @@
 import base64,io,json,tempfile,sys
 from pathlib import Path
 from unittest.mock import patch,MagicMock
+from threading import Event
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import google_tts as G
 import voiceover as V
@@ -28,7 +29,24 @@ with tempfile.TemporaryDirectory() as tmp:
     file=root/(code+'.mp3');V.synthesize('google','Alnilam','Test text',file,language=code)
     payload=json.loads(calls[-1].data);assert payload['voice']['languageCode']==locale and payload['voice']['name']=='Alnilam' and payload['voice']['modelName']==G.MODEL
     before=len(calls);V.synthesize('google','Alnilam','Test text',file,language=code);assert len(calls)==before
+   V.synthesize('google','Orus','Approved words only',root/'directed.mp3',language='en',delivery='Warm story telling; controlled urgency for this beat.')
+   directed=json.loads(calls[-1].data)
+   assert directed['input']['text']=='Approved words only'
+   assert 'controlled urgency' in directed['input']['prompt']
+   assert directed['voice']['name']=='Orus' and directed['audioConfig']['speakingRate']==1.0
    assert calls[0].full_url=='https://texttospeech.googleapis.com/v1/text:synthesize'
+   release=Event()
+   def stalled(*args,**kwargs):
+    release.wait()
+    return opened(*args,**kwargs)
+   try:
+    with patch.object(G,'SYNTHESIS_TIMEOUT',.05),patch.object(G.urllib.request,'urlopen',side_effect=stalled):
+     target=root/'stall.wav'
+     try: G.synthesize('Alnilam','Test text',target,language='en')
+     except G.HeyGenNetworkError as error:assert 'exceeded' in str(error)
+     else:raise AssertionError('A stuck network read must reach the total deadline')
+     assert not target.exists()
+   finally:release.set()
    def rejected(message):
     body=json.dumps({'error':{'code':400,'message':message,'status':'INVALID_ARGUMENT'}}).encode()
     return G.urllib.error.HTTPError(calls[0].full_url,400,'Bad Request',None,io.BytesIO(body))

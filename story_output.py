@@ -28,6 +28,32 @@ def story_video_path(story_path):
     return story.parent / f'{story_title_base(story)}.mp4'
 
 
+def full_voiceover_media_folder(story_path):
+    story=Path(story_path).resolve()
+    folder=story.parent
+    if story.name!='full_voiceover_story.json' or folder.parent.name!='full_voiceover' or (folder/'clips').exists() or (folder/'JOINED_CLIP_ORDER.txt').exists():
+        return folder
+    data=json.loads(story.read_text(encoding='utf-8-sig'))
+    original=Path(data.get('original_story') or '').resolve()
+    return original.parent if (data.get('full_voiceover_first') is True
+                               and original.is_file() and original.parent==folder.parent.parent) else folder
+
+
+def prepared_story_for_media(source):
+    folder=Path(source).resolve().parent
+    manifest=folder/'clips'/'manifest.json'
+    try:
+        metadata=json.loads(manifest.read_text(encoding='utf-8-sig'))
+        if metadata.get('preparedStory'):
+            prepared=(folder/metadata['preparedStory']).resolve()
+            if prepared.name!='full_voiceover_story.json' or prepared.parent.parent!=folder/'full_voiceover' or full_voiceover_media_folder(prepared)!=folder:
+                raise ValueError('Prepared audio source does not match the joined story folder.')
+            return prepared
+    except FileNotFoundError:
+        if manifest.exists():raise ValueError('The joined story folder has a missing prepared audio package.') from None
+    return None
+
+
 def publish_audio_first_exports(story_path, files):
     """Publish finished media beside the original story; keep resumable package files."""
     import os, shutil

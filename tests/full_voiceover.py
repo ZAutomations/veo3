@@ -83,7 +83,7 @@ with tempfile.TemporaryDirectory() as tmp:
         assert scene['full_voiceover_start']==n*4 and scene['script_line']==''
         assert scene['shots'][0]['start_seconds']==0 and scene['shots'][-1]['end_seconds']==4
     prompt=(prepared.parent/'agent_prompt.txt').read_text(encoding='utf-8')
-    assert 'one continuous external track' in prompt and 'ONLY natural environmental ambience' in prompt
+    assert 'Only non-vocal environmental ambience' in prompt and 'NO narration, dialogue, speech' in prompt
     try:F.timed_sections(['Wrong unrelated words.'],words,8.2)
     except ValueError:pass
     else:raise AssertionError('Uncertain mapping must be blocked')
