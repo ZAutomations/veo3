@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict');
 const {UpscaledDownloader}=require('../single_clip_omni_upscaled');
 
-async function fixture(failSetup=false,duplicate=false){
+async function fixture(failSetup=false,duplicate=false,noTransfer=false){
  const tabs=[],seen=[],serial=[];
  const jobs=[1,2,3,4,5].map(number=>({number}));
  const title=number=>'V3_012345abcdef_S00'+number;
@@ -23,12 +23,19 @@ async function fixture(failSetup=false,duplicate=false){
    tabs.push(page);return page;
   }}},
   async group(jobs){
-   if(!this.parallelWorker){serial.push(...jobs.map(j=>j.number));return;}
+   if(!this.parallelWorker){
+    assert(tabs.every(page=>page.closed));
+    assert.equal(this.downloadFrames.size,0);
+    serial.push(...jobs.map(j=>j.number));return;
+   }
    const number=jobs[0].number;
    assert.equal(this.parallelAssets.get(title(number)),duplicate?undefined:preview(number));
    if(duplicate&&number===4){const e=Error('source unavailable in worker');e.code='PARALLEL_ASSET_UNAVAILABLE';throw e;}
    active++;peak=Math.max(peak,active);seen.push(jobs[0].number);
    await new Promise(resolve=>setTimeout(resolve,20));active--;
+   if(noTransfer&&number===4){
+    const error=Error('no browser transfer started');error.code='DOWNLOAD_NOT_STARTED';throw error;
+   }
   },
  };
  await UpscaledDownloader.prototype.parallelGroup.call(d,jobs,receipts);
@@ -40,9 +47,9 @@ async function fixture(failSetup=false,duplicate=false){
  }else{
   assert.equal(peak,3);
   assert.deepEqual(seen,duplicate?[1,2,3,5]:[1,2,3,4,5]);
-  assert.deepEqual(serial,duplicate?[4]:[]);
+  assert.deepEqual(serial,duplicate||noTransfer?[4]:[]);
  }
 }
 
-(async()=>{await fixture();await fixture(true);await fixture(false,true);console.log('PASS: Agent upscale uses at most three workers and falls back before clicking when setup is unavailable.');})()
+(async()=>{await fixture();await fixture(true);await fixture(false,true);await fixture(false,false,true);console.log('PASS: Agent upscale uses at most three workers and retries only deferred scenes serially after worker tabs close.');})()
 .catch(error=>{console.error(error);process.exitCode=1;});

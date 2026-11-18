@@ -29,6 +29,27 @@ const {assess,verifyDurationBeforeNaming}=require('../agent_duration_check'),{ru
   state.completed=4;state.pending=null;fs.writeFileSync(checkpoint,JSON.stringify(state));generated=0;
   const legacy=await runAgentBatches(options,story,run,()=>{});assert(!legacy.ok);assert.equal(generated,0,'legacy completed state must be audited without resubmission');
   fail=false;assert((await runAgentBatches(options,story,run,()=>{})).ok);assert.equal(generated,0);
+  const rows=Array.from({length:4},(_,i)=>({scene:i+1,assetId:`asset-${i+1}`,duration:10}));
+  require('../agent_source_receipts').save(story,options.project_url,rows);
+  const report={ok:true,sourceVerified:true,project:options.project_url,storyFile:story,from:1,to:4,expectedSeconds:10,rows};
+  const savedState=JSON.parse(fs.readFileSync(checkpoint));
+  savedState.durationReviewRequired=true; // A later attempt could not mount the grid.
+  fs.writeFileSync(checkpoint,JSON.stringify(savedState));
+  fs.writeFileSync(checkpoint+'.duration.json',JSON.stringify(report));
+  const resume={...options,_resume_download:true};
+  const gridTimeout=async script=>{
+   assert.equal(script,'agent_duration_check.js','download continuation must not submit generation');
+   return {code:2,err:'Waiting for selector `flow-video-tile` failed\n'};
+  };
+  assert((await runAgentBatches(resume,story,gridTimeout,()=>{})).ok);
+  assert.deepEqual(JSON.parse(fs.readFileSync(checkpoint)),savedState);
+  fail=true;
+  assert(!(await runAgentBatches(resume,story,run,()=>{})).ok,'a reported duration mismatch must still stop');
+  for(const patch of [{sourceVerified:false},{expectedSeconds:8},{rows:rows.map(r=>({...r,assetId:'other-'+r.scene}))}]){
+   fs.writeFileSync(checkpoint+'.duration.json',JSON.stringify({...report,...patch}));
+   assert(!(await runAgentBatches(resume,story,gridTimeout,()=>{})).ok,'invalid proof must still require a successful audit');
+  }
+  fail=false;
   // A fresh ten-second project renders and audits one real scene before the
   // requested batch size is used for the rest of the story.
   fs.unlinkSync(checkpoint);generated=0;const ranges=[];

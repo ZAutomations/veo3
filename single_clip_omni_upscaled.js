@@ -371,6 +371,10 @@ class UpscaledDownloader{
      try{await worker.group([job],receipts);}
      catch(error){
       if(error.code==='PARALLEL_ASSET_UNAVAILABLE'){serial.push(job);continue;}
+      if(error.code==='DOWNLOAD_NOT_STARTED'){
+       this.log(`Scene ${job.number}: no transfer started in the parallel tab; queued for serial download.`);
+       serial.push(job);continue;
+      }
       if(error.code==='DOWNLOAD_VERSION_UNAVAILABLE'){
        worker.unavailable=(worker.unavailable||[]).concat(error);
        continue;
@@ -384,7 +388,7 @@ class UpscaledDownloader{
    await Promise.allSettled(tabs.splice(0).map(page=>page.close()));
    this.downloadFrames.clear();
    if(serial.length){
-    this.log(`Parallel tabs could not verify ${serial.length} source(s); retrying those from the original project tab.`);
+    this.log(`Retrying ${serial.length} deferred download(s) from the original project tab.`);
     await this.group(serial,receipts);
    }
    const unavailable=workers.flatMap(worker=>worker.unavailable||[]);

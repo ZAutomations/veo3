@@ -162,12 +162,16 @@ def visual_scenes(original,sections,words,duration,seconds):
         start=index*seconds;stop=min(duration,start+seconds)
         overlaps=[(i,max(start,a),min(stop,b)) for i,(a,b) in enumerate(sections) if a<stop and b>start]
         base=copy.deepcopy(original['scenes'][overlaps[0][0]])
-        shots=[];characters=[];contexts=[]
+        shots=[];characters=[];contexts=[];visual_events=[]
         for i,a,b in overlaps:
             source=original['scenes'][i];contexts.append(source.get('narrative_context',''))
             characters.extend(source.get('characters',[]))
             source_shots=source.get('shots') or [dict(start_seconds=0,end_seconds=seconds,visual=source.get('narrative_context','Show the supplied topic.'))]
             sa,sb=sections[i];old=float(original.get('scene_seconds') or seconds)
+            if source.get('effect') not in (None,'','None') or source.get('sound') or source.get('sound_context'):
+                visual_events.append(dict(start_seconds=round(a-start,3),end_seconds=round(b-start,3),
+                    source_beat=i+1,source_start_seconds=round((a-sa)/(sb-sa)*old,3),source_end_seconds=round((b-sa)/(sb-sa)*old,3),
+                    effect=source.get('effect',''),sound=source.get('sound') or source.get('sound_context','')))
             for shot in source_shots:
                 left=sa+float(shot['start_seconds'])/old*(sb-sa)
                 right=sa+float(shot['end_seconds'])/old*(sb-sa)
@@ -182,9 +186,10 @@ def visual_scenes(original,sections,words,duration,seconds):
         base.update(script_line='',dialogue=[],external_narration=narration,audio_first_duration=stop-start,
                     narrative_context=' '.join(contexts)+' Continuous camera-led action matching the measured narration; no frozen filler.',
                     shots=shots,characters=list(dict.fromkeys(characters)),_scene_number=index+1,
+                    external_visual_events=visual_events,
                     full_voiceover_start=start,full_voiceover_end=stop,
                     sound='Natural ambience and action-matched SFX only; no narration, dialogue, vocals or music.')
-        for key in ('veo3_prompt','narration_translations'):base.pop(key,None)
+        for key in ('veo3_prompt','narration_translations','effect'):base.pop(key,None)
         output.append(base)
     return output
 
@@ -362,6 +367,7 @@ def record_language(folder,cfg,code,profile,lines,local=None,english_target=None
         (candidate/'PACE_AUDIT.json').write_text(json.dumps(audit,indent=2),encoding='utf-8')
         track['pace_audit']=audit
         if audit['ok'] or local or profile.get('provider')!='google':
+            if audit.get('checked'):E.log(f'FULL VOICEOVER FIRST: {code} speech-aware pace audit passed ({audit.get("method","legacy")}); original recording retained at 1.00x.')
             return track,words
         E.log(f'FULL VOICEOVER FIRST: {code} paragraph pace varies beyond the shared limit; unchanged-text consistent-delivery attempt {attempt+1}/3. No speech speed adjustment.')
     raise ValueError(f'Full narration ({code}) still has uneven paragraph pacing after 3 recordings. See PACE_AUDIT.json. Original text/audio preserved; no visuals submitted.')

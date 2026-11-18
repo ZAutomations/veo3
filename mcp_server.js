@@ -1538,7 +1538,7 @@ const TOOLS = [
                         noUpload = true;
                     }
                     log(`[batch ${i}] driving Flow (this can take a while)...`);
-                    const r = await doRunAgent({ story: storyArg, cdp: a.cdp, watch: a.watch, model: a.veo_model, submit: true, auto_approve: a.auto_approve, project_url: projectUrl, no_upload_refs: noUpload, video_model: a.video_model, video_resolution: a.video_resolution, clip_batch_size: a.clip_batch_size, scene_seconds: sceneSeconds, aspect: a.aspect, flow_characters: a.flow_characters, voices: presetVoices(preset) });
+                    const r = await doRunAgent({ story: storyArg, cdp: a.cdp, watch: a.watch, model: a.veo_model, submit: true, auto_approve: a.auto_approve, project_url: projectUrl, no_upload_refs: noUpload, video_model: a.video_model, video_resolution: a.video_resolution, clip_batch_size: a.clip_batch_size, scene_seconds: sceneSeconds, aspect: a.aspect, flow_characters: a.flow_characters, voices: presetVoices(preset), _resume_download: clipStart && a.download === true });
                     if (!r.ok) { bad('run_agent', r); continue; }
                     out.push('  generated.');
                     log(`[batch ${i}] generated`);

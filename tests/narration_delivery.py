@@ -4,7 +4,7 @@ from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import narration_delivery as D,full_voiceover as F
 lines=[' '.join(['word']*n) for n in (29,28,28,28,28,30)]
-bad=[(0,11.58),(11.58,22.78),(22.78,33.86),(33.86,42.52),(42.52,51.6),(51.6,61.04)]
+bad=[(0,16),(16,26),(26,36),(36,42),(42,52),(52,62)]
 assert not D.pace_audit(lines,bad)['ok']
 good=[];x=0
 for line in lines:
@@ -32,4 +32,17 @@ with tempfile.TemporaryDirectory() as tmp:
   except ValueError as error:assert 'no visuals submitted' in str(error)
   else:raise AssertionError('Persistent pace failure must not authorize visuals')
   assert recording.call_count==3
-print('PASS: actual uneven-pace regression detected, uniform track accepted, unchanged voice/text retry, per-preset coverage and situation tones shared by native/Google.')
+print('PASS: severe speech-rate variation detected, uniform track accepted, unchanged voice/text retry, per-preset coverage and situation tones shared by native/Google.')
+
+fixture=json.loads(Path(__file__).with_name('fixtures').joinpath('speech_load_pacing.json').read_text())
+for durations in fixture['recordings']:
+ sections=[];start=0
+ for duration in durations:sections.append((start,start+duration));start+=duration
+ audit=D.pace_audit(fixture['lines'],sections)
+ assert audit['ok'],audit
+ assert audit['printed_word_rate_ratio']>1.35
+ assert audit['method']=='speech_load_v2'
+assert D.number_syllables('2026')==5
+assert D.number_syllables('17')==3
+assert D.spoken_load('international military operations')>D.spoken_load('the short map')
+print('PASS: all three real cached Hormuz recordings accepted with speech-load correction; dates and long words no longer cause false pacing failure.')

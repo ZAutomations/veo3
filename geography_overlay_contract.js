@@ -6,15 +6,23 @@ const SUBJECTS = [
  ['SOLDIERS', /\b(?:soldiers?|army(?: men)?|troops?|infantry)\b/i, 'period-appropriate soldier helmet pictogram'],
  ['FIRE', /\b(?:fires?|flames?|burning)\b/i, 'flame pictogram'],
  ['BUILDINGS', /\b(?:buildings?|factories|factory|houses?|hospitals?|bridges?)\b/i, 'recognizable silhouette of the particular narrated structure'],
- ['SHIPS', /\b(?:ships?|tankers?|boats?)\b/i, 'matching vessel silhouette'],
+ ['SHIPS', /\b(?:ships?|tankers?|boats?|vessels?)\b/i, 'matching vessel silhouette'],
  ['AIRCRAFT', /\b(?:aircraft|planes?|fighter jets?|bombers?)\b/i, 'period-appropriate aircraft silhouette'],
  ['TANKS', /\b(?:tanks?|armou?red vehicles?)\b/i, 'period-appropriate tracked vehicle silhouette'],
  ['MISSILES', /\b(?:missiles?|rockets?)\b/i, 'matching projectile silhouette'],
+ ['TRAVELLER', /\b(?:travell?ers?|hikers?|walkers?|explorers?|expedition)\b/i, 'walking traveller or hiker pictogram'],
+ ['ANIMALS', /\b(?:sheep|cattle|herds?|camels?|horses?|dogs?|dingoes?|animals?)\b/i, 'recognizable named animal pictogram'],
+ ['ROAD VEHICLES', /\b(?:trucks?|cars?|trains?|buses|bicycles?)\b/i, 'matching road or rail vehicle pictogram'],
+ ['RIVERS', /\b(?:rivers?|canals?|waterways?)\b/i, 'flowing channel pictogram'],
+ ['MOUNTAINS', /\b(?:mountains?|ridges?|summits?|mountain pass)\b/i, 'topographic peak pictogram'],
+ ['ICE', /\b(?:glaciers?|ice floes?|sea ice|frozen)\b/i, 'ice or glacier pictogram'],
+ ['DESERT', /\b(?:deserts?|sand dunes?|drought)\b/i, 'sand dune or dry-land pictogram'],
+ ['PORTS', /\b(?:ports?|harbou?rs?|quays?|docks?)\b/i, 'matching harbour or dock pictogram'],
  ['PEOPLE', /\b(?:residents?|civilians?|evacuees?|families|survivors?)\b/i, 'anonymous civilian group pictogram'],
  ['EARTHQUAKE', /\b(?:earthquakes?|tremors?|shaking)\b/i, 'ground-motion pictogram'],
 ];
 function cues(scene,seconds){
- const speech=String(scene.script_line||scene.narration||'');
+ const speech=String(scene.script_line||scene.narration||scene.external_narration||'');
  const words=speech.match(/\S+/g)||[];
  const candidates=SUBJECTS.flatMap(([label,re,icon])=>[...speech.matchAll(new RegExp(re.source,'gi'))].filter(m=>{
   const before=speech.slice(Math.max(0,m.index-30),m.index),after=speech.slice(m.index+m[0].length,m.index+m[0].length+60);

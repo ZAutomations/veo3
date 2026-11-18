@@ -49,6 +49,7 @@ function basePromptForScene(story, index, options = {}) {
         story.place ? `${require('./fern_topic_visuals').applies(story) ? 'REFERENCE SETTING (matching shots only)' : 'LOCATION'}: ${story.place.name}. ${story.place.description || ''}` : '',
         story.blocking ? `POSITIONS: ${story.blocking}` : '',
         require('./fast_camera_rhythm').detailBeat(story),
+        require('./geography_scene_direction').forScene(story,scene,seconds),
         `VISUAL: ${scene.narrative_context || ''}`, `AUDIO: ${audio}`,
         require('./zack_native_audio').applies(story) ? require('./zack_native_audio').instructions(story,scene) : '',
         require('./fern_topic_visuals').applies(story) ? 'Do not rewrite the spoken lines, add narration, captions or additional clips. Keep mannequin identity, clothing and location design consistent; use the setting required by each supplied shot.' : 'Do not rewrite the spoken lines, add narration, captions or additional clips. Keep character identity, clothing and location consistent.'

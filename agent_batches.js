@@ -8,6 +8,25 @@ const atomicJson = (file, value) => {
     fs.renameSync(file + '.tmp', file);
 };
 
+function hasVerifiedDownloadSources(storyFile, project, stateFile, state, seconds) {
+    try {
+        const report = JSON.parse(fs.readFileSync(stateFile + '.duration.json', 'utf8'));
+        const receiptFile = require('./agent_source_receipts').fileFor(storyFile, project);
+        const receipt = JSON.parse(fs.readFileSync(receiptFile, 'utf8'));
+        if (report.ok !== true || report.sourceVerified !== true || report.project !== project
+            || report.storyFile !== path.resolve(storyFile) || report.expectedSeconds !== seconds
+            || report.from !== 1 || report.to !== state.total || report.rows?.length !== state.total
+            || receipt.project !== state.project || receipt.storyHash !== state.fingerprint
+            || receipt.rows?.length !== state.total) return false;
+        const assets = new Set(report.rows.map(row => row.assetId));
+        return assets.size === state.total && report.rows.every((row, index) =>
+            row.scene === index + 1 && typeof row.assetId === 'string' && row.assetId.length > 0
+            && Number.isFinite(row.duration) && Math.abs(row.duration - seconds) <= 0.35
+            && receipt.rows.some(saved => saved.scene === row.scene && saved.assetId === row.assetId
+                && saved.duration === row.duration));
+    } catch (_) { return false; }
+}
+
 // Build the complete local queue before any request is sent to Flow.
 async function prepareAgentBatches(a, storyJson, state, run, log = () => {}) {
     const dir = path.dirname(storyJson);
@@ -19,7 +38,9 @@ async function prepareAgentBatches(a, storyJson, state, run, log = () => {}) {
     const generator = digest(['story_to_agent_prompt.js', 'simple_dialogue_prompt.js',
         'dialogue_shot_plan.js', 'dialogue_speakers.js', 'location_style.js',
         'agent_scene_ids.js', 'audio_first_prompt.js', 'silent_scene_identity.js',
-        'narration_delivery.js', 'narration_tones.json']
+        'narration_delivery.js', 'narration_tones.json', 'geography_scene_direction.js',
+        'geography_overlay_contract.js', 'geography_visual_contract.js', 'geography_map_theme.js', 'fast_camera_rhythm.js',
+        'external_visual_contract.js', 'styles.json', 'genai_styles.json', 'zack_badge_contract.js', 'fern_topic_visuals.js']
         .map(name => fs.readFileSync(path.join(__dirname, name), 'utf8')).join('\n'));
     const context = { fingerprint: state.fingerprint, aspect: state.aspect,
         flow_characters: !!a.flow_characters, generator };
@@ -114,15 +135,25 @@ async function runAgentBatches(a, storyJson, run, log) {
     };
     const output = [];
     const verifyDuration = async (from,to) => {
+        const seconds = Number(a.scene_seconds||a.seconds||story.scene_seconds||8);
         log(`Checking actual Flow clip durations for scenes ${from}-${to} before advancing the checkpoint...`);
         const audit=await run('agent_duration_check.js',['--story',storyJson,'--project',a.project_url,
             '--from',String(from),'--to',String(to),'--seconds',String(a.scene_seconds||a.seconds||story.scene_seconds||8),
             '--cdp',String(a.cdp||9222),'--out',stateFile+'.duration.json'],{timeoutMs:240000});
+        const detail=audit.err||audit.out||'No verified duration result.';
+        // A grid that failed to mount gives no new duration evidence. Only a
+        // completed download continuation may reuse the last full verified audit.
+        if (a._resume_download && audit.code === 2 && /^Waiting for selector `flow-video-tile` failed\.?$/i.test(detail.trim())
+            && from === 1 && to === total && state.total === total && state.completed === total
+            && !state.pending && state.durationVerifiedThrough === total && state.durationExpectedSeconds === seconds
+            && hasVerifiedDownloadSources(storyJson, a.project_url, stateFile, state, seconds)) {
+            log('Flow grid did not mount for the repeated audit. Reusing verified durations and source receipts for the completed batch; download checks still apply.');
+            return null;
+        }
         state.durationReviewRequired=audit.code!==0;
-        state.durationExpectedSeconds=Number(a.scene_seconds||a.seconds||story.scene_seconds||8);
+        state.durationExpectedSeconds=seconds;
         if(audit.code===0)state.durationVerifiedThrough=to;
         save();
-        const detail=audit.err||audit.out||'No verified duration result.';
         const phase=/SCENE_NAMING_FAILED/.test(detail)?'Scene title verification failed; completed clips were not regenerated.':'Actual clip duration verification failed.';
         return audit.code===0?null:`RECOVERY_REVIEW_REQUIRED: ${phase} ${detail}`;
     };
