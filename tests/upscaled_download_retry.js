@@ -8,5 +8,6 @@ const {UpscaledDownloader}=require('../single_clip_omni_upscaled');
  assert.deepEqual(calls,[1,2,2,3]);
  fake.download=async()=>{throw Error('Wrong source identity');};
  await assert.rejects(UpscaledDownloader.prototype.group.call(fake,[{number:4}],{}),/Wrong source identity/);
+ for(const code of ['DOWNLOAD_CANCELED','DOWNLOAD_TIMEOUT']){let attempts=0;fake.download=async()=>{if(!attempts++){const e=Error(code);e.code=code;throw e;}};await UpscaledDownloader.prototype.group.call(fake,[{number:5}],{});assert.equal(attempts,2);}
  console.log('PASS: retry only the stalled download once, continue to next scene, preserve identity errors as stops.');
 })().catch(e=>{console.error(e);process.exitCode=1;});

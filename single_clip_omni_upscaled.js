@@ -165,7 +165,7 @@ class UpscaledDownloader{
   }
   throw Error(`Scene ${job.number}: completed tile not found; nothing substituted.`);
  }
- async download(job,receipt){
+ async reuseLocal(job,receipt){
   const recovered=(this.localRecovery||[]).find(c=>c.scene===job.number);
   if(recovered&&path.basename(recovered.file)===recovered.file){
    const file=path.join(this.out,recovered.file);
@@ -203,6 +203,11 @@ class UpscaledDownloader{
   const differentStableSource=(stableId(old?.assetId)&&stableId(receipt?.assetId)&&old.assetId!==receipt.assetId)
    ||(old?.sourceAttemptedAt&&receipt?.attemptedAt&&old.sourceAttemptedAt!==receipt.attemptedAt);
   if(verifiedExisting(old,job,this.out,this.project,this.allowNative720,target,this.downloadVersion)&&!differentStableSource){this.log(`Scene ${job.number}: verified ${target}p already saved; skipped.`);return old;}
+  return null;
+ }
+ async download(job,receipt){
+  const existing=await this.reuseLocal(job,receipt);if(existing)return existing;
+  let target=this.targets.get(job.number);
   await this.open();
   const tabAsset=this.parallelAssets?.get(receipt?.sceneId);
   let hit;
@@ -263,7 +268,7 @@ class UpscaledDownloader{
    const d=this.activeDownload;
    if(!d.guid&&Date.now()>=startDeadline){const error=Error(`Scene ${job.number}: Flow did not start the upscaled download within 90 seconds.`);error.code='DOWNLOAD_NOT_STARTED';throw error;}
    if(d.error)throw Error(d.error);
-   if(d.status==='canceled')throw Error(`Scene ${job.number}: upscaled download was canceled.`);
+   if(d.status==='canceled'){const error=Error(`Scene ${job.number}: upscaled download was canceled.`);error.code='DOWNLOAD_CANCELED';throw error;}
    if(d.status==='completed'&&d.guid&&fs.existsSync(path.join(this.temp,d.guid)))break;
    await this.checkGeneration();await sleep(1000);
   }
@@ -303,7 +308,7 @@ class UpscaledDownloader{
       if(this.page){await this.page.keyboard.press('Escape');await this.page.evaluate(bg.closeMenus);}
       break;
      }
-     if(this.parallelWorker||attempt||!['DOWNLOAD_NOT_STARTED','DOWNLOAD_TIMEOUT'].includes(error.code))throw error;
+     if(this.parallelWorker||attempt||!['DOWNLOAD_NOT_STARTED','DOWNLOAD_TIMEOUT','DOWNLOAD_CANCELED'].includes(error.code))throw error;
      this.log(`Scene ${job.number}: retrying this download once; completed clips are preserved and no generation prompt is submitted.`);
      this.activeDownload=null;
      await this.page.keyboard.press('Escape');await sleep(1000);
@@ -317,6 +322,14 @@ class UpscaledDownloader{
   }finally{try{if(!this.parallelWorker&&!this.engine.page.isClosed?.())await this.engine.page.bringToFront();}catch{}}
  }
  async parallelGroup(jobs,receipts){
+  const sourceJobs=jobs;
+  if(typeof this.reuseLocal==='function'){
+   const pending=[];
+   for(const job of jobs){await this.checkGeneration();if(!await this.reuseLocal(job,receipts[job.number]))pending.push(job);}
+   this.log(`Local download precheck: ${jobs.length-pending.length}/${jobs.length} verified scene(s) already saved; ${pending.length} transfer(s) remaining.`);
+   jobs=pending;
+   if(!jobs.length)return;
+  }
   if(jobs.length<2||this.downloadVersion!=='upscaled'||this.orderMode!=='scene'||!jobs.every(job=>receipts[job.number]?.assetId))return this.group(jobs,receipts);
   const workers=[],tabs=[],queue=jobs.slice(),serial=[];
   let clickTail=Promise.resolve();
@@ -341,14 +354,14 @@ class UpscaledDownloader{
      if(!frameId||this.downloadFrames.has(frameId))throw Error('Unique browser frame IDs could not be confirmed.');
      // Flow can rotate signed preview URLs across tabs. Only use an exact
      // asset-owned scene title when the entire verified scene set is mounted.
-     const parallelAssets=new Map(), expected=jobs.map(job=>receipts[job.number].sceneId);
+     const parallelAssets=new Map(), expected=sourceJobs.map(job=>receipts[job.number].sceneId);
      if(expected.length===this.total&&expected.every(Boolean)&&new Set(expected).size===this.total){
       const tiles=await media.snapshot(page);
       const matches=expected.map(id=>tiles.filter(tile=>tile.assetTitle===id));
       if(matches.every(group=>group.length===1&&group[0].ready&&group[0].assetId)&&
          new Set(matches.map(group=>group[0].assetId)).size===this.total){
        expected.forEach((id,index)=>{
-        const original=receipts[jobs[index].number].assetId, current=matches[index][0].assetId;
+        const original=receipts[sourceJobs[index].number].assetId, current=matches[index][0].assetId;
         const signed=id=>/^[\w-]{64,}$/.test(id);
         if(current===original||(signed(original)&&signed(current)))parallelAssets.set(id,current);
        });
@@ -370,11 +383,7 @@ class UpscaledDownloader{
      const job=queue.shift();
      try{await worker.group([job],receipts);}
      catch(error){
-      if(error.code==='PARALLEL_ASSET_UNAVAILABLE'){serial.push(job);continue;}
-      if(error.code==='DOWNLOAD_NOT_STARTED'){
-       this.log(`Scene ${job.number}: no transfer started in the parallel tab; queued for serial download.`);
-       serial.push(job);continue;
-      }
+      if(['PARALLEL_ASSET_UNAVAILABLE','DOWNLOAD_CANCELED','DOWNLOAD_NOT_STARTED','DOWNLOAD_TIMEOUT'].includes(error.code)){this.log(`Scene ${job.number}: ${error.code}; keeping completed clips and deferring this transfer for serial retry.`);serial.push(job);worker.activeDownload=null;continue;}
       if(error.code==='DOWNLOAD_VERSION_UNAVAILABLE'){
        worker.unavailable=(worker.unavailable||[]).concat(error);
        continue;
@@ -388,7 +397,7 @@ class UpscaledDownloader{
    await Promise.allSettled(tabs.splice(0).map(page=>page.close()));
    this.downloadFrames.clear();
    if(serial.length){
-    this.log(`Retrying ${serial.length} deferred download(s) from the original project tab.`);
+    this.log(`Parallel transfers need serial recovery for ${serial.length} scene(s); retrying only those from the original project tab.`);
     await this.group(serial,receipts);
    }
    const unavailable=workers.flatMap(worker=>worker.unavailable||[]);

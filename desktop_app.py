@@ -670,6 +670,15 @@ AUTO_RETRY_SECONDS = 5
 AUTO_RETRY_LIMIT = 5
 
 
+def blocking_review_log(recent):
+    """A later verified scene-ID map supersedes only an earlier silent-order diagnostic."""
+    lines=recent.splitlines()
+    verified=max((i for i,line in enumerate(lines) if 'Verified scene IDs map each completed video asset to its story scene.' in line),default=-1)
+    return '\n'.join(line for i,line in enumerate(lines)
+        if not ('Actual duration/source verified.' in line and 'Display title naming is deferred' in line)
+        and not (i<verified and 'RECOVERY_REVIEW_REQUIRED: This is a silent story.' in line))
+
+
 def automatic_retry_allowed(action, lane):
     # Use the same action allowlist as manual Retry / Continue. Any error in
     # these workflows is eligible; checkpoint planning still prevents replay
@@ -1148,8 +1157,7 @@ class Job:
                             break
                     # A successful duration audit can defer optional display naming.
                     # Its diagnostic marker must not veto a later transient failure.
-                    review_recent = '\n'.join(line for line in recent.splitlines()
-                        if not ('Actual duration/source verified.' in line and 'Display title naming is deferred' in line))
+                    review_recent = blocking_review_log(recent)
                     if (not unusual or re.search(r'policy-blocked|content policy|unresolved scene order|multiple completed video assets', review_recent, re.I)) and re.search(r'FLOW_REVIEW_REQUIRED:|RECOVERY_REVIEW_REQUIRED:', review_recent):
                         self.log('Automatic retry stopped: this step needs review, so reopening the same project cannot resolve it. Completed clips and downloads are preserved.')
                         self.status = 'failed'
