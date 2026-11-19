@@ -40,5 +40,5 @@ with TemporaryDirectory() as temporary:
  assert not list(audio.rglob('*.mp4'))
  assert not (audio/'clips').exists()
  legacy=audio/'clips';legacy.mkdir()
- assert full_voiceover_media_folder(prepared)==audio
-print('PASS: main-folder join and prepared narration edit; legacy clip folders retain their existing paths.')
+ assert full_voiceover_media_folder(prepared)==root
+print('PASS: main-folder join and prepared narration edit; legacy clip folders cannot change the canonical media path.')

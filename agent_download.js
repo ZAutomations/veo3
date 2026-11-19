@@ -87,7 +87,7 @@ function flag(name, def = null) {
 
 const CDP_PORT = flag('--cdp', '9222');
 const CDP_URL  = `http://127.0.0.1:${CDP_PORT}`;
-const OUT_DIR  = typeof flag('--out') === 'string' ? flag('--out') : path.join(process.cwd(), 'clips');
+let OUT_DIR  = typeof flag('--out') === 'string' ? flag('--out') : path.join(process.cwd(), 'clips');
 const PROBE    = !!flag('--probe', false);
 const METHOD   = (typeof flag('--method') === 'string' ? flag('--method') : 'auto').toLowerCase();
 const REVERSE  = !!flag('--reverse', false);
@@ -96,6 +96,7 @@ const SETTLE   = parseInt(flag('--settle', '2500'), 10);
 const SHEET    = !flag('--no-sheet', false);
 const EXPECTED = parseInt(flag('--expected', '0'), 10) || 0;
 const STORY_FILE = typeof flag('--story') === 'string' ? flag('--story') : null;
+if (STORY_FILE && path.basename(STORY_FILE)==='full_voiceover_story.json') OUT_DIR=path.join(require('./story_output_name').fullVoiceoverMediaFolder(STORY_FILE),'clips');
 // --sheet-only <dir>: rebuild the contact sheet from clips already on disk, with
 // no browser and no re-download. Lets the join order be re-checked after the fact.
 const SHEET_ONLY = typeof flag('--sheet-only') === 'string' ? flag('--sheet-only') : null;

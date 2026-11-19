@@ -552,7 +552,8 @@ def plan_action(action, p):
             return 'flow', [('cli', command('order_clips_by_dialogue.js', path, '--clips', path.parent / 'clips', '--write'))]
         if action == 'fix_join':
             return 'flow', [('cli', command('fix_order_and_join.js', path))]
-        return 'flow', [('cli', command('join_clips.js', path.parent / 'clips'))]
+        from story_output import full_voiceover_media_folder
+        return 'flow', [('cli', command('join_clips.js', full_voiceover_media_folder(path) / 'clips'))]
     if action == 'delete':
         if not p.get('confirmed'):
             raise ValueError('Confirm moving all project videos to Trash first.')
@@ -607,7 +608,8 @@ def plan_action(action, p):
             raise ValueError('Choose 360p or 720p for Omni.')
         return 'flow', [('request', ('single_clip_omni.js', req))]
     if action == 'download':
-        cmd = command('agent_download.js', '--out', path.parent / 'clips', '--story', path,
+        from story_output import full_voiceover_media_folder
+        cmd = command('agent_download.js', '--out', full_voiceover_media_folder(path) / 'clips', '--story', path,
                       '--expected', total, '--reverse', *base)
         cmd.append('--original' if download_version == 'original' else '--upscaled')
         return 'flow', [('cli', cmd)]
@@ -1380,6 +1382,14 @@ def retry_plan(record):
         raise ValueError('Saved workflow step is unavailable.')
     import audio_first
     remaining = audio_first.rebind_package_paths(json.loads(json.dumps(operations[cursor:])))
+    # Joining retries must re-audit manually recovered files before consuming a manifest.
+    if remaining and remaining[0][0]=='cli' and len(remaining[0][1])>1 and Path(remaining[0][1][1]).name=='join_clips.js':
+        source=record.get('current_story') or record.get('payload',{}).get('story')
+        project=record.get('payload',{}).get('project')
+        if source and project:
+            inputs=dict(record.get('payload',{}),story=source,project=project,view='agent')
+            _,preflight=plan_action('download',inputs)
+            remaining=list(preflight)+remaining
     if record.get('action')=='manual_jobs':
         assigned=next((spec for kind,spec in reversed(operations[:cursor+1]) if kind=='cli' and len(spec)>1 and Path(spec[1]).name=='queue_account.js'),None)
         if not assigned:raise ValueError('Manual job account binding is missing; no account guessed.')

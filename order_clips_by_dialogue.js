@@ -290,7 +290,7 @@ function main() {
     }
     const CLIPS_DIR = typeof flag('--clips') === 'string'
         ? path.resolve(flag('--clips'))
-        : path.join(path.dirname(STORY_JSON), 'clips');
+        : path.join(require('./story_output_name').fullVoiceoverMediaFolder(STORY_JSON), 'clips');
     if (!fs.existsSync(CLIPS_DIR)) {
         console.error(`RECOVERY_REVIEW_REQUIRED: No clips folder: ${CLIPS_DIR}`);
         console.error('Download clips first using the same story and Flow project. Resolve clip order only reads local clips; Retry / Continue would repeat this ordering action, not download them. No generation is required.');
