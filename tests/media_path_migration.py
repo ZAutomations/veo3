@@ -4,7 +4,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parent.parent))
 from media_path_migration import canonical_media_path
 from audio_first import rebind_package_paths
 with tempfile.TemporaryDirectory() as tmp:
- root=Path(tmp);original=root/'source_story.json';original.write_text('{}')
+ root=Path(tmp).resolve();original=root/'source_story.json';original.write_text('{}')
  folder=root/'full_voiceover/hash';folder.mkdir(parents=True)
  package=folder/'full_voiceover_story.json';package.write_text(json.dumps({'full_voiceover_first':True,'original_story':str(original)}))
  (folder/'clips').mkdir()
