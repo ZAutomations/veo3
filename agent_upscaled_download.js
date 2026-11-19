@@ -172,6 +172,14 @@ async function download(browser,page,{storyFile,outDir,project,tiles,thumbnailTi
   if(!unresolved)d.localRecovery=require('./local_clip_recovery').verified(path.resolve(storyFile),outDir);
   await d.parallelGroup(jobs,receipts);
   d.save();
+  if(story.full_voiceover_first && path.resolve(path.dirname(outDir))===require('./story_output_name').fullVoiceoverMediaFolder(storyFile)){
+   const file=path.join(outDir,'manifest.json');
+   if(fs.existsSync(file)){
+    const manifest=JSON.parse(fs.readFileSync(file,'utf8'));
+    manifest.preparedStory=path.relative(path.dirname(path.resolve(outDir)),path.resolve(storyFile));
+    fs.writeFileSync(file,JSON.stringify(manifest,null,2)+'\n');
+   }
+  }
   if(thumbnailRequired){
    const target=thumbnailOutputDir||folder;
    const downloaded=await require('./flow_thumbnail_download').downloadThumbnail(page,thumbnailTile,target,log);
