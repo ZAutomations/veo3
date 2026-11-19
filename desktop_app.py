@@ -1102,6 +1102,14 @@ class Job:
                 import generation_only
                 generation_only.progress(self.current_story,self.phase,complete=check_credits_after_merge)
             if not self.stopped and check_credits_after_merge:
+                from incomplete_resume import complete_incomplete
+                source = self._story_for_operation(index) or self.current_story or self.payload.get('story')
+                if source:
+                    try:
+                        if complete_incomplete(source, self.current_project_url):
+                            self.log('INCOMPLETE PROJECT: finishing succeeded; removed from the incomplete list. Account/checkpoint history retained.')
+                    except (ValueError, OSError) as exc:
+                        self.log('Could not archive the incomplete marker: ' + str(exc))
                 self.refresh_flow_credits(after_merge=True)
 
     def run(self):
@@ -1634,7 +1642,8 @@ def story_completion(path, story, manifest):
     final = story_video_path(path)
     if not final.is_file():  # recognize projects joined by older tool versions
         final = path.parent / 'clips_final.mp4'
-    completed_final = final.is_file() and final.stat().st_size > 0 and final.stat().st_mtime >= path.stat().st_mtime
+    completed_final = final.is_file() and final.stat().st_size > 0
+    manual_done = read_json(path.parent / 'story_library_status.json').get('already_done') is True
     import generation_only
     handoff=generation_only.load(path)
     pending=bool(handoff and handoff.get('status') in ('generated','finishing'))
@@ -1644,10 +1653,10 @@ def story_completion(path, story, manifest):
         for row in story['multilingual'].get('languages',[]):
             language=LANGUAGES.get(row.get('code'))
             translated=final.with_name(final.stem+' '+str(language)+'.mp4')
-            if not language or not translated.is_file() or translated.stat().st_size==0 or translated.stat().st_mtime<path.stat().st_mtime:language_pending=True
-    return dict(fullyComplete=bool(completed_final and not pending and not language_pending), downloaded=len(downloaded), done=bool(complete_clips or completed_final), generationOnlyPending=pending,
+            if not language or not translated.is_file() or translated.stat().st_size==0 :language_pending=True
+    return dict(fullyComplete=bool(completed_final and not pending and not language_pending), downloaded=len(downloaded), done=bool(manual_done or complete_clips or completed_final), manuallyDone=manual_done, generationOnlyPending=pending and not manual_done,
                 generationAccount=handoff.get('account_email','') if pending else '',
-                completion='Generation only · finishing pending' if pending else 'English saved · languages pending' if language_pending else 'Final video saved' if completed_final else 'All clips downloaded' if complete_clips else 'Available')
+                completion='Already done · manually marked' if manual_done else 'Generation only · finishing pending' if pending else 'English saved · languages pending' if language_pending else 'Final video saved' if completed_final else 'All clips downloaded' if complete_clips else 'Available')
 
 
 @app.get('/api/reverse-runs')
@@ -1765,9 +1774,9 @@ def library():
     original_imports={}
     stories_root=ROOT/'stories'
     for path in stories_root.rglob('*_story.json'):
-        if any(x in path.parts for x in ('backups', 'clips', 'logs')):
+        if any(x in path.relative_to(stories_root).parts[:-1] for x in ('backups', 'clips', 'logs', 'video_editing')):
             continue
-        if path.name=='localized_story.json' and {'localized','multilingual'}.intersection(path.relative_to(stories_root).parts[:-1]):
+        if path.name=='localized_story.json' and {'localized','multilingual','full_voiceover_languages'}.intersection(path.relative_to(stories_root).parts[:-1]):
             continue
         story = read_json(path)
         if not story.get('scenes'):
@@ -1822,6 +1831,21 @@ def library():
         keep=max(rows,key=import_preference)
         redundant.update(row['path'] for row in rows if row is not keep)
     return sorted((row for row in result if row['path'] not in redundant),key=lambda row:row['modified'],reverse=True)
+
+
+@app.post('/api/library/status')
+def set_story_library_status(body: dict):
+    try:
+        source, _ = story_path(body.get('story', ''))
+        if not source.is_relative_to((ROOT / 'stories').resolve()):
+            raise ValueError('Select a story in the stories folder.')
+        value = body.get('alreadyDone')
+        if not isinstance(value, bool):
+            raise ValueError('Already done must be true or false.')
+        save_json(source.parent / 'story_library_status.json', dict(already_done=value, updated_at=time.time()))
+        return {'alreadyDone': value}
+    except (ValueError, TypeError, OSError) as exc:
+        raise HTTPException(400, str(exc))
 
 
 @app.get('/api/story')
@@ -2090,6 +2114,12 @@ def mark_job_incomplete(job_id: str):
         raise HTTPException(409, str(exc))
 
 
+@app.get('/api/incomplete-projects')
+def incomplete_projects():
+    from incomplete_resume import list_incomplete
+    return {'projects': list_incomplete(ROOT / 'stories')}
+
+
 @app.post('/api/incomplete-projects/resume')
 def resume_incomplete_project(body: dict):
     try:
@@ -2101,11 +2131,13 @@ def resume_incomplete_project(body: dict):
             raise ValueError('The saved resume state belongs to a different story. Mark this story incomplete again to refresh it.')
         if state and state.get('project') and project_url(state['project'], required=True) != project:
             raise ValueError('The Flow URL does not match this story’s saved incomplete project.')
+        from incomplete_resume import saved_owner, download_and_finish
+        owner = saved_owner(story_file, state or {}, read_json(ROOT / 'accounts.json').get('accounts', []), project_url, project)
         if state and state.get('operations') and state.get('action') in RETRY_ACTIONS:
             # Downloads get their own resumable ledger and must never resubmit generated prompts.
             if str(state.get('phase', '')).lower() == 'download':
                 payload = dict(state.get('payload') or {}, story=str(story_file), project=project, view='agent')
-                lane, operations = plan_action('download', payload)
+                lane, operations = download_and_finish(plan_action, payload)
                 action = 'download'
             else:
                 record = dict(state, status='stopped')
@@ -2116,8 +2148,11 @@ def resume_incomplete_project(body: dict):
         else:
             # Backward compatible with older incomplete project.txt markers.
             payload = dict(body, story=str(story_file), project=project, view='agent')
-            lane, operations = plan_action('download', payload)
+            lane, operations = download_and_finish(plan_action, payload)
             action = 'download'
+        payload['_incompleteResume'] = True
+        port = payload.get('cdp') or global_workflow_settings()['automationCdp']
+        operations = [('cli', command('queue_account.js', '--label', owner['label'], '--cdp', port, '--resume-only'))] + list(operations)
     except (ValueError, TypeError, OSError) as exc:
         raise HTTPException(400, str(exc))
     with lock:
@@ -2126,6 +2161,8 @@ def resume_incomplete_project(body: dict):
             raise HTTPException(409, f'A {lane} job is already running. Stop it or wait for it to finish.')
         job = Job(action, payload, lane, operations)
         job.current_story, job.current_project_url = str(story_file), project
+        job.project_account_email = str(owner['email']).strip()
+        job.log(f'Restoring incomplete project account: {owner["label"]}.')
         jobs[job.id] = job
         save_json(ROOT / 'logs' / 'desktop' / 'last_agent_job.json', dict(id=job.id, action=action, payload=payload, lane=lane,
                   operations=operations, operation_index=0, operation_projects={}, operation_phases={}, phase='incomplete resume', status='running', auto_retry_count=0))

@@ -27,4 +27,11 @@ async function selectAgentPage(browser, projectUrl) {
     return { page, pages, flowTabs };
 }
 
-module.exports = { normalizeProjectUrl, selectAgentPage };
+function assertProjectAccess(actual, expected) {
+    let resolved;
+    try { resolved = normalizeProjectUrl(actual); } catch (_) { /* redirect or sign-in */ }
+    if (!resolved || (expected && resolved !== normalizeProjectUrl(expected))) {
+        throw new Error(`RECOVERY_REVIEW_REQUIRED: FLOW_PROJECT_ACCESS_FAILED: Flow did not open the requested project (${expected || 'current project'}). Current URL: ${actual}. Sign in to the original project account and verify access before resuming. No generation was repeated.`);
+    }
+}
+module.exports = { normalizeProjectUrl, selectAgentPage, assertProjectAccess };

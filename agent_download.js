@@ -672,6 +672,7 @@ async function activateVideoTile(page, tile, needSource = true) {
         await page.goto(requestedUrl, { waitUntil: 'domcontentloaded', timeout: 120000 });
         await wait(5000);
     }
+    require('./flow_project').assertProjectAccess(page.url(), requestedUrl);
     log(`Flow tab: ${page.url()}`);
     log('Preparing automatic clip download; all completed clips will be collected.');
     await page.bringToFront();
