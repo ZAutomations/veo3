@@ -1,6 +1,6 @@
 // Deterministic local importer. No model calls and no media generation.
 const fs=require('fs'),path=require('path'),crypto=require('crypto');
-const {parse,ImportValidationError}=require('./ready_script_parser');
+const {parse,ImportValidationError,ASPECT_RATIOS}=require('./ready_script_parser');
 function writerFor(s,aspect){
  const old=process.argv;
  try{process.argv=[process.execPath,'write_story.js','--title',s.title,'--seconds',String(s.seconds),'--duration',String(s.seconds*s.clips.length),'--aspect',aspect];delete require.cache[require.resolve('./write_story')];return require('./write_story');}
@@ -39,6 +39,8 @@ function semanticKey(source){
  // Story numbering, diagnostics and validation profiles never changed the
  // rendered content. Keep the legacy hash so re-imports reuse saved packages.
  delete key.storyNumber;delete key.production_profile;
+ delete key.aspect; // The effective aspect is already included separately in the package hash.
+ delete key.subject; // Descriptive metadata does not affect the rendered package.
  if(!key.continuity)delete key.continuity;
  if(!key.details)delete key.details;
  return key;
@@ -51,7 +53,7 @@ function inputs(request){
  return files.map(file=>({file:path.resolve(file),text:fs.readFileSync(file,'utf8')}));
 }
 function run(request){
- const aspect=request.aspect||'9:16';if(!['9:16','16:9','1:1','Flow'].includes(aspect))throw new ImportValidationError('Invalid aspect ratio.');
+ const defaultAspect=request.aspect||'9:16';if(!ASPECT_RATIOS.includes(defaultAspect))throw new ImportValidationError('Invalid aspect ratio.');
  const sourceInputs=inputs(request),origins=new Map();
  const parsed=sourceInputs.flatMap(input=>parse(input.text,request).map(source=>{origins.set(source,input);return source;}));
  // Validate identifiers across files as well as within each parsed TXT.
@@ -63,7 +65,7 @@ function run(request){
  }
  // Validate every story before creating any package.
  const prepared=parsed.map(s=>{
-  try{return prepare(s,aspect);}catch(error){
+  try{return prepare(s,s.aspect??defaultAspect);}catch(error){
    if(error.permanent||error.code)throw error;
    const clipNumber=Number(error.message.match(/Clip\s+(\d+)/i)?.[1]);
    throw new ImportValidationError(error.message,{storyNumber:s.storyNumber,title:s.title,section:'Production',clipNumber:clipNumber||undefined,
@@ -81,6 +83,7 @@ function run(request){
  const root=path.resolve(request.out||path.join(__dirname,'stories'));fs.mkdirSync(root,{recursive:true});
  return prepared.map(({W,p,cast,story,warnings},i)=>{
   const s=parsed[i],key=semanticKey(s);
+  const aspect=s.aspect??defaultAspect;
   const manualOptions={aspect,seconds:s.seconds,videoModel:request.videoModel,videoResolution:request.videoResolution};
   if(s.seconds===10&&manualOptions.videoModel&&!/Omni.*Flash/i.test(manualOptions.videoModel))manualOptions.videoModel='Omni 1.2 Flash';
  if(!story.generic_ready_import&&!p.derived_video_preset&&!['world-politics-map-explain','fern-documentary','3d-zack-style','cats-behavior-3d','intimacy-health-3d','geography-map','3d-motivational-red-green','heartwarming-cat-3d'].includes(s.preset)){delete key.characters;delete key.locations;key.clips.forEach(c=>{if(!c.shots.length)delete c.shots;});}

@@ -1,6 +1,8 @@
 function inspectLayout(close=false){
  const visible=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0;};
  const candidates=[...document.querySelectorAll('button[aria-label="Close"]')].filter(visible).filter(button=>{
+  const agentPanel=button.closest('flow-agent-panel');
+  if(agentPanel && visible(agentPanel) && button.closest('.agent-panel-header'))return true;
   if(!button.classList.contains('header-action'))return false;
   for(let p=button.parentElement,depth=0;p&&depth<7;p=p.parentElement,depth++){
    const r=p.getBoundingClientRect(),text=p.innerText||p.textContent||'';

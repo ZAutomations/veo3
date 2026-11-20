@@ -41,15 +41,24 @@ function missingPrompt(text,numbers){
  const header=text.slice(0,matches[0].index).replace(/^BATCH ONLY:.*$/gm,'').replace(/^Create exactly \d+ separate clips.*$/gm,'');
  return `${header}\nRECOVERY ONLY: Generate ONLY scenes ${numbers.join(', ')} below, exactly one clip per scene. All other scenes already exist and MUST NOT be generated. This selection replaces any original batch count. Track each requested scene through completion; retry only a failed individual scene. Never repeat the whole batch. Follow BLOCKED SCENE HANDLING for a content-policy refusal.\n\n${selected.join('\n')}`;
 }
-async function prepare({engine,storyFile,submissionFile,text,inspect,wait}){
+async function inspectIdle(inspect,engine,jobs,wait,log=()=>{},limit=180){
+ for(let poll=0;poll<=limit;poll++){
+  const result=await inspect(engine,jobs);
+  if(!result.generatingSeen&&!result.tiles?.some(t=>t.busy))return result;
+  if(poll===limit)throw Error('RECOVERY_REVIEW_REQUIRED: Existing generation is still active after the recovery wait. Nothing resubmitted; retry after it finishes.');
+  if(poll%5===0)log('Resume audit: existing clip is still generating; waiting without submitting or replaying prompts.');
+  await wait(3000);
+ }
+}
+async function prepare({engine,storyFile,submissionFile,text,inspect,wait,log=()=>{}}){
  const source=fs.readFileSync(storyFile,'utf8'),story=JSON.parse(source),intent=JSON.parse(fs.readFileSync(submissionFile,'utf8'));
  if(!Number.isInteger(intent.from)||!Number.isInteger(intent.to)||intent.from<1||intent.to<intent.from||intent.to>story.scenes.length)throw Error('RECOVERY_REVIEW_REQUIRED: Missing-scene checkpoint range is invalid. Nothing resubmitted.');
  if(crypto.createHash('sha256').update(source).digest('hex')!==intent.fingerprint)throw Error('Story fingerprint changed; missing-scene recovery stopped.');
  const jobs=sourceJobs(story,intent.to);
- const first=planMissing(story,intent,await inspect(engine,jobs));
+ const first=planMissing(story,intent,await inspectIdle(inspect,engine,jobs,wait,log));
  if(!first.missing.length)return null;
  await wait(8000);
- const second=planMissing(story,intent,await inspect(engine,jobs));
+ const second=planMissing(story,intent,await inspectIdle(inspect,engine,jobs,wait,log));
  if(JSON.stringify(first)!==JSON.stringify(second))throw Error('Project changed during missing-scene confirmation. Nothing resubmitted.');
  const receiptFile=submissionFile+'.missing.json';
  let receipt;try{receipt=JSON.parse(fs.readFileSync(receiptFile,'utf8'));}catch{}
@@ -120,4 +129,4 @@ function recoveryOwnsRetries(submissionFile){
  // Once revised prompts own this batch, never click its old failed tiles too.
  return receipt;
 }
-module.exports={sourceJobs,planMissing,missingPrompt,prepare,markSubmitting,confirmObservedSubmission,pendingSubmission,recoveryOwnsRetries};
+module.exports={inspectIdle,sourceJobs,planMissing,missingPrompt,prepare,markSubmitting,confirmObservedSubmission,pendingSubmission,recoveryOwnsRetries};

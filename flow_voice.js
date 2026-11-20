@@ -58,6 +58,10 @@ function presetVoices(id) {
 // before this existed still resolves without being edited.
 function resolveFlowVoice(story) {
     if (!story || typeof story !== 'object') return null;
+    if(story.preset_id==='fern-documentary'){
+        if(story.audio_first||story.full_voiceover_first)return null;
+        return {name:'Orus',source:'Fern narrator lock'};
+    }
     if (Array.isArray(story.flow_voices)) {
         const first = story.flow_voices.map(String).filter(Boolean)[0];
         if (first) return { name: first, source: 'the story' };

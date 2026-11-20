@@ -37,7 +37,19 @@ function compactControls(action) {
     const outputCountOne = outputCountRadios.find(el => label(el).toLowerCase() === 'x1');
     const selectedOutputCount = outputCountRadios.find(el => el.getAttribute('aria-checked') === 'true');
     const picker = [...scope.querySelectorAll('button[aria-label="Select model family"]')].find(visible);
-    const summary = [...document.querySelectorAll('.settings-summary')].find(visible);
+    const triggers = [...document.querySelectorAll('button[aria-label="Settings trigger"]')]
+        .filter(el => visible(el) && !el.disabled && el.getAttribute('aria-disabled') !== 'true');
+    // In layouts with both buttons, Settings opens the full defaults drawer.
+    const compactTriggers = triggers.filter(el => el.getAttribute('aria-label') === 'Settings trigger');
+    const candidates = compactTriggers.length ? compactTriggers : triggers;
+    const hitTest = el => {
+        if (typeof document.elementFromPoint !== 'function') return true;
+        const r = el.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+        return !!hit && (hit === el || el.contains(hit));
+    };
+    const trigger = candidates.find(hitTest);
+    const summary = trigger || candidates[0];
     if (action === 'state') return {
         image: !!image && image.getAttribute('aria-checked') === 'true',
         ratio: !!ratio && ratio.getAttribute('aria-checked') === 'true',
@@ -51,7 +63,7 @@ function compactControls(action) {
         open: !!image,
     };
     let target;
-    if (action === 'open') target = summary && (summary.closest('button, [role="button"]') || summary);
+    if (action === 'open') target = trigger;
     if (action === 'image') target = image;
     if (action === 'ratio') target = ratio;
     if (action === 'count') target = outputCountOne;
@@ -80,14 +92,18 @@ async function configureReferenceImages(page, say = () => {}, aspect = IMAGE_RAT
     };
     const click = async action => {
         let point;
-        await until(async () => !!(point = await page.evaluate(compactControls, {action,activate:true,ratio:aspect})), `cannot find ${action} control`);
+        await until(async () => !!(point = await page.evaluate(compactControls, {action,activate:action!=='open',ratio:aspect})), `cannot find ${action} control`);
+        if(action==='open') await page.mouse.click(point.x,point.y);
     };
     // A fresh project's composer can remount just after Agent is turned off.
     // Re-open if that remount discarded the first click, before touching Image.
-    if(!(await state()).open) {
+    for (let attempt = 0; attempt < 3 && !(await state()).open; attempt++) {
+        // Reacquire the current trigger after remount; never toggle an open panel.
         await click('open');
-        await until(async () => (await state()).open, 'compact settings did not open after clicking the composer summary');
+        for (let poll = 0; poll < 6 && !(await state()).open; poll++) await sleep(200);
+        if (!(await state()).open) { say(`Reference settings: composer did not retain open state; reacquiring control (${attempt+1}/3). State: ${JSON.stringify(await state())}`); await page.keyboard.press('Escape'); await sleep(200); }
     }
+    if (!(await state()).open) throw new Error('Reference image settings: compact settings did not open after three verified attempts. Nothing submitted.');
     await click('image');
     await until(async () => (await state()).image, 'Image mode did not become selected');
     await click('ratio');

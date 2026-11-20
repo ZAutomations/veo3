@@ -117,6 +117,8 @@ def plan_package(body):
         for row in multi['languages']:
             if any(not str(scene.get('narration_translations',{}).get(row['code'],'')).strip() for scene in selected):raise ValueError('Missing supplied '+multilingual.LANGUAGES[row['code']]+' narration. Import it before generating audio; no translation call will be made.')
     cfg=E.settings(body.get('editingSettings'))
+    if original.get('preset_id')=='fern-documentary' and cfg['voiceover_mode']=='api':
+        cfg.update(voiceover_provider='google',voiceover_voice='Orus')
     import narration_delivery
     cfg['_narration_delivery']=narration_delivery.profile(original)
     if cfg['voiceover_mode'] not in ('api','local'): raise ValueError('Choose API or Local audio in Video Editing and save those settings first.')

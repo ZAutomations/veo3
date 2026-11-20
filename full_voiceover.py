@@ -12,6 +12,8 @@ def plan_package(body):
     lines=[str(s.get('script_line') or '').strip() for s in original.get('scenes',[])]
     if not lines or not all(lines):raise ValueError('Every source visual beat needs English narration.')
     cfg=E.settings(body.get('editingSettings'))
+    if original.get('preset_id')=='fern-documentary' and cfg['voiceover_mode']=='api':
+        cfg.update(voiceover_provider='google',voiceover_voice='Orus')
     import narration_delivery
     cfg['_narration_delivery']=narration_delivery.profile(original)
     cfg['_narration_pace_policy']='paragraph_v1'

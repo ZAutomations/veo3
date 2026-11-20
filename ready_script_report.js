@@ -6,11 +6,13 @@ function exportScript(source,index=1){
  if(source.languages?.length)out.push('Languages: '+source.languages.map(code=>({en:'English',ru:'Russian',ar:'Arabic',hi:'Hindi',ur:'Urdu',es:'Spanish',fr:'French',de:'German',ja:'Japanese'}[code])).join(', '));
  if(source.production_profile)out.push(`Production profile: ${source.production_profile}`);
  out.push(`Clip seconds: ${source.seconds}`);
+ if(source.aspect)out.push(`Aspect ratio: ${source.aspect}`);
  if(source.declaredCount){
   out.push(`Duration: ${source.declaredDuration!==null&&source.declaredDuration!==undefined?source.declaredDuration+' seconds. Exactly ':''}${source.declaredCount} clips of ${source.seconds} seconds.`);
  }else if(source.declaredDuration!==undefined&&source.declaredDuration!==null)out.push(`Estimated duration: ${source.declaredDuration} seconds`);
  if(source.setting)out.push(`Setting: ${source.setting}`);
  if(source.details)out.push(`Details: ${source.details}`);
+ if(source.subject)out.push(`Subject: ${source.subject}`);
  if(source.story_brief)out.push(`Story brief: ${source.story_brief}`);
  if(source.sources)out.push(`Sources: ${source.sources}`);
  if(source.location_name)out.push(`Location name: ${source.location_name}`);

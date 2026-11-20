@@ -9,8 +9,9 @@ class ImportValidationError extends Error {
   this.line?`Line: ${this.line}`:'',this.message,'No video-generation jobs were started.'].filter(Boolean).join('\n');}
 }
 const LANGUAGE_CODES={english:'en',russian:'ru',arabic:'ar',hindi:'hi',urdu:'ur',spanish:'es',french:'fr',german:'de',japanese:'ja'};
-const TOP=new Set(['languages','title','preset','setting','clip seconds','duration','estimated duration','details','characters','locations',
- 'continuity','story brief','sources','production profile','location name','left label','right label','footer start','footer end']);
+const ASPECT_RATIOS=['9:16','16:9','1:1','Flow'];
+const TOP=new Set(['languages','title','preset','setting','clip seconds','clips per story','aspect ratio','duration','estimated duration','runtime','details','characters','locations',
+ 'continuity','visual continuity','subject','story brief','sources','production profile','audio workflow','location name','left label','right label','footer start','footer end']);
 const unquote=value=>String(value).trim().replace(/^(?:"([\s\S]*)"|“([\s\S]*)”)$/,(m,a,b)=>a??b).trim();
 const words=text=>(String(text).match(/[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu)||[]).length;
 
@@ -107,11 +108,17 @@ function parse(text,defaults={}) {
    if(!names.length||names.some(n=>!LANGUAGE_CODES[n])||new Set(names).size!==names.length||names[0]!=='english')fail('Languages must start with English and list distinct supported language names.',lineNo,label);
    assign(story,'languages',names.map(n=>LANGUAGE_CODES[n]),lineNo,label);continue;
   }
-  if(key==='continuity'){
+  if(key==='continuity'||key==='visual continuity'){
    assign(story,'continuity',value,lineNo,label);continue;
   }
   section='';last=null;
-  if(['title','preset','setting','details','story brief','sources'].includes(key)){assign(story,key.replace(' ','_'),value,lineNo,label);continue;}
+  if(key==='audio workflow'){
+   // This header describes the author's intent. Studio selects the audio workflow.
+   if(!value.trim())fail('Audio workflow cannot be empty.',lineNo,label);
+   seen(story,'audioWorkflow',lineNo,label);continue;
+  }
+  if(key==='subject'&&!value.trim())fail('Subject cannot be empty.',lineNo,label);
+  if(['title','preset','setting','details','subject','story brief','sources'].includes(key)){assign(story,key.replace(' ','_'),value,lineNo,label);continue;}
   if(key==='production profile'){
    if(!/^(?:zetomate[- ](?:8[x×]8|flex)|strict[- ]8[x×]8|8[x×]8)$/i.test(value))fail('Supported production profiles: zetomate-flex (recommended) or legacy zetomate-8x8.',lineNo,label);
    assign(story,'production_profile',/flex/i.test(value)?'zetomate-flex':'zetomate-8x8',lineNo,label);continue;
@@ -123,9 +130,24 @@ function parse(text,defaults={}) {
   if(key==='clip seconds'){
    seen(story,'seconds',lineNo,label);story.seconds=Number(value);continue;
   }
+  if(key==='aspect ratio'){
+   if(!ASPECT_RATIOS.includes(value))fail('Aspect ratio must be 9:16, 16:9, 1:1 or Flow.',lineNo,label);
+   seen(story,'aspect',lineNo,label);story.aspect=value;continue;
+  }
+  if(key==='clips per story'){
+   const count=Number(value);
+   if(!/^\d+$/.test(value)||!Number.isSafeInteger(count)||count<1)fail('Clips per story must be a positive integer.',lineNo,label);
+   seen(story,'clipsPerStory',lineNo,label);story.clipsPerStory=count;continue;
+  }
   if(key==='characters'||key==='locations'){
    seen(story,key,lineNo,label);section=/^None\.?$/i.test(value)?'':key;
    if(value&&!/^None\.?$/i.test(value)&&['3d-zack-style','cats-behavior-3d','intimacy-health-3d'].includes(story.preset))fail(`Put named ${key} on separate lines below ${label}:.`,lineNo,label);
+   continue;
+  }
+  if(key==='runtime'){
+   const duration=value.match(/^(\d+(?:\.\d+)?)\s*seconds?$/i);
+   if(!duration)fail('Use Runtime: [total] seconds.',lineNo,label);
+   assign(story,'declaredDuration',Number(duration[1]),lineNo,label);
    continue;
   }
   if(key==='duration'||key==='estimated duration'){
@@ -157,6 +179,7 @@ function parse(text,defaults={}) {
   if(!s.preset)fail('Choose or supply a valid Preset:.',s._source.line,'Preset');
   if(![4,6,8,10].includes(s.seconds))fail('Choose 4, 6, 8 or 10 seconds per clip.',s._source.fields.seconds||s._source.line,'Clip seconds');
   if(!s.clips.length)fail('No clips supplied.',s._source.line,'Clips');
+  if(s.clipsPerStory!==undefined&&s.clipsPerStory!==s.clips.length)fail('declared clip count differs from the supplied clips.',s._source.fields.clipsPerStory,'Clips per story');
   if(s.production_profile&&!zack&&s.production_profile!=='zetomate-flex')fail('Strict 8x8 applies only to Zack-style presets; use zetomate-flex for other presets.',s._source.line,'Production profile');
   if(strict){
    if(!s.storyNumber)fail('Strict Zack scripts need a positive Story N heading.',s._source.line,'Story');
@@ -224,4 +247,4 @@ function parse(text,defaults={}) {
  return stories;
 }
 
-module.exports={parse,ImportValidationError,words,unquote};
+module.exports={parse,ImportValidationError,ASPECT_RATIOS,words,unquote};

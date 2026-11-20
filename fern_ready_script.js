@@ -25,9 +25,9 @@ function scene(story,index,options={}){
  require('./within_clip_camera_contract').DIRECTION,
  require('./clip_join_camera_contract').DIRECTION,
  require('./fast_camera_rhythm').detailBeat(story),
- visual(s),`SHOT-LINKED GRAPHIC ANIMATION: ${callout(s)}`,
+ visual(s),require('./fern_feature_timeline').forScene(s,seconds),`SHOT-LINKED GRAPHIC ANIMATION: ${callout(s)}`,
  require('./narration_pace').lock(seconds),
- `NATIVE AUDIO: One consistent off-screen narrator: ${story.narrator_voice}. Read the complete line exactly: ${JSON.stringify(s.script_line)}. All mannequins silent, mouths absent, no dialogue or lip-sync. Sound: ${s.sound||'Quiet scene ambience and restrained situation-matched instrumental BGM'}; add a quiet synchronized pop/click for required place/entity callouts and soft typewriter ticks only during exact numeric reveals. Narration stays clear above music, SFX and ambience. No lyrics or competing voices.`,
+ `NATIVE AUDIO: One consistent off-screen narrator: Orus, composed factual documentary delivery at the shared brisk pace. Read the complete line exactly: ${JSON.stringify(s.script_line)}. All mannequins silent, mouths absent, no dialogue or lip-sync. Sound: ${s.sound||'Quiet scene ambience and restrained situation-matched instrumental BGM'}; add a quiet synchronized pop/click for required place/entity callouts and soft typewriter ticks only during exact numeric reveals. Narration stays clear above music, SFX and ambience. No lyrics or competing voices.`,
  'No invented archival document, quotation, evidence, entry method, medical mechanism or outcome. Depict non-graphic illustrative reconstruction, never claim generated footage is archival.',
  `AVOID: ${story.avoid}`].join('\n\n')+'\n';
 }

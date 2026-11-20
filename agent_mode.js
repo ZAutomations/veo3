@@ -570,6 +570,8 @@ async function sweepFor(page, secs, tag) {
             for (const line of fresh) log(`        | ${line.slice(0, 120)}`);
         }
         if (AUTO_APPROVE) {
+            const projectApproval=await page.evaluate(require('./agent_project_approval').clickProjectApproval);
+            if(projectApproval){log(`        auto-clicked "${projectApproval}"`);await wait(1000);continue;}
             const cands = cur.buttons.filter(b => b.aria && APPROVE.test(b.aria) && !b.disabled &&
                 !/try again|retry|regenerate/i.test(b.aria + ' ' + b.text) &&
                 !/^(Settings|Agent instructions|Start generation|Start new session|New session|Home|Search|Favorite|Expand)$/i.test(b.aria));
@@ -588,10 +590,11 @@ async function sweepFor(page, secs, tag) {
     return await readProjectSnapshot(page);
 }
 
-function inspectAgentRecoverySources(engine, jobs, snapshot, sourceCache) {
-    const mt = snapshot.mediaTiles;
+async function inspectAgentRecoverySources(engine, jobs, sourceCache) {
+    const {mediaTiles: mt} = await readProjectSnapshot(engine.page, true);
+    if (mt.agent_busy || mt.generating_video_tile > 0) return {generatingSeen: true};
     // An exhaustive idle inventory can contain references and no videos yet.
-    const allowImageOnlyGrid = mt.project_scan_complete === true && mt.flow_video_tile === 0 && !mt.agent_busy;
+    const allowImageOnlyGrid = mt.project_scan_complete === true && mt.flow_video_tile === 0;
     return require('./single_clip_omni_recovery').inspectProject(engine, jobs, {}, {
         log, page: engine.page, sourceCache, allowImageOnlyGrid,
     });
@@ -631,8 +634,8 @@ async function reviewFailedBatch(page, snapshot) {
     if(!sourceText){log('Retry preflight stopped: saved numbered batch prompt is unavailable. Nothing submitted.');return false;}
     const cache=new Map();
     const plan=await require('./agent_missing_scenes').prepare({
-        engine:{browser,page,projectUrl:page.url()},storyFile,submissionFile,text:sourceText,wait,
-        inspect:(engine,jobs)=>inspectAgentRecoverySources(engine,jobs,snapshot,cache),
+        engine:{browser,page,projectUrl:page.url()},storyFile,submissionFile,text:sourceText,wait,log,
+        inspect:(engine,jobs)=>inspectAgentRecoverySources(engine,jobs,cache),
     });
     if(!plan){log('Retry preflight: all scenes in the saved batch already have a verified ready asset. No retry submitted.');return false;}
     const prompt=plan.prompt+'\n\n'+require('./agent_policy_recovery')+'\n\nRECOVERY AUDIT AND REFERENCE TOOLS: Before submitting anything, inspect this batch and report each requested scene ID as completed, generating, failed with its actual displayed reason, or missing; verify the audit again immediately before generation. Preserve every completed or generating clip. For an explicit policy refusal, identify the exact rejected scene and its actual refusal reason, then make one substantive compliant revision only to that scene. Change the element the refusal actually concerns; do not blindly replace characters, remove the topic, or replay the same prompt. For a prominent-person/likeness refusal, use a clearly non-identifiable, original visual treatment that does not reproduce the person; retain factual narration only when allowed. If the text, attached reference, or subject cannot be made compliant without changing the story materially, stop and report the exact issue instead of attempting a workaround. For non-policy failures, preserve the original prompt and use the individual failed-clip retry when available. Keep the original scene ID, style, facts, narration, model, resolution, ratio and duration except for the minimum change required for compliance. Inspect the project reference library and attach only the matching required character/location images and established voice for the affected scene; verify each attachment before generation. Reuse safe existing matching references; never duplicate, attach irrelevant assets, or reuse a reference implicated in the refusal. Report exact missing references if safe attachment is unavailable. Submit only individually verified missing/refused scenes once within the saved safety-review limit, track each result and asset ID, and never repeat the full batch or successful clips. If a revised scene is refused again, stop for manual review.';
@@ -1087,10 +1090,10 @@ async function uploadRefThroughPicker(page, box, file) {
                 && !mt.agent_busy && submissionCheckpoint && flag('--refs')) {
             log('Checking exact source prompts twice to recover only missing scenes, including when retry copies make the raw tile count exceed the story count.');
             const inspectionSources=new Map();
-            missingRecovery = await require('./agent_missing_scenes').prepare({
+            missingRecovery = await require('./agent_missing_scenes').prepare({log,
                 engine:{browser,page,projectUrl:page.url()}, storyFile:flag('--refs'),
                 submissionFile:submissionCheckpoint,text:SEND_TEXT,wait,
-                inspect:(engine,jobs)=>inspectAgentRecoverySources(engine,jobs,final,inspectionSources),
+                inspect:(engine,jobs)=>inspectAgentRecoverySources(engine,jobs,inspectionSources),
             });
             if (missingRecovery) {
                 SEND_TEXT=missingRecovery.prompt;
@@ -1536,6 +1539,10 @@ async function uploadRefThroughPicker(page, box, file) {
             log(`[${elapsed}s] clips: video=${cur.mediaTiles.flow_video_tile} image=${cur.mediaTiles.flow_image_tile}`);
         }
 
+        if(AUTO_APPROVE){
+            const projectApproval=await page.evaluate(require('./agent_project_approval').clickProjectApproval);
+            if(projectApproval){approvals++;log(`[${elapsed}s] Auto-clicked "${projectApproval}" (approval #${approvals}).`);await wait(1000);continue;}
+        }
         // Approval buttons the agent has put on screen.
         const cands = cur.buttons.filter(b =>
             b.aria && APPROVE.test(b.aria) && !b.disabled &&
