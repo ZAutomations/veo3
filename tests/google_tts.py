@@ -20,11 +20,32 @@ with tempfile.TemporaryDirectory() as tmp:
   assert 'private_key' not in (G.STORE/'config.json').read_text()
   import google.oauth2.service_account as SA
   import google.auth.transport.requests as TR
-  creds=MagicMock();creds.token='test-token';calls=[]
+  creds=MagicMock();creds.token='test-token';creds.valid=True;calls=[]
+  auth_release=Event()
+  def refresh(request):
+   if creds.refresh.call_count>1:
+    auth_release.wait(2)
+  creds.refresh.side_effect=refresh
   def opened(req,**kw):
    calls.append(req);return io.BytesIO(json.dumps({'audioContent':base64.b64encode(b'RIFFmock').decode()}).encode())
   def convert(command):Path(command[-1]).write_bytes(b'converted')
   with patch.object(SA.Credentials,'from_service_account_info',return_value=creds),patch.object(TR,'Request'),patch.object(G.urllib.request,'urlopen',side_effect=opened),patch.object(E,'run',side_effect=convert),patch.object(V,'audio_duration',return_value=2.):
+   with patch.object(G,'AUTH_TIMEOUT',.1):
+    try:
+     G.synthesize('Orus','First scene',root/'first.wav','ur')
+     G.synthesize('Orus','Next scene',root/'next.wav','ja')
+     creds.refresh.assert_called_once()
+    finally:
+     auth_release.set()
+   creds.valid=False
+   creds.refresh.side_effect=lambda request: setattr(creds,'valid',True)
+   G.synthesize('Orus','Expired token',root/'expired.wav','ur')
+   assert creds.refresh.call_count==2
+   account=json.loads(cfg.read_text())
+   account['private_key']='rotated-test-key'
+   cfg.write_text(json.dumps(account))
+   G.synthesize('Orus','Rotated key',root/'rotated.wav','ja')
+   assert creds.refresh.call_count==3
    for code,locale in [('en','en-US'),('ru','ru-RU'),('ar','ar-EG'),('ur','ur-PK'),('hi','hi-IN'),('ja','ja-JP')]:
     file=root/(code+'.mp3');V.synthesize('google','Alnilam','Test text',file,language=code)
     payload=json.loads(calls[-1].data);assert payload['voice']['languageCode']==locale and payload['voice']['name']=='Alnilam' and payload['voice']['modelName']==G.MODEL

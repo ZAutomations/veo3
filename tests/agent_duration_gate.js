@@ -2,6 +2,16 @@
 const assert=require('assert'),fs=require('fs'),path=require('path'),os=require('os');
 const {assess,verifyDurationBeforeNaming}=require('../agent_duration_check'),{runAgentBatches}=require('../agent_batches');
 (async()=>{
+ const {markTile}=require('../agent_duration_check');
+ const image={currentSrc:'https://example.invalid/thumbnail/resized',getAttribute:name=>name==='src'?'/image/verified-source':null};
+ let marked=false;
+ const tile={querySelectorAll:()=>[image],setAttribute:()=>{marked=true;}};
+ const dom={window:{__singleOmniTileKeys:{keys:new Map([[tile,'tile-1']])}},document:{querySelectorAll:selector=>selector==='flow-video-tile'?[tile]:[]}};
+ const mark=require('node:vm').runInNewContext(`(${markTile})`,dom);
+ assert.equal(mark({key:'tile-1',assetId:'verified-source'}),true,'raw source must still identify the verified tile');
+ assert.equal(marked,true);
+ assert.equal(mark({key:'tile-1',assetId:'verified'}),false,'a prefix is not a verified asset ID');
+ assert.equal(mark({key:'different-tile',assetId:'verified-source'}),false,'tile key must still match');
  assert.equal(assess([{scene:1,duration:9.963},{scene:2,duration:10.027}],10).length,2);
  assert.throws(()=>assess([{scene:1,duration:4.02}],10),/CLIP_DURATION_MISMATCH/);
  assert.throws(()=>assess([{scene:1,duration:9.5}],10),/CLIP_DURATION_MISMATCH/);

@@ -305,6 +305,11 @@ def plan_action(action, p):
         if not p.get('_queueAccount'):
             account=active_account_details()
             if '@' not in str(account.get('email','')):raise ValueError('Save the active account Gmail in Accounts before using Generation only.')
+    if action == 'repair_english_voiceover':
+        import english_voiceover_repair, video_editing
+        body=dict(folder=p.get('repairEnglishFolder',''),provider=p.get('repairEnglishProvider','google'),voice=p.get('repairEnglishVoice','Orus'),editingSettings=video_editing.settings())
+        english_voiceover_repair.plan(body)
+        return 'dubbing', [('request', ('english_voiceover_repair.py',body))]
     if action == 'render_local_multilingual':
         import multilingual,video_editing,local_dubbing
         multi=multilingual.from_form(p) if 'multilingualEnabled' in p else multilingual.configuration(read_json(ROOT/'gui_settings.json').get('multilingual'))
@@ -552,7 +557,8 @@ def plan_action(action, p):
             return 'flow', [('cli', command('order_clips_by_dialogue.js', path, '--clips', path.parent / 'clips', '--write'))]
         if action == 'fix_join':
             return 'flow', [('cli', command('fix_order_and_join.js', path))]
-        return 'flow', [('cli', command('join_clips.js', path.parent / 'clips'))]
+        from story_output import full_voiceover_media_folder
+        return 'flow', [('cli', command('join_clips.js', full_voiceover_media_folder(path) / 'clips'))]
     if action == 'delete':
         if not p.get('confirmed'):
             raise ValueError('Confirm moving all project videos to Trash first.')
@@ -607,7 +613,8 @@ def plan_action(action, p):
             raise ValueError('Choose 360p or 720p for Omni.')
         return 'flow', [('request', ('single_clip_omni.js', req))]
     if action == 'download':
-        cmd = command('agent_download.js', '--out', path.parent / 'clips', '--story', path,
+        from story_output import full_voiceover_media_folder
+        cmd = command('agent_download.js', '--out', full_voiceover_media_folder(path) / 'clips', '--story', path,
                       '--expected', total, '--reverse', *base)
         cmd.append('--original' if download_version == 'original' else '--upscaled')
         return 'flow', [('cli', cmd)]
@@ -1058,7 +1065,7 @@ class Job:
                 filename, request = spec
                 requestfile = ROOT / 'logs' / 'desktop' / (self.id + '.json')
                 save_json(requestfile, request)
-                python = editing_python(require_whisper=True) if filename in ('video_editing.py','multilingual.py','local_dubbing.py') else sys.executable
+                python = editing_python(require_whisper=True) if filename in ('video_editing.py','multilingual.py','local_dubbing.py','english_voiceover_repair.py') else sys.executable
                 kind, spec = 'cli', ([python, str(ROOT / filename), str(requestfile)] if filename.endswith('.py') else command(filename, requestfile))
             if kind == 'cli':
                 self.log('Starting ' + Path(spec[1]).name)
@@ -1213,7 +1220,7 @@ class Job:
 jobs = {}
 repair_active = False
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
-RETRY_ACTIONS = {'render_local_multilingual', 'render_multilingual', 'manual_jobs', 'reverse_video', 'write', 'import_script', 'finalize', 'generate', 'generate_queue', 'resume_generations', 'refs', 'download', 'order', 'join', 'fix_join', 'build', 'export_excel', 'retry_failed'}
+RETRY_ACTIONS = {'repair_english_voiceover','render_local_multilingual', 'render_multilingual', 'manual_jobs', 'reverse_video', 'write', 'import_script', 'finalize', 'generate', 'generate_queue', 'resume_generations', 'refs', 'download', 'order', 'join', 'fix_join', 'build', 'export_excel', 'retry_failed'}
 
 
 def repair_settings():
@@ -1388,6 +1395,14 @@ def retry_plan(record):
         raise ValueError('Saved workflow step is unavailable.')
     import audio_first
     remaining = audio_first.rebind_package_paths(json.loads(json.dumps(operations[cursor:])))
+    # Joining retries must re-audit manually recovered files before consuming a manifest.
+    if remaining and remaining[0][0]=='cli' and len(remaining[0][1])>1 and Path(remaining[0][1][1]).name=='join_clips.js':
+        source=record.get('current_story') or record.get('payload',{}).get('story')
+        project=record.get('payload',{}).get('project')
+        if source and project:
+            inputs=dict(record.get('payload',{}),story=source,project=project,view='agent')
+            _,preflight=plan_action('download',inputs)
+            remaining=list(preflight)+remaining
     if record.get('action')=='manual_jobs':
         assigned=next((spec for kind,spec in reversed(operations[:cursor+1]) if kind=='cli' and len(spec)>1 and Path(spec[1]).name=='queue_account.js'),None)
         if not assigned:raise ValueError('Manual job account binding is missing; no account guessed.')

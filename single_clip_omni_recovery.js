@@ -25,7 +25,8 @@ async function inspectProjectOnce(engine,jobs,receipts={},options={}){
  try{
   if(ownsPage)await page.goto(engine.projectUrl,{waitUntil:'domcontentloaded',timeout:120000});
   await page.bringToFront();
-  await page.waitForSelector('flow-video-tile',{timeout:30000});
+  const gridSelector=options.allowImageOnlyGrid?'flow-video-tile,flow-image-tile':'flow-video-tile';
+  await page.waitForSelector(gridSelector,{timeout:30000});
   await page.evaluate(installGridScroller);
   const start=await page.evaluate(bg.metrics);if(start.top>10)await page.evaluate(bg.scrollToPosition,0);
   const records=new Map();let exhaustive=false,quiet=0,targetsVerified=false;

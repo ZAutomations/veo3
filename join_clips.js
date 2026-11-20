@@ -60,6 +60,12 @@ function flag(name, def = null) {
 }
 
 const DIR = argv.find(a => !a.startsWith('--'));
+if (DIR) {
+ const legacyPackage=path.join(path.dirname(path.resolve(DIR)),'full_voiceover_story.json');
+ if(fs.existsSync(legacyPackage)&&require('./story_output_name').fullVoiceoverMediaFolder(legacyPackage)!==path.dirname(path.resolve(DIR))){
+  throw Error('RECOVERY_REVIEW_REQUIRED: Legacy nested clip folder is disabled. Retry with the main story clips folder and run local verification first.');
+ }
+}
 if (!DIR) {
     console.error('Usage: node join_clips.js <clips_dir> [--out final.mp4] [--dry-run] [--order a,b,c] [--reverse] [--reencode]');
     process.exit(1);
@@ -91,6 +97,10 @@ if (!files.length) {
 }
 
 const MANIFEST_PATH = path.join(DIR, 'manifest.json');
+if (!fs.existsSync(MANIFEST_PATH) && fs.existsSync(path.join(DIR, 'omni_manifest.partial.json'))) {
+    console.error('RECOVERY_REVIEW_REQUIRED: Only a partial Omni download ledger exists. Complete the verified scene downloads and resolve story order before joining.');
+    process.exit(2);
+}
 let savedManifest = null;
 if (fs.existsSync(MANIFEST_PATH)) {
     try { savedManifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8')); }

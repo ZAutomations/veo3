@@ -25,6 +25,9 @@ def rebind_package_paths(value):
     if isinstance(value,list):return [rebind_package_paths(x) for x in value]
     if isinstance(value,tuple):return tuple(rebind_package_paths(x) for x in value)
     if isinstance(value,dict):return {k:rebind_package_paths(v) for k,v in value.items()}
+    if isinstance(value,str):
+        from media_path_migration import canonical_media_path
+        value=canonical_media_path(value)
     if not isinstance(value,str) or not value.endswith('_audio_first_story.json'):return value
     old=Path(value)
     if not old.is_absolute() or old.parent.parent.name!='audio_first' or old.is_file():return value

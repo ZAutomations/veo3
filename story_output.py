@@ -31,7 +31,7 @@ def story_video_path(story_path):
 def full_voiceover_media_folder(story_path):
     story=Path(story_path).resolve()
     folder=story.parent
-    if story.name!='full_voiceover_story.json' or folder.parent.name!='full_voiceover' or (folder/'clips').exists() or (folder/'JOINED_CLIP_ORDER.txt').exists():
+    if story.name!='full_voiceover_story.json' or folder.parent.name!='full_voiceover':
         return folder
     data=json.loads(story.read_text(encoding='utf-8-sig'))
     original=Path(data.get('original_story') or '').resolve()

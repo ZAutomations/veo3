@@ -24,7 +24,7 @@ async function reconcile(storyFile,{outDir,run,log=()=>{}}={}){
  const mapped=new Set((manifest?.clips||[]).filter(c=>c.order_verified&&c.got!==false).map(c=>c.file));
  if(files.some(f=>!mapped.has(f))){
   // Reuse the existing local speech/source order verifier, including its silent-story guard.
-  const result=await run('order_clips_by_dialogue.js',[storyFile,'--write'],{timeoutMs:45*60*1000});
+  const result=await run('order_clips_by_dialogue.js',[storyFile,'--clips',out,'--write'],{timeoutMs:45*60*1000});
   if(result.out&&!result.streamed)log(result.out);
   manifest=read(path.join(out,'manifest.json'));
  }
@@ -41,6 +41,10 @@ async function reconcile(storyFile,{outDir,run,log=()=>{}}={}){
   clips.push({scene:c.matched_scene,file:c.file,sha256:hash(file),duration:v.duration,match_from:c.match_from||manifest.orderResolvedBy||'verified_manifest'});
  }
  fs.writeFileSync(path.join(out,'LOCAL_RECOVERY.json'),JSON.stringify({storyHash:fingerprint(story),checkedAt:new Date().toISOString(),clips},null,2)+'\n');
+ if(manifest && story.full_voiceover_first && path.resolve(out)===path.join(require('./story_output_name').fullVoiceoverMediaFolder(storyFile),'clips')){
+  manifest.preparedStory=path.relative(path.dirname(out),path.resolve(storyFile));
+  fs.writeFileSync(path.join(out,'manifest.json'),JSON.stringify(manifest,null,2)+'\n');
+ }
  const complete=clips.length===story.scenes.length;
  log(`Retry preflight: ${clips.length}/${story.scenes.length} local scenes verified; ${complete?'generation and video downloads already complete.':'only unverified/missing scenes still need recovery.'}`);
  return {complete,clips};

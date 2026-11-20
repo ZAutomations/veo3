@@ -15,6 +15,7 @@ function scene(story,index,options={}){
  `FACTUAL TOPIC: ${story.title}. ${story.imported_brief||''}`,
  require('./fern_topic_visuals').CONTRACT,
  require('./fern_topic_visuals').GRAPHICS,
+ require('./fern_topic_visuals').ROUND_BADGES,
  require('./narration_callout_contract').forScene(story,s,seconds),
  require('./fern_topic_visuals').MUSIC,
  `STYLE: ${story.style}. PALETTE: ${story.palette}. Every human, including background people, is a completely faceless matte mannequin with realistic adult proportions, blank smooth head, no eyes/nose/mouth/hair, consistent role-specific clothing. No real-person likeness.`,

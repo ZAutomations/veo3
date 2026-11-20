@@ -55,8 +55,7 @@ function fullVoiceoverMediaFolder(file) {
         const data = JSON.parse(fs.readFileSync(prepared, 'utf8').replace(/^\uFEFF/, ''));
         const original = path.resolve(data.original_story || '');
         const root = path.dirname(parent);
-        if (data.full_voiceover_first === true && path.dirname(original) === root && fs.statSync(original).isFile()
-            && !fs.existsSync(path.join(folder, 'clips')) && !fs.existsSync(path.join(folder, 'JOINED_CLIP_ORDER.txt'))) return root;
+        if (data.full_voiceover_first === true && path.dirname(original) === root && fs.statSync(original).isFile()) return root;
     } catch {}
     return folder;
 }
