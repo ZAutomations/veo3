@@ -131,11 +131,11 @@ Narration word targets 4s:12–13, 6s:18–19, 8s:24–26, 10s:28–30; hard cei
 PRESET STYLE: Grayscale animated documentary reenactment illustration, desaturated black and white style, flat cel-shaded 2D animation, muted cinematic lighting, high-contrast shadows, subtle film grain, dark mystery documentary look
 PALETTE: Grayscale and charcoal, cold white highlight, dense black shadow, smoke grey, one faint warm grey for lamplight
 CAMERA: Reenactment framing: wide shots that isolate a lone figure, slightly low angles that make a subject look small and exposed, medium shots in bare rooms, a swinging overhead bulb or torch beam for the key light. One clear beat per shot. No 3D, no colour.
-DIRECTION: A dark documentary / conspiracy-style NARRATION, all facts real and verifiable, never fabricated. Clip 1 is a HOOK of three short unrelated teaser claims pulled from different chapters, with no context, then one line naming the whole film's theme. Each chapter is a self-contained story with a fixed six-beat arc: a dramatic chapter title line, the impossible claim in its most extreme form, just enough real background, an investigation by one specific named person who finds evidence step by step and faces resistance, the reveal when the proof becomes undeniable, and an unresolved sting that leaves a question open - then one teasing line into the next chapter. Every chapter is one determined individual against an institution. Close on a unifying thesis about hidden truth and institutional power. One narrator, no on-screen text.
+DIRECTION: Investigative dark documentary narration in grayscale illustrated 2D. All factual claims must be sourced and verifiable; distinguish established fact, disputed accounts and unanswered questions. Never fabricate an investigator, evidence, resistance or an institutional cover-up to fit a plot. For short single-topic videos, open with ONE concrete surprising fact or evidence-backed question about the selected topic, then follow hook -> essential context -> investigation/evidence -> qualified payoff -> concise topic-related CTA. These are story beats across the selected clips, not mandatory separate chapters or extra clips. For longer multi-chapter documentaries only, offer up to three RELATED evidence-backed teasers and a six-beat chapter arc when the chosen runtime genuinely supports them; never force unrelated teasers, exaggerated impossible claims or one-person-versus-institution plots. Use one consistent narrator with restrained suspense and a brisk clear pace. No burned-in narration subtitles or decorative text. Necessary source-grounded labels, names, dates, numbers and brief evidence callouts ARE allowed, in readable monochrome documentary typography, synchronized to the relevant narration and restrained pop/typewriter SFX. Do not invent quotations, document text or attribution.
 CAST IDENTITY: Grayscale anonymised figure: smooth featureless mask face with hollow dark eye sockets and a black stitched line suggesting a smile, flat cel-shaded 2D, ordinary contemporary clothing in greys (suits, coats, shirts, hoods), stiff documentary posture. No visible eyes, no readable identity. NOT photoreal, NOT 3D, NOT colour.
 CAST/VOICE RULES: hushed investigative male voice, suspenseful and deliberate, occasional second-person aside
 SOUND STYLE:
-AVOID: no on-screen text, subtitles, captions, watermarks or UI, no colour, no photoreal footage, no 3D CGI, no real living people's faces, no fabricated names, dates, documents or statistics, no gratuitous gore, no named real companies as fact
+AVOID: no burned-in narration subtitles, decorative captions, watermarks or UI; necessary verified labels/date/number/evidence callouts are allowed. No colour, photoreal footage or 3D CGI. No real living people's faces, fabricated names/dates/documents/statistics, gratuitous gore or unsupported allegations about identifiable people or companies.
 TOPIC SHAPES: ["an impossible claim, then the investigator, then the proof nobody could dismiss","three unrelated teasers, then the theme that ties them together","one determined person against an institution that wants them silent","the cover-up that half-worked, and the question it left open"]
 
 Selected production duration and the speech-mode rules above override outdated fixed-duration examples in preset notes, while preserving identity, locked-camera and no-music rules. Keep the whole topic visible; supply concrete shot-specific entities, actions, labels and SFX where this genre allows them. Verify factual claims using actual sources; distinguish fact, allegation and analysis. Never invent research, source access or assets.
@@ -144,7 +144,7 @@ COMPLETE STORY PACKAGE
 Return ALL_STORIES_READY_IMPORT.txt with selected stories sequentially in exactly the grammar above. If file tools are available, also create a separate folder per story containing SCRIPT.txt, THUMBNAIL_PROMPTS.txt (three complete style-matched standalone prompts), SEO_METADATA.txt (primary and two alternative titles, description, exactly five relevant hashtags, tags, sources and production notes), and one actual generated thumbnail only when image generation really succeeds. No placeholder images or fake ZIP links. Keep package extras, menus, checkbox markup, word counts and explanations outside the import TXT.
 
 FINAL VALIDATION
-Check selected topics and order, story/clip counts, durations, exact preset ID and labels, contiguous timelines, speech mode, speaker ownership, fixed cast and camera, narration ceilings, complete ending and topic-specific visuals. Do not deliver Visual fields or claim importer validation was run unless it actually was.
+Check selected topics and order, exact preset ID and import labels, contiguous source-shot timelines, speech mode, narrator consistency, grayscale 2D identity, narration ceilings, complete ending and topic-specific visuals. For Native and fixed-clip Audio First, validate the selected clip count × clip duration. For Full Voiceover First, validate source authoring blocks separately from measured audio and runtime-derived visual coverage; final visual clip count need not equal source block count. Do not fail a measured full-voiceover export solely for exceeding the initial approximate runtime target. Do not deliver Visual fields or claim importer validation was run unless it actually was.
 
 [BEGIN COMPLETE STORY PACKAGE DELIVERY V3]
 ## MASTER PROMPT ADDITION — EXCEL SEO METADATA & COMPLETE STORY PACKAGE DELIVERY V3
@@ -180,11 +180,11 @@ The Excel workbook MUST use exactly these six columns in this precise order:
 | Column | Required Content |
 |---|---|
 | video_id | Exact original selected video title |
-| filename | Exact video_id + `.mp4` |
+| filename | Filesystem-safe original title + `.mp4` for English; same safe base + space + selected language name + `.mp4` for additional languages; reconcile actual exports in PACKAGE_MANIFEST.json |
 | title | Exact video_id + 3 relevant viral-style hashtags |
 | description | Approximately 200 words of topic-specific SEO copy; additional-language workbooks include both English and native-language sections, sources and 10 mixed-language ending hashtags |
 | Tags | English-only: exactly 15 relevant tags; additional-language workbooks: 4–5 English tags plus at most 10 native-language tags; entire cell maximum 500 characters |
-| thumbnail | Exact video_id + `.png` |
+| thumbnail | Actual exported thumbnail filename using the same safe title base and language suffix; preserve the actual image extension |
 
 Do not add, delete, rename, or reorder these six columns.
 
@@ -198,20 +198,7 @@ Do not add, delete, rename, or reorder these six columns.
 - The same video_id must be used consistently across metadata records.
 
 **COLUMN 2 — filename**
-
-Generate automatically:
-
-`{video_id}.mp4`
-
-Example:
-
-video_id: Why Does Your Cat Chase Its Own Shadow?
-
-filename: Why Does Your Cat Chase Its Own Shadow?.mp4
-
-Keep this exact Excel naming convention unless the user explicitly requests sanitized filenames.
-
-IMPORTANT: Characters such as `?`, `:`, `/`, `\`, `*`, `"`, `<`, `>`, and `|` are invalid in Windows filenames. These Excel values are metadata conventions. If creating actual video files, generate valid filesystem-safe filenames and report any difference between the metadata and the actual filenames. Never claim an invalid Windows filename exists.
+Use the actual safe title-based export filename: `{SafeEnglishStoryTitle}.mp4` for English and `{SafeEnglishStoryTitle} {LanguageName}.mp4` for an additional language. Sanitize Windows-invalid characters, normalize spaces, handle collisions deterministically and record names in PACKAGE_MANIFEST.json. Keep video_id as the exact original title. Metadata must match the actual export, not an unsanitized hypothetical filename.
 
 **COLUMN 3 — title**
 
@@ -262,20 +249,7 @@ Required description structure:
 - Keep tags relevant to the actual story.
 
 **COLUMN 6 — thumbnail**
-
-Generate automatically:
-
-`{video_id}.png`
-
-Example:
-
-video_id: Why Does Your Cat Chase Its Own Shadow?
-
-thumbnail: Why Does Your Cat Chase Its Own Shadow?.png
-
-Follow the same filesystem-safety rule described for filename.
-
-This column specifies the expected thumbnail filename. It does not mean a thumbnail image has already been generated.
+Use the actual image filename with the same safe English title base and additional-language suffix as its video. Preserve the actual exported image extension (.png, .jpg or .webp); never claim an image exists before generation succeeds. Record missing images explicitly.
 
 ### 3. PROFESSIONAL EXCEL FORMATTING
 
@@ -352,7 +326,7 @@ This rule applies to EVERY preset and overrides any older instruction to reuse a
 - NATIVE THUMBNAIL COPY — NOT LITERAL TRANSLATION: Before image generation, draft THREE short, distinct thumbnail-hook candidates directly in each selected language. Judge natural everyday speech, immediate topic clarity, relevant curiosity, factual restraint and phone-size readability; select the strongest candidate and record it in the manifest. Do not mechanically translate the English title or retain its sentence structure. No unsupported claims that a hook will go viral.
 - The thumbnail headline is NOT the full upload/video title. Aim for 2–6 natural words in whitespace-separated languages, preferably one or two large lines; for Japanese use an equally short readable phrase rather than forcing artificial word spacing. This overrides older full-title-on-thumbnail, mandatory three-line title and exact-English-headline-translation requirements for localized variants. Never shrink a full paragraph to fit. Use at most one optional brief supporting line and only 0–2 essential visual labels. Keep the main picture understandable without reading a scientific diagram. The small English identity footer is separate from this headline budget.
 - Urdu copy should sound natural to an everyday Urdu-speaking viewer, with correct respectful terminology appropriate to the topic. Avoid dictionary-like constructions, awkward euphemisms and dense technical labels. For the scented intimate-products story, a possible native curiosity hook is “خوشبو یا نقصان؟”, supported if needed by “حساس حصے کی دیکھ بھال”; communicate the product context through the actual bottles/visuals. Do not blindly reuse this example for unrelated topics, use an inaccurate product term, assert inevitable harm or invent infection/cure claims. Other languages require the same native-copy judgment rather than a translation of this Urdu example.
-- Design each variant around its SELECTED native hook: one dominant topic-specific 3D focal visual, a recognizable relevant emotional response if a character fits, large readable native lettering and restrained supporting graphics. Do not reproduce every English technical callout or create an infographic/poster filled with miniature translated labels. No generic alarm badges or invented anatomy. Match the story's actual meaning and uncertainty.
+- Design each variant around its SELECTED native hook: one dominant topic-specific grayscale 2D illustrated documentary focal visual (never 3D CGI or photoreal footage), a recognizable relevant emotional response if a character fits, large readable native lettering and restrained supporting graphics. Do not reproduce every English technical callout or create an infographic/poster filled with miniature translated labels. No generic alarm badges or invented anatomy. Match the story's actual meaning and uncertainty.
 - At the BOTTOM of every non-English thumbnail, add the exact original English video/story title in a SMALL, readable line so the creator can identify the video. This is the sole intentional English identification line. Keep it visually secondary to the localized headline, on a subtle high-contrast strip if necessary, with safe edge margins. Wrap into at most two small lines for a long title; never crop, silently abbreviate, mistranslate or omit the title. Do not add a second duplicate English title on the English thumbnail.
 - Arabic and Urdu must have correct connected letter shaping, right-to-left reading order and punctuation. Russian uses Cyrillic, Japanese normal kanji/kana and Hindi Devanagari. Check each rendered image at full resolution for exact spelling, missing letters, clipped text, accidental mixed languages and footer legibility.
 - Create a complete, separately specified thumbnail prompt for EACH selected language, stating its selected native hook, exact supporting text/labels if any, language-specific composition and exact small English footer text. Record the three hook candidates and why the chosen one fits the audience; keep these notes outside the ready-import script. Translation text/prompt files are not completed images. Generate separate original images when image tools are available; do not pass an English image with a translated filename off as localized artwork. Report missing/failed images honestly.
@@ -368,7 +342,7 @@ For multilingual batches, the number of DISTINCT thumbnail variants PER STORY an
 - Individual one-story workbook: `{SafeEnglishStoryTitle} {LanguageName}.xlsx`, inside its title-named story folder, one per selected language. These supplementary one-row workbooks contain exactly the same metadata as that story's row in the matching language's batch master workbook. Do not also produce unsuffixed duplicate one-story workbooks in multilingual mode.
 - Keep EXACTLY these six columns, in the existing order: video_id, filename, title, description, Tags, thumbnail. One row per selected story in each language's master workbook; exactly one row in each individual workbook. Keep filters, frozen headers, readable widths, wrapped descriptions and plain-text cells.
 - video_id: exact original ENGLISH story title, unchanged across languages, preserving identity.
-- filename: `{SafeEnglishStoryTitle} {LanguageName}.mp4`; thumbnail: `{SafeEnglishStoryTitle} {LanguageName}.png`. These multilingual fields override the older exact-video_id-plus-extension convention and must match the actual planned Windows-safe language-specific asset names. Do not translate the filename base.
+- filename: `{SafeEnglishStoryTitle} {LanguageName}.mp4`; thumbnail: `{SafeEnglishStoryTitle} {LanguageName}.{ActualImageExtension}`. These multilingual fields override the older exact-video_id-plus-extension convention and must match the actual planned Windows-safe language-specific asset names. Do not translate the filename base.
 - title: the exact original ENGLISH story/video title plus exactly THREE relevant ENGLISH hashtags. Keep this upload-title field in English for EVERY selected language; do not translate it or append the language name to the public title. This preserves the existing three-hashtag title convention. The language suffix belongs only in actual asset filenames. video_id remains the exact English title without added hashtags.
 - description: BILINGUAL DESCRIPTION — ENGLISH + SELECTED LANGUAGE. In EACH additional-language workbook, start with the naturally adapted local title as the FIRST LINE, followed by a concise native-language description; then a clearly separated English section with the original English title and an English description. Both sections must convey the same accurate topic, qualifications and viewer takeaway naturally, not contain mismatched claims or dictionary-like copy. Aim for approximately 200 words TOTAL across both sections, balanced for readability; Japanese uses comparable natural length, not artificial word spacing. Include one shared verified Sources: section with direct relevant URLs after BOTH language sections, then exactly TEN unique topic-relevant hashtags at the very end: FIVE English and FIVE in that selected language. Do not duplicate the same hashtag twice or scatter hashtags through the copy. An English workbook stays English-only and does not repeat the same description twice. Never invent sources or claims.
 - Tags: BILINGUAL TAG BUDGET — 4–5 ENGLISH + MAXIMUM 10 LOCAL TAGS. In each additional-language workbook, put 4 or 5 relevant English keyword phrases and at most 10 relevant native-language keyword phrases in ONE comma-separated Tags cell, with no # prefixes. Include useful native-language tags, but do not pad to ten or force exactly fifteen total tags. Prefer 4–5 concise native tags over irrelevant filler when appropriate. The ENTIRE final joined Tags cell MUST be <= 500 characters, INCLUDING commas, spaces, punctuation and both languages. Count the actual final exported cell after formatting; shorten long phrases or remove lower-priority local tags until it passes, keeping 4–5 English tags and useful native coverage. Do not split an otherwise over-limit list across extra cells or columns. English-only workbooks retain their 15-English-tag convention with the same 500-character hard ceiling. Keep the upload-title cell and its three hashtags English under the existing rule.
@@ -409,8 +383,8 @@ Before providing download links, verify:
 - Combined TXT contains all stories.
 - Combined Excel contains exactly one row per story.
 - Excel column names and order match the required six-column schema.
-- Every filename equals video_id + `.mp4`.
-- Every thumbnail field equals video_id + `.png`.
+- Every filename matches the actual filesystem-safe title-based export, including its additional-language suffix; video_id retains the exact original selected title. Check each language separately.
+- Every thumbnail field matches the actual title-based image filename, language suffix and extension; do not claim a PNG exists when only another format was generated.
 - Every SEO title includes exactly 3 relevant hashtags.
 - Every description contains approximately 200 words total, a relevant Sources section, and exactly 10 ending hashtags. Each additional-language row contains BOTH native and English description sections and five English plus five native ending hashtags; English-only rows do not duplicate English text.
 - Every additional-language Tags cell contains 4–5 English tags plus no more than 10 native-language tags. English-only rows retain exactly 15 relevant English tags. EVERY final cell is at most 500 characters INCLUDING separators; audit the actual exported cell, not only individual tag lengths. A row exceeding the tag-language counts or length ceiling fails delivery validation.
@@ -444,3 +418,7 @@ This V3 section supersedes conflicting older four-file packages, SEO_METADATA.tx
 NICHE-SPECIFIC SOURCE STANDARD
 Documentary/history/politics: primary archives, court records, government documents, official statistics, contemporary records and corroborated reputable reporting. Distinguish documented facts, allegations and analysis; verify changing events as of the stated date. Clearly label fictional stories and never invent archival evidence for them.
 [END COMPLETE STORY PACKAGE DELIVERY V3]
+
+DARK DOCUMENTARY STYLE AND WORKFLOW CHECK — APPLY THROUGHOUT THIS PROMPT
+All story visuals, environment references, thumbnails and localized graphics use this preset's grayscale flat/cel-shaded 2D reenactment illustration, ink-like contrast, subtle grain and investigative composition. Generic requests for 3D subjects, neon multicolour badges or colourful thumbnails do not apply. Preserve the functional synchronized label/badge/target emphasis, readable zoom-hold rhythm and pop/typewriter SFX using restrained monochrome rings, illustrated circular badges and evidence callouts. Never use a document-style overlay to fabricate evidence. Necessary text is allowed; narration subtitles remain excluded.
+Fixed-clip source word budgets and supported duration choices remain unchanged. In Full Voiceover First, translations preserve semantic visual beats while measured recordings determine each export's timing; do not promise identical exact runtimes or invent TTS measurements. Keep all explanatory audits outside the unchanged ready-import grammar. Filename validation uses actual safe title-based exports with language suffixes, never a literal unsanitized video_id requirement.

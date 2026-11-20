@@ -217,7 +217,7 @@ def replace_audio(source, output, cfg, work, report=None, aligned_speech_end=Non
         E.run(args+['-filter_complex',';'.join(filters),'-map','[voice]','-c:a','pcm_s16le',work/'narration_timeline.wav'])
     audio_map='[voice]'
     if keep_background and info['audio']:
-        gain=float(cfg.get('_background_gain',float(cfg.get('voiceover_background_volume',65))/100))
+        gain=float(cfg.get('_background_gain',float(cfg.get('voiceover_background_volume',52))/100))
         floor=max(0.,min(1.,float(cfg.get('voiceover_background_floor',75))/100))
         filters += ['[voice]asplit=2[narr][duck]',f'[0:a]volume={gain},asplit=2[bed][flex]',
             f'[bed]volume={floor}[floorbg]',f'[flex]volume={1-floor}[flexbg]',

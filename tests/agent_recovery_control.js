@@ -21,5 +21,25 @@ const inspect=require('../single_clip_omni_recovery').inspectProject;
   assert(result.exhaustive&&!result.unidentifiedSources);assert(result.found[1]&&result.found[2]);
  }
  assert.equal(gotos,0);assert.equal(closed,0);assert.equal(reuses,2,'cached source prompts survive both full confirmations');assert(reads>2);
+
+ let imageVisible=true;
+ const imageOnlyPage={
+  bringToFront:async()=>{},
+  waitForSelector:async selector=>{
+   if(!selector.includes('flow-image-tile'))throw Error(`Waiting for selector \`${selector}\` failed`);
+  },
+  evaluate:async fn=>{
+   if(fn.name==='metrics')return {top:0,client:600,scroll:600,visible:imageVisible};
+   if(fn.name==='tileSnapshot')return [];
+  },
+ };
+ const inspectImages=options=>inspect(engine,jobs,{}, {page:imageOnlyPage,sleep:async()=>{},...options});
+ await assert.rejects(()=>inspectImages({}),/Waiting for selector/);
+ const empty=await inspectImages({allowImageOnlyGrid:true});
+ assert.equal(empty.exhaustive,true);
+ assert.equal(empty.targetsVerified,false);
+ assert.deepEqual(empty.tiles,[]);
+ imageVisible=false;
+ assert.equal((await inspectImages({allowImageOnlyGrid:true})).exhaustive,false);
  console.log('PASS: two exhaustive checks use current tab, no navigation/new tabs, source reads cached; latest explicit refusal stops recovery, historical refusal cannot block a new accepted request.');
 })().catch(e=>{console.error(e);process.exitCode=1;});

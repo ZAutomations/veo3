@@ -305,6 +305,11 @@ def plan_action(action, p):
         if not p.get('_queueAccount'):
             account=active_account_details()
             if '@' not in str(account.get('email','')):raise ValueError('Save the active account Gmail in Accounts before using Generation only.')
+    if action == 'repair_english_voiceover':
+        import english_voiceover_repair, video_editing
+        body=dict(folder=p.get('repairEnglishFolder',''),provider=p.get('repairEnglishProvider','google'),voice=p.get('repairEnglishVoice','Orus'),editingSettings=video_editing.settings())
+        english_voiceover_repair.plan(body)
+        return 'dubbing', [('request', ('english_voiceover_repair.py',body))]
     if action == 'render_local_multilingual':
         import multilingual,video_editing,local_dubbing
         multi=multilingual.from_form(p) if 'multilingualEnabled' in p else multilingual.configuration(read_json(ROOT/'gui_settings.json').get('multilingual'))
@@ -1051,7 +1056,7 @@ class Job:
                 filename, request = spec
                 requestfile = ROOT / 'logs' / 'desktop' / (self.id + '.json')
                 save_json(requestfile, request)
-                python = editing_python(require_whisper=True) if filename in ('video_editing.py','multilingual.py','local_dubbing.py') else sys.executable
+                python = editing_python(require_whisper=True) if filename in ('video_editing.py','multilingual.py','local_dubbing.py','english_voiceover_repair.py') else sys.executable
                 kind, spec = 'cli', ([python, str(ROOT / filename), str(requestfile)] if filename.endswith('.py') else command(filename, requestfile))
             if kind == 'cli':
                 self.log('Starting ' + Path(spec[1]).name)
@@ -1207,7 +1212,7 @@ class Job:
 jobs = {}
 repair_active = False
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
-RETRY_ACTIONS = {'render_local_multilingual', 'render_multilingual', 'manual_jobs', 'reverse_video', 'write', 'import_script', 'finalize', 'generate', 'generate_queue', 'resume_generations', 'refs', 'download', 'order', 'join', 'fix_join', 'build', 'export_excel', 'retry_failed'}
+RETRY_ACTIONS = {'repair_english_voiceover','render_local_multilingual', 'render_multilingual', 'manual_jobs', 'reverse_video', 'write', 'import_script', 'finalize', 'generate', 'generate_queue', 'resume_generations', 'refs', 'download', 'order', 'join', 'fix_join', 'build', 'export_excel', 'retry_failed'}
 
 
 def repair_settings():

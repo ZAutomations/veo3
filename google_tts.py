@@ -1,13 +1,14 @@
 """Optional Gemini Cloud TTS using a service account; no Developer API fallback."""
-import base64,io,json,math,os,re,subprocess,tempfile,urllib.request,urllib.error
+import base64,hashlib,io,json,math,os,re,subprocess,tempfile,urllib.request,urllib.error
 from pathlib import Path
 from functools import partial
 from queue import Empty, Queue
-from threading import Thread
+from threading import Thread, local
 from heygen_audio import HeyGenNetworkError
 MODEL='gemini-3.1-flash-tts-preview'
 MAX_PACING_ATTEMPTS=4
 AUTH_TIMEOUT=20
+_AUTH_CACHE=local()
 SYNTHESIS_TIMEOUT=120
 VOICE_NAMES='Achernar Achird Algenib Algieba Alnilam Aoede Autonoe Callirrhoe Charon Despina Enceladus Erinome Fenrir Gacrux Iapetus Kore Laomedeia Leda Orus Puck Pulcherrima Rasalgethi Sadachbia Sadaltager Schedar Sulafat Umbriel Vindemiatrix Zephyr Zubenelgenubi'.split()
 LANGUAGES={'en':'en-US','ru':'ru-RU','ar':'ar-EG','hi':'hi-IN','ur':'ur-PK','es':'es-ES','fr':'fr-FR','de':'de-DE','ja':'ja-JP'}
@@ -68,11 +69,19 @@ def synthesize(voice,text,target,language=None,target_seconds=None,previous_dura
         from google.oauth2.service_account import Credentials
         from google.auth.transport.requests import Request
     except ImportError:raise ValueError('Google TTS needs google-auth[requests]; rerun setup to install updated editing requirements.') from None
-    file=service_account();data=json.loads(Path(file).read_text(encoding='utf-8-sig'))
+    file=service_account()
+    account_bytes=Path(file).read_bytes()
+    data=json.loads(account_bytes.decode('utf-8-sig'))
+    account_key=(file,hashlib.sha256(account_bytes).digest())
     try:
-        credentials=Credentials.from_service_account_info(data,scopes=['https://www.googleapis.com/auth/cloud-platform'])
-        print('Google TTS: authenticating the saved service account.',flush=True)
-        network_with_deadline(lambda: credentials.refresh(partial(Request(),timeout=AUTH_TIMEOUT)),AUTH_TIMEOUT,'authentication')
+        cached_key,credentials=getattr(_AUTH_CACHE,'entry',(None,None))
+        if cached_key!=account_key or not credentials.valid:
+            # Publish only after a successful refresh. A worker that times out
+            # can finish later without mutating the credentials in the cache.
+            credentials=Credentials.from_service_account_info(data,scopes=['https://www.googleapis.com/auth/cloud-platform'])
+            print('Google TTS: authenticating the saved service account.',flush=True)
+            network_with_deadline(lambda: credentials.refresh(partial(Request(),timeout=AUTH_TIMEOUT)),AUTH_TIMEOUT,'authentication')
+            _AUTH_CACHE.entry=(account_key,credentials)
     except Exception as exc:
         from google.auth.exceptions import TransportError
         if isinstance(exc,HeyGenNetworkError):raise

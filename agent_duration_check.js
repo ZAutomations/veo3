@@ -15,7 +15,13 @@ function assess(rows,expected,tolerance=0.35){
 }
 function markTile(tile){
  const store=window.__singleOmniTileKeys;
- const match=[...document.querySelectorAll('flow-video-tile')].find(t=>store?.keys.get(t)===tile.key&&[...t.querySelectorAll('video,source,img')].some(e=>(e.currentSrc||e.getAttribute('src')||e.getAttribute('poster')||'').includes('/'+tile.assetId)));
+ const match=[...document.querySelectorAll('flow-video-tile')].find(t=>{
+  if(!tile.assetId||store?.keys.get(t)!==tile.key)return false;
+  // Match the same source candidates and asset ID boundaries as inventory.
+  return [...t.querySelectorAll('video,source,img')].some(e=>
+   [e.currentSrc,e.getAttribute('src'),e.getAttribute('poster')].some(src=>
+    src?.match(/\/(?:video|image|asb)\/([^=?/#\s]+)/)?.[1]===tile.assetId));
+ });
  if(!match)return false;
  document.querySelectorAll('[data-veo-duration-target]').forEach(e=>e.removeAttribute('data-veo-duration-target'));
  match.setAttribute('data-veo-duration-target','active');return true;

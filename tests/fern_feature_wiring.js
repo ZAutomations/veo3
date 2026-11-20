@@ -1,0 +1,10 @@
+const assert=require('assert');const F=require('../fern_topic_visuals'),R=require('../fast_camera_rhythm'),X=require('../external_visual_contract');
+const story={preset_id:'fern-documentary',title:'Bridge investigation',style:'faceless matte 3D',scene_seconds:10,scenes:[]};
+const visual=X.forScene(story,{effect:'A bridge warning badge',sound:'SFX: popup and metal creak; BGM: low strings'},10);
+assert(visual.includes(F.ROUND_BADGES));
+for(const word of ['popup','typewriter','swoosh','travelling arc','target'])assert(visual.includes(word));
+assert(R.detailBeat(story).includes('2.0–2.8s'));
+assert(R.detailBeat(story).includes('never shorten'));
+assert(!R.detailBeat({preset_id:'3d-zack-style'}).includes('2.0–2.8s'));
+assert(require('fs').readFileSync(require('path').join(__dirname,'../fern_ready_script.js'),'utf8').includes('ROUND_BADGES'));
+console.log('PASS: Fern native and external prompt wiring, round animated badges/SFX and readable hold; Zack hold unchanged');

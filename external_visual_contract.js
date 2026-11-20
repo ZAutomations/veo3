@@ -55,7 +55,7 @@ function forScene(story,scene,seconds){
   require('./current_events_policy').split('\n').slice(0,2).join(' '),require('./prominent_people_policy').split('\n').slice(0,2).join(' ')];
  if(['3d-zack-style','intimacy-health-3d','cats-behavior-3d'].includes(id))lines.push(require('./zack_topic_visuals').CONTRACT,require('./zack_camera_transitions').DIRECTION,
   'ZACK FAMILY RENDERING: Preserve the selected preset/reference multicolour materials, dimensional lighting and topic-accurate physical/anatomical rendering. Use cutaways only for the supplied mechanism; no generic laboratory or cyan-only substitution. Characters retain their approved anatomy and proportions.');
- if(id==='fern-documentary')lines.push(require('./fern_topic_visuals').CONTRACT,require('./fern_topic_visuals').GRAPHICS);
+ if(id==='fern-documentary')lines.push(require('./fern_topic_visuals').CONTRACT,require('./fern_topic_visuals').GRAPHICS,require('./fern_topic_visuals').ROUND_BADGES);
  if(id==='world-politics-map-explain'){
   lines.push('WORLD POLITICS HYBRID: Honor the existing [MAP], [RECONSTRUCTION] and [EXPLAINER] markers independently. MAP uses accurate relief and visible physical assets; RECONSTRUCTION uses faceless matte 3D people in the actual setting; EXPLAINER uses editorial ink/vector diagrams on off-white. Preserve the supplied whole-story medium allocation; never turn every shot into a generic map or office. Use the source-supported facts, dates and uncertainty only.');
   const cues=require('./politics_visual_alignment').cues({script_line:scene.external_narration||scene.script_line||''},seconds);
