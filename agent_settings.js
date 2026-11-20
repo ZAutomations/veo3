@@ -163,6 +163,7 @@ async function applyAgentSettings(page, { videoModel = '', aspect = 'Flow', reso
     const ratio = String(aspect || 'Flow').trim();
     if (!['Flow', '16:9', '1:1', '9:16'].includes(ratio)) throw Error(`Unsupported video aspect ratio: ${ratio}`);
     if (!['Flow','360p','720p'].includes(resolution)) throw Error('Choose Flow, 360p or 720p for Agent resolution.');
+    if (await require('./agent_defaults').applyUnifiedDefaults(page,{videoModel,aspect:ratio,resolution,log})) return;
     if (!await openAgentSettings(page)) throw Error('Could not open verified Agent settings from the Agent composer. Generation stopped.');
     if (videoModel && !/^(flow|auto|default|none)$/i.test(videoModel)) {
         const result = await GR.setSectionModel(page, 'video', videoModel);

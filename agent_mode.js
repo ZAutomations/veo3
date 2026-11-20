@@ -386,7 +386,8 @@ function snapshotFn() {
 
     return {
         url: location.href,
-        agentOn: !!(chip && /checked/.test(cls(chip)))
+        agentOn: !!document.querySelector('button[aria-label="Flow Agent"][aria-pressed="true"]')
+            || !!(chip && /checked/.test(cls(chip)))
             || [...document.querySelectorAll('.agent-panel-prompt-box, .agent-panel-wrapper')]
                 .some(vis),
         chipClass: chip ? cls(chip) : null,
@@ -986,7 +987,8 @@ async function uploadRefThroughPicker(page, box, file) {
     if (!s.agentOn) {
         log('Turning Agent Mode ON...');
         const ok = await page.evaluate(() => {
-            const chip = document.querySelector('button.agent-mode-chip')
+            const chip = document.querySelector('button[aria-label="Flow Agent"]')
+                      || document.querySelector('button.agent-mode-chip')
                       || document.querySelector('flow-agent-mode-toggle-chip button');
             if (!chip) return false;
             chip.click();

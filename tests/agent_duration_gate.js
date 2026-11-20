@@ -95,6 +95,24 @@ const {assess,verifyDurationBeforeNaming}=require('../agent_duration_check'),{ru
   fs.unlinkSync(checkpoint);fs.writeFileSync(story,JSON.stringify({scene_seconds:10,scenes:Array.from({length:13},()=>({}))}));released.length=0;
   assert((await runAgentBatches({...options,clip_batch_size:2},story,sixRun,()=>{})).ok);
   assert.deepEqual(released,[[1,1],[2,13]],'all remaining scenes are released together even when saved batch size is smaller');
+  // Missing preview metadata gets one fresh audit, never another generation.
+  for(const mode of ['recovered','unknown','mismatch']){
+   fs.unlinkSync(checkpoint);let requests=0,submits=0;
+   const transientRun=async(arg,args)=>{
+    if(arg==='agent_duration_check.js'){
+     requests++;
+     if(mode==='mismatch')return {code:2,err:'CLIP_DURATION_MISMATCH: actual 4.00s'};
+     if(mode==='unknown'||requests===1)return {code:2,err:'RECOVERY_REVIEW_REQUIRED: CLIP_DURATION_UNVERIFIED: actual unverified'};
+     return {code:0};
+    }
+    if(typeof arg==='string'){fs.writeFileSync(args[args.indexOf('--out')+1],'prompt');return {code:0};}
+    submits++;return {ok:true,text:'ready'};
+   };
+   const outcome=await runAgentBatches(options,story,transientRun,()=>{});
+   assert.equal(outcome.ok,mode==='recovered');
+   assert.equal(submits,mode==='recovered'?2:1,'metadata recovery cannot replay a submitted batch');
+   assert.equal(requests,mode==='recovered'?3:mode==='unknown'?2:1,'only unknown metadata gets one extra audit');
+  }
   console.log('PASS: short/unknown clips cannot advance a checkpoint or release the next batch; old completed checkpoints are audited without regeneration; normal frame rounding accepted.');
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});

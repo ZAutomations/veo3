@@ -149,6 +149,8 @@ async function countTiles(page) {
 // Returns null when the chip is not on the page at all (not a project page).
 async function agentOn(page) {
     return await page.evaluate(() => {
+        const toggle = document.querySelector('button[aria-label="Flow Agent"]');
+        if (toggle && toggle.getBoundingClientRect().width) return toggle.getAttribute('aria-pressed') === 'true';
         const host = document.querySelector('flow-agent-mode-toggle-chip');
         if (!host) return null;
         if (/checked/.test(String(host.className))) return true;
@@ -171,7 +173,8 @@ async function setAgent(page, want) {
     if (now === want) return { ok: true, changed: false, why: 'already there' };
     const clicked = await page.evaluate(() => {
         const host = document.querySelector('flow-agent-mode-toggle-chip');
-        const b = host && (host.querySelector('button.agent-mode-chip') || host.querySelector('button'));
+        const b = document.querySelector('button[aria-label="Flow Agent"]')
+            || host && (host.querySelector('button.agent-mode-chip') || host.querySelector('button'));
         if (!b) return false;
         b.click();
         return true;

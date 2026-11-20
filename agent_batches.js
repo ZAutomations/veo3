@@ -137,10 +137,19 @@ async function runAgentBatches(a, storyJson, run, log) {
     const verifyDuration = async (from,to) => {
         const seconds = Number(a.scene_seconds||a.seconds||story.scene_seconds||8);
         log(`Checking actual Flow clip durations for scenes ${from}-${to} before advancing the checkpoint...`);
-        const audit=await run('agent_duration_check.js',['--story',storyJson,'--project',a.project_url,
+        const auditArgs=['--story',storyJson,'--project',a.project_url,
             '--from',String(from),'--to',String(to),'--seconds',String(a.scene_seconds||a.seconds||story.scene_seconds||8),
-            '--cdp',String(a.cdp||9222),'--out',stateFile+'.duration.json'],{timeoutMs:240000});
-        const detail=audit.err||audit.out||'No verified duration result.';
+            '--cdp',String(a.cdp||9222),'--out',stateFile+'.duration.json'];
+        let audit=await run('agent_duration_check.js',auditArgs,{timeoutMs:240000});
+        let detail=audit.err||audit.out||'No verified duration result.';
+        // Missing preview metadata is transient, never proof of a short clip.
+        // Reopen a fresh audit page once; do not replay generation or relax identity.
+        if(audit.code!==0 && /CLIP_DURATION_UNVERIFIED:/.test(detail)
+            && !/CLIP_DURATION_MISMATCH|SCENE_NAMING_FAILED|SCENE_ASSET_AMBIGUITY/.test(detail)){
+            log('Preview metadata was unavailable. Rechecking only durations once in a fresh audit tab; completed clips are preserved and no generation is submitted.');
+            audit=await run('agent_duration_check.js',auditArgs,{timeoutMs:240000});
+            detail=audit.err||audit.out||'No verified duration result.';
+        }
         // A grid that failed to mount gives no new duration evidence. Only a
         // completed download continuation may reuse the last full verified audit.
         if (a._resume_download && audit.code === 2 && /^Waiting for selector `flow-video-tile` failed\.?$/i.test(detail.trim())

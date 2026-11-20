@@ -84,7 +84,8 @@ function scanFn() {
 
     return {
         url: location.href,
-        agentOn: !!(chip && /checked/.test(cls(chip))),
+        agentOn: !!document.querySelector('button[aria-label="Flow Agent"][aria-pressed="true"]')
+            || !!(chip && /checked/.test(cls(chip))),
         promptText: pm ? (pm.innerText || '').slice(0, 600) : null,
         overlays: [...document.querySelectorAll('.cdk-overlay-pane')].filter(vis).length,
         buttons,
